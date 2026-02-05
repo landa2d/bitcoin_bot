@@ -1,0 +1,39 @@
+{
+  "name": "safety-skill",
+  "version": "1.0.0",
+  "description": "Core safety guardrails for OpenClaw agents",
+  "author": "Bitcoin Bot Project",
+  "skillType": "core",
+  "priority": "high",
+  "loadOrder": 1,
+  "capabilities": [
+    "moderation",
+    "rate_limiting",
+    "approval_workflow",
+    "input_sanitization",
+    "emergency_controls",
+    "logging"
+  ],
+  "requiredEnv": [
+    "OPENAI_API_KEY"
+  ],
+  "optionalEnv": [
+    "ENABLE_MODERATION",
+    "MAX_POSTS_PER_HOUR",
+    "MAX_COMMENTS_PER_HOUR",
+    "REQUIRE_POST_APPROVAL",
+    "WALLET_APPROVAL_THRESHOLD_SATS"
+  ],
+  "files": [
+    "SKILL.md"
+  ],
+  "hooks": {
+    "beforePost": true,
+    "beforePayment": true,
+    "beforeSkillInstall": true,
+    "onExternalInput": true
+  },
+  "permissions": [
+    "http:api.openai.com"
+  ]
+}

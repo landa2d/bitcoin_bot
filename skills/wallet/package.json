@@ -1,0 +1,38 @@
+{
+  "name": "lightning-wallet-skill",
+  "version": "1.0.0",
+  "description": "Bitcoin Lightning wallet integration via LNbits",
+  "author": "Bitcoin Bot Project",
+  "skillType": "financial",
+  "capabilities": [
+    "balance",
+    "receive",
+    "send",
+    "history"
+  ],
+  "requiredEnv": [
+    "LNBITS_URL",
+    "LNBITS_INVOICE_KEY"
+  ],
+  "optionalEnv": [
+    "LNBITS_ADMIN_KEY",
+    "WALLET_DAILY_LIMIT_SATS",
+    "WALLET_APPROVAL_THRESHOLD_SATS"
+  ],
+  "files": [
+    "SKILL.md",
+    "HEARTBEAT.md"
+  ],
+  "heartbeat": {
+    "enabled": true,
+    "intervalMinutes": 60
+  },
+  "permissions": [
+    "http:legend.lnbits.com",
+    "financial:spend"
+  ],
+  "approvalRequired": {
+    "send": true,
+    "threshold": 1000
+  }
+}

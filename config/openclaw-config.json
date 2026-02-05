@@ -1,0 +1,51 @@
+{
+  "agent": {
+    "name": "${AGENT_NAME}",
+    "description": "${AGENT_DESCRIPTION}"
+  },
+  "llm": {
+    "provider": "openai",
+    "model": "${OPENAI_MODEL}",
+    "maxTokens": 4096,
+    "temperature": 0.7
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "${TELEGRAM_BOT_TOKEN}",
+      "ownerId": "${TELEGRAM_OWNER_ID}"
+    }
+  },
+  "skills": {
+    "directory": "/home/openclaw/skills",
+    "autoLoad": true
+  },
+  "memory": {
+    "persistent": true,
+    "directory": "/home/openclaw/.openclaw/memory"
+  },
+  "safety": {
+    "requireApproval": {
+      "posts": true,
+      "payments": true,
+      "skillInstall": true
+    },
+    "rateLimits": {
+      "postsPerHour": 5,
+      "commentsPerHour": 10,
+      "paymentsPerDay": 10
+    },
+    "moderation": {
+      "enabled": true,
+      "useOpenAIModerationAPI": true
+    }
+  },
+  "heartbeat": {
+    "enabled": true,
+    "intervalMinutes": 60
+  },
+  "logging": {
+    "level": "${LOG_LEVEL}",
+    "file": "/home/openclaw/.openclaw/logs/agent.log"
+  }
+}

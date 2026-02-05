@@ -1,0 +1,32 @@
+# Git ignore rules are in .gitignore (this file is a backup reference).
+# Environment files with secrets
+.env
+*.env
+config/.env
+
+# Data directory (contains agent memory and state)
+data/
+
+# Node modules (if running locally)
+node_modules/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+docker-compose.override.yml
+
+# Temporary files
+*.tmp
+*.temp

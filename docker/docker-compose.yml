@@ -1,0 +1,90 @@
+# OpenClaw Bitcoin Agent - Docker Compose Configuration
+# Secure, isolated environment for running the autonomous agent
+
+services:
+  openclaw-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: openclaw-bitcoin-agent
+    restart: unless-stopped
+    
+    # Security: Run as non-root (already set in Dockerfile)
+    # security_opt:
+    #   - no-new-privileges:true
+    
+    # Resource limits to prevent runaway processes
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+    
+    # Memory limit (for non-Swarm docker-compose)
+    mem_limit: 4g
+    
+    # Environment variables from .env file
+    env_file:
+      - ../config/.env
+    
+    # Additional environment variables
+    environment:
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=3584
+      - OPENCLAW_DATA_DIR=/home/openclaw/.openclaw
+      - OPENCLAW_SKILLS_DIR=/home/openclaw/skills
+      # Gateway configuration
+      - OPENCLAW_GATEWAY_TOKEN=local-dev-token-12345
+      - OPENCLAW_GATEWAY_MODE=local
+      # Model configuration - use OpenAI
+      - OPENCLAW_MODEL=openai/gpt-4o
+      - OPENCLAW_DEFAULT_MODEL=openai/gpt-4o
+      # Logging level
+      - LOG_LEVEL=info
+    
+    # Volume mounts for persistent data
+    volumes:
+      # Agent data and memory persistence
+      - ../data/openclaw:/home/openclaw/.openclaw
+      # Custom skills (Moltbook, Wallet, etc.)
+      - ../skills:/home/openclaw/skills:ro
+      # Config files (read-only for security)
+      - ../config/persona.md:/home/openclaw/persona.md:ro
+      # OpenClaw configuration template
+      - ../config/openclaw-config.json:/home/openclaw/.openclaw/config/openclaw-config.json:ro
+      # Environment requirements schema (read-only)
+      - ../config/env.schema.json:/home/openclaw/.openclaw/config/env.schema.json:ro
+      # AgentPulse configuration
+      - ../config/agentpulse-config.json:/home/openclaw/.openclaw/config/agentpulse-config.json:ro
+      # Moltbook watcher script (mount to override image version until upstream fix)
+      - ./moltbook_post_watcher.sh:/home/openclaw/moltbook_post_watcher.sh:ro
+    
+    # Network configuration - isolated bridge network
+    networks:
+      - openclaw-network
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# Isolated network for the agent
+networks:
+  openclaw-network:
+    driver: bridge
+    # Network isolation - only allow specific outbound connections
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "false"

@@ -1,0 +1,32 @@
+{
+  "name": "moltbook-skill",
+  "version": "1.0.0",
+  "description": "Moltbook integration skill for OpenClaw agents",
+  "author": "Bitcoin Bot Project",
+  "skillType": "integration",
+  "capabilities": [
+    "social",
+    "posting",
+    "commenting",
+    "reading"
+  ],
+  "requiredEnv": [
+    "MOLTBOOK_API_TOKEN"
+  ],
+  "optionalEnv": [
+    "MAX_POSTS_PER_HOUR",
+    "MAX_COMMENTS_PER_HOUR"
+  ],
+  "files": [
+    "SKILL.md",
+    "HEARTBEAT.md",
+    "MESSAGING.md"
+  ],
+  "heartbeat": {
+    "enabled": true,
+    "intervalMinutes": 60
+  },
+  "permissions": [
+    "http:moltbook.com"
+  ]
+}

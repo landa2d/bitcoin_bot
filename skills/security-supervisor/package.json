@@ -1,0 +1,43 @@
+{
+  "name": "security-supervisor-skill",
+  "version": "1.0.0",
+  "description": "Security supervisor: env requirements, secret redaction, threat watch, and owner approvals",
+  "author": "Bitcoin Bot Project",
+  "skillType": "core",
+  "priority": "high",
+  "loadOrder": 0,
+  "capabilities": [
+    "env_validation",
+    "secrets_hygiene",
+    "threat_detection",
+    "approval_workflow",
+    "audit_reporting"
+  ],
+  "requiredEnv": [],
+  "optionalEnv": [
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_OWNER_ID",
+    "SUPERVISOR_ALLOWED_DOMAINS",
+    "SUPERVISOR_STATUS_INTERVAL_HOURS"
+  ],
+  "files": [
+    "SKILL.md",
+    "HEARTBEAT.md"
+  ],
+  "heartbeat": {
+    "enabled": true,
+    "intervalMinutes": 60
+  },
+  "hooks": {
+    "beforePost": true,
+    "beforePayment": true,
+    "beforeSkillInstall": true,
+    "onExternalInput": true,
+    "beforeHttpRequest": true
+  },
+  "permissions": [
+    "http:api.telegram.org",
+    "file:/home/openclaw/.openclaw/logs"
+  ]
+}
+

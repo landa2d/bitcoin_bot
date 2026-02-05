@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "pipelines": {
+    "scrape": {
+      "enabled": true,
+      "interval_hours": 6,
+      "submolts": ["bitcoin", "agents", "ai", "tech", "general"],
+      "posts_per_submolt": 50,
+      "include_comments": true
+    },
+    "opportunity_finder": {
+      "enabled": true,
+      "interval_hours": 12,
+      "min_problem_frequency": 2,
+      "cluster_similarity_threshold": 0.75,
+      "top_opportunities_count": 5
+    }
+  },
+  "notifications": {
+    "telegram": {
+      "on_new_opportunity": true,
+      "daily_digest": true,
+      "digest_hour": 9
+    }
+  },
+  "analysis": {
+    "model": "gpt-4o",
+    "max_tokens": 4000,
+    "temperature": 0.3
+  }
+}
