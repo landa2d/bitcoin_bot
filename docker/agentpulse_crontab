@@ -1,0 +1,14 @@
+# AgentPulse Scheduled Tasks
+# Installed by entrypoint.sh when AGENTPULSE_ENABLED=true
+
+# Moltbook scraping every 6 hours (at minute 0)
+0 */6 * * * /home/openclaw/agentpulse_cron.sh scrape
+
+# Full analysis every 12 hours (at minute 15)
+15 */12 * * * /home/openclaw/agentpulse_cron.sh analyze
+
+# Daily digest at 9 AM UTC (at minute 0)
+0 9 * * * /home/openclaw/agentpulse_cron.sh digest
+
+# Cleanup at 3 AM UTC daily
+0 3 * * * /home/openclaw/agentpulse_cron.sh cleanup

@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    cron \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm globally
@@ -67,6 +68,11 @@ RUN pip3 install --break-system-packages -r /home/openclaw/requirements-agentpul
 # Copy AgentPulse processor
 COPY --chown=openclaw:openclaw agentpulse_processor.py /home/openclaw/agentpulse_processor.py
 RUN chmod +x /home/openclaw/agentpulse_processor.py
+
+# Copy AgentPulse cron scripts
+COPY --chown=openclaw:openclaw agentpulse_cron.sh /home/openclaw/agentpulse_cron.sh
+RUN chmod +x /home/openclaw/agentpulse_cron.sh
+COPY agentpulse_crontab /home/openclaw/agentpulse_crontab
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

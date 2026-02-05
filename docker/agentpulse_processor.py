@@ -21,6 +21,8 @@ from typing import Optional
 import argparse
 
 import httpx
+import schedule
+import threading
 from openai import OpenAI
 from supabase import create_client, Client
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -644,6 +646,92 @@ def send_telegram(message: str):
         logger.error(f"Telegram send failed: {e}")
 
 # ============================================================================
+# Scheduled Tasks
+# ============================================================================
+
+def scheduled_scrape():
+    """Scheduled Moltbook scraping task."""
+    logger.info("Running scheduled scrape...")
+    try:
+        result = scrape_moltbook()
+        logger.info(f"Scheduled scrape completed: {result}")
+        send_telegram(f"🔄 AgentPulse scrape: {result.get('total_new', 0)} new posts")
+    except Exception as e:
+        logger.error(f"Scheduled scrape failed: {e}")
+
+def scheduled_analyze():
+    """Scheduled analysis task."""
+    logger.info("Running scheduled analysis...")
+    try:
+        extract_result = extract_problems()
+        opp_result = generate_opportunities()
+        logger.info(f"Scheduled analysis completed: problems={extract_result}, opportunities={opp_result}")
+        
+        problems_found = extract_result.get('problems_found', 0)
+        opps_generated = opp_result.get('opportunities_generated', 0)
+        if problems_found > 0 or opps_generated > 0:
+            send_telegram(f"🎯 AgentPulse analysis: {problems_found} problems, {opps_generated} opportunities")
+    except Exception as e:
+        logger.error(f"Scheduled analysis failed: {e}")
+
+def scheduled_digest():
+    """Send daily digest via Telegram."""
+    logger.info("Running scheduled digest...")
+    try:
+        opps = get_current_opportunities(limit=5, min_score=0.3)
+        if opps.get('opportunities'):
+            digest = "📊 *AgentPulse Daily Digest*\n\n"
+            for i, opp in enumerate(opps['opportunities'][:5], 1):
+                title = opp.get('title', 'Untitled')
+                score = opp.get('confidence_score', 0)
+                digest += f"{i}. *{title}* ({int(score*100)}%)\n"
+            send_telegram(digest)
+        else:
+            logger.info("No opportunities for digest")
+    except Exception as e:
+        logger.error(f"Scheduled digest failed: {e}")
+
+def scheduled_cleanup():
+    """Clean up old files and data."""
+    logger.info("Running scheduled cleanup...")
+    try:
+        # Clean old response files (older than 7 days)
+        cutoff = datetime.now() - timedelta(days=7)
+        for f in RESPONSES_DIR.glob('*.json'):
+            if datetime.fromtimestamp(f.stat().st_mtime) < cutoff:
+                f.unlink()
+                logger.info(f"Cleaned up old response: {f.name}")
+        
+        # Clean old cache files
+        for f in CACHE_DIR.glob('*.jsonl'):
+            if datetime.fromtimestamp(f.stat().st_mtime) < cutoff:
+                f.unlink()
+                logger.info(f"Cleaned up old cache: {f.name}")
+    except Exception as e:
+        logger.error(f"Scheduled cleanup failed: {e}")
+
+def setup_scheduler():
+    """Set up scheduled tasks."""
+    # Get intervals from environment or use defaults
+    scrape_interval = int(os.getenv('AGENTPULSE_SCRAPE_INTERVAL_HOURS', '6'))
+    analysis_interval = int(os.getenv('AGENTPULSE_ANALYSIS_INTERVAL_HOURS', '12'))
+    
+    # Schedule tasks
+    schedule.every(scrape_interval).hours.do(scheduled_scrape)
+    schedule.every(analysis_interval).hours.do(scheduled_analyze)
+    schedule.every().day.at("09:00").do(scheduled_digest)
+    schedule.every().day.at("03:00").do(scheduled_cleanup)
+    
+    logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h")
+    logger.info("Daily digest at 09:00 UTC, cleanup at 03:00 UTC")
+
+def run_scheduler():
+    """Run the scheduler in a background thread."""
+    while True:
+        schedule.run_pending()
+        time.sleep(60)  # Check every minute
+
+# ============================================================================
 # Main
 # ============================================================================
 
@@ -652,6 +740,7 @@ def main():
     parser.add_argument('--task', choices=['scrape', 'analyze', 'opportunities', 'digest', 'cleanup', 'queue', 'watch'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
+    parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
     args = parser.parse_args()
     
     init_clients()
@@ -669,10 +758,33 @@ def main():
         result = get_current_opportunities()
         print(json.dumps(result, indent=2))
     
+    elif args.task == 'digest':
+        scheduled_digest()
+    
+    elif args.task == 'cleanup':
+        scheduled_cleanup()
+    
     elif args.task == 'queue':
         process_queue()
     
     elif args.task == 'watch':
+        logger.info("Starting AgentPulse processor...")
+        
+        # Set up and start scheduler in background thread (unless disabled)
+        if not args.no_schedule:
+            setup_scheduler()
+            scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+            scheduler_thread.start()
+            logger.info("Scheduler thread started")
+            
+            # Run initial scrape on startup
+            logger.info("Running initial scrape on startup...")
+            try:
+                scheduled_scrape()
+            except Exception as e:
+                logger.error(f"Initial scrape failed: {e}")
+        
+        # Main queue watching loop
         logger.info("Starting queue watcher...")
         while True:
             process_queue()
