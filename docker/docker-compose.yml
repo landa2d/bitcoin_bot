@@ -65,6 +65,8 @@ services:
       <<: *common-env
       AGENT_NAME: analyst
       ANALYST_POLL_INTERVAL: "10"
+      TELEGRAM_BOT_TOKEN: ""
+      TELEGRAM_OWNER_ID: ""
       NODE_ENV: production
       NODE_OPTIONS: --max-old-space-size=1536
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
