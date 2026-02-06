@@ -1,7 +1,7 @@
 # OpenClaw Analyst — Headless analysis worker
 # OpenClaw + Python for analysis tasks, no Telegram
 
-FROM node:20-slim
+FROM node:22-slim
 
 # Install system dependencies including Python for analysis
 RUN apt-get update && apt-get install -y \
