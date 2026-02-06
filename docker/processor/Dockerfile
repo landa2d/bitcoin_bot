@@ -16,8 +16,14 @@ RUN pip install --no-cache-dir -r /home/openclaw/requirements.txt
 COPY --chown=openclaw:openclaw agentpulse_processor.py /home/openclaw/agentpulse_processor.py
 RUN chmod +x /home/openclaw/agentpulse_processor.py
 
+# Pre-create directories that the processor needs to write to.
+# Volume mounts may create parent dirs as root, so we ensure openclaw owns them.
+RUN mkdir -p /home/openclaw/.openclaw/logs \
+             /home/openclaw/.openclaw/workspace/agentpulse/queue/responses \
+             /home/openclaw/.openclaw/workspace/agentpulse/opportunities \
+             /home/openclaw/.openclaw/workspace/agentpulse/cache \
+    && chown -R openclaw:openclaw /home/openclaw/.openclaw
+
 # Switch to non-root user
 USER openclaw
-
-# Workspace dirs are created by the shared volume mount and/or the processor script itself
 CMD ["python3", "/home/openclaw/agentpulse_processor.py", "--task", "watch"]
