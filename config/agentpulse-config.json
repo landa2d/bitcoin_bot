@@ -11,7 +11,7 @@
     "opportunity_finder": {
       "enabled": true,
       "interval_hours": 12,
-      "min_problem_frequency": 2,
+      "min_problem_frequency": 1,
       "cluster_similarity_threshold": 0.75,
       "top_opportunities_count": 5
     }

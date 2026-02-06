@@ -582,6 +582,30 @@ def execute_task(task: dict) -> dict:
     elif task_type == 'status':
         return get_status()
     
+    elif task_type == 'create_agent_task':
+        # Gato (or another agent) asks processor to create a task for delegation
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        new_task = supabase.table('agent_tasks').insert({
+            'task_type': params['task_type'],
+            'assigned_to': params.get('assigned_to', 'analyst'),
+            'created_by': params.get('created_by', 'gato'),
+            'input_data': params.get('input_data', {}),
+            'priority': params.get('priority', 5)
+        }).execute()
+        return {'task_created': new_task.data[0]['id'] if new_task.data else None}
+    
+    elif task_type == 'check_task':
+        # Check the status of an existing agent_task
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        task_record = supabase.table('agent_tasks')\
+            .select('*')\
+            .eq('id', params['task_id'])\
+            .single()\
+            .execute()
+        return task_record.data
+    
     else:
         return {'error': f'Unknown task: {task_type}'}
 
@@ -622,6 +646,75 @@ def get_status() -> dict:
             pass
     
     return status
+
+# ============================================================================
+# Database Task Processing (Multi-Agent)
+# ============================================================================
+
+def process_db_tasks(agent_name: str = 'analyst'):
+    """Process pending tasks from the agent_tasks Supabase table."""
+    if not supabase:
+        return
+    
+    try:
+        tasks = supabase.table('agent_tasks')\
+            .select('*')\
+            .eq('status', 'pending')\
+            .eq('assigned_to', agent_name)\
+            .order('priority', desc=False)\
+            .order('created_at', desc=False)\
+            .limit(5)\
+            .execute()
+    except Exception as e:
+        logger.error(f"[{agent_name}] Failed to fetch tasks: {e}")
+        return
+    
+    for task in tasks.data or []:
+        task_id = task['id']
+        task_type = task.get('task_type', 'unknown')
+        logger.info(f"[{agent_name}] Processing task {task_id}: {task_type}")
+        
+        try:
+            # Mark in progress
+            supabase.table('agent_tasks').update({
+                'status': 'in_progress',
+                'started_at': datetime.utcnow().isoformat()
+            }).eq('id', task_id).execute()
+            
+            # Execute using existing task router
+            result = execute_task({
+                'task': task_type,
+                'params': task.get('input_data', {})
+            })
+            
+            # Write file-based response too (backward compat for Gato)
+            response_file = RESPONSES_DIR / f"task_{task_id}.result.json"
+            response_file.write_text(json.dumps({
+                'success': True,
+                'task': task_type,
+                'result': result,
+                'completed_at': datetime.utcnow().isoformat()
+            }, indent=2))
+            
+            # Mark completed in DB
+            supabase.table('agent_tasks').update({
+                'status': 'completed',
+                'completed_at': datetime.utcnow().isoformat(),
+                'output_data': result
+            }).eq('id', task_id).execute()
+            
+            logger.info(f"[{agent_name}] Task {task_id} completed")
+        
+        except Exception as e:
+            logger.error(f"[{agent_name}] Task {task_id} failed: {e}")
+            try:
+                supabase.table('agent_tasks').update({
+                    'status': 'failed',
+                    'completed_at': datetime.utcnow().isoformat(),
+                    'error_message': str(e)
+                }).eq('id', task_id).execute()
+            except Exception as update_err:
+                logger.error(f"[{agent_name}] Failed to update task {task_id} status: {update_err}")
 
 # ============================================================================
 # Telegram Notifications
@@ -737,7 +830,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'opportunities', 'digest', 'cleanup', 'queue', 'watch'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'opportunities', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -770,12 +863,9 @@ def main():
     elif args.task == 'watch':
         logger.info("Starting AgentPulse processor...")
         
-        # Set up and start scheduler in background thread (unless disabled)
+        # Set up scheduler (unless disabled)
         if not args.no_schedule:
             setup_scheduler()
-            scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
-            scheduler_thread.start()
-            logger.info("Scheduler thread started")
             
             # Run initial scrape on startup
             logger.info("Running initial scrape on startup...")
@@ -784,10 +874,13 @@ def main():
             except Exception as e:
                 logger.error(f"Initial scrape failed: {e}")
         
-        # Main queue watching loop
-        logger.info("Starting queue watcher...")
+        # Main loop: file queue + DB tasks + scheduled tasks
+        logger.info("Starting queue watcher (multi-agent mode)...")
         while True:
-            process_queue()
+            process_queue()                   # legacy file-based queue
+            process_db_tasks('analyst')       # analyst tasks from agent_tasks table
+            process_db_tasks('processor')     # processor-specific tasks
+            schedule.run_pending()            # scheduled scrape/analyze/digest/cleanup
             time.sleep(5)
     
     else:

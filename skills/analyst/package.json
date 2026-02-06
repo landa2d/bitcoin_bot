@@ -1,0 +1,7 @@
+{
+  "name": "analyst",
+  "version": "1.0.0",
+  "description": "Analyst agent skills for AgentPulse intelligence work",
+  "skills": ["analyst"],
+  "author": "AgentPulse"
+}

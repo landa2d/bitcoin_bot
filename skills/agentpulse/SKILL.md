@@ -80,6 +80,8 @@ When users send these commands, trigger the appropriate AgentPulse task:
 | `/pulse-status` | Get AgentPulse system status |
 | `/problem [category]` | Search problems by category |
 
+Important: Treat `/pulse-status`, `/scan`, and `/opportunities` as real commands. Do not reply that the command is missing or not set up. Always trigger the AgentPulse queue.
+
 ## Response Format
 
 When reporting opportunities to users, use this format:

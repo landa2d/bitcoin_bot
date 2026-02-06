@@ -35,11 +35,15 @@ AgentPulse is an intelligence layer added to the existing Gato OpenClaw agent th
 | Decision | Choice |
 |----------|--------|
 | Processor language | Python |
-| Triggering | Scheduled (cron) + Manual (Telegram) |
+| Triggering | Scheduled (Python `schedule` library) + Manual (Telegram) |
 | Moltbook fetching | Hybrid (file queue for agent actions, direct API for bulk scraping) |
-| Agent identity | Single identity (Gato) with analyst mode |
+| Agent identity | Single identity (**gato**) with analyst mode |
 | Database | Supabase (new project) |
+| LLM providers | Anthropic (via OpenClaw) + OpenAI (for analysis) |
+| Auth store | OpenClaw `auth-profiles.json` (see Section 3) |
 | MVP Priority | Pipeline 1: Opportunity Finder |
+
+> **Note:** The "Lloyd" agent was removed. Only the **gato** agent is active.
 
 ---
 
@@ -92,11 +96,12 @@ AgentPulse is an intelligence layer added to the existing Gato OpenClaw agent th
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           SCHEDULED TASKS (cron)                             │
+│                     SCHEDULED TASKS (Python `schedule` library)               │
 │                                                                              │
 │   Every 6 hours: Scrape Moltbook → Store in Supabase                        │
 │   Every 12 hours: Run Pipeline 1 (Opportunity Finder)                        │
 │   Daily 9 AM: Send opportunity digest via Telegram                           │
+│   Daily 3 AM: Cleanup old queue files, archive stale data                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -183,6 +188,35 @@ When running AgentPulse analysis tasks:
 Your analysis helps Bitcoiners understand the emerging agent economy.
 Think of yourself as an intelligence analyst who happens to be a Bitcoin maxi.
 ```
+
+### OpenClaw Auth Configuration (`auth-profiles.json`)
+
+OpenClaw stores LLM provider API keys in `auth-profiles.json`, located at:
+
+```
+data/openclaw/agents/main/agent/auth-profiles.json
+```
+
+**Required format** — OpenClaw expects a `profiles` object; top-level keys are ignored:
+
+```json
+{
+  "profiles": {
+    "anthropic": {
+      "provider": "anthropic",
+      "type": "api_key",
+      "key": "sk-ant-api03-..."
+    },
+    "openai": {
+      "provider": "openai",
+      "type": "api_key",
+      "key": "sk-..."
+    }
+  }
+}
+```
+
+> **Common Pitfall:** An earlier format used `{"anthropic": {"apiKey": "..."}}` which OpenClaw silently ignores, resulting in "No API key found" errors. Always use the `profiles` wrapper with `type: "api_key"` and `key`.
 
 ### Environment Variables (New)
 
@@ -1655,17 +1689,19 @@ if [ "$AGENTPULSE_ENABLED" = "true" ]; then
 fi
 ```
 
-### Step 6: Add Cron Jobs
+### Step 6: Scheduled Tasks
 
-Create `docker/agentpulse_cron` and add to Dockerfile:
+> **Note:** System cron was abandoned because the container runs as a non-root user.  
+> Scheduling is handled by the Python `schedule` library inside `agentpulse_processor.py`.
 
-```
-# Moltbook scraping every 6 hours
-0 */6 * * * python3 /home/openclaw/agentpulse_processor.py --task scrape >> /home/openclaw/.openclaw/logs/agentpulse_cron.log 2>&1
+The processor's `--task watch` mode starts a loop that:
+- Processes queue tasks every 5 seconds
+- Runs scrape every 6 hours
+- Runs analysis every 12 hours
+- Sends a digest at 9:00 AM
+- Runs cleanup at 3:00 AM
 
-# Full analysis every 12 hours
-0 */12 * * * python3 /home/openclaw/agentpulse_processor.py --task analyze >> /home/openclaw/.openclaw/logs/agentpulse_cron.log 2>&1
-```
+No separate crontab or cron daemon is needed.
 
 ### Step 7: Rebuild and Deploy
 
@@ -1704,12 +1740,17 @@ docker exec openclaw-bitcoin-agent python3 /home/openclaw/agentpulse_processor.p
 
 ### How Gato Handles Commands
 
-When Gato receives these commands, he should:
+Commands are wired in two places:
 
-1. Write task file to `workspace/agentpulse/queue/`
-2. Tell user "Running analysis, please wait..."
-3. Poll `workspace/agentpulse/queue/responses/` for result
-4. Format and send result to user
+1. **`skills/agentpulse/SKILL.md`** — Describes the queue system, task JSON formats, and response format
+2. **`data/openclaw/workspace/AGENTS.md`** — Explicit instructions for the agent to handle `/pulse-status`, `/opportunities`, and `/scan` by writing to the queue
+
+When Gato receives these commands, he:
+
+1. Writes a task JSON file to `workspace/agentpulse/queue/`
+2. Tells the user "Running analysis, please wait..."
+3. Polls `workspace/agentpulse/queue/responses/` for the result
+4. Reads the result file and formats the response for Telegram
 
 Example flow for `/opportunities`:
 
