@@ -24,7 +24,7 @@ services:
       <<: *common-env
       AGENT_NAME: gato
       NODE_ENV: production
-      NODE_OPTIONS: --max-old-space-size=384
+      NODE_OPTIONS: --max-old-space-size=1536
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
       OPENCLAW_SKILLS_DIR: /home/openclaw/skills
       OPENCLAW_GATEWAY_MODE: local
@@ -66,7 +66,7 @@ services:
       AGENT_NAME: analyst
       ANALYST_POLL_INTERVAL: "10"
       NODE_ENV: production
-      NODE_OPTIONS: --max-old-space-size=384
+      NODE_OPTIONS: --max-old-space-size=1536
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
       OPENCLAW_SKILLS_DIR: /home/openclaw/skills
       OPENCLAW_GATEWAY_MODE: local

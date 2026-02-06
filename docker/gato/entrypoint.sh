@@ -116,10 +116,9 @@ fi
 # NOTE: AgentPulse processor now runs as a separate Docker service (processor container).
 # It is no longer started here via nohup.
 
-# Run doctor to fix any configuration issues
-cd /app
-echo "Running OpenClaw doctor..."
-pnpm run openclaw doctor --fix 2>/dev/null || echo "Doctor fix completed or skipped"
+# NOTE: Skipping 'doctor --fix' — it triggers a full tsdown rebuild at runtime
+# which is expensive and unnecessary (the image is pre-built).
+# If you need to run doctor, do it manually: docker exec openclaw-gato pnpm run openclaw doctor --fix
 
 # Start OpenClaw gateway (the main agent service)
 echo "Starting OpenClaw gateway..."
