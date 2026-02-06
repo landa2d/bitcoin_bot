@@ -35,11 +35,11 @@ echo "============================================"
 echo "  Starting analyst loop..."
 echo "============================================"
 
-# Start OpenClaw in headless mode (no Telegram)
-# The analyst polls agent_tasks and processes analysis work.
+# Start OpenClaw gateway for the analyst agent (headless — no Telegram token configured)
+# Without TELEGRAM_BOT_TOKEN, the gateway runs without a Telegram provider.
 #
-# NOTE: If --headless isn't supported by OpenClaw, this will need to be
-# replaced with a Python polling loop that processes agent_tasks directly.
+# NOTE: If a true headless/worker mode is needed later, this can be replaced
+# with a Python polling loop that processes agent_tasks directly.
 # See AGENTPULSE_MULTIAGENT_PLAN_v2.md Phase 3C for the fallback.
 cd /app
-exec pnpm run openclaw start --agent analyst --headless
+exec pnpm run openclaw gateway --allow-unconfigured
