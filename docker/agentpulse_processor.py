@@ -704,6 +704,239 @@ def save_opportunity_brief(opp: dict):
     (OPPORTUNITIES_DIR / filename).write_text(content)
 
 # ============================================================================
+# Pipeline 2: Investment Scanner (Tool Mentions & Stats)
+# ============================================================================
+
+TOOL_EXTRACTION_PROMPT = """You are an analyst identifying tool and product mentions in social media posts by AI agents.
+
+Analyze these posts and extract every mention of a specific tool, product, service, platform, library, or framework.
+
+For each mention, provide:
+1. tool_name: Normalized name (e.g., "LangChain" not "langchain" or "lang chain")
+2. tool_name_raw: Exactly as written in the post
+3. context: The sentence or phrase where it's mentioned
+4. sentiment_score: -1.0 (very negative) to 1.0 (very positive), 0.0 for neutral
+5. sentiment_label: "positive", "negative", or "neutral"
+6. is_recommendation: true if the author is recommending this tool to others
+7. is_complaint: true if the author is complaining about this tool
+8. alternative_mentioned: If they mention switching from/to another tool, note it (e.g., "switched from LangChain to LlamaIndex"), or null
+9. source_post_id: The post ID where this was found
+
+Posts to analyze:
+{posts}
+
+Respond ONLY with valid JSON:
+{{
+  "tool_mentions": [
+    {{
+      "tool_name": "...",
+      "tool_name_raw": "...",
+      "context": "...",
+      "sentiment_score": 0.0,
+      "sentiment_label": "...",
+      "is_recommendation": false,
+      "is_complaint": false,
+      "alternative_mentioned": null,
+      "source_post_id": "..."
+    }}
+  ]
+}}
+
+Rules:
+- Include programming languages, frameworks, APIs, platforms, SaaS tools, protocols
+- Don't include generic terms like "API" or "database" unless they refer to a specific product
+- Normalize names consistently (e.g., "GPT-4" not "gpt4" or "GPT 4")
+- One mention per tool per post (even if mentioned multiple times)"""
+
+
+def extract_tool_mentions(hours_back: int = 48) -> dict:
+    """Extract tool/product mentions from recent posts (Pipeline 2)."""
+    if not supabase or not openai_client:
+        logger.error("Supabase or OpenAI not configured")
+        return {'error': 'Not configured'}
+
+    run_id = log_pipeline_start('extract_tools')
+
+    # Fetch posts from the last N hours (regardless of processed status —
+    # tool extraction is independent from problem extraction)
+    cutoff = datetime.utcnow() - timedelta(hours=hours_back)
+    posts = supabase.table('moltbook_posts')\
+        .select('*')\
+        .gte('scraped_at', cutoff.isoformat())\
+        .limit(100)\
+        .execute()
+
+    if not posts.data:
+        logger.info("No posts found for tool extraction")
+        return {'posts_scanned': 0, 'mentions_found': 0}
+
+    logger.info(f"Scanning {len(posts.data)} posts for tool mentions")
+    logger.info(f"Using model: {OPENAI_MODEL} for tool extraction")
+
+    # Format posts for prompt
+    posts_text = "\n\n".join([
+        f"[Post ID: {p['moltbook_id']}]\n{p.get('title', '')}\n{p['content']}"
+        for p in posts.data
+    ])
+
+    try:
+        response = openai_client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": "You extract tool and product mentions. Respond only with valid JSON."},
+                {"role": "user", "content": TOOL_EXTRACTION_PROMPT.format(posts=posts_text)}
+            ],
+            temperature=0.2,
+            max_tokens=4000
+        )
+        time.sleep(2)  # Rate limiting
+
+        result_text = response.choices[0].message.content
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+        result_text = result_text.strip()
+
+        mentions_data = json.loads(result_text)
+
+    except Exception as e:
+        logger.error(f"Tool extraction failed: {e}")
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+    # Store mentions
+    mentions_stored = 0
+    for mention in mentions_data.get('tool_mentions', []):
+        try:
+            # Look up the internal post UUID from moltbook_id
+            post_lookup = supabase.table('moltbook_posts')\
+                .select('id')\
+                .eq('moltbook_id', mention.get('source_post_id', ''))\
+                .limit(1)\
+                .execute()
+
+            post_uuid = post_lookup.data[0]['id'] if post_lookup.data else None
+
+            record = {
+                'tool_name': mention['tool_name'],
+                'tool_name_raw': mention.get('tool_name_raw'),
+                'post_id': post_uuid,
+                'context': mention.get('context'),
+                'sentiment_score': mention.get('sentiment_score', 0.0),
+                'sentiment_label': mention.get('sentiment_label', 'neutral'),
+                'is_recommendation': mention.get('is_recommendation', False),
+                'is_complaint': mention.get('is_complaint', False),
+                'alternative_mentioned': mention.get('alternative_mentioned'),
+                'mentioned_at': datetime.utcnow().isoformat(),
+                'metadata': {}
+            }
+
+            supabase.table('tool_mentions').insert(record).execute()
+            mentions_stored += 1
+
+        except Exception as e:
+            logger.error(f"Error storing tool mention '{mention.get('tool_name', '?')}': {e}")
+
+    result = {
+        'posts_scanned': len(posts.data),
+        'mentions_found': mentions_stored
+    }
+    log_pipeline_end(run_id, 'completed', result)
+    logger.info(f"Tool extraction complete: {mentions_stored} mentions from {len(posts.data)} posts")
+    return result
+
+
+def update_tool_stats() -> dict:
+    """Recompute aggregated tool statistics from all tool_mentions."""
+    if not supabase:
+        logger.error("Supabase not configured")
+        return {'error': 'Not configured'}
+
+    run_id = log_pipeline_start('update_tool_stats')
+
+    # Get all unique tool names
+    tools = supabase.table('tool_mentions')\
+        .select('tool_name')\
+        .execute()
+
+    unique_tools = list(set(t['tool_name'] for t in (tools.data or [])))
+
+    if not unique_tools:
+        logger.info("No tool mentions found for stats computation")
+        return {'tools_updated': 0}
+
+    logger.info(f"Updating stats for {len(unique_tools)} tools")
+
+    stats_updated = 0
+    now = datetime.utcnow()
+    week_ago = (now - timedelta(days=7)).isoformat()
+    month_ago = (now - timedelta(days=30)).isoformat()
+
+    for tool_name in unique_tools:
+        try:
+            # Get all mentions for this tool
+            mentions = supabase.table('tool_mentions')\
+                .select('*')\
+                .eq('tool_name', tool_name)\
+                .execute()
+
+            all_mentions = mentions.data or []
+            if not all_mentions:
+                continue
+
+            recent_7d = [m for m in all_mentions if m.get('mentioned_at', '') >= week_ago]
+            recent_30d = [m for m in all_mentions if m.get('mentioned_at', '') >= month_ago]
+
+            avg_sentiment = sum(m.get('sentiment_score', 0) for m in all_mentions) / len(all_mentions)
+            recommendations = sum(1 for m in all_mentions if m.get('is_recommendation'))
+            complaints = sum(1 for m in all_mentions if m.get('is_complaint'))
+
+            # Collect alternatives
+            alternatives = [m['alternative_mentioned'] for m in all_mentions
+                            if m.get('alternative_mentioned')]
+
+            # Build stat record
+            stat_record = {
+                'tool_name': tool_name,
+                'total_mentions': len(all_mentions),
+                'mentions_7d': len(recent_7d),
+                'mentions_30d': len(recent_30d),
+                'avg_sentiment': round(avg_sentiment, 3),
+                'recommendation_count': recommendations,
+                'complaint_count': complaints,
+                'top_alternatives': list(set(alternatives))[:5],
+                'first_seen': min(m.get('mentioned_at', '') for m in all_mentions),
+                'last_seen': max(m.get('mentioned_at', '') for m in all_mentions),
+                'updated_at': now.isoformat()
+            }
+
+            # Upsert: check if exists, then update or insert
+            existing = supabase.table('tool_stats')\
+                .select('id')\
+                .eq('tool_name', tool_name)\
+                .execute()
+
+            if existing.data:
+                supabase.table('tool_stats')\
+                    .update(stat_record)\
+                    .eq('tool_name', tool_name)\
+                    .execute()
+            else:
+                supabase.table('tool_stats').insert(stat_record).execute()
+
+            stats_updated += 1
+
+        except Exception as e:
+            logger.error(f"Error updating stats for '{tool_name}': {e}")
+
+    result = {'tools_updated': stats_updated}
+    log_pipeline_end(run_id, 'completed', result)
+    logger.info(f"Tool stats update complete: {stats_updated} tools updated")
+    return result
+
+
+# ============================================================================
 # Pipeline Logging
 # ============================================================================
 
@@ -805,6 +1038,21 @@ def execute_task(task: dict) -> dict:
             'extract': extract_result,
             'cluster': cluster_result,
             'opportunities': opp_result
+        }
+    
+    elif task_type == 'extract_tools':
+        return extract_tool_mentions(hours_back=params.get('hours_back', 48))
+    
+    elif task_type == 'update_tool_stats':
+        return update_tool_stats()
+    
+    elif task_type == 'run_investment_scan':
+        # Full investment scanner: extract tool mentions (7 days) then recompute stats
+        extract_result = extract_tool_mentions(hours_back=168)
+        stats_result = update_tool_stats()
+        return {
+            'extract_tools': extract_result,
+            'tool_stats': stats_result
         }
     
     elif task_type == 'get_opportunities':
@@ -1013,6 +1261,30 @@ def scheduled_cluster():
     except Exception as e:
         logger.error(f"Scheduled clustering failed: {e}")
 
+def scheduled_tool_scan():
+    """Scheduled tool mention extraction."""
+    logger.info("Running scheduled tool scan...")
+    try:
+        result = extract_tool_mentions(hours_back=48)
+        logger.info(f"Scheduled tool scan completed: {result}")
+        mentions = result.get('mentions_found', 0)
+        if mentions > 0:
+            send_telegram(f"🔧 AgentPulse tool scan: {mentions} tool mentions extracted")
+    except Exception as e:
+        logger.error(f"Scheduled tool scan failed: {e}")
+
+def scheduled_update_stats():
+    """Scheduled tool stats recomputation."""
+    logger.info("Running scheduled tool stats update...")
+    try:
+        result = update_tool_stats()
+        logger.info(f"Scheduled tool stats completed: {result}")
+        updated = result.get('tools_updated', 0)
+        if updated > 0:
+            send_telegram(f"📈 AgentPulse tool stats: {updated} tools updated")
+    except Exception as e:
+        logger.error(f"Scheduled tool stats update failed: {e}")
+
 def scheduled_digest():
     """Send daily digest via Telegram."""
     logger.info("Running scheduled digest...")
@@ -1059,11 +1331,13 @@ def setup_scheduler():
     schedule.every(scrape_interval).hours.do(scheduled_scrape)
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
     schedule.every(12).hours.do(scheduled_cluster)
+    schedule.every(12).hours.do(scheduled_tool_scan)
+    schedule.every().day.at("06:00").do(scheduled_update_stats)
     schedule.every().day.at("09:00").do(scheduled_digest)
     schedule.every().day.at("03:00").do(scheduled_cleanup)
     
-    logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h")
-    logger.info("Daily digest at 09:00 UTC, cleanup at 03:00 UTC")
+    logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h")
+    logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
 
 def run_scheduler():
     """Run the scheduler in a background thread."""
@@ -1077,7 +1351,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'update_tool_stats', 'run_investment_scan', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -1102,6 +1376,19 @@ def main():
     elif args.task == 'opportunities':
         result = get_current_opportunities()
         print(json.dumps(result, indent=2))
+    
+    elif args.task == 'extract_tools':
+        result = extract_tool_mentions()
+        print(json.dumps(result, indent=2))
+    
+    elif args.task == 'update_tool_stats':
+        result = update_tool_stats()
+        print(json.dumps(result, indent=2))
+    
+    elif args.task == 'run_investment_scan':
+        extract_result = extract_tool_mentions(hours_back=168)
+        stats_result = update_tool_stats()
+        print(json.dumps({'extract_tools': extract_result, 'tool_stats': stats_result}, indent=2))
     
     elif args.task == 'digest':
         scheduled_digest()
