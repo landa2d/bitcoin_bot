@@ -76,7 +76,7 @@ When users send these commands, trigger the appropriate AgentPulse task:
 | Command | Action |
 |---------|--------|
 | `/opportunities` | Get top 5 current opportunities |
-| `/scan` | Trigger a new opportunity scan |
+| `/scan` | Delegate `run_pipeline` to Analyst via `create_agent_task` (see AGENTS.md "Delegating to Analyst") |
 | `/pulse-status` | Get AgentPulse system status |
 | `/problem [category]` | Search problems by category |
 

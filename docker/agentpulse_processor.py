@@ -250,7 +250,7 @@ def extract_problems(hours_back: int = 48) -> dict:
         .select('*')\
         .eq('processed', False)\
         .gte('scraped_at', cutoff.isoformat())\
-        .limit(100)\
+        .limit(25)\
         .execute()
     
     if not posts.data:
@@ -258,6 +258,7 @@ def extract_problems(hours_back: int = 48) -> dict:
         return {'problems_found': 0}
     
     logger.info(f"Processing {len(posts.data)} posts")
+    logger.info(f"Using model: {OPENAI_MODEL} for problem extraction")
     
     # Format posts for prompt
     posts_text = "\n\n".join([
@@ -276,6 +277,7 @@ def extract_problems(hours_back: int = 48) -> dict:
             temperature=0.3,
             max_tokens=4000
         )
+        time.sleep(2)  # Rate limiting: avoid hitting API limits
         
         result_text = response.choices[0].message.content
         # Clean up potential markdown formatting
@@ -377,6 +379,7 @@ def generate_opportunities(min_frequency: int = 1, limit: int = 5) -> dict:
         return {'opportunities_generated': 0}
     
     opportunities_created = 0
+    logger.info(f"Using model: {OPENAI_MODEL} for opportunity generation")
     
     for problem in problems.data[:limit]:
         try:
@@ -397,6 +400,7 @@ def generate_opportunities(min_frequency: int = 1, limit: int = 5) -> dict:
                 temperature=0.5,
                 max_tokens=2000
             )
+            time.sleep(2)  # Rate limiting: avoid hitting API limits
             
             result_text = response.choices[0].message.content
             if result_text.startswith('```'):
