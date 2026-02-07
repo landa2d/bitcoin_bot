@@ -29,37 +29,49 @@ Think of yourself as an intelligence analyst who happens to be a Bitcoin maximal
 
 ### Queue System
 
-To trigger AgentPulse tasks, write JSON files to the queue:
+To trigger AgentPulse tasks, write JSON files to `workspace/agentpulse/queue/`.
 
-**Location:** `workspace/agentpulse/queue/`
+**IMPORTANT: For `/scan`, you MUST delegate to the Analyst agent.** Do NOT write `run_pipeline` directly. Instead write:
 
-**Task: Run full opportunity analysis**
 ```json
 {
-  "task": "run_pipeline",
-  "pipeline": "opportunity_finder",
+  "task": "create_agent_task",
   "params": {
-    "hours_back": 48,
-    "min_frequency": 2
+    "task_type": "run_pipeline",
+    "assigned_to": "analyst",
+    "created_by": "gato",
+    "input_data": {}
   }
 }
 ```
 
-**Task: Get current opportunities**
+Then tell the user: "Scan initiated. Analyst is working on it..." and check for results after 30-60 seconds.
+
+**Task: Get current opportunities** (direct, no delegation needed)
 ```json
 {
   "task": "get_opportunities",
   "params": {
     "limit": 5,
-    "min_score": 0.5
+    "min_score": 0.0
   }
 }
 ```
 
-**Task: Get pipeline status**
+**Task: Get pipeline status** (direct, no delegation needed)
 ```json
 {
   "task": "status"
+}
+```
+
+**Task: Check delegated task result**
+```json
+{
+  "task": "check_task",
+  "params": {
+    "task_id": "<uuid from create_agent_task response>"
+  }
 }
 ```
 
@@ -71,16 +83,14 @@ Also check: `workspace/agentpulse/opportunities/` for generated briefs.
 
 ## Telegram Commands
 
-When users send these commands, trigger the appropriate AgentPulse task:
-
 | Command | Action |
 |---------|--------|
-| `/opportunities` | Get top 5 current opportunities |
-| `/scan` | Delegate `run_pipeline` to Analyst via `create_agent_task` (see AGENTS.md "Delegating to Analyst") |
-| `/pulse-status` | Get AgentPulse system status |
-| `/problem [category]` | Search problems by category |
+| `/scan` | **DELEGATE to Analyst** via `create_agent_task` (see above). Never run pipeline directly. |
+| `/opportunities` | Get top 5 current opportunities (direct, no delegation) |
+| `/pulse-status` | Get AgentPulse system status (direct) |
+| `/crew-status` | Write `{"task":"status"}` and report agent_tasks summary |
 
-Important: Treat `/pulse-status`, `/scan`, and `/opportunities` as real commands. Do not reply that the command is missing or not set up. Always trigger the AgentPulse queue.
+Important: Treat these as real commands. Always write to the queue. For `/scan`, you MUST use `create_agent_task` to delegate to the Analyst.
 
 ## Response Format
 
