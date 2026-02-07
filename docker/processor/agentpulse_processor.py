@@ -14,6 +14,7 @@ import os
 import sys
 import json
 import time
+import math
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -338,6 +339,212 @@ def store_problem(problem: dict):
     supabase.table('problems').insert(record).execute()
 
 # ============================================================================
+# Problem Clustering
+# ============================================================================
+
+CLUSTERING_PROMPT = """You are an analyst grouping business problems into thematic clusters.
+
+Given these extracted problems, group them into 3-10 thematic clusters.
+Problems that describe the same underlying issue (even with different wording) should be in the same cluster.
+
+Problems:
+{problems}
+
+For each cluster, provide:
+1. theme: Short name for the cluster (e.g. "API Reliability", "Payment Infrastructure")
+2. description: 2-3 sentence summary of the common problem
+3. problem_ids: Array of problem IDs that belong to this cluster
+4. combined_severity: low, medium, or high (based on the worst severity in the group)
+5. willingness_to_pay: none, implied, or explicit (based on the strongest signal in the group)
+6. solution_gap: none (no solutions exist), inadequate (solutions exist but are poor), or solved (good solutions exist)
+
+Respond ONLY with valid JSON:
+{{
+  "clusters": [
+    {{
+      "theme": "...",
+      "description": "...",
+      "problem_ids": ["..."],
+      "combined_severity": "...",
+      "willingness_to_pay": "...",
+      "solution_gap": "..."
+    }}
+  ]
+}}
+
+Group aggressively — prefer fewer clusters with more problems over many tiny clusters.
+Only create a cluster if it contains problems that share a genuine common theme."""
+
+
+def cluster_problems(min_problems: int = 3) -> dict:
+    """Cluster unclustered problems into thematic groups with opportunity scores."""
+    if not supabase or not openai_client:
+        logger.error("Supabase or OpenAI not configured")
+        return {'error': 'Not configured'}
+
+    run_id = log_pipeline_start('cluster_problems')
+
+    # Fetch unclustered problems
+    problems = supabase.table('problems')\
+        .select('*')\
+        .is_('cluster_id', 'null')\
+        .execute()
+
+    if not problems.data or len(problems.data) < min_problems:
+        logger.info(f"Not enough unclustered problems ({len(problems.data) if problems.data else 0} < {min_problems})")
+        return {'problems_processed': 0, 'clusters_created': 0}
+
+    logger.info(f"Clustering {len(problems.data)} unclustered problems")
+    logger.info(f"Using model: {OPENAI_MODEL} for clustering")
+
+    # Format problems for prompt
+    problems_text = json.dumps([
+        {
+            'id': p['id'],
+            'description': p['description'],
+            'category': p['category'],
+            'frequency': p.get('frequency_count', 1),
+            'severity': p.get('metadata', {}).get('severity', 'low'),
+            'willingness_to_pay': p.get('metadata', {}).get('willingness_to_pay', 'none')
+        }
+        for p in problems.data
+    ], indent=2)
+
+    # Call OpenAI for clustering
+    try:
+        response = openai_client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": "You group business problems into thematic clusters. Respond only with valid JSON."},
+                {"role": "user", "content": CLUSTERING_PROMPT.format(problems=problems_text)}
+            ],
+            temperature=0.3,
+            max_tokens=4000
+        )
+        time.sleep(2)  # Rate limiting
+
+        result_text = response.choices[0].message.content
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+        result_text = result_text.strip()
+
+        clusters_data = json.loads(result_text)
+
+    except Exception as e:
+        logger.error(f"OpenAI clustering failed: {e}")
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+    # Build a lookup for problems by ID
+    problems_by_id = {p['id']: p for p in problems.data}
+
+    # Find max frequency for normalization
+    max_frequency = max((p.get('frequency_count', 1) for p in problems.data), default=1)
+    if max_frequency < 1:
+        max_frequency = 1
+
+    clusters_created = 0
+    total_problems_clustered = 0
+
+    for cluster in clusters_data.get('clusters', []):
+        try:
+            problem_ids = cluster.get('problem_ids', [])
+            if not problem_ids:
+                continue
+
+            # Compute aggregate stats from the cluster's problems
+            cluster_problems_data = [problems_by_id[pid] for pid in problem_ids if pid in problems_by_id]
+            if not cluster_problems_data:
+                continue
+
+            total_mentions = sum(p.get('frequency_count', 1) for p in cluster_problems_data)
+
+            # Compute average recency in days
+            now = datetime.utcnow()
+            recency_days = []
+            for p in cluster_problems_data:
+                created = p.get('created_at')
+                if created:
+                    try:
+                        created_dt = datetime.fromisoformat(created.replace('Z', '+00:00').replace('+00:00', ''))
+                        recency_days.append((now - created_dt).days)
+                    except:
+                        recency_days.append(30)
+                else:
+                    recency_days.append(30)
+            avg_recency = sum(recency_days) / len(recency_days) if recency_days else 30
+
+            # Compute opportunity_score
+            # frequency_weight: log(total_mentions) / log(max_frequency), capped at 1.0
+            if max_frequency > 1 and total_mentions > 0:
+                freq_weight = min(math.log(max(total_mentions, 1)) / math.log(max(max_frequency, 2)), 1.0)
+            else:
+                freq_weight = min(total_mentions / max(max_frequency, 1), 1.0)
+
+            # recency_weight: 1.0 if < 7 days, 0.7 if < 30 days, 0.3 otherwise
+            if avg_recency < 7:
+                recency_weight = 1.0
+            elif avg_recency < 30:
+                recency_weight = 0.7
+            else:
+                recency_weight = 0.3
+
+            # willingness_to_pay weight
+            wtp = cluster.get('willingness_to_pay', 'none')
+            wtp_weight = {'explicit': 1.0, 'implied': 0.5, 'none': 0.0}.get(wtp, 0.0)
+
+            # solution_gap weight
+            gap = cluster.get('solution_gap', 'none')
+            gap_weight = {'none': 1.0, 'inadequate': 0.5, 'solved': 0.0}.get(gap, 0.5)
+
+            opportunity_score = (freq_weight * 0.3) + (recency_weight * 0.2) + (wtp_weight * 0.3) + (gap_weight * 0.2)
+
+            # Insert cluster into problem_clusters table
+            cluster_record = {
+                'theme': cluster['theme'],
+                'description': cluster['description'],
+                'problem_ids': problem_ids,
+                'total_mentions': total_mentions,
+                'avg_recency_days': round(avg_recency, 1),
+                'opportunity_score': round(opportunity_score, 3),
+                'market_validation': {
+                    'combined_severity': cluster.get('combined_severity', 'low'),
+                    'willingness_to_pay': wtp,
+                    'solution_gap': gap
+                }
+            }
+            insert_result = supabase.table('problem_clusters').insert(cluster_record).execute()
+            cluster_id = insert_result.data[0]['id'] if insert_result.data else None
+
+            if cluster_id:
+                # Update each problem's cluster_id
+                valid_ids = [pid for pid in problem_ids if pid in problems_by_id]
+                if valid_ids:
+                    supabase.table('problems')\
+                        .update({'cluster_id': cluster_id})\
+                        .in_('id', valid_ids)\
+                        .execute()
+                    total_problems_clustered += len(valid_ids)
+
+            clusters_created += 1
+
+        except Exception as e:
+            logger.error(f"Error creating cluster '{cluster.get('theme', '?')}': {e}")
+
+    result = {
+        'problems_processed': len(problems.data),
+        'clusters_created': clusters_created,
+        'problems_clustered': total_problems_clustered
+    }
+
+    log_pipeline_end(run_id, 'completed', result)
+    logger.info(f"Clustering complete: {clusters_created} clusters from {len(problems.data)} problems")
+    return result
+
+
+# ============================================================================
 # Opportunity Generation
 # ============================================================================
 
@@ -360,37 +567,52 @@ Generate a brief with these fields:
 
 Respond ONLY with valid JSON."""
 
-def generate_opportunities(min_frequency: int = 1, limit: int = 5) -> dict:
-    """Generate opportunities from top problems."""
+def generate_opportunities(min_score: float = 0.3, limit: int = 5) -> dict:
+    """Generate opportunities from top problem clusters."""
     if not supabase or not openai_client:
         return {'error': 'Not configured'}
-    
+
     run_id = log_pipeline_start('generate_opportunities')
-    
-    # Get top problems
-    problems = supabase.table('problems')\
+
+    # Get top clusters ordered by opportunity_score
+    clusters = supabase.table('problem_clusters')\
         .select('*')\
-        .gte('frequency_count', min_frequency)\
-        .order('frequency_count', desc=True)\
+        .gte('opportunity_score', min_score)\
+        .order('opportunity_score', desc=True)\
         .limit(limit * 2)\
         .execute()
-    
-    if not problems.data:
+
+    if not clusters.data:
+        logger.info("No clusters found above min_score threshold")
         return {'opportunities_generated': 0}
-    
+
+    # Filter out clusters that already have opportunities
+    existing_opps = supabase.table('opportunities')\
+        .select('cluster_id')\
+        .not_.is_('cluster_id', 'null')\
+        .execute()
+    existing_cluster_ids = {o['cluster_id'] for o in (existing_opps.data or [])}
+
+    new_clusters = [c for c in clusters.data if c['id'] not in existing_cluster_ids]
+
+    if not new_clusters:
+        logger.info("All top clusters already have opportunities")
+        return {'opportunities_generated': 0}
+
     opportunities_created = 0
-    logger.info(f"Using model: {OPENAI_MODEL} for opportunity generation")
-    
-    for problem in problems.data[:limit]:
+    logger.info(f"Using model: {OPENAI_MODEL} for opportunity generation from {len(new_clusters)} clusters")
+
+    for cluster in new_clusters[:limit]:
         try:
             problem_data = json.dumps({
-                'description': problem['description'],
-                'category': problem['category'],
-                'frequency': problem['frequency_count'],
-                'signals': problem.get('signal_phrases', []),
-                'metadata': problem.get('metadata', {})
+                'theme': cluster['theme'],
+                'description': cluster['description'],
+                'total_mentions': cluster.get('total_mentions', 0),
+                'avg_recency_days': cluster.get('avg_recency_days', 0),
+                'opportunity_score': cluster.get('opportunity_score', 0),
+                'market_validation': cluster.get('market_validation', {})
             }, indent=2)
-            
+
             response = openai_client.chat.completions.create(
                 model=OPENAI_MODEL,
                 messages=[
@@ -400,33 +622,34 @@ def generate_opportunities(min_frequency: int = 1, limit: int = 5) -> dict:
                 temperature=0.5,
                 max_tokens=2000
             )
-            time.sleep(2)  # Rate limiting: avoid hitting API limits
-            
+            time.sleep(2)  # Rate limiting
+
             result_text = response.choices[0].message.content
             if result_text.startswith('```'):
                 result_text = result_text.split('```')[1]
                 if result_text.startswith('json'):
                     result_text = result_text[4:]
-            
+
             opp_data = json.loads(result_text.strip())
-            store_opportunity(opp_data, problem['id'])
+            store_opportunity(opp_data, cluster_id=cluster['id'])
             opportunities_created += 1
-            
+
             # Also save to local file
             save_opportunity_brief(opp_data)
-            
+
         except Exception as e:
-            logger.error(f"Error generating opportunity: {e}")
-    
+            logger.error(f"Error generating opportunity for cluster '{cluster.get('theme', '?')}': {e}")
+
     result = {'opportunities_generated': opportunities_created}
     log_pipeline_end(run_id, 'completed', result)
     return result
 
-def store_opportunity(opp: dict, problem_id: str = None):
+
+def store_opportunity(opp: dict, cluster_id: str = None):
     """Store opportunity in Supabase."""
     if not supabase:
         return
-    
+
     record = {
         'title': opp.get('title'),
         'problem_summary': opp.get('problem_summary'),
@@ -438,7 +661,9 @@ def store_opportunity(opp: dict, problem_id: str = None):
         'confidence_score': opp.get('confidence_score', 0.5),
         'status': 'draft'
     }
-    
+    if cluster_id:
+        record['cluster_id'] = cluster_id
+
     supabase.table('opportunities').insert(record).execute()
 
 def save_opportunity_brief(opp: dict):
@@ -562,18 +787,23 @@ def execute_task(task: dict) -> dict:
     
     elif task_type == 'generate_opportunities':
         return generate_opportunities(
-            min_frequency=params.get('min_frequency', 1),
+            min_score=params.get('min_score', 0.3),
             limit=params.get('limit', 5)
         )
     
+    elif task_type == 'cluster_problems':
+        return cluster_problems(min_problems=params.get('min_problems', 3))
+    
     elif task_type == 'run_pipeline':
-        # Full pipeline run
+        # Full pipeline run: scrape → extract → cluster → generate
         scrape_result = scrape_moltbook()
         extract_result = extract_problems()
-        opp_result = generate_opportunities(min_frequency=1)
+        cluster_result = cluster_problems()
+        opp_result = generate_opportunities(min_score=0.3)
         return {
             'scrape': scrape_result,
             'extract': extract_result,
+            'cluster': cluster_result,
             'opportunities': opp_result
         }
     
@@ -771,6 +1001,18 @@ def scheduled_analyze():
     except Exception as e:
         logger.error(f"Scheduled analysis failed: {e}")
 
+def scheduled_cluster():
+    """Scheduled clustering task."""
+    logger.info("Running scheduled clustering...")
+    try:
+        result = cluster_problems()
+        logger.info(f"Scheduled clustering completed: {result}")
+        clusters_created = result.get('clusters_created', 0)
+        if clusters_created > 0:
+            send_telegram(f"🔬 AgentPulse clustering: {clusters_created} new clusters identified")
+    except Exception as e:
+        logger.error(f"Scheduled clustering failed: {e}")
+
 def scheduled_digest():
     """Send daily digest via Telegram."""
     logger.info("Running scheduled digest...")
@@ -816,10 +1058,11 @@ def setup_scheduler():
     # Schedule tasks
     schedule.every(scrape_interval).hours.do(scheduled_scrape)
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
+    schedule.every(12).hours.do(scheduled_cluster)
     schedule.every().day.at("09:00").do(scheduled_digest)
     schedule.every().day.at("03:00").do(scheduled_cleanup)
     
-    logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h")
+    logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h")
     logger.info("Daily digest at 09:00 UTC, cleanup at 03:00 UTC")
 
 def run_scheduler():
@@ -834,7 +1077,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'opportunities', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -848,8 +1091,13 @@ def main():
     
     elif args.task == 'analyze':
         extract_result = extract_problems()
+        cluster_result = cluster_problems()
         opp_result = generate_opportunities()
-        print(json.dumps({'extract': extract_result, 'opportunities': opp_result}, indent=2))
+        print(json.dumps({'extract': extract_result, 'cluster': cluster_result, 'opportunities': opp_result}, indent=2))
+    
+    elif args.task == 'cluster':
+        result = cluster_problems()
+        print(json.dumps(result, indent=2))
     
     elif args.task == 'opportunities':
         result = get_current_opportunities()
