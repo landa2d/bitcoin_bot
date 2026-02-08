@@ -203,7 +203,7 @@ def save_newsletter(result: dict, input_data: dict):
         "data_snapshot": input_data,
         "status": "draft",
     }
-    supabase.table("newsletters").upsert(row, on_conflict="edition_number").execute()
+    supabase.table("newsletters").insert(row).execute()
     logger.info(f"Saved newsletter edition #{edition} to Supabase (status=draft)")
 
     # Save local markdown
