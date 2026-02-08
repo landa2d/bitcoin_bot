@@ -121,7 +121,7 @@ services:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../skills:/home/openclaw/skills:ro
       - ../config:/home/openclaw/.openclaw/config:ro
-    mem_limit: 512m
+    mem_limit: 2g
     depends_on:
       - processor
     networks:

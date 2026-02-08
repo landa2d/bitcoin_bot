@@ -1648,7 +1648,8 @@ def main():
             process_queue()                   # legacy file-based queue
             process_db_tasks('analyst')       # analyst tasks from agent_tasks table
             process_db_tasks('processor')     # processor-specific tasks
-            process_db_tasks('newsletter')    # newsletter agent tasks
+            # NOTE: newsletter tasks are handled by the newsletter container's poller,
+            # NOT by the processor. Don't add process_db_tasks('newsletter') here.
             schedule.run_pending()            # scheduled scrape/analyze/digest/cleanup
             time.sleep(5)
     
