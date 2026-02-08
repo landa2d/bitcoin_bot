@@ -108,10 +108,9 @@ services:
       - ../config/.env
     environment:
       <<: *common-env
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       AGENT_NAME: newsletter
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
-      NEWSLETTER_MODEL: claude-sonnet-4-20250514
+      NEWSLETTER_MODEL: gpt-4o
       NEWSLETTER_POLL_INTERVAL: "30"
       LOG_LEVEL: info
     volumes:

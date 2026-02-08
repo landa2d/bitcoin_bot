@@ -16,18 +16,18 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from supabase import create_client, Client
-import anthropic
+from openai import OpenAI
 
 load_dotenv()
 
 # Configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 AGENT_NAME = os.getenv("AGENT_NAME", "newsletter")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 POLL_INTERVAL = int(os.getenv("NEWSLETTER_POLL_INTERVAL", "30"))
-MODEL = os.getenv("NEWSLETTER_MODEL", "claude-sonnet-4-20250514")
+MODEL = os.getenv("NEWSLETTER_MODEL", "gpt-4o")
 
 WORKSPACE = Path(OPENCLAW_DATA_DIR) / "workspace"
 NEWSLETTERS_DIR = WORKSPACE / "agentpulse" / "newsletters"
@@ -47,7 +47,7 @@ logging.basicConfig(
 logger = logging.getLogger("newsletter-agent")
 
 supabase: Client | None = None
-client: anthropic.Anthropic | None = None
+client: OpenAI | None = None
 
 # ---------------------------------------------------------------------------
 # System prompt built from IDENTITY.md and SKILL.md
@@ -125,11 +125,11 @@ def init():
     if not SUPABASE_URL or not SUPABASE_KEY:
         logger.error("Supabase not configured (SUPABASE_URL / SUPABASE_KEY missing)")
         return False
-    if not ANTHROPIC_API_KEY:
-        logger.error("ANTHROPIC_API_KEY not set — cannot generate newsletters")
+    if not OPENAI_API_KEY:
+        logger.error("OPENAI_API_KEY not set — cannot generate newsletters")
         return False
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY)
     return True
 
 
@@ -166,15 +166,18 @@ def generate_newsletter(input_data: dict) -> dict:
 
     logger.info(f"Calling {MODEL} for edition #{edition}...")
 
-    response = client.messages.create(
+    response = client.chat.completions.create(
         model=MODEL,
         max_tokens=4096,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": user_message}],
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_message},
+        ],
+        response_format={"type": "json_object"},
     )
 
     # Extract the text content
-    text = response.content[0].text.strip()
+    text = response.choices[0].message.content.strip()
 
     # Try to parse as JSON — the model may wrap in ```json fences
     if text.startswith("```"):
@@ -234,7 +237,7 @@ def process_task(task: dict):
         return
 
     try:
-        # Generate newsletter via Anthropic
+        # Generate newsletter via OpenAI
         result = generate_newsletter(input_data)
 
         # Save to Supabase + local file
@@ -251,15 +254,6 @@ def process_task(task: dict):
 
     except json.JSONDecodeError as e:
         error = f"Failed to parse model response as JSON: {e}"
-        logger.error(error)
-        mark_task_status(
-            task_id,
-            "failed",
-            completed_at=datetime.now(timezone.utc).isoformat(),
-            error_message=error,
-        )
-    except anthropic.APIError as e:
-        error = f"Anthropic API error: {e}"
         logger.error(error)
         mark_task_status(
             task_id,

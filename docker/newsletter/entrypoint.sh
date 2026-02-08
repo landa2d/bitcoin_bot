@@ -5,8 +5,8 @@ echo "============================================"
 echo "  AgentPulse Newsletter Agent Starting..."
 echo "============================================"
 echo "  Agent Name: newsletter"
-echo "  Mode: direct Anthropic"
-echo "  Model: ${NEWSLETTER_MODEL:-claude-sonnet-4-20250514}"
+echo "  Mode: direct OpenAI"
+echo "  Model: ${NEWSLETTER_MODEL:-gpt-4o}"
 echo "============================================"
 
 # Ensure workspace dirs
