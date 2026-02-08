@@ -96,6 +96,49 @@ services:
       start_period: 60s
 
   # ═══════════════════════════════════════════════════════
+  # NEWSLETTER — Headless editorial agent
+  # ═══════════════════════════════════════════════════════
+  newsletter:
+    build:
+      context: ./newsletter
+      dockerfile: Dockerfile
+    container_name: agentpulse-newsletter
+    restart: unless-stopped
+    env_file:
+      - ../config/.env
+    environment:
+      <<: *common-env
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      AGENT_NAME: newsletter
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=1536
+      OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
+      OPENCLAW_SKILLS_DIR: /home/openclaw/skills
+      OPENCLAW_GATEWAY_MODE: local
+      LOG_LEVEL: info
+    volumes:
+      - ../data/openclaw/agents/newsletter:/home/openclaw/.openclaw/agents/newsletter
+      - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
+      - ../skills:/home/openclaw/skills:ro
+      - ../config:/home/openclaw/.openclaw/config:ro
+    mem_limit: 512m
+    depends_on:
+      - processor
+    networks:
+      - agentpulse-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ═══════════════════════════════════════════════════════
   # PROCESSOR — Background scraper & task orchestrator
   # ═══════════════════════════════════════════════════════
   processor:

@@ -1,0 +1,7 @@
+{
+  "name": "newsletter",
+  "version": "1.0.0",
+  "description": "Newsletter agent skills for writing AgentPulse Intelligence Briefs",
+  "skills": ["newsletter"],
+  "author": "AgentPulse"
+}

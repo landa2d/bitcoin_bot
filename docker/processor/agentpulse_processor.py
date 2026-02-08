@@ -937,6 +937,200 @@ def update_tool_stats() -> dict:
 
 
 # ============================================================================
+# Newsletter (Data Prep + Publish — writing delegated to Newsletter agent)
+# ============================================================================
+
+def prepare_newsletter_data() -> dict:
+    """Gather data for the Newsletter agent and create a write_newsletter task."""
+    if not supabase:
+        logger.error("Supabase not configured")
+        return {'error': 'Not configured'}
+
+    run_id = log_pipeline_start('prepare_newsletter')
+    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+
+    try:
+        # Top 5 opportunities by confidence_score
+        opps = supabase.table('opportunities')\
+            .select('*')\
+            .order('confidence_score', desc=True)\
+            .limit(5)\
+            .execute()
+        opportunities_data = opps.data or []
+
+        # Top 10 tools by mentions_7d
+        tools = supabase.table('tool_stats')\
+            .select('*')\
+            .order('mentions_7d', desc=True)\
+            .limit(10)\
+            .execute()
+        tools_data = tools.data or []
+
+        # Tool warnings: negative sentiment + enough mentions
+        warnings = supabase.table('tool_stats')\
+            .select('*')\
+            .lt('avg_sentiment', -0.3)\
+            .gte('total_mentions', 3)\
+            .execute()
+        warnings_data = warnings.data or []
+
+        # Recent problem clusters (last 7 days)
+        clusters = supabase.table('problem_clusters')\
+            .select('*')\
+            .gte('created_at', week_ago)\
+            .order('opportunity_score', desc=True)\
+            .limit(10)\
+            .execute()
+        clusters_data = clusters.data or []
+
+        # Stats
+        posts_count_result = supabase.table('moltbook_posts')\
+            .select('id', count='exact')\
+            .gte('scraped_at', week_ago)\
+            .execute()
+        posts_count = posts_count_result.count if posts_count_result.count else 0
+
+        # problems table has no created_at/first_seen in schema — use total count
+        problems_count_result = supabase.table('problems')\
+            .select('id', count='exact')\
+            .execute()
+        problems_count = problems_count_result.count if problems_count_result.count else 0
+
+        tools_count_result = supabase.table('tool_stats')\
+            .select('id', count='exact')\
+            .execute()
+        tools_count = tools_count_result.count if tools_count_result.count else 0
+
+        new_opps_result = supabase.table('opportunities')\
+            .select('id', count='exact')\
+            .gte('created_at', week_ago)\
+            .execute()
+        new_opps_count = new_opps_result.count if new_opps_result.count else 0
+
+        # Get next edition number
+        try:
+            edition_result = supabase.rpc('next_newsletter_edition').execute()
+            edition_number = edition_result.data if edition_result.data else 1
+        except Exception:
+            # Fallback: count existing newsletters + 1
+            existing = supabase.table('newsletters')\
+                .select('id', count='exact')\
+                .execute()
+            edition_number = (existing.count or 0) + 1
+
+        # Build input_data for the Newsletter agent
+        input_data = {
+            'edition_number': edition_number,
+            'opportunities': opportunities_data,
+            'trending_tools': tools_data,
+            'tool_warnings': warnings_data,
+            'clusters': clusters_data,
+            'stats': {
+                'posts_count': posts_count,
+                'problems_count': problems_count,
+                'tools_count': tools_count,
+                'new_opps_count': new_opps_count
+            }
+        }
+
+        # Create agent_task for the Newsletter agent
+        # Use json.dumps with default=str to handle any datetime objects
+        serialized_input = json.loads(json.dumps(input_data, default=str))
+
+        new_task = supabase.table('agent_tasks').insert({
+            'task_type': 'write_newsletter',
+            'assigned_to': 'newsletter',
+            'created_by': 'processor',
+            'priority': 3,
+            'input_data': serialized_input
+        }).execute()
+
+        task_id = new_task.data[0]['id'] if new_task.data else None
+
+        result = {
+            'edition_number': edition_number,
+            'task_id': task_id,
+            'status': 'delegated_to_newsletter',
+            'data_summary': {
+                'opportunities': len(opportunities_data),
+                'tools': len(tools_data),
+                'warnings': len(warnings_data),
+                'clusters': len(clusters_data)
+            }
+        }
+
+        log_pipeline_end(run_id, 'completed', result)
+        logger.info(f"Newsletter data prepared: edition #{edition_number}, task {task_id}")
+        return result
+
+    except Exception as e:
+        logger.error(f"Newsletter data preparation failed: {e}")
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+
+def publish_newsletter() -> dict:
+    """Publish the latest draft newsletter via Telegram."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    try:
+        # Get latest draft newsletter
+        draft = supabase.table('newsletters')\
+            .select('*')\
+            .eq('status', 'draft')\
+            .order('created_at', desc=True)\
+            .limit(1)\
+            .execute()
+
+        if not draft.data:
+            return {'error': 'No draft newsletter found'}
+
+        newsletter = draft.data[0]
+        telegram_content = newsletter.get('content_telegram') or newsletter.get('content_markdown', '')[:4000]
+
+        if telegram_content:
+            send_telegram(telegram_content)
+
+        # Update status to published
+        supabase.table('newsletters').update({
+            'status': 'published',
+            'published_at': datetime.utcnow().isoformat()
+        }).eq('id', newsletter['id']).execute()
+
+        logger.info(f"Newsletter #{newsletter.get('edition_number', '?')} published")
+        return {
+            'published': newsletter['id'],
+            'edition': newsletter.get('edition_number')
+        }
+
+    except Exception as e:
+        logger.error(f"Newsletter publish failed: {e}")
+        return {'error': str(e)}
+
+
+def get_latest_newsletter() -> dict:
+    """Get the latest newsletter (any status)."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    try:
+        result = supabase.table('newsletters')\
+            .select('*')\
+            .order('created_at', desc=True)\
+            .limit(1)\
+            .execute()
+
+        if result.data:
+            return result.data[0]
+        return {'error': 'No newsletters found'}
+
+    except Exception as e:
+        logger.error(f"Get latest newsletter failed: {e}")
+        return {'error': str(e)}
+
+
+# ============================================================================
 # Pipeline Logging
 # ============================================================================
 
@@ -1054,6 +1248,15 @@ def execute_task(task: dict) -> dict:
             'extract_tools': extract_result,
             'tool_stats': stats_result
         }
+    
+    elif task_type == 'prepare_newsletter':
+        return prepare_newsletter_data()
+    
+    elif task_type == 'publish_newsletter':
+        return publish_newsletter()
+    
+    elif task_type == 'get_latest_newsletter':
+        return get_latest_newsletter()
     
     elif task_type == 'get_opportunities':
         return get_current_opportunities(
@@ -1285,6 +1488,21 @@ def scheduled_update_stats():
     except Exception as e:
         logger.error(f"Scheduled tool stats update failed: {e}")
 
+def scheduled_prepare_newsletter():
+    """Scheduled: gather data and delegate newsletter writing to Newsletter agent."""
+    logger.info("Running scheduled newsletter preparation...")
+    try:
+        result = prepare_newsletter_data()
+        logger.info(f"Scheduled newsletter prep completed: {result}")
+        edition = result.get('edition_number', '?')
+        send_telegram(f"📝 Newsletter #{edition} data prepared and sent to Newsletter agent for writing.")
+    except Exception as e:
+        logger.error(f"Scheduled newsletter prep failed: {e}")
+
+def scheduled_notify_newsletter():
+    """Notify owner that a new newsletter may be ready for review."""
+    send_telegram("📰 New AgentPulse Brief is ready for review. Send /newsletter to see it.")
+
 def scheduled_digest():
     """Send daily digest via Telegram."""
     logger.info("Running scheduled digest...")
@@ -1333,11 +1551,14 @@ def setup_scheduler():
     schedule.every(12).hours.do(scheduled_cluster)
     schedule.every(12).hours.do(scheduled_tool_scan)
     schedule.every().day.at("06:00").do(scheduled_update_stats)
+    schedule.every().monday.at("07:00").do(scheduled_prepare_newsletter)
+    schedule.every().monday.at("08:00").do(scheduled_notify_newsletter)
     schedule.every().day.at("09:00").do(scheduled_digest)
     schedule.every().day.at("03:00").do(scheduled_cleanup)
     
     logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
+    logger.info("Weekly: newsletter prep Mon 07:00, newsletter notify Mon 08:00 UTC")
 
 def run_scheduler():
     """Run the scheduler in a background thread."""
@@ -1351,7 +1572,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'update_tool_stats', 'run_investment_scan', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'update_tool_stats', 'run_investment_scan', 'prepare_newsletter', 'publish_newsletter', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -1390,6 +1611,14 @@ def main():
         stats_result = update_tool_stats()
         print(json.dumps({'extract_tools': extract_result, 'tool_stats': stats_result}, indent=2))
     
+    elif args.task == 'prepare_newsletter':
+        result = prepare_newsletter_data()
+        print(json.dumps(result, default=str, indent=2))
+    
+    elif args.task == 'publish_newsletter':
+        result = publish_newsletter()
+        print(json.dumps(result, default=str, indent=2))
+    
     elif args.task == 'digest':
         scheduled_digest()
     
@@ -1419,6 +1648,7 @@ def main():
             process_queue()                   # legacy file-based queue
             process_db_tasks('analyst')       # analyst tasks from agent_tasks table
             process_db_tasks('processor')     # processor-specific tasks
+            process_db_tasks('newsletter')    # newsletter agent tasks
             schedule.run_pending()            # scheduled scrape/analyze/digest/cleanup
             time.sleep(5)
     
