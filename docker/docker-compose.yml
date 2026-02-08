@@ -96,7 +96,7 @@ services:
       start_period: 60s
 
   # ═══════════════════════════════════════════════════════
-  # NEWSLETTER — Headless editorial agent
+  # NEWSLETTER — Direct Anthropic newsletter writer
   # ═══════════════════════════════════════════════════════
   newsletter:
     build:
@@ -110,18 +110,13 @@ services:
       <<: *common-env
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       AGENT_NAME: newsletter
-      NODE_ENV: production
-      NODE_OPTIONS: --max-old-space-size=1536
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
-      OPENCLAW_SKILLS_DIR: /home/openclaw/skills
-      OPENCLAW_GATEWAY_MODE: local
+      NEWSLETTER_MODEL: claude-sonnet-4-20250514
+      NEWSLETTER_POLL_INTERVAL: "30"
       LOG_LEVEL: info
     volumes:
-      - ../data/openclaw/agents/newsletter:/home/openclaw/.openclaw/agents/newsletter
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
-      - ../skills:/home/openclaw/skills:ro
-      - ../config:/home/openclaw/.openclaw/config:ro
-    mem_limit: 2g
+    mem_limit: 256m
     depends_on:
       - processor
     networks:
@@ -132,7 +127,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "node", "-e", "console.log('healthy')"]
+      test: ["CMD", "pgrep", "-f", "newsletter_poller.py"]
       interval: 30s
       timeout: 10s
       retries: 3

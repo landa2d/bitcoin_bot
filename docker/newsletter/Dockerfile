@@ -1,59 +1,32 @@
-# Full OpenClaw agent — needs Node.js 22+ for OpenClaw
-FROM node:22-slim
+# AgentPulse Newsletter Agent — Python-only (direct Anthropic API)
+# No Node.js/OpenClaw needed — just polls Supabase and calls Claude directly.
 
-RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    ca-certificates \
-    gettext-base \
-    jq \
-    python3 \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+FROM python:3.12-slim
 
-# Install pnpm globally
-RUN npm install -g pnpm
-
-# Create non-root user for security
+# Create non-root user
 RUN groupadd -r openclaw && useradd -r -g openclaw -m -d /home/openclaw openclaw
 
-# Set working directory
-WORKDIR /app
+WORKDIR /home/openclaw
 
-# Clone OpenClaw repository
-RUN git clone https://github.com/openclaw/openclaw.git . \
-    && chown -R openclaw:openclaw /app
+# Install Python dependencies
+COPY --chown=openclaw:openclaw requirements.txt /home/openclaw/requirements.txt
+RUN pip install --no-cache-dir -r /home/openclaw/requirements.txt
+
+# Copy agent script and entrypoint
+COPY --chown=openclaw:openclaw newsletter_poller.py /home/openclaw/newsletter_poller.py
+COPY --chown=openclaw:openclaw entrypoint.sh /home/openclaw/entrypoint.sh
+RUN chmod +x /home/openclaw/entrypoint.sh
+
+# Pre-create directories
+RUN mkdir -p /home/openclaw/.openclaw/logs \
+             /home/openclaw/.openclaw/workspace/agentpulse/newsletters \
+    && chown -R openclaw:openclaw /home/openclaw/.openclaw
 
 # Switch to non-root user
 USER openclaw
 
-# Install Node.js dependencies
-RUN pnpm install
-
-# Build OpenClaw
-RUN pnpm run build
-
-# Create directories for persistent data and skills
-RUN mkdir -p /home/openclaw/.openclaw /home/openclaw/skills
-
-# Volume mount points for persistence
-VOLUME ["/home/openclaw/.openclaw", "/home/openclaw/skills"]
-
-# Environment variables (overridden by docker-compose)
-ENV NODE_ENV=production
-ENV OPENCLAW_DATA_DIR=/home/openclaw/.openclaw
-ENV OPENCLAW_SKILLS_DIR=/home/openclaw/skills
-
-# Install Python dependencies
-COPY --chown=openclaw:openclaw requirements.txt /home/openclaw/requirements.txt
-RUN pip3 install --break-system-packages -r /home/openclaw/requirements.txt
-
-COPY --chown=openclaw:openclaw entrypoint.sh /home/openclaw/entrypoint.sh
-COPY --chown=openclaw:openclaw newsletter_poller.py /home/openclaw/newsletter_poller.py
-RUN chmod +x /home/openclaw/entrypoint.sh
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD node -e "console.log('healthy')" || exit 1
+# Health check — verify the Python process is running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD pgrep -f newsletter_poller.py || exit 1
 
 ENTRYPOINT ["/home/openclaw/entrypoint.sh"]

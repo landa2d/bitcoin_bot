@@ -1170,6 +1170,9 @@ def process_queue():
     for task_file in QUEUE_DIR.glob('*.json'):
         if task_file.name.startswith('.'):
             continue
+        # Skip files belonging to other agents (e.g. newsletter_*.json)
+        if task_file.name.startswith('newsletter_'):
+            continue
         
         logger.info(f"Processing task: {task_file.name}")
         
