@@ -192,7 +192,6 @@ def generate_newsletter(input_data: dict) -> dict:
 def save_newsletter(result: dict, input_data: dict):
     """Save newsletter to Supabase and local file."""
     edition = result.get("edition", input_data.get("edition_number", 0))
-    now = datetime.now(timezone.utc).isoformat()
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     # Upsert into newsletters table
@@ -203,7 +202,6 @@ def save_newsletter(result: dict, input_data: dict):
         "content_telegram": result.get("content_telegram", ""),
         "data_snapshot": input_data,
         "status": "draft",
-        "generated_at": now,
     }
     supabase.table("newsletters").upsert(row, on_conflict="edition_number").execute()
     logger.info(f"Saved newsletter edition #{edition} to Supabase (status=draft)")

@@ -1,7 +1,11 @@
-# AgentPulse Newsletter Agent — Python-only (direct Anthropic API)
-# No Node.js/OpenClaw needed — just polls Supabase and calls Claude directly.
+# AgentPulse Newsletter Agent — Python-only (direct OpenAI API)
+# No Node.js/OpenClaw needed — just polls Supabase and calls GPT-4o directly.
 
 FROM python:3.12-slim
+
+# Install procps for health check
+RUN apt-get update && apt-get install -y --no-install-recommends procps \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN groupadd -r openclaw && useradd -r -g openclaw -m -d /home/openclaw openclaw
