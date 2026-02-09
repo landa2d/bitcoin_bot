@@ -1,15 +1,17 @@
 #!/bin/bash
-# OpenClaw Analyst — Headless analysis worker entrypoint
-# No Telegram, no user interaction. Polls agent_tasks for work.
+# OpenClaw Analyst — Intelligent analysis agent entrypoint
+# Starts the Python task poller in the background, then runs OpenClaw headless.
 
 set -e
 
 echo "============================================"
-echo "  OpenClaw Analyst Agent Starting..."
+echo "  AgentPulse Analyst Starting..."
+echo "  Mode: Intelligent Analysis Agent"
 echo "============================================"
 
 # Ensure workspace dirs exist
 mkdir -p /home/openclaw/.openclaw/workspace/agentpulse/queue/responses 2>/dev/null || true
+mkdir -p /home/openclaw/.openclaw/workspace/agentpulse/analysis 2>/dev/null || true
 mkdir -p /home/openclaw/.openclaw/workspace/agentpulse/opportunities 2>/dev/null || true
 mkdir -p /home/openclaw/.openclaw/workspace/agentpulse/cache 2>/dev/null || true
 mkdir -p /home/openclaw/.openclaw/logs 2>/dev/null || true
@@ -27,19 +29,20 @@ if [ -d /home/openclaw/skills ]; then
     echo "Custom skills linked into /app/skills"
 fi
 
+# Start the analyst task poller in the background
+echo "Starting analyst poller..."
+nohup python3 /home/openclaw/analyst_poller.py \
+    >> /home/openclaw/.openclaw/logs/analyst-poller.log 2>&1 &
+echo "Analyst poller started (PID: $!)"
+
 echo ""
 echo "Agent Name: analyst"
-echo "Mode: headless worker"
+echo "Mode: headless worker + task poller"
 echo ""
 echo "============================================"
-echo "  Starting analyst loop..."
+echo "  Starting OpenClaw headless gateway..."
 echo "============================================"
 
-# Start OpenClaw gateway for the analyst agent (headless — no Telegram token configured)
-# Without TELEGRAM_BOT_TOKEN, the gateway runs without a Telegram provider.
-#
-# NOTE: If a true headless/worker mode is needed later, this can be replaced
-# with a Python polling loop that processes agent_tasks directly.
-# See AGENTPULSE_MULTIAGENT_PLAN_v2.md Phase 3C for the fallback.
+# Start OpenClaw gateway for the analyst agent (headless — no Telegram token)
 cd /app
 exec pnpm run openclaw gateway --allow-unconfigured

@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gettext-base \
     jq \
+    procps \
     python3 \
     python3-pip \
     && rm -rf /var/lib/apt/lists/*
@@ -50,6 +51,9 @@ ENV OPENCLAW_SKILLS_DIR=/home/openclaw/skills
 # Install Python dependencies
 COPY --chown=openclaw:openclaw requirements.txt /home/openclaw/requirements.txt
 RUN pip3 install --break-system-packages -r /home/openclaw/requirements.txt
+
+# Copy analyst poller
+COPY --chown=openclaw:openclaw analyst_poller.py /home/openclaw/analyst_poller.py
 
 # Copy entrypoint
 COPY --chown=openclaw:openclaw entrypoint.sh /home/openclaw/entrypoint.sh
