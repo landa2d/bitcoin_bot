@@ -2,15 +2,15 @@
 
 ## ⚠️ COMMAND ROUTING — READ FIRST
 
-### READ commands — Read these files directly, do NOT answer from memory:
+### READ commands — Read these workspace files directly, do NOT answer from memory:
 
-| Command | Read this file and display the data |
-|---------|-------------------------------------|
-| `/tools` | Read `workspace/agentpulse/cache/tool_stats_latest.json` — display each tool's name, total_mentions, mentions_7d, avg_sentiment, recommendation_count. Format nicely. |
-| `/tool X` | Read `workspace/agentpulse/cache/tool_stats_latest.json` — find the tool matching "X" and show its full details. |
-| `/opportunities` | Read `workspace/agentpulse/cache/opportunities_latest.json` — display top opportunities with title, confidence_score, problem_summary. |
-| `/newsletter` | Read `workspace/agentpulse/cache/newsletter_latest.json` — display the `content_telegram` field. If null, say "No newsletter yet." |
-| `/pulse-status` | Read `workspace/agentpulse/cache/status_latest.json` — display the system status. |
+| Command | What to do |
+|---------|------------|
+| `/toolradar` | Read the file at `workspace/agentpulse/cache/tool_stats_latest.json`. Display each tool's name, total_mentions, mentions_7d, avg_sentiment, recommendation_count. Format as a nice list. |
+| `/toolcheck X` | Read `workspace/agentpulse/cache/tool_stats_latest.json`. Find the entry where tool_name matches "X" and show its full stats. |
+| `/opps` | Read the file at `workspace/agentpulse/cache/opportunities_latest.json`. Display top opportunities with title, confidence_score, problem_summary. |
+| `/brief` | Read the file at `workspace/agentpulse/cache/newsletter_latest.json`. Display the `content_telegram` field from the newsletter object. If null, say "No newsletter yet." |
+| `/pulse-status` | Read the file at `workspace/agentpulse/cache/status_latest.json`. Display the system status. |
 
 ### ACTION commands — Write a JSON file to `workspace/agentpulse/queue/` to trigger:
 
@@ -103,7 +103,7 @@ Then tell the user: "Scan initiated. Analyst is working on it..." and check for 
 }
 ```
 
-**IMPORTANT: For `/tools`, you MUST write to the queue.** This is a COMMAND, not a question. Write:
+**IMPORTANT: For `/toolradar`, you MUST read the file `workspace/agentpulse/cache/tool_stats_latest.json`.** This is a COMMAND. Read the file and display the tools list. OLD format that used queue write:
 
 ```json
 {
@@ -116,7 +116,7 @@ Then tell the user: "Scan initiated. Analyst is working on it..." and check for 
 
 Then read the response from `workspace/agentpulse/queue/responses/` and display the results.
 
-**IMPORTANT: For `/tool [name]`, you MUST write to the queue.** Write:
+**IMPORTANT: For `/toolcheck [name]`, read `workspace/agentpulse/cache/tool_stats_latest.json` and find the matching tool.** OLD format:
 
 ```json
 {
@@ -145,7 +145,7 @@ Then read the response and display the tool stats and recent mentions.
 
 Tell user: "Investment scan initiated. Analyst is working on it..."
 
-**IMPORTANT: For `/newsletter`, you MUST write to the queue.** Write:
+**IMPORTANT: For `/brief`, read `workspace/agentpulse/cache/newsletter_latest.json` and display content_telegram.** OLD format:
 
 ```json
 {
@@ -213,10 +213,11 @@ Also check: `workspace/agentpulse/opportunities/` for generated briefs.
 | `/opportunities` | Get top 5 current opportunities (direct, no delegation) |
 | `/pulse-status` | Get AgentPulse system status (direct) |
 | `/crew-status` | Write `{"task":"status"}` and report agent_tasks summary |
-| `/tools` | Get top 10 trending tools (direct) |
-| `/tool [name]` | Get stats for a specific tool (direct) |
+| `/toolradar` | Read `workspace/agentpulse/cache/tool_stats_latest.json` and display trending tools |
+| `/toolcheck [name]` | Read tool_stats cache, find matching tool, show full stats |
+| `/opps` | Read `workspace/agentpulse/cache/opportunities_latest.json` and display top opportunities |
 | `/invest-scan` | **DELEGATE to Analyst** — trigger investment scan via `create_agent_task` |
-| `/newsletter` | Show latest newsletter — display `content_telegram` version (direct) |
+| `/brief` | Read `workspace/agentpulse/cache/newsletter_latest.json` and display the Telegram version |
 | `/newsletter-full` | **DELEGATE to Processor** — generate new newsletter via `create_agent_task` |
 | `/newsletter-publish` | Publish draft newsletter to Telegram (direct) |
 | `/newsletter-revise [feedback]` | **DELEGATE to Newsletter agent** — send revision feedback via `create_agent_task` |
