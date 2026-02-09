@@ -51,34 +51,26 @@ services:
       start_period: 60s
 
   # ═══════════════════════════════════════════════════════
-  # ANALYST — Headless analysis worker
+  # ANALYST — Direct OpenAI intelligence agent
   # ═══════════════════════════════════════════════════════
   analyst:
     build:
       context: ./analyst
       dockerfile: Dockerfile
-    container_name: openclaw-analyst
+    container_name: agentpulse-analyst
     restart: unless-stopped
     env_file:
       - ../config/.env
     environment:
       <<: *common-env
       AGENT_NAME: analyst
-      ANALYST_POLL_INTERVAL: "10"
-      TELEGRAM_BOT_TOKEN: ""
-      TELEGRAM_OWNER_ID: ""
-      NODE_ENV: production
-      NODE_OPTIONS: --max-old-space-size=1536
+      ANALYST_POLL_INTERVAL: "15"
+      ANALYST_MODEL: gpt-4o
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
-      OPENCLAW_SKILLS_DIR: /home/openclaw/skills
-      OPENCLAW_GATEWAY_MODE: local
       LOG_LEVEL: info
     volumes:
-      - ../data/openclaw/agents/analyst:/home/openclaw/.openclaw/agents/analyst
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
-      - ../skills:/home/openclaw/skills:ro
-      - ../config:/home/openclaw/.openclaw/config:ro
-    mem_limit: 2g
+    mem_limit: 256m
     depends_on:
       - processor
     networks:
@@ -89,11 +81,11 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "node", "-e", "console.log('healthy')"]
+      test: ["CMD", "pgrep", "-f", "analyst_poller.py"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 30s
 
   # ═══════════════════════════════════════════════════════
   # NEWSLETTER — Direct Anthropic newsletter writer
