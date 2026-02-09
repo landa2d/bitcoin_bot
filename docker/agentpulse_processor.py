@@ -16,7 +16,7 @@ import json
 import time
 import math
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 import argparse
@@ -1573,6 +1573,69 @@ def scheduled_cleanup():
     except Exception as e:
         logger.error(f"Scheduled cleanup failed: {e}")
 
+def refresh_workspace_cache():
+    """Dump latest data to workspace cache files so Gato can read them directly."""
+    if not supabase:
+        logger.warning("Cannot refresh workspace cache — Supabase not configured")
+        return
+
+    try:
+        # Tool stats
+        tool_stats = supabase.table('tool_stats') \
+            .select('*') \
+            .order('total_mentions', desc=True) \
+            .limit(20) \
+            .execute()
+        cache_file = CACHE_DIR / 'tool_stats_latest.json'
+        cache_file.write_text(json.dumps({
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+            'tools': tool_stats.data or []
+        }, indent=2, default=str))
+
+        # Latest opportunities
+        opps = supabase.table('opportunities') \
+            .select('*') \
+            .order('confidence_score', desc=True) \
+            .limit(10) \
+            .execute()
+        cache_file = CACHE_DIR / 'opportunities_latest.json'
+        cache_file.write_text(json.dumps({
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+            'opportunities': opps.data or []
+        }, indent=2, default=str))
+
+        # Latest newsletter
+        newsletter = supabase.table('newsletters') \
+            .select('*') \
+            .order('created_at', desc=True) \
+            .limit(1) \
+            .execute()
+        cache_file = CACHE_DIR / 'newsletter_latest.json'
+        cache_file.write_text(json.dumps({
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+            'newsletter': newsletter.data[0] if newsletter.data else None
+        }, indent=2, default=str))
+
+        # System status summary
+        status = get_status()
+        cache_file = CACHE_DIR / 'status_latest.json'
+        cache_file.write_text(json.dumps({
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+            'status': status
+        }, indent=2, default=str))
+
+        logger.info("Workspace cache refreshed (tool_stats, opportunities, newsletter, status)")
+    except Exception as e:
+        logger.error(f"Failed to refresh workspace cache: {e}")
+
+
+def scheduled_refresh_cache():
+    try:
+        refresh_workspace_cache()
+    except Exception as e:
+        logger.error(f"Scheduled cache refresh failed: {e}")
+
+
 def setup_scheduler():
     """Set up scheduled tasks."""
     # Get intervals from environment or use defaults
@@ -1589,10 +1652,12 @@ def setup_scheduler():
     schedule.every().monday.at("08:00").do(scheduled_notify_newsletter)
     schedule.every().day.at("09:00").do(scheduled_digest)
     schedule.every().day.at("03:00").do(scheduled_cleanup)
+    schedule.every(1).hours.do(scheduled_refresh_cache)
     
     logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
     logger.info("Weekly: newsletter prep Mon 07:00, newsletter notify Mon 08:00 UTC")
+    logger.info("Hourly: workspace cache refresh")
 
 def run_scheduler():
     """Run the scheduler in a background thread."""
@@ -1675,6 +1740,13 @@ def main():
                 scheduled_scrape()
             except Exception as e:
                 logger.error(f"Initial scrape failed: {e}")
+            
+            # Populate workspace cache immediately so Gato can read data
+            logger.info("Populating workspace cache...")
+            try:
+                refresh_workspace_cache()
+            except Exception as e:
+                logger.error(f"Initial cache refresh failed: {e}")
         
         # Main loop: file queue + DB tasks + scheduled tasks
         logger.info("Starting queue watcher (multi-agent mode)...")

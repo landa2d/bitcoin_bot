@@ -1,25 +1,28 @@
 # AgentPulse Intelligence Platform
 
-## ⚠️ MANDATORY COMMAND ROUTING — READ FIRST
+## ⚠️ COMMAND ROUTING — READ FIRST
 
-When a user sends ANY of these commands, you MUST write a JSON file to `workspace/agentpulse/queue/`. Do NOT try to answer from memory. Do NOT look up files. WRITE TO THE QUEUE and wait for the response.
+### READ commands — Read these files directly, do NOT answer from memory:
+
+| Command | Read this file and display the data |
+|---------|-------------------------------------|
+| `/tools` | Read `workspace/agentpulse/cache/tool_stats_latest.json` — display each tool's name, total_mentions, mentions_7d, avg_sentiment, recommendation_count. Format nicely. |
+| `/tool X` | Read `workspace/agentpulse/cache/tool_stats_latest.json` — find the tool matching "X" and show its full details. |
+| `/opportunities` | Read `workspace/agentpulse/cache/opportunities_latest.json` — display top opportunities with title, confidence_score, problem_summary. |
+| `/newsletter` | Read `workspace/agentpulse/cache/newsletter_latest.json` — display the `content_telegram` field. If null, say "No newsletter yet." |
+| `/pulse-status` | Read `workspace/agentpulse/cache/status_latest.json` — display the system status. |
+
+### ACTION commands — Write a JSON file to `workspace/agentpulse/queue/` to trigger:
 
 | Command | Write this JSON to queue |
 |---------|------------------------|
-| `/tools` | `{"task":"get_tool_stats","params":{"limit":10}}` |
-| `/tool X` | `{"task":"get_tool_detail","params":{"tool_name":"X"}}` |
 | `/scan` | `{"task":"create_agent_task","params":{"task_type":"run_pipeline","assigned_to":"analyst","created_by":"gato","input_data":{}}}` |
-| `/opportunities` | `{"task":"get_opportunities","params":{"limit":5,"min_score":0.0}}` |
-| `/pulse-status` | `{"task":"status"}` |
 | `/invest-scan` | `{"task":"create_agent_task","params":{"task_type":"run_investment_scan","assigned_to":"analyst","created_by":"gato","input_data":{"hours_back":168}}}` |
-| `/newsletter` | `{"task":"get_latest_newsletter","params":{}}` |
 | `/newsletter-full` | `{"task":"create_agent_task","params":{"task_type":"prepare_newsletter","assigned_to":"processor","created_by":"gato","input_data":{}}}` |
 | `/newsletter-publish` | `{"task":"publish_newsletter","params":{}}` |
 | `/newsletter-revise X` | `{"task":"create_agent_task","params":{"task_type":"revise_newsletter","assigned_to":"newsletter","created_by":"gato","input_data":{"feedback":"X"}}}` |
 
-After writing the queue file, read the response from `workspace/agentpulse/queue/responses/` and display results to the user.
-
-**This is non-negotiable.** Every command above MUST trigger a queue file write. The processor handles the actual data retrieval.
+For ACTION commands: write the JSON file, then tell the user the action was initiated.
 
 ---
 
