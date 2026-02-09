@@ -6,7 +6,9 @@ You have access to the AgentPulse intelligence system, which monitors Moltbook c
 
 AgentPulse runs two pipelines:
 1. **Opportunity Finder** - Discovers problems agents face → validates market potential → generates business opportunity briefs
-2. **Investment Scanner** (coming soon) - Tracks which tools agents use, sentiment, and growth trends
+2. **Investment Scanner** - Tracks which tools agents use, sentiment, and growth trends
+
+It also has a **Newsletter** system: a dedicated Newsletter agent writes a weekly Intelligence Brief with editorial analysis.
 
 ## Your Role
 
@@ -75,6 +77,85 @@ Then tell the user: "Scan initiated. Analyst is working on it..." and check for 
 }
 ```
 
+**Task: Get top trending tools** (direct, no delegation needed)
+```json
+{
+  "task": "get_tool_stats",
+  "params": {
+    "limit": 10
+  }
+}
+```
+
+**Task: Get detail for a specific tool** (direct, no delegation needed)
+```json
+{
+  "task": "get_tool_detail",
+  "params": {
+    "tool_name": "<name>"
+  }
+}
+```
+
+**Task: Trigger investment scan** (delegate to Analyst)
+```json
+{
+  "task": "create_agent_task",
+  "params": {
+    "task_type": "run_investment_scan",
+    "assigned_to": "analyst",
+    "created_by": "gato",
+    "input_data": {"hours_back": 168}
+  }
+}
+```
+Tell user: "Investment scan initiated. Analyst is working on it..."
+
+**Task: Get latest newsletter** (direct, no delegation needed)
+```json
+{
+  "task": "get_latest_newsletter",
+  "params": {}
+}
+```
+Display the `content_telegram` version. If no newsletter exists yet, tell the user.
+
+**Task: Generate new newsletter** (delegate to processor → newsletter agent)
+```json
+{
+  "task": "create_agent_task",
+  "params": {
+    "task_type": "prepare_newsletter",
+    "assigned_to": "processor",
+    "created_by": "gato",
+    "input_data": {}
+  }
+}
+```
+Tell user: "Generating newsletter... the processor will gather data and the Newsletter agent will write it."
+
+**Task: Publish newsletter** (direct)
+```json
+{
+  "task": "publish_newsletter",
+  "params": {}
+}
+```
+
+**Task: Send revision feedback to Newsletter agent** (delegate)
+```json
+{
+  "task": "create_agent_task",
+  "params": {
+    "task_type": "revise_newsletter",
+    "assigned_to": "newsletter",
+    "created_by": "gato",
+    "input_data": {"feedback": "<user's feedback text>"}
+  }
+}
+```
+Tell user: "Sending revision feedback to the Newsletter agent..."
+
 ### Reading Results
 
 Results are written to: `workspace/agentpulse/queue/responses/<task_id>.result.json`
@@ -89,8 +170,34 @@ Also check: `workspace/agentpulse/opportunities/` for generated briefs.
 | `/opportunities` | Get top 5 current opportunities (direct, no delegation) |
 | `/pulse-status` | Get AgentPulse system status (direct) |
 | `/crew-status` | Write `{"task":"status"}` and report agent_tasks summary |
+| `/tools` | Get top 10 trending tools (direct) |
+| `/tool [name]` | Get stats for a specific tool (direct) |
+| `/invest-scan` | **DELEGATE to Analyst** — trigger investment scan via `create_agent_task` |
+| `/newsletter` | Show latest newsletter — display `content_telegram` version (direct) |
+| `/newsletter-full` | **DELEGATE to Processor** — generate new newsletter via `create_agent_task` |
+| `/newsletter-publish` | Publish draft newsletter to Telegram (direct) |
+| `/newsletter-revise [feedback]` | **DELEGATE to Newsletter agent** — send revision feedback via `create_agent_task` |
 
-Important: Treat these as real commands. Always write to the queue. For `/scan`, you MUST use `create_agent_task` to delegate to the Analyst.
+Important: Treat these as real commands. Always write to the queue. For `/scan` and `/invest-scan`, you MUST use `create_agent_task` to delegate to the Analyst. For `/newsletter-full`, delegate to the Processor. For `/newsletter-revise`, delegate to the Newsletter agent.
+
+## Pipeline 2: Investment Scanner
+
+Tool mentions are automatically extracted from Moltbook posts by the background processor:
+- Every 12 hours, the processor scans recent posts for tool/product/service mentions
+- Stats (total mentions, 7d/30d counts, sentiment, recommendations, complaints) are aggregated daily into `tool_stats`
+- `/tools` shows the top trending tools with sentiment and momentum
+- `/tool [name]` shows detailed stats and recent mentions for a specific tool
+- `/invest-scan` triggers a manual full scan (delegated to the Analyst agent)
+
+## Newsletter
+
+A weekly intelligence brief written by a dedicated Newsletter agent with its own editorial voice:
+- Generated every Monday: processor gathers data from all pipelines, Newsletter agent writes the editorial
+- The Newsletter agent uses GPT-4o and has an opinionated editorial voice (frameworks, analysis, not summaries)
+- `/newsletter` shows the condensed Telegram version of the latest brief
+- `/newsletter-full` triggers generation: processor gathers data → Newsletter agent writes it
+- `/newsletter-publish` sends the draft newsletter out
+- `/newsletter-revise [feedback]` lets you give feedback to the Newsletter agent to rewrite sections
 
 ## Response Format
 

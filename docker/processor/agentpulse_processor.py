@@ -1261,6 +1261,37 @@ def execute_task(task: dict) -> dict:
     elif task_type == 'get_latest_newsletter':
         return get_latest_newsletter()
     
+    elif task_type == 'get_tool_stats':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        limit = params.get('limit', 10)
+        result = supabase.table('tool_stats') \
+            .select('*') \
+            .order('total_mentions', desc=True) \
+            .limit(limit) \
+            .execute()
+        return {'tools': result.data or []}
+    
+    elif task_type == 'get_tool_detail':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        tool_name = params.get('tool_name', '')
+        stats = supabase.table('tool_stats') \
+            .select('*') \
+            .ilike('tool_name', tool_name) \
+            .limit(1) \
+            .execute()
+        mentions = supabase.table('tool_mentions') \
+            .select('*') \
+            .ilike('tool_name', tool_name) \
+            .order('created_at', desc=True) \
+            .limit(10) \
+            .execute()
+        return {
+            'stats': stats.data[0] if stats.data else None,
+            'recent_mentions': mentions.data or []
+        }
+    
     elif task_type == 'get_opportunities':
         return get_current_opportunities(
             limit=params.get('limit', 5),
