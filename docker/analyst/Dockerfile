@@ -24,9 +24,10 @@ COPY --chown=openclaw:openclaw analyst_poller.py /home/openclaw/analyst_poller.p
 COPY --chown=openclaw:openclaw entrypoint.sh /home/openclaw/entrypoint.sh
 RUN chmod +x /home/openclaw/entrypoint.sh
 
-# Create directories
+# Create directories and ensure correct ownership
 RUN mkdir -p /home/openclaw/.openclaw/workspace/agentpulse/analysis \
-             /home/openclaw/.openclaw/logs
+             /home/openclaw/.openclaw/logs \
+    && chown -R openclaw:openclaw /home/openclaw/.openclaw
 
 USER openclaw
 
