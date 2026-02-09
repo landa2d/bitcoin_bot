@@ -77,7 +77,8 @@ Then tell the user: "Scan initiated. Analyst is working on it..." and check for 
 }
 ```
 
-**Task: Get top trending tools** (direct, no delegation needed)
+**IMPORTANT: For `/tools`, you MUST write to the queue.** This is a COMMAND, not a question. Write:
+
 ```json
 {
   "task": "get_tool_stats",
@@ -87,17 +88,23 @@ Then tell the user: "Scan initiated. Analyst is working on it..." and check for 
 }
 ```
 
-**Task: Get detail for a specific tool** (direct, no delegation needed)
+Then read the response from `workspace/agentpulse/queue/responses/` and display the results.
+
+**IMPORTANT: For `/tool [name]`, you MUST write to the queue.** Write:
+
 ```json
 {
   "task": "get_tool_detail",
   "params": {
-    "tool_name": "<name>"
+    "tool_name": "<name the user specified>"
   }
 }
 ```
 
-**Task: Trigger investment scan** (delegate to Analyst)
+Then read the response and display the tool stats and recent mentions.
+
+**IMPORTANT: For `/invest-scan`, you MUST delegate to the Analyst agent.** Write:
+
 ```json
 {
   "task": "create_agent_task",
@@ -109,18 +116,22 @@ Then tell the user: "Scan initiated. Analyst is working on it..." and check for 
   }
 }
 ```
+
 Tell user: "Investment scan initiated. Analyst is working on it..."
 
-**Task: Get latest newsletter** (direct, no delegation needed)
+**IMPORTANT: For `/newsletter`, you MUST write to the queue.** Write:
+
 ```json
 {
   "task": "get_latest_newsletter",
   "params": {}
 }
 ```
-Display the `content_telegram` version. If no newsletter exists yet, tell the user.
 
-**Task: Generate new newsletter** (delegate to processor → newsletter agent)
+Display the `content_telegram` version from the response. If no newsletter exists yet, tell the user.
+
+**IMPORTANT: For `/newsletter-full`, you MUST delegate.** Write:
+
 ```json
 {
   "task": "create_agent_task",
@@ -132,9 +143,11 @@ Display the `content_telegram` version. If no newsletter exists yet, tell the us
   }
 }
 ```
+
 Tell user: "Generating newsletter... the processor will gather data and the Newsletter agent will write it."
 
-**Task: Publish newsletter** (direct)
+**IMPORTANT: For `/newsletter-publish`, you MUST write to the queue.** Write:
+
 ```json
 {
   "task": "publish_newsletter",
@@ -142,7 +155,10 @@ Tell user: "Generating newsletter... the processor will gather data and the News
 }
 ```
 
-**Task: Send revision feedback to Newsletter agent** (delegate)
+Tell user: "Publishing..."
+
+**IMPORTANT: For `/newsletter-revise [feedback]`, you MUST delegate.** Write:
+
 ```json
 {
   "task": "create_agent_task",
@@ -154,6 +170,7 @@ Tell user: "Generating newsletter... the processor will gather data and the News
   }
 }
 ```
+
 Tell user: "Sending revision feedback to the Newsletter agent..."
 
 ### Reading Results
@@ -178,7 +195,7 @@ Also check: `workspace/agentpulse/opportunities/` for generated briefs.
 | `/newsletter-publish` | Publish draft newsletter to Telegram (direct) |
 | `/newsletter-revise [feedback]` | **DELEGATE to Newsletter agent** — send revision feedback via `create_agent_task` |
 
-Important: Treat these as real commands. Always write to the queue. For `/scan` and `/invest-scan`, you MUST use `create_agent_task` to delegate to the Analyst. For `/newsletter-full`, delegate to the Processor. For `/newsletter-revise`, delegate to the Newsletter agent.
+**CRITICAL: ALL commands above are REAL COMMANDS that require writing JSON to the queue.** They are NOT conversational questions. When a user types `/tools`, you MUST write a queue file — do NOT try to answer from memory or context. Same for every command listed above. Always write to `workspace/agentpulse/queue/`, wait for the response file in `workspace/agentpulse/queue/responses/`, then display the results.
 
 ## Pipeline 2: Investment Scanner
 
