@@ -1131,6 +1131,120 @@ def get_latest_newsletter() -> dict:
 
 
 # ============================================================================
+# Analysis Package Assembly (delegates to Analyst agent)
+# ============================================================================
+
+def prepare_analysis_package(hours_back: int = 48) -> dict:
+    """Gather all data the Analyst needs and create an analysis task."""
+    if not supabase:
+        return {'error': 'Not configured'}
+
+    run_id = log_pipeline_start('prepare_analysis')
+    cutoff = (datetime.utcnow() - timedelta(hours=hours_back)).isoformat()
+
+    try:
+        # Gather data from all sources
+        problems = supabase.table('problems')\
+            .select('*')\
+            .gte('first_seen', cutoff)\
+            .order('frequency_count', desc=True)\
+            .limit(200)\
+            .execute()
+
+        clusters = supabase.table('problem_clusters')\
+            .select('*')\
+            .order('opportunity_score', desc=True)\
+            .limit(50)\
+            .execute()
+
+        tool_mentions = supabase.table('tool_mentions')\
+            .select('*')\
+            .gte('mentioned_at', cutoff)\
+            .order('mentioned_at', desc=True)\
+            .limit(200)\
+            .execute()
+
+        tool_stats = supabase.table('tool_stats')\
+            .select('*')\
+            .order('total_mentions', desc=True)\
+            .limit(50)\
+            .execute()
+
+        existing_opps = supabase.table('opportunities')\
+            .select('*')\
+            .eq('status', 'draft')\
+            .order('confidence_score', desc=True)\
+            .limit(20)\
+            .execute()
+
+        # Get previous analysis run for comparison
+        prev_run = supabase.table('analysis_runs')\
+            .select('*')\
+            .eq('status', 'completed')\
+            .order('completed_at', desc=True)\
+            .limit(1)\
+            .execute()
+
+        # Stats
+        total_posts = supabase.table('moltbook_posts')\
+            .select('id', count='exact')\
+            .gte('scraped_at', cutoff)\
+            .execute()
+
+        data_package = {
+            'timeframe_hours': hours_back,
+            'gathered_at': datetime.utcnow().isoformat(),
+            'problems': problems.data or [],
+            'clusters': clusters.data or [],
+            'tool_mentions': tool_mentions.data or [],
+            'tool_stats': tool_stats.data or [],
+            'existing_opportunities': existing_opps.data or [],
+            'previous_run': prev_run.data[0] if prev_run.data else None,
+            'stats': {
+                'posts_in_window': total_posts.count or 0,
+                'problems_in_window': len(problems.data or []),
+                'tools_tracked': len(tool_stats.data or []),
+                'existing_opportunities': len(existing_opps.data or [])
+            }
+        }
+
+        # Create analysis task for the Analyst agent
+        # Serialize with default=str to handle datetimes
+        serialized = json.loads(json.dumps(data_package, default=str))
+
+        task_result = supabase.table('agent_tasks').insert({
+            'task_type': 'full_analysis',
+            'assigned_to': 'analyst',
+            'created_by': 'processor',
+            'priority': 2,
+            'input_data': serialized
+        }).execute()
+
+        task_id = task_result.data[0]['id'] if task_result.data else None
+
+        result = {
+            'task_id': task_id,
+            'data_summary': {
+                'problems': len(problems.data or []),
+                'clusters': len(clusters.data or []),
+                'tool_mentions': len(tool_mentions.data or []),
+                'tools': len(tool_stats.data or []),
+                'opportunities': len(existing_opps.data or [])
+            },
+            'delegated_to': 'analyst'
+        }
+
+        log_pipeline_end(run_id, 'completed', result)
+        logger.info(f"Analysis package assembled and delegated to analyst (task {task_id})")
+        return result
+
+    except Exception as e:
+        logger.error(f"Analysis package assembly failed: {e}")
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+
+# ============================================================================
 # Pipeline Logging
 # ============================================================================
 
@@ -1225,16 +1339,18 @@ def execute_task(task: dict) -> dict:
         return cluster_problems(min_problems=params.get('min_problems', 3))
     
     elif task_type == 'run_pipeline':
-        # Full pipeline run: scrape → extract → cluster → generate
+        # Full pipeline: scrape → extract → cluster → tools → delegate analysis to Analyst
         scrape_result = scrape_moltbook()
         extract_result = extract_problems()
+        tool_result = extract_tool_mentions()
         cluster_result = cluster_problems()
-        opp_result = generate_opportunities(min_score=0.3)
+        analysis_result = prepare_analysis_package()  # delegates to Analyst agent
         return {
             'scrape': scrape_result,
             'extract': extract_result,
+            'tools': tool_result,
             'cluster': cluster_result,
-            'opportunities': opp_result
+            'analysis': analysis_result  # contains task_id for Analyst
         }
     
     elif task_type == 'extract_tools':
@@ -1251,6 +1367,9 @@ def execute_task(task: dict) -> dict:
             'extract_tools': extract_result,
             'tool_stats': stats_result
         }
+    
+    elif task_type == 'prepare_analysis':
+        return prepare_analysis_package(hours_back=params.get('hours_back', 48))
     
     elif task_type == 'prepare_newsletter':
         return prepare_newsletter_data()
@@ -1472,17 +1591,23 @@ def scheduled_scrape():
         logger.error(f"Scheduled scrape failed: {e}")
 
 def scheduled_analyze():
-    """Scheduled analysis task."""
+    """Scheduled analysis task — gathers data then delegates to Analyst agent."""
     logger.info("Running scheduled analysis...")
     try:
         extract_result = extract_problems()
-        opp_result = generate_opportunities()
-        logger.info(f"Scheduled analysis completed: problems={extract_result}, opportunities={opp_result}")
-        
+        cluster_result = cluster_problems()
+        tool_result = extract_tool_mentions()
+        analysis_result = prepare_analysis_package()  # delegates to Analyst
+
         problems_found = extract_result.get('problems_found', 0)
-        opps_generated = opp_result.get('opportunities_generated', 0)
-        if problems_found > 0 or opps_generated > 0:
-            send_telegram(f"🎯 AgentPulse analysis: {problems_found} problems, {opps_generated} opportunities")
+        clusters_created = cluster_result.get('clusters_created', 0)
+        task_id = analysis_result.get('task_id', '?')
+        logger.info(f"Scheduled analysis completed: problems={problems_found}, clusters={clusters_created}, delegated to analyst (task {task_id})")
+
+        send_telegram(
+            f"🎯 AgentPulse analysis: {problems_found} problems extracted, "
+            f"{clusters_created} clusters created, analysis delegated to Analyst (task {task_id})"
+        )
     except Exception as e:
         logger.error(f"Scheduled analysis failed: {e}")
 
@@ -1671,7 +1796,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'update_tool_stats', 'run_investment_scan', 'prepare_newsletter', 'publish_newsletter', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -1709,6 +1834,10 @@ def main():
         extract_result = extract_tool_mentions(hours_back=168)
         stats_result = update_tool_stats()
         print(json.dumps({'extract_tools': extract_result, 'tool_stats': stats_result}, indent=2))
+    
+    elif args.task == 'prepare_analysis':
+        result = prepare_analysis_package()
+        print(json.dumps(result, default=str, indent=2))
     
     elif args.task == 'prepare_newsletter':
         result = prepare_newsletter_data()
@@ -1752,10 +1881,9 @@ def main():
         logger.info("Starting queue watcher (multi-agent mode)...")
         while True:
             process_queue()                   # legacy file-based queue
-            process_db_tasks('analyst')       # analyst tasks from agent_tasks table
             process_db_tasks('processor')     # processor-specific tasks
-            # NOTE: newsletter tasks are handled by the newsletter container's poller,
-            # NOT by the processor. Don't add process_db_tasks('newsletter') here.
+            # NOTE: analyst tasks are handled by the analyst container's poller.
+            # NOTE: newsletter tasks are handled by the newsletter container's poller.
             schedule.run_pending()            # scheduled scrape/analyze/digest/cleanup
             time.sleep(5)
     
