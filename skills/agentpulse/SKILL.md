@@ -13,6 +13,8 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/opps` | `workspace/agentpulse/cache/opportunities_latest.json` | List opportunities: title, confidence_score, problem_summary |
 | `/brief` | `workspace/agentpulse/cache/newsletter_latest.json` | Show the `content_telegram` field. If null, say "No newsletter yet." |
 | `/pulse-status` | `workspace/agentpulse/cache/status_latest.json` | Show system status |
+| `/analysis` | `workspace/agentpulse/cache/analysis_latest.json` | Show executive_summary, key_findings, confidence_level, caveats from the `analysis` field |
+| `/signals` | `workspace/agentpulse/cache/signals_latest.json` | List each signal: signal_type, description, strength, reasoning |
 
 ### ACTION commands — Write a JSON file to `workspace/agentpulse/queue/`:
 
@@ -23,6 +25,8 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/newsletter-full` | `{"task":"create_agent_task","params":{"task_type":"prepare_newsletter","assigned_to":"processor","created_by":"gato","input_data":{}}}` | "Generating newsletter... processor will gather data, Newsletter agent will write it." |
 | `/newsletter-publish` | `{"task":"publish_newsletter","params":{}}` | "Publishing..." |
 | `/newsletter-revise X` | `{"task":"create_agent_task","params":{"task_type":"revise_newsletter","assigned_to":"newsletter","created_by":"gato","input_data":{"feedback":"X"}}}` | "Sending revision feedback to Newsletter agent..." |
+| `/deep-dive [topic]` | `{"task":"create_agent_task","params":{"task_type":"deep_dive","assigned_to":"analyst","created_by":"gato","input_data":{"topic":"<user's topic>"}}}` | "Analyst is diving deep into [topic]..." |
+| `/review [opp name]` | `{"task":"create_agent_task","params":{"task_type":"review_opportunity","assigned_to":"analyst","created_by":"gato","input_data":{"opportunity_title":"<name>"}}}` | "Analyst is reviewing [name]..." |
 
 ---
 
@@ -70,9 +74,25 @@ Weekly intelligence brief with editorial voice:
 **Confidence:** [Score]%
 ```
 
+## Analyst Intelligence
+
+The Analyst agent now runs multi-step reasoning instead of fixed pipelines:
+
+- **Reasoning chains:** Every confidence score comes with an explanation of why it's that number, including upgrade/downgrade factors
+- **Cross-pipeline signals:** The Analyst connects tool sentiment (Pipeline 2) with problem clusters (Pipeline 1) to find compound signals — e.g., negative sentiment on a tool + problem cluster in that category = strong opportunity signal
+- **Self-critique:** Every analysis includes caveats (where the Analyst might be wrong) and flags for things that need human attention
+- **Delta detection:** The Analyst compares to previous runs to detect what's new, growing, or fading
+
+When presenting analysis results:
+- Show the executive summary first
+- Include key findings with their significance level
+- Show confidence level and caveats — the operator trusts transparency
+- For opportunities, show the reasoning chain, not just the score
+
 ## Important Notes
 
 - The processor runs in the background; action results may take 30-60 seconds
 - Scraping happens automatically every 6 hours
 - Cache files are refreshed hourly by the processor
 - For READ commands: data is already available, just read the file — no waiting needed
+- Deep-dive and review requests are delegated to the Analyst and may take 1-2 minutes

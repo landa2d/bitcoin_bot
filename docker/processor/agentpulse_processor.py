@@ -1413,6 +1413,31 @@ def execute_task(task: dict) -> dict:
             'recent_mentions': mentions.data or []
         }
     
+    elif task_type == 'get_latest_analysis':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        result = supabase.table('analysis_runs') \
+            .select('*') \
+            .eq('status', 'completed') \
+            .order('completed_at', desc=True) \
+            .limit(1) \
+            .execute()
+        if result.data:
+            return result.data[0]
+        return {'error': 'No completed analysis runs found'}
+    
+    elif task_type == 'get_cross_signals':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        limit = params.get('limit', 10)
+        result = supabase.table('cross_signals') \
+            .select('*') \
+            .eq('status', 'active') \
+            .order('strength', desc=True) \
+            .limit(limit) \
+            .execute()
+        return {'signals': result.data or [], 'count': len(result.data or [])}
+    
     elif task_type == 'get_opportunities':
         return get_current_opportunities(
             limit=params.get('limit', 5),
@@ -1743,6 +1768,32 @@ def refresh_workspace_cache():
             'newsletter': newsletter.data[0] if newsletter.data else None
         }, indent=2, default=str))
 
+        # Latest analysis run
+        analysis = supabase.table('analysis_runs') \
+            .select('*') \
+            .eq('status', 'completed') \
+            .order('completed_at', desc=True) \
+            .limit(1) \
+            .execute()
+        cache_file = CACHE_DIR / 'analysis_latest.json'
+        cache_file.write_text(json.dumps({
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+            'analysis': analysis.data[0] if analysis.data else None
+        }, indent=2, default=str))
+
+        # Active cross-signals
+        signals = supabase.table('cross_signals') \
+            .select('*') \
+            .eq('status', 'active') \
+            .order('strength', desc=True) \
+            .limit(20) \
+            .execute()
+        cache_file = CACHE_DIR / 'signals_latest.json'
+        cache_file.write_text(json.dumps({
+            'updated_at': datetime.now(timezone.utc).isoformat(),
+            'signals': signals.data or []
+        }, indent=2, default=str))
+
         # System status summary
         status = get_status()
         cache_file = CACHE_DIR / 'status_latest.json'
@@ -1751,7 +1802,7 @@ def refresh_workspace_cache():
             'status': status
         }, indent=2, default=str))
 
-        logger.info("Workspace cache refreshed (tool_stats, opportunities, newsletter, status)")
+        logger.info("Workspace cache refreshed (tool_stats, opportunities, newsletter, analysis, signals, status)")
     except Exception as e:
         logger.error(f"Failed to refresh workspace cache: {e}")
 
