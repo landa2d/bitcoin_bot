@@ -1112,7 +1112,7 @@ def prepare_newsletter_data() -> dict:
             .select('*')\
             .gte('first_seen', week_ago)\
             .lt('frequency_count', 5)\
-            .order('created_at', desc=True)\
+            .order('first_seen', desc=True)\
             .limit(10)\
             .execute()
         emerging_problems_data = emerging_problems.data or []
