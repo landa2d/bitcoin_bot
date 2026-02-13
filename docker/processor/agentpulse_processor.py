@@ -1080,14 +1080,94 @@ def prepare_newsletter_data() -> dict:
     week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
 
     try:
-        # Top 5 opportunities by confidence_score
+        # ── Section A: Established Opportunities (staleness-aware) ──
         opps = supabase.table('opportunities')\
             .select('*')\
-            .order('confidence_score', desc=True)\
-            .limit(5)\
+            .eq('status', 'draft')\
+            .gte('confidence_score', 0.3)\
             .execute()
-        opportunities_data = opps.data or []
+        opps_raw = opps.data or []
 
+        # Compute effective_score with staleness decay
+        for opp in opps_raw:
+            appearances = opp.get('newsletter_appearances', 0) or 0
+            effective_score = opp.get('confidence_score', 0) * (0.7 ** appearances)
+
+            # Boost if analyst reviewed since last featured
+            last_featured = opp.get('last_featured_at')
+            last_reviewed = opp.get('last_reviewed_at')
+            if last_featured and last_reviewed and last_reviewed > last_featured:
+                effective_score *= 1.3
+
+            opp['effective_score'] = round(effective_score, 4)
+            opp['appearances'] = appearances
+
+        # Sort by effective_score and take top 5
+        opps_raw.sort(key=lambda x: x.get('effective_score', 0), reverse=True)
+        opportunities_data = opps_raw[:5]
+
+        # ── Section B: Emerging Signals ──
+        # Recent problems with low frequency (early signals)
+        emerging_problems = supabase.table('problems')\
+            .select('*')\
+            .gte('first_seen', week_ago)\
+            .lt('frequency_count', 5)\
+            .order('created_at', desc=True)\
+            .limit(10)\
+            .execute()
+        emerging_problems_data = emerging_problems.data or []
+
+        # Recent high-potential clusters
+        emerging_clusters = supabase.table('problem_clusters')\
+            .select('*')\
+            .gte('created_at', week_ago)\
+            .gte('opportunity_score', 0.3)\
+            .order('opportunity_score', desc=True)\
+            .limit(10)\
+            .execute()
+        emerging_clusters_data = emerging_clusters.data or []
+
+        # Combine into emerging signals list (deduplicated by theme)
+        seen_themes = set()
+        emerging_signals = []
+        for cluster in emerging_clusters_data:
+            theme = cluster.get('theme', '')
+            if theme not in seen_themes:
+                seen_themes.add(theme)
+                emerging_signals.append({
+                    'type': 'cluster',
+                    'theme': theme,
+                    'description': cluster.get('description'),
+                    'opportunity_score': cluster.get('opportunity_score'),
+                    'problem_ids': cluster.get('problem_ids', []),
+                    'market_validation': cluster.get('market_validation', {})
+                })
+        for problem in emerging_problems_data:
+            desc = problem.get('description', '')
+            if desc not in seen_themes:
+                seen_themes.add(desc)
+                emerging_signals.append({
+                    'type': 'problem',
+                    'theme': desc,
+                    'description': desc,
+                    'category': problem.get('category'),
+                    'signal_phrases': problem.get('signal_phrases', []),
+                    'frequency_count': problem.get('frequency_count', 1),
+                    'metadata': problem.get('metadata', {})
+                })
+        emerging_signals = emerging_signals[:10]
+
+        # ── Section C: Curious Corner (trending topics) ──
+        curious_topics = supabase.table('trending_topics')\
+            .select('*')\
+            .gte('extracted_at', week_ago)\
+            .eq('featured_in_newsletter', False)\
+            .order('novelty_score', desc=True)\
+            .limit(8)\
+            .execute()
+        curious_data = curious_topics.data or []
+
+        # ── Existing data: tools, warnings, clusters ──
         # Top 10 tools by mentions_7d
         tools = supabase.table('tool_stats')\
             .select('*')\
@@ -1113,14 +1193,13 @@ def prepare_newsletter_data() -> dict:
             .execute()
         clusters_data = clusters.data or []
 
-        # Stats
+        # ── Stats ──
         posts_count_result = supabase.table('moltbook_posts')\
             .select('id', count='exact')\
             .gte('scraped_at', week_ago)\
             .execute()
         posts_count = posts_count_result.count if posts_count_result.count else 0
 
-        # problems table has no created_at/first_seen in schema — use total count
         problems_count_result = supabase.table('problems')\
             .select('id', count='exact')\
             .execute()
@@ -1148,10 +1227,12 @@ def prepare_newsletter_data() -> dict:
                 .execute()
             edition_number = (existing.count or 0) + 1
 
-        # Build input_data for the Newsletter agent
+        # Build input_data for the Newsletter agent (3-section format)
         input_data = {
             'edition_number': edition_number,
-            'opportunities': opportunities_data,
+            'section_a_opportunities': opportunities_data,
+            'section_b_emerging': emerging_signals,
+            'section_c_curious': curious_data,
             'trending_tools': tools_data,
             'tool_warnings': warnings_data,
             'clusters': clusters_data,
@@ -1159,12 +1240,13 @@ def prepare_newsletter_data() -> dict:
                 'posts_count': posts_count,
                 'problems_count': problems_count,
                 'tools_count': tools_count,
-                'new_opps_count': new_opps_count
+                'new_opps_count': new_opps_count,
+                'emerging_signals_count': len(emerging_signals),
+                'trending_topics_count': len(curious_data)
             }
         }
 
         # Create agent_task for the Newsletter agent
-        # Use json.dumps with default=str to handle any datetime objects
         serialized_input = json.loads(json.dumps(input_data, default=str))
 
         new_task = supabase.table('agent_tasks').insert({
@@ -1183,6 +1265,8 @@ def prepare_newsletter_data() -> dict:
             'status': 'delegated_to_newsletter',
             'data_summary': {
                 'opportunities': len(opportunities_data),
+                'emerging_signals': len(emerging_signals),
+                'curious_topics': len(curious_data),
                 'tools': len(tools_data),
                 'warnings': len(warnings_data),
                 'clusters': len(clusters_data)
@@ -1228,6 +1312,9 @@ def publish_newsletter() -> dict:
             'published_at': datetime.utcnow().isoformat()
         }).eq('id', newsletter['id']).execute()
 
+        # Update appearance counters for featured opportunities and trending topics
+        update_newsletter_appearances(newsletter)
+
         logger.info(f"Newsletter #{newsletter.get('edition_number', '?')} published")
         return {
             'published': newsletter['id'],
@@ -1237,6 +1324,73 @@ def publish_newsletter() -> dict:
     except Exception as e:
         logger.error(f"Newsletter publish failed: {e}")
         return {'error': str(e)}
+
+
+def update_newsletter_appearances(newsletter: dict):
+    """Update appearance counters for opportunities and trending topics featured in the newsletter."""
+    if not supabase:
+        return
+
+    now = datetime.utcnow().isoformat()
+
+    try:
+        # Get the data snapshot from the newsletter's input or stored data
+        data_snapshot = newsletter.get('data_snapshot') or newsletter.get('input_data') or {}
+
+        # Update featured opportunities
+        featured_opps = data_snapshot.get('section_a_opportunities') or data_snapshot.get('opportunities') or []
+        for opp in featured_opps:
+            opp_id = opp.get('id')
+            if not opp_id:
+                continue
+
+            try:
+                # Read current values
+                current = supabase.table('opportunities')\
+                    .select('newsletter_appearances, first_featured_at')\
+                    .eq('id', opp_id)\
+                    .limit(1)\
+                    .execute()
+
+                if current.data:
+                    current_appearances = current.data[0].get('newsletter_appearances', 0) or 0
+                    update_data = {
+                        'newsletter_appearances': current_appearances + 1,
+                        'last_featured_at': now
+                    }
+                    # Set first_featured_at if not already set
+                    if not current.data[0].get('first_featured_at'):
+                        update_data['first_featured_at'] = now
+
+                    supabase.table('opportunities')\
+                        .update(update_data)\
+                        .eq('id', opp_id)\
+                        .execute()
+
+            except Exception as e:
+                logger.error(f"Failed to update appearances for opportunity {opp_id}: {e}")
+
+        # Update featured trending topics
+        featured_topics = data_snapshot.get('section_c_curious') or []
+        for topic in featured_topics:
+            topic_id = topic.get('id')
+            if not topic_id:
+                continue
+
+            try:
+                supabase.table('trending_topics')\
+                    .update({'featured_in_newsletter': True})\
+                    .eq('id', topic_id)\
+                    .execute()
+            except Exception as e:
+                logger.error(f"Failed to mark trending topic {topic_id} as featured: {e}")
+
+        opp_count = len([o for o in featured_opps if o.get('id')])
+        topic_count = len([t for t in featured_topics if t.get('id')])
+        logger.info(f"Newsletter appearances updated: {opp_count} opportunities, {topic_count} trending topics")
+
+    except Exception as e:
+        logger.error(f"Failed to update newsletter appearances: {e}")
 
 
 def get_latest_newsletter() -> dict:

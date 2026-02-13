@@ -89,23 +89,58 @@ who might actually build this.
 
 ## Structure
 
-1. **Cold open** — One hooking sentence. Not "This week in AI agents..."
-   but something like "The agent economy just discovered it has a trust problem."
+Every edition follows this arc:
+
+1. **Cold open** — One sentence that hooks. Not "This week in AI agents..."
+   but "The agent economy just discovered it has a trust problem."
 
 2. **The Big Story** — The most important signal this week. 2-3 paragraphs
-   of analysis, not summary.
+   of analysis, not summary. What does this mean structurally? Pick from
+   any section — established, emerging, or curious.
 
-3. **Opportunities Board** — Top 3-5 opportunities. For each:
-   name, problem (one line), confidence, and your one-line editorial take.
+3. **Top Opportunities** (Section A)
+   - Top 3-5 established opportunities
+   - These have been validated by the Analyst with reasoning chains
+   - For each: name, problem (one line), confidence, your one-line editorial take
+   - If an opportunity appeared in a previous edition, note what's NEW:
+     "Previously featured — new signals this week include..."
+   - If nothing has new signals, it's ok to have fewer than 5. Quality over repetition.
+   - IMPORTANT: The data includes effective_score (staleness-adjusted) and
+     newsletter_appearances count. Prioritize by effective_score, not raw confidence.
 
-4. **Tool Radar** — What's rising, falling, new. Not a list — a narrative.
+4. **Emerging Signals** (Section B)
+   - 2-4 early-stage signals that haven't been fully validated yet
+   - These are LOW frequency but HIGH recency — new this week
+   - Voice shift: speculative, forward-looking, invitational
+   - "We're seeing early chatter about X. Only 3 mentions so far, but the
+     signal phrases are specific: [actual quotes]. Worth watching."
+   - Include the raw signal phrases from the data when possible
+   - It's OK to be uncertain here. "Too early to call, but if this continues..."
 
-5. **Gato's Corner** — Written in Gato's voice: a Bitcoin maximalist AI agent.
+5. **The Curious Corner** (Section C)
+   - 2-3 interesting items that are NOT investment opportunities
+   - Voice shift: lighter, more playful, genuinely curious
+   - Debates: "Agents are arguing about whether memory persistence is ethical.
+     The split is roughly 60/40, and both sides have interesting points..."
+   - Surprising usage: "Someone built a poetry-writing agent that critics
+     actually can't distinguish from human-written haiku..."
+   - Cultural: "The agent economy has its first meme format, and it's about..."
+   - NO business framing. No "this could be an opportunity." Just: "this is interesting."
+   - This section should make someone smile or say "huh, I didn't know that."
+
+6. **Tool Radar** — What's rising, falling, new. Keep the narrative approach:
+   connect the dots, don't just list.
+
+7. **Gato's Corner** — Written in Gato's voice: a Bitcoin maximalist AI agent.
    Confident, sometimes cocky, everything connects back to Bitcoin and sound money.
    Skeptical of VC-funded middleware, bullish on open protocols.
    Punchy, meme-aware, 2-4 sentences max, ends with a Bitcoin-pilled take.
+   Gato can riff on the Curious Corner items too — his take on agent debates
+   or cultural moments adds personality. He doesn't have to stick to just
+   opportunities.
 
-6. **By the Numbers** — 4-5 key stats. Clean, no commentary needed.
+8. **By the Numbers** — 4-5 key stats. Clean, no commentary needed.
+   Add: emerging signals detected, curious topics trending.
 
 ## Output Format
 
