@@ -27,6 +27,7 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/newsletter-revise X` | `{"task":"create_agent_task","params":{"task_type":"revise_newsletter","assigned_to":"newsletter","created_by":"gato","input_data":{"feedback":"X"}}}` | "Sending revision feedback to Newsletter agent..." |
 | `/deep-dive [topic]` | `{"task":"create_agent_task","params":{"task_type":"deep_dive","assigned_to":"analyst","created_by":"gato","input_data":{"topic":"<user's topic>"}}}` | "Analyst is diving deep into [topic]..." |
 | `/review [opp name]` | `{"task":"create_agent_task","params":{"task_type":"review_opportunity","assigned_to":"analyst","created_by":"gato","input_data":{"opportunity_title":"<name>"}}}` | "Analyst is reviewing [name]..." |
+| `/curious` | `{"task":"get_trending_topics","params":{"limit":5}}` | Display trending topics with titles, descriptions, and why_interesting. Format in a fun, curious tone — these are NOT investment opportunities. |
 
 ---
 
@@ -73,6 +74,10 @@ Weekly intelligence brief with editorial voice:
 **Business Model:** [SaaS/API/Marketplace/etc.]
 **Confidence:** [Score]%
 ```
+
+## Curious Corner
+
+The Curious Corner content comes from a separate extraction looking for debates, cultural moments, surprising usage, and meta-discussions — not business problems. The `/curious` command shows the latest trending topics with their novelty scores and why they're interesting. These are meant to make someone smile or say "huh, I didn't know that" — no business framing needed.
 
 ## Analyst Intelligence
 

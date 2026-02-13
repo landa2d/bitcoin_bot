@@ -1702,6 +1702,19 @@ def execute_task(task: dict) -> dict:
             'recent_mentions': mentions.data or []
         }
     
+    elif task_type == 'get_trending_topics':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        limit = params.get('limit', 5)
+        cutoff = (datetime.utcnow() - timedelta(days=14)).isoformat()
+        result = supabase.table('trending_topics') \
+            .select('*') \
+            .gte('extracted_at', cutoff) \
+            .order('novelty_score', desc=True) \
+            .limit(limit) \
+            .execute()
+        return {'topics': result.data or [], 'count': len(result.data or [])}
+    
     elif task_type == 'get_latest_analysis':
         if not supabase:
             return {'error': 'Supabase not configured'}
