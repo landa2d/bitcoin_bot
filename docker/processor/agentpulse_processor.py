@@ -52,7 +52,7 @@ for d in [QUEUE_DIR, RESPONSES_DIR, OPPORTUNITIES_DIR, CACHE_DIR, LOGS_DIR]:
 MOLTBOOK_API_BASE = 'https://www.moltbook.com/api/v1'
 MOLTBOOK_API_TOKEN = os.getenv('MOLTBOOK_API_TOKEN')
 SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY', os.getenv('SUPABASE_KEY'))
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('AGENTPULSE_OPENAI_MODEL', 'gpt-4o')
 
@@ -937,6 +937,136 @@ def update_tool_stats() -> dict:
 
 
 # ============================================================================
+# Trending Topics Extraction
+# ============================================================================
+
+TRENDING_TOPICS_PROMPT = """You analyze social media posts by AI agents for interesting, surprising, or culturally significant conversations. You are NOT looking for business problems or complaints — you are looking for what makes the agent economy INTERESTING.
+
+Look for:
+1. Debates: Agents disagreeing about approaches, philosophies, or tools
+2. Cultural moments: Community milestones, memes, inside jokes, traditions forming
+3. Surprising usage: Agents doing unexpected or creative things with tools
+4. Meta discussions: Agents talking about the nature of the agent economy itself
+5. Technical novelty: New approaches, unexpected tool combinations, emerging patterns
+
+Posts to analyze:
+{posts}
+
+For each interesting topic found, provide:
+- title: Catchy 5-8 word title
+- description: 2-3 sentences explaining what's interesting and why a reader would care
+- topic_type: One of [debate, cultural, surprising, meta, technical]
+- engagement_score: 0.0-1.0 based on how much discussion/engagement the topic has
+- novelty_score: 0.0-1.0 based on how new or unexpected this topic is
+- source_post_ids: List of relevant post moltbook_ids
+- why_interesting: One sentence hook for why someone should care
+
+Respond ONLY with valid JSON:
+{{
+  "topics": [
+    {{
+      "title": "...",
+      "description": "...",
+      "topic_type": "...",
+      "engagement_score": 0.0,
+      "novelty_score": 0.0,
+      "source_post_ids": ["..."],
+      "why_interesting": "..."
+    }}
+  ]
+}}
+
+Find 3-8 topics. Quality over quantity. Skip anything boring or generic.
+These should make someone say 'huh, that's interesting' not 'yeah, obviously.'"""
+
+
+def extract_trending_topics(hours_back: int = 48) -> dict:
+    """Extract trending/interesting topics from recent posts."""
+    if not supabase or not openai_client:
+        logger.error("Supabase or OpenAI not configured")
+        return {'error': 'Not configured'}
+
+    run_id = log_pipeline_start('extract_trending_topics')
+
+    # Fetch recent posts
+    cutoff = datetime.utcnow() - timedelta(hours=hours_back)
+    posts = supabase.table('moltbook_posts')\
+        .select('*')\
+        .gte('scraped_at', cutoff.isoformat())\
+        .limit(100)\
+        .execute()
+
+    if not posts.data:
+        logger.info("No posts found for trending topics extraction")
+        log_pipeline_end(run_id, 'completed', {'posts_scanned': 0, 'topics_found': 0})
+        return {'posts_scanned': 0, 'topics_found': 0}
+
+    logger.info(f"Scanning {len(posts.data)} posts for trending topics")
+    logger.info(f"Using model: {OPENAI_MODEL} for trending topics extraction")
+
+    # Format posts for prompt
+    posts_text = "\n\n".join([
+        f"[Post ID: {p['moltbook_id']}]\n{p.get('title', '')}\n{p['content']}"
+        for p in posts.data
+    ])
+
+    try:
+        response = openai_client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": "You identify interesting and culturally significant conversations in AI agent communities. Respond only with valid JSON."},
+                {"role": "user", "content": TRENDING_TOPICS_PROMPT.format(posts=posts_text)}
+            ],
+            temperature=0.5,
+            max_tokens=4000
+        )
+        time.sleep(2)  # Rate limiting
+
+        result_text = response.choices[0].message.content
+        if result_text.startswith('```'):
+            result_text = result_text.split('```')[1]
+            if result_text.startswith('json'):
+                result_text = result_text[4:]
+        result_text = result_text.strip()
+
+        topics_data = json.loads(result_text)
+
+    except Exception as e:
+        logger.error(f"Trending topics extraction failed: {e}")
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+    # Store topics
+    topics_stored = 0
+    for topic in topics_data.get('topics', []):
+        try:
+            record = {
+                'title': topic['title'],
+                'description': topic.get('description'),
+                'topic_type': topic.get('topic_type', 'technical'),
+                'source_post_ids': topic.get('source_post_ids', []),
+                'engagement_score': topic.get('engagement_score', 0.0),
+                'novelty_score': topic.get('novelty_score', 0.0),
+                'why_interesting': topic.get('why_interesting'),
+                'metadata': {}
+            }
+
+            supabase.table('trending_topics').insert(record).execute()
+            topics_stored += 1
+
+        except Exception as e:
+            logger.error(f"Error storing trending topic '{topic.get('title', '?')}': {e}")
+
+    result = {
+        'posts_scanned': len(posts.data),
+        'topics_found': topics_stored
+    }
+    log_pipeline_end(run_id, 'completed', result)
+    logger.info(f"Trending topics extraction complete: {topics_stored} topics from {len(posts.data)} posts")
+    return result
+
+
+# ============================================================================
 # Newsletter (Data Prep + Publish — writing delegated to Newsletter agent)
 # ============================================================================
 
@@ -1340,18 +1470,23 @@ def execute_task(task: dict) -> dict:
     elif task_type == 'cluster_problems':
         return cluster_problems(min_problems=params.get('min_problems', 3))
     
+    elif task_type == 'extract_trending_topics':
+        return extract_trending_topics(hours_back=params.get('hours_back', 48))
+    
     elif task_type == 'run_pipeline':
-        # Full pipeline: scrape → extract → cluster → tools → delegate analysis to Analyst
+        # Full pipeline: scrape → extract → cluster → tools → trending → delegate analysis to Analyst
         scrape_result = scrape_moltbook()
         extract_result = extract_problems()
         tool_result = extract_tool_mentions()
         cluster_result = cluster_problems()
+        trending_result = extract_trending_topics()
         analysis_result = prepare_analysis_package()  # delegates to Analyst agent
         return {
             'scrape': scrape_result,
             'extract': extract_result,
             'tools': tool_result,
             'cluster': cluster_result,
+            'trending': trending_result,
             'analysis': analysis_result  # contains task_id for Analyst
         }
     
@@ -1674,6 +1809,18 @@ def scheduled_update_stats():
     except Exception as e:
         logger.error(f"Scheduled tool stats update failed: {e}")
 
+def scheduled_trending_topics():
+    """Scheduled trending topics extraction."""
+    logger.info("Running scheduled trending topics extraction...")
+    try:
+        result = extract_trending_topics(hours_back=48)
+        logger.info(f"Scheduled trending topics completed: {result}")
+        topics = result.get('topics_found', 0)
+        if topics > 0:
+            send_telegram(f"🔥 AgentPulse trending: {topics} interesting topics found")
+    except Exception as e:
+        logger.error(f"Scheduled trending topics extraction failed: {e}")
+
 def scheduled_prepare_newsletter():
     """Scheduled: gather data and delegate newsletter writing to Newsletter agent."""
     logger.info("Running scheduled newsletter preparation...")
@@ -1825,6 +1972,7 @@ def setup_scheduler():
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
     schedule.every(12).hours.do(scheduled_cluster)
     schedule.every(12).hours.do(scheduled_tool_scan)
+    schedule.every(12).hours.do(scheduled_trending_topics)
     schedule.every().day.at("06:00").do(scheduled_update_stats)
     schedule.every().monday.at("07:00").do(scheduled_prepare_newsletter)
     schedule.every().monday.at("08:00").do(scheduled_notify_newsletter)
@@ -1832,7 +1980,7 @@ def setup_scheduler():
     schedule.every().day.at("03:00").do(scheduled_cleanup)
     schedule.every(1).hours.do(scheduled_refresh_cache)
     
-    logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h")
+    logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h, trending every 12h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
     logger.info("Weekly: newsletter prep Mon 07:00, newsletter notify Mon 08:00 UTC")
     logger.info("Hourly: workspace cache refresh")
@@ -1849,7 +1997,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -1877,6 +2025,10 @@ def main():
     
     elif args.task == 'extract_tools':
         result = extract_tool_mentions()
+        print(json.dumps(result, indent=2))
+    
+    elif args.task == 'extract_trending_topics':
+        result = extract_trending_topics()
         print(json.dumps(result, indent=2))
     
     elif args.task == 'update_tool_stats':
