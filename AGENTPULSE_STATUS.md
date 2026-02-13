@@ -3,8 +3,8 @@
 **Date:** February 5, 2026  
 **Last Updated:** February 6, 2026  
 **Project:** OpenClaw Bitcoin Agent (Gato) + AgentPulse Intelligence Platform  
-**Repository:** https://github.com/landa2d/bitcoin_bot  
-**Deployment:** Hetzner server (46.224.50.251)
+**Repository:** <REPO_URL>  
+**Deployment:** Hetzner server (<SERVER_IP>)
 
 ---
 
@@ -124,12 +124,12 @@ bitcoin_bot/
     "anthropic": {
       "provider": "anthropic",
       "type": "api_key",
-      "key": "sk-ant-..."
+      "key": "<YOUR_ANTHROPIC_KEY>"
     },
     "openai": {
       "provider": "openai",
       "type": "api_key",
-      "key": "sk-..."
+      "key": "<YOUR_OPENAI_KEY>"
     }
   }
 }

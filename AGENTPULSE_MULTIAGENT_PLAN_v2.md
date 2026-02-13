@@ -689,7 +689,7 @@ elif task_type == 'check_task':
 SSH into server and edit the processor in-place, or update the file in the repo:
 
 ```bash
-ssh root@46.224.50.251
+ssh root@<SERVER_IP>
 # Quick fix in running container
 docker exec -it openclaw-bitcoin-agent sed -i \
   's/min_frequency: int = 2/min_frequency: int = 1/g' \

@@ -3,6 +3,8 @@
 .env
 *.env
 config/.env
+config/.env.*
+!config/env.example
 
 # Data directory (contains agent memory and state)
 data/
@@ -26,6 +28,10 @@ Thumbs.db
 
 # Docker
 docker-compose.override.yml
+
+# Python
+*.pyc
+__pycache__/
 
 # Temporary files
 *.tmp

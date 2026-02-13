@@ -205,12 +205,12 @@ data/openclaw/agents/main/agent/auth-profiles.json
     "anthropic": {
       "provider": "anthropic",
       "type": "api_key",
-      "key": "sk-ant-api03-..."
+      "key": "<YOUR_ANTHROPIC_KEY>"
     },
     "openai": {
       "provider": "openai",
       "type": "api_key",
-      "key": "sk-..."
+      "key": "<YOUR_OPENAI_KEY>"
     }
   }
 }
