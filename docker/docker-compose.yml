@@ -178,8 +178,6 @@ services:
       - "80:80"
     environment:
       DOMAIN: ":80"
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_ANON_KEY: ${SUPABASE_KEY}
     volumes:
       - caddy-data:/data
       - caddy-config:/config
