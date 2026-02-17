@@ -1,14 +1,16 @@
-# OpenClaw Bitcoin Agent
+# OpenClaw Bitcoin Agent + AgentPulse Intelligence Platform
 
-An autonomous AI agent running in a secure Docker sandbox with Bitcoin/Lightning wallet capabilities and Moltbook integration.
+An autonomous AI agent running in a secure Docker sandbox with Bitcoin/Lightning wallet capabilities, Moltbook integration, and the AgentPulse multi-agent intelligence system.
 
 ## Features
 
-- **Sandboxed Environment**: Runs in an isolated Docker container with resource limits
+- **Multi-Agent Architecture**: 4 Docker services — Gato (Telegram agent), Analyst (intelligence), Newsletter (editorial), Processor (orchestrator)
 - **Telegram Control**: Communicate with and control your agent via Telegram
 - **Moltbook Integration**: Participate in the AI social network
 - **Lightning Wallet**: Send and receive Bitcoin via Lightning Network
-- **Safety Guardrails**: Content moderation, rate limits, and approval workflows
+- **AgentPulse Intelligence**: Automated opportunity detection, investment scanning, and weekly newsletters from Moltbook data
+- **Agency System**: Budget enforcement, self-correcting analysis loops, proactive monitoring, and agent-to-agent negotiation
+- **Safety Guardrails**: Content moderation, rate limits, approval workflows, and per-agent budget limits
 - **Security Supervisor**: Boot-time env checks, redacted audit logs, and optional Telegram alerts
 
 ## Prerequisites
@@ -53,38 +55,69 @@ notepad config\.env
 ```
 bitcoin_bot/
 ├── docker/
-│   ├── Dockerfile              # Container image definition
-│   ├── docker-compose.yml      # Container orchestration
-│   ├── entrypoint.sh           # Container startup script
-│   ├── preflight.sh            # Security supervisor boot checks
+│   ├── docker-compose.yml        # Multi-service orchestration (4 containers)
+│   ├── gato/                     # Telegram agent (OpenClaw + Node.js)
+│   │   ├── Dockerfile
+│   │   └── entrypoint.sh
+│   ├── analyst/                  # Intelligence agent (Python + OpenAI)
+│   │   ├── Dockerfile
+│   │   ├── analyst_poller.py
+│   │   └── entrypoint.sh
+│   ├── newsletter/               # Newsletter writer (Python + OpenAI)
+│   │   ├── Dockerfile
+│   │   ├── newsletter_poller.py
+│   │   └── entrypoint.sh
+│   ├── processor/                # Background orchestrator (Python)
+│   │   ├── Dockerfile
+│   │   └── agentpulse_processor.py
+│   ├── preflight.sh              # Security supervisor boot checks
 │   └── moltbook_post_watcher.sh
 ├── config/
-│   ├── env.example             # Environment template
-│   ├── .env                    # Your actual config (DO NOT COMMIT)
-│   ├── env.schema.json         # Env requirements (for supervisor)
-│   ├── openclaw-config.json    # OpenClaw config template
-│   ├── persona.md              # Agent persona configuration
-│   └── guardrails.md           # Safety guardrails reference
+│   ├── .env                      # Your actual config (DO NOT COMMIT)
+│   ├── env.example               # Environment template
+│   ├── env.schema.json           # Env requirements (for supervisor)
+│   ├── agentpulse-config.json    # AgentPulse pipeline + budget + negotiation config
+│   ├── openclaw-config.json      # OpenClaw config template
+│   └── persona.md                # Agent persona configuration
 ├── skills/
-│   ├── moltbook/               # Moltbook integration skill
-│   ├── wallet/                 # Lightning wallet skill
-│   ├── safety/                 # Safety guardrails skill
-│   └── security-supervisor/    # Env validation and audit
-├── scripts/
-│   ├── start.ps1               # Start the agent (local)
-│   ├── stop.ps1                # Stop the agent
-│   ├── logs.ps1                # View logs
-│   ├── reset-session.ps1       # Reset agent session
-│   └── install-docker-ubuntu.sh # Install Docker on Ubuntu (e.g. Hetzner)
-├── docs/
-│   ├── telegram-setup.md      # Telegram bot setup
-│   ├── lnbits-setup.md         # Lightning wallet setup
-│   └── security-supervisor.md  # Supervisor reports and logs
+│   ├── agentpulse/               # AgentPulse command routing + docs
+│   ├── analyst/                  # Analyst agent capabilities
+│   ├── newsletter/               # Newsletter agent capabilities
+│   ├── moltbook/                 # Moltbook integration skill
+│   ├── wallet/                   # Lightning wallet skill
+│   ├── safety/                   # Safety guardrails skill
+│   └── security-supervisor/      # Env validation and audit
+├── scripts/                      # Local dev scripts (PowerShell)
+├── docs/                         # Setup guides
 ├── data/
-│   └── openclaw/               # Persistent agent data (memory, logs)
-├── PROJECT_EXPLANATION.md      # Plain-English project overview
+│   └── openclaw/                 # Persistent agent data (memory, logs, workspace)
+├── test_agency.sh                # Agency upgrade test script
+├── CHANGELOG_AGENCY_UPGRADE.md   # Detailed change log
+├── PROJECT_EXPLANATION.md        # Plain-English project overview
 └── README.md
 ```
+
+## Architecture
+
+```
+┌──────────────┐    ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
+│     Gato     │    │   Analyst    │    │  Newsletter  │    │  Processor   │
+│  (Telegram)  │    │ (Intelligence│    │  (Editorial) │    │(Orchestrator)│
+│   Node.js    │    │   Python)    │    │   Python)    │    │   Python)    │
+└──────┬───────┘    └──────┬───────┘    └──────┬───────┘    └──────┬───────┘
+       │                   │                   │                   │
+       └───────────────────┴───────────────────┴───────────────────┘
+                                   │
+                            ┌──────┴──────┐
+                            │  Supabase   │
+                            │  (Postgres) │
+                            └─────────────┘
+```
+
+- **Gato**: User-facing Telegram bot, routes commands, delegates to other agents
+- **Analyst**: Multi-step intelligence analysis with self-correction and budget awareness
+- **Newsletter**: Weekly editorial brief with negotiation capability for data enrichment
+- **Processor**: Background scraping, problem extraction, proactive monitoring, task orchestration
 
 ## Configuration
 
@@ -158,10 +191,27 @@ See [PROJECT_EXPLANATION.md](PROJECT_EXPLANATION.md) for more detail. Do **not**
 
 Once paired with your agent:
 
+### General
 - Send any message to chat with the agent
 - `/stop` - Pause the agent
 - `/status` - Check agent status
 - `/wallet` - Check wallet balance
+
+### AgentPulse
+| Command | Action |
+|---------|--------|
+| `/pulse_status` | System status (services, last runs, pipeline health) |
+| `/opportunities` | Top 5 current business opportunities |
+| `/scan` | Trigger a new opportunity scan |
+| `/invest_scan` | Run investment scanner pipeline |
+| `/deep_dive [topic]` | Deep analysis on a topic |
+| `/newsletter_full` | Generate a full weekly newsletter |
+| `/newsletter_publish` | Publish the latest newsletter |
+| `/newsletter_revise [notes]` | Revise the latest newsletter draft |
+| `/budget` | Per-agent daily usage vs limits |
+| `/alerts` | Recent proactive anomaly alerts |
+| `/negotiations` | Active agent-to-agent negotiations |
+| `/crew_status` | Status of analyst and newsletter agents |
 
 See [docs/telegram-setup.md](docs/telegram-setup.md) for initial setup.
 
@@ -185,6 +235,35 @@ To let the agent post and comment on Moltbook without asking you first, set `REQ
 
 See [docs/lnbits-setup.md](docs/lnbits-setup.md) for details.
 
+## Deployment
+
+### Rebuild and restart (on server)
+```bash
+cd ~/bitcoin_bot/docker
+docker compose build && docker compose up -d
+```
+
+### Restart without rebuild
+```bash
+cd ~/bitcoin_bot/docker
+docker compose restart
+```
+
+### View service logs
+```bash
+docker compose logs -f              # all services
+docker compose logs -f analyst      # analyst only
+docker compose logs -f newsletter   # newsletter only
+docker compose logs -f processor    # processor only
+```
+
+### Run the agency test suite
+```bash
+cd ~/bitcoin_bot
+chmod +x test_agency.sh
+./test_agency.sh
+```
+
 ## Troubleshooting
 
 ### Docker not starting (local)
@@ -201,19 +280,37 @@ See [docs/lnbits-setup.md](docs/lnbits-setup.md) for details.
 - Ensure you've started a chat with the bot
 - Confirm `TELEGRAM_OWNER_ID` matches your user ID (e.g. from @userinfobot)
 
-### Agent never uses Moltbook queue (suggests curl instead)
-- Try resetting the session: run `.\scripts\reset-session.ps1`, then restart the container.
+### AgentPulse services not starting
+- Check that `SUPABASE_URL` and `SUPABASE_KEY` are set in `config/.env`
+- Run `docker compose ps` to verify all 4 services show "Up"
+- Check `docker compose logs processor` for connection errors
+
+### Analyst/Newsletter can't read config
+- Verify `docker-compose.yml` has the config volume mount: `../config:/home/openclaw/.openclaw/config:ro`
+- Rebuild: `docker compose build analyst newsletter && docker compose up -d`
 
 ### Validating a remote server setup
 On the server run:
 ```bash
 docker --version && docker compose version
-ls /opt/bitcoin_bot/docker /opt/bitcoin_bot/config
-test -f /opt/bitcoin_bot/config/.env && echo "OK: .env exists"
-cd /opt/bitcoin_bot/docker && docker compose ps
+ls ~/bitcoin_bot/docker ~/bitcoin_bot/config
+test -f ~/bitcoin_bot/config/.env && echo "OK: .env exists"
+cd ~/bitcoin_bot/docker && docker compose ps
 docker compose logs --tail 50
 ```
 Then test the bot in Telegram.
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [CHANGELOG_AGENCY_UPGRADE.md](CHANGELOG_AGENCY_UPGRADE.md) | Detailed log of agency upgrade changes |
+| [AGENTPULSE_STATUS.md](AGENTPULSE_STATUS.md) | Deployment status and configuration reference |
+| [AGENTPULSE_ARCHITECTURE.md](AGENTPULSE_ARCHITECTURE.md) | System architecture spec |
+| [PROJECT_EXPLANATION.md](PROJECT_EXPLANATION.md) | Plain-English project overview |
+| [docs/telegram-setup.md](docs/telegram-setup.md) | Telegram bot setup |
+| [docs/lnbits-setup.md](docs/lnbits-setup.md) | Lightning wallet setup |
+| [docs/security-supervisor.md](docs/security-supervisor.md) | Supervisor reports and logs |
 
 ## License
 

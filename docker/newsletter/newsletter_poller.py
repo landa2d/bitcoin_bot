@@ -50,109 +50,68 @@ supabase: Client | None = None
 client: OpenAI | None = None
 
 # ---------------------------------------------------------------------------
-# System prompt built from IDENTITY.md and SKILL.md
+# Identity + Skill loading (from disk, with mtime caching)
 # ---------------------------------------------------------------------------
-SYSTEM_PROMPT = """You are Pulse, the editorial voice of AgentPulse. You write the weekly Intelligence
-Brief — the most concise, insightful summary of what's happening in the agent economy.
 
-## Your Voice
+AGENT_DIR = Path(OPENCLAW_DATA_DIR) / "agents" / "newsletter" / "agent"
+SKILL_DIR = Path(OPENCLAW_DATA_DIR) / "skills" / "newsletter"
 
-You write like the bastard child of Benedict Evans, Lenny Rachitsky, Eric Newcomer,
-Ben Thompson, and Om Malik. That means:
+_identity_cache: str | None = None
+_identity_mtime: float = 0
 
-**From Evans:** You think in frameworks. You don't just report that tool X is trending —
-you explain the structural reason why.
+_skill_cache: str | None = None
+_skill_mtime: float = 0
 
-**From Lenny:** You serve builders. Every insight ends with a "so what" for someone
-who might actually build this.
 
-**From Newcomer:** You write like an insider. You connect dots that casual observers miss.
+def load_identity(agent_dir: Path) -> str:
+    """Load IDENTITY.md + SOUL.md from agent_dir, caching by mtime."""
+    global _identity_cache, _identity_mtime
+    identity_path = agent_dir / "IDENTITY.md"
 
-**From Thompson:** You think about business models and incentive structures.
+    current_mtime = identity_path.stat().st_mtime if identity_path.exists() else 0
 
-**From Om Malik:** You bring perspective and brevity.
+    if _identity_cache and current_mtime == _identity_mtime:
+        return _identity_cache
 
-## What You Are NOT
-- Not a press release rewriter
-- Not a bullet-point summarizer
-- Not breathlessly optimistic about everything
-- Not afraid to say "this probably doesn't matter"
-- Not verbose — every sentence earns its place
+    parts = []
+    if identity_path.exists():
+        parts.append(identity_path.read_text(encoding="utf-8"))
+        _identity_mtime = current_mtime
 
-## Writing Constraints
-- Full brief: 800-1200 words, no more
-- Telegram digest: under 500 characters
-- Every section has a "so what" takeaway
-- Data claims cite specific numbers from the data you're given
-- Never invent data or trends not in your input
-- When data is thin, say so: "Early signal, but..." or "Only N mentions, so grain of salt"
+    soul_path = agent_dir / "SOUL.md"
+    if soul_path.exists():
+        parts.append(f"\n---\n\n{soul_path.read_text(encoding='utf-8')}")
 
-## Structure
+    if parts:
+        _identity_cache = "\n\n".join(parts)
+    else:
+        logger.warning(f"Identity files not found in {agent_dir} — using fallback")
+        _identity_cache = (
+            "You are Pulse, the editorial voice of AgentPulse. "
+            "Write the weekly Intelligence Brief as valid JSON."
+        )
 
-Every edition follows this arc:
+    return _identity_cache
 
-1. **Cold open** — One sentence that hooks. Not "This week in AI agents..."
-   but "The agent economy just discovered it has a trust problem."
 
-2. **The Big Story** — The most important signal this week. 2-3 paragraphs
-   of analysis, not summary. What does this mean structurally? Pick from
-   any section — established, emerging, or curious.
+def load_skill(skill_dir: Path) -> str:
+    """Load SKILL.md from skill_dir, caching by mtime."""
+    global _skill_cache, _skill_mtime
+    skill_path = skill_dir / "SKILL.md"
 
-3. **Top Opportunities** (Section A)
-   - Top 3-5 established opportunities
-   - These have been validated by the Analyst with reasoning chains
-   - For each: name, problem (one line), confidence, your one-line editorial take
-   - If an opportunity appeared in a previous edition, note what's NEW:
-     "Previously featured — new signals this week include..."
-   - If nothing has new signals, it's ok to have fewer than 5. Quality over repetition.
-   - IMPORTANT: The data includes effective_score (staleness-adjusted) and
-     newsletter_appearances count. Prioritize by effective_score, not raw confidence.
+    current_mtime = skill_path.stat().st_mtime if skill_path.exists() else 0
 
-4. **Emerging Signals** (Section B)
-   - 2-4 early-stage signals that haven't been fully validated yet
-   - These are LOW frequency but HIGH recency — new this week
-   - Voice shift: speculative, forward-looking, invitational
-   - "We're seeing early chatter about X. Only 3 mentions so far, but the
-     signal phrases are specific: [actual quotes]. Worth watching."
-   - Include the raw signal phrases from the data when possible
-   - It's OK to be uncertain here. "Too early to call, but if this continues..."
+    if _skill_cache is not None and current_mtime == _skill_mtime:
+        return _skill_cache
 
-5. **The Curious Corner** (Section C)
-   - 2-3 interesting items that are NOT investment opportunities
-   - Voice shift: lighter, more playful, genuinely curious
-   - Debates: "Agents are arguing about whether memory persistence is ethical.
-     The split is roughly 60/40, and both sides have interesting points..."
-   - Surprising usage: "Someone built a poetry-writing agent that critics
-     actually can't distinguish from human-written haiku..."
-   - Cultural: "The agent economy has its first meme format, and it's about..."
-   - NO business framing. No "this could be an opportunity." Just: "this is interesting."
-   - This section should make someone smile or say "huh, I didn't know that."
+    if skill_path.exists():
+        _skill_cache = skill_path.read_text(encoding="utf-8")
+        _skill_mtime = current_mtime
+    else:
+        logger.warning(f"SKILL.md not found in {skill_dir}")
+        _skill_cache = ""
 
-6. **Tool Radar** — What's rising, falling, new. Keep the narrative approach:
-   connect the dots, don't just list.
-
-7. **Gato's Corner** — Written in Gato's voice: a Bitcoin maximalist AI agent.
-   Confident, sometimes cocky, everything connects back to Bitcoin and sound money.
-   Skeptical of VC-funded middleware, bullish on open protocols.
-   Punchy, meme-aware, 2-4 sentences max, ends with a Bitcoin-pilled take.
-   Gato can riff on the Curious Corner items too — his take on agent debates
-   or cultural moments adds personality. He doesn't have to stick to just
-   opportunities.
-
-8. **By the Numbers** — 4-5 key stats. Clean, no commentary needed.
-   Add: emerging signals detected, curious topics trending.
-
-## Output Format
-
-You MUST respond with valid JSON only — no markdown fences, no extra text.
-The JSON object must have these fields:
-{
-  "edition": <edition_number from input>,
-  "title": "<your headline for this edition>",
-  "content_markdown": "<the full brief in markdown>",
-  "content_telegram": "<condensed version, under 500 chars>"
-}
-"""
+    return _skill_cache
 
 
 def init():
@@ -190,31 +149,35 @@ def mark_task_status(task_id: str, status: str, **fields):
     supabase.table("agent_tasks").update(payload).eq("id", task_id).execute()
 
 
-def generate_newsletter(input_data: dict) -> dict:
-    """Call Anthropic to generate the newsletter content."""
-    edition = input_data.get("edition_number", "?")
-    user_message = (
-        f"Write AgentPulse Intelligence Brief edition #{edition}.\n\n"
-        f"Here is the data the processor gathered this week:\n\n"
-        f"```json\n{json.dumps(input_data, indent=2, default=str)}\n```"
+def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -> dict:
+    """Call OpenAI with identity + skill as system prompt, task + data as user message."""
+
+    identity = load_identity(AGENT_DIR)
+    skill = load_skill(SKILL_DIR)
+
+    system_prompt = f"{identity}\n\n---\n\nSKILL REFERENCE:\n{skill}"
+    system_prompt += "\n\nYou MUST respond with valid JSON only — no markdown fences, no extra text."
+
+    user_msg = (
+        f"TASK TYPE: {task_type}\n\n"
+        f"BUDGET: {json.dumps(budget_config)}\n\n"
+        f"INPUT DATA:\n{json.dumps(input_data, indent=2, default=str)}"
     )
 
-    logger.info(f"Calling {MODEL} for edition #{edition}...")
+    logger.info(f"Calling {MODEL} for {task_type}...")
 
     response = client.chat.completions.create(
         model=MODEL,
         max_tokens=4096,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_message},
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_msg},
         ],
         response_format={"type": "json_object"},
     )
 
-    # Extract the text content
     text = response.choices[0].message.content.strip()
 
-    # Try to parse as JSON — the model may wrap in ```json fences
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
         text = re.sub(r"\s*```$", "", text)
@@ -311,8 +274,32 @@ def handle_negotiation_request(result: dict, task_id: str):
 # Task processing
 # ---------------------------------------------------------------------------
 
+def get_budget_config(agent_name: str, task_type: str) -> dict:
+    """Read budget limits for a given agent + task type from agentpulse-config.json."""
+    defaults = {
+        "max_llm_calls": 6,
+        "max_seconds": 300,
+        "max_subtasks": 2,
+        "max_retries": 2,
+    }
+
+    config_path = Path(OPENCLAW_DATA_DIR) / "config" / "agentpulse-config.json"
+    try:
+        if config_path.exists():
+            with open(config_path) as f:
+                config = json.load(f)
+        else:
+            return defaults
+    except Exception:
+        return defaults
+
+    budgets = config.get("budgets", {})
+    task_budget = budgets.get(agent_name, {}).get(task_type, {})
+    return {k: task_budget.get(k, defaults[k]) for k in defaults}
+
+
 def process_task(task: dict):
-    """Process a single write_newsletter task."""
+    """Process a single newsletter task."""
     task_id = task["id"]
     task_type = task.get("task_type", "unknown")
     input_data = task.get("input_data", {}) or {}
@@ -322,7 +309,8 @@ def process_task(task: dict):
     # Mark in progress
     mark_task_status(task_id, "in_progress", started_at=datetime.now(timezone.utc).isoformat())
 
-    if task_type != "write_newsletter":
+    supported = {"write_newsletter", "revise_newsletter"}
+    if task_type not in supported:
         error = f"Unknown task type: {task_type}"
         logger.error(error)
         mark_task_status(
@@ -333,9 +321,14 @@ def process_task(task: dict):
         )
         return
 
+    # Inject budget constraints
+    budget = get_budget_config(AGENT_NAME, task_type)
+    input_data["budget"] = budget
+    logger.info(f"Budget for {task_type}: {budget}")
+
     try:
         # Generate newsletter via OpenAI
-        result = generate_newsletter(input_data)
+        result = generate_newsletter(task_type, input_data, budget)
 
         # Save to Supabase + local file
         save_newsletter(result, input_data)
@@ -379,6 +372,11 @@ def main():
         return
 
     logger.info(f"Newsletter agent started (model={MODEL}, poll={POLL_INTERVAL}s)")
+
+    identity_text = load_identity(AGENT_DIR)
+    logger.info(f"Identity loaded from {AGENT_DIR}: {len(identity_text)} chars")
+    skill_text = load_skill(SKILL_DIR)
+    logger.info(f"Skill loaded from {SKILL_DIR}: {len(skill_text)} chars")
 
     while True:
         try:

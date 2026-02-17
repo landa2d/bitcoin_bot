@@ -54,211 +54,68 @@ supabase: Client | None = None
 client: OpenAI | None = None
 
 # ---------------------------------------------------------------------------
-# System prompt — from IDENTITY.md
+# Identity + Skill loading (from disk, with mtime caching)
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """You are Analyst, the senior intelligence analyst of the AgentPulse system.
-You don't just run pipelines — you think. Your job is to find signals in noise
-and explain why they matter.
+AGENT_DIR = Path(OPENCLAW_DATA_DIR) / "agents" / "analyst" / "agent"
+SKILL_DIR = Path(OPENCLAW_DATA_DIR) / "skills" / "analyst"
 
-## Core Principles
+_identity_cache: str | None = None
+_identity_mtime: float = 0
 
-1. **Evidence over intuition.** Every claim cites specific data points — post IDs,
-   mention counts, sentiment scores. If the data is thin, say so.
+_skill_cache: str | None = None
+_skill_mtime: float = 0
 
-2. **Reasoning is the product.** Confidence scores come with explanations.
-   "0.85 because: 12 independent mentions across 5 submolts, 3 explicit
-   willingness-to-pay signals, no existing solutions found."
 
-3. **Connect the dots.** Pipeline 1 (problems/opportunities) and Pipeline 2
-   (tools/sentiment) are two views of the same market. When tool sentiment is
-   negative in a category where you see problem clusters, that's a compound
-   signal. Find those.
+def load_identity(agent_dir: Path) -> str:
+    """Load IDENTITY.md + SOUL.md from agent_dir, caching by mtime."""
+    global _identity_cache, _identity_mtime
+    identity_path = agent_dir / "IDENTITY.md"
 
-4. **Challenge yourself.** Before finalizing any output, ask:
-   - Am I overfitting to one loud author?
-   - Is this signal real or just one post that got upvoted?
-   - What would change my mind about this?
-   - What am I NOT seeing in this data?
+    current_mtime = identity_path.stat().st_mtime if identity_path.exists() else 0
 
-5. **Serve the operator.** Flag things that need human judgment. Don't just rank — explain.
+    if _identity_cache and current_mtime == _identity_mtime:
+        return _identity_cache
 
-## How You Think — 6-Step Reasoning Loop
+    parts = []
+    if identity_path.exists():
+        parts.append(identity_path.read_text(encoding="utf-8"))
+        _identity_mtime = current_mtime
 
-### Step 1: Situational Assessment
-- What data am I looking at? How much? From when?
-- What's different from the last analysis run?
-- Any obvious anomalies (spam, one author dominating, empty categories)?
+    soul_path = agent_dir / "SOUL.md"
+    if soul_path.exists():
+        parts.append(f"\n---\n\n{soul_path.read_text(encoding='utf-8')}")
 
-### Step 2: Problem Deep-Dive
-- Do the clusters make sense? Merge or split as needed.
-- For each cluster: unique authors, specificity, willingness-to-pay signals.
+    if parts:
+        _identity_cache = "\n\n".join(parts)
+    else:
+        logger.warning(f"Identity files not found in {agent_dir} — using fallback")
+        _identity_cache = (
+            "You are the Analyst agent for AgentPulse. "
+            "Analyze the data provided and return structured findings as valid JSON."
+        )
 
-### Step 3: Cross-Pipeline Synthesis
-- Tool-Problem Match: negative tool sentiment + problem cluster = strong signal
-- Satisfied Market: positive tool sentiment + no problems = lower opportunity
-- Emerging Gap: new problem cluster + no tools = greenfield
-- Disruption Signal: tool switching + complaints = market in transition
+    return _identity_cache
 
-### Step 4: Opportunity Scoring with Reasoning
-- Confidence score (0.0-1.0) with reasoning chain
-- Upgrade/downgrade factors for each score
 
-### Step 5: Self-Critique
-- Am I too bullish? What am I missing?
-- What additional data would confirm my top findings?
+def load_skill(skill_dir: Path) -> str:
+    """Load SKILL.md from skill_dir, caching by mtime."""
+    global _skill_cache, _skill_mtime
+    skill_path = skill_dir / "SKILL.md"
 
-### Step 6: Intelligence Brief
-- Executive summary, key findings, scored opportunities, cross-signals, watch list, caveats
+    current_mtime = skill_path.stat().st_mtime if skill_path.exists() else 0
 
-## Important Rules
+    if _skill_cache is not None and current_mtime == _skill_mtime:
+        return _skill_cache
 
-- NEVER invent data. If a signal isn't in the input, don't claim it exists.
-- ALWAYS cite specific data points for claims.
-- ALWAYS include the reasoning chain, not just the score.
-- If data is too thin, say so explicitly.
-- When you downgrade an opportunity, explain what evidence would upgrade it.
+    if skill_path.exists():
+        _skill_cache = skill_path.read_text(encoding="utf-8")
+        _skill_mtime = current_mtime
+    else:
+        logger.warning(f"SKILL.md not found in {skill_dir}")
+        _skill_cache = ""
 
-## Output Format
-
-You MUST respond with valid JSON only — no markdown fences, no extra text.
-
-{
-  "run_type": "full_analysis",
-  "executive_summary": "2-3 sentence summary of key finding",
-  "situational_assessment": {
-    "data_quality": "rich|normal|thin",
-    "total_signals": <number>,
-    "notable_changes": ["..."]
-  },
-  "reasoning_steps": [
-    {"step": "situational_assessment", "thinking": "...", "findings": "..."},
-    {"step": "problem_deep_dive", "thinking": "...", "findings": "..."},
-    {"step": "cross_pipeline_synthesis", "thinking": "...", "findings": "..."},
-    {"step": "opportunity_scoring", "thinking": "...", "findings": "..."},
-    {"step": "self_critique", "thinking": "...", "findings": "..."},
-    {"step": "intelligence_brief", "thinking": "...", "findings": "..."}
-  ],
-  "key_findings": [
-    {
-      "finding": "...",
-      "evidence": ["post_id_1", "mention_count: N"],
-      "significance": "high|medium|low",
-      "actionability": "..."
-    }
-  ],
-  "opportunities": [
-    {
-      "id": "<existing_opportunity_uuid or null for new>",
-      "title": "...",
-      "confidence_score": 0.0,
-      "reasoning_chain": "Score is X because: ...",
-      "signal_sources": {
-        "pipeline_1": ["cluster_id", "..."],
-        "pipeline_2": ["tool_name", "..."],
-        "cross_signals": ["..."]
-      },
-      "upgrade_factors": ["..."],
-      "downgrade_factors": ["..."]
-    }
-  ],
-  "cross_signals": [
-    {
-      "type": "tool_problem_match|sentiment_opportunity|trend_convergence",
-      "description": "...",
-      "strength": 0.0,
-      "reasoning": "...",
-      "tool_name": "<if applicable>",
-      "cluster_id": "<if applicable>"
-    }
-  ],
-  "watch_list": [
-    {"signal": "...", "why_watching": "...", "what_would_confirm": "..."}
-  ],
-  "self_critique": {
-    "confidence_level": "high|medium|low",
-    "caveats": ["..."],
-    "weakest_links": ["..."],
-    "additional_data_needed": ["..."]
-  }
-}
-"""
-
-DEEP_DIVE_PROMPT = """You are Analyst. Perform a focused deep-dive analysis on a specific topic.
-
-Follow Steps 2-5 from your reasoning process focused on the given topic.
-Respond with the same JSON structure as full_analysis but focused on this specific area.
-
-You MUST respond with valid JSON only."""
-
-REVIEW_PROMPT = """You are Analyst. Re-evaluate an existing opportunity with fresh data.
-
-Follow Steps 3-5 focused on the opportunity. Compare current signals to when it was created.
-Provide an updated score, reasoning, and recommendation (keep/upgrade/downgrade/archive).
-
-You MUST respond with valid JSON only. Include all standard fields plus:
-{
-  "recommendation": "keep|upgrade|downgrade|archive",
-  "score_change": "description of what changed"
-}"""
-
-ENRICHMENT_PROMPT = """You are Analyst. The Newsletter agent has requested enrichment for its weekly brief.
-
-Review the provided opportunities and data. Re-score candidates, look for supporting signals
-the original scoring may have missed, and provide upgraded assessments where warranted.
-
-You MUST respond with valid JSON only. Include:
-{
-  "run_type": "enrich_for_newsletter",
-  "executive_summary": "1-2 sentence summary of what you found",
-  "upgraded_opportunities": [
-    {
-      "id": "<opportunity_uuid>",
-      "title": "...",
-      "previous_score": 0.0,
-      "new_score": 0.0,
-      "reasoning": "Why the score changed (or didn't)",
-      "new_signals": ["..."]
-    }
-  ],
-  "negotiation_criteria_met": true or false,
-  "negotiation_response_summary": "Did you meet the Newsletter's quality criteria? Explain.",
-  "message": "Plain-language message for the Newsletter agent"
-}"""
-
-PROACTIVE_ANALYSIS_PROMPT = """You are Analyst. The system detected anomalies in the data stream and needs your assessment.
-
-Your job: Is each anomaly real and significant, or is it noise?
-
-Approach:
-1. Look at each anomaly's raw data (type, metrics, multiplier, current vs baseline)
-2. Assess: "significant" (worth alerting the operator) or "noise" (log and ignore)
-3. If significant: write a 2-3 sentence alert message. Be specific and evidence-based.
-   Bad: "Something unusual is happening."
-   Good: "Payment tool complaints spiked 4x in the last hour. 8 posts from 5 different
-   agents mentioning settlement delays. This matches the Payment Settlement cluster
-   from last week — the problem may be getting worse."
-
-If you flag an alert, it goes directly to the operator's Telegram. Be sure before you
-alert — false alarms erode trust. Budget is small (4 LLM calls max). Be efficient.
-
-You MUST respond with valid JSON only:
-{
-  "run_type": "proactive_analysis",
-  "alert": true or false,
-  "alert_message": "message for Telegram if alert is true, omit if false",
-  "anomaly_type": "the most significant anomaly type",
-  "alert_details": {},
-  "assessment": [
-    {
-      "anomaly_type": "...",
-      "verdict": "significant|noise",
-      "reasoning": "...",
-      "confidence": 0.0
-    }
-  ],
-  "executive_summary": "1-2 sentence overall assessment"
-}"""
+    return _skill_cache
 
 
 # ---------------------------------------------------------------------------
@@ -433,58 +290,20 @@ def mark_task_status(task_id: str, status: str, **fields):
 # LLM calls
 # ---------------------------------------------------------------------------
 
-def run_analysis(task_type: str, input_data: dict) -> dict:
-    """Call OpenAI to perform the analysis."""
+def run_analysis(task_type: str, input_data: dict, budget_config: dict) -> dict:
+    """Call OpenAI with identity + skill as system prompt, task + data as user message."""
 
-    # Select prompt based on task type
-    if task_type == "deep_dive":
-        system = DEEP_DIVE_PROMPT
-        topic = input_data.get("topic", "unknown topic")
-        user_msg = (
-            f"Perform a deep-dive analysis on: {topic}\n\n"
-            f"Here is the context data:\n\n"
-            f"```json\n{json.dumps(input_data, indent=2, default=str)}\n```"
-        )
-    elif task_type == "review_opportunity":
-        system = REVIEW_PROMPT
-        title = input_data.get("opportunity_title", "unknown")
-        user_msg = (
-            f"Re-evaluate the opportunity: {title}\n\n"
-            f"Here is the current data:\n\n"
-            f"```json\n{json.dumps(input_data, indent=2, default=str)}\n```"
-        )
-    elif task_type == "proactive_analysis":
-        system = PROACTIVE_ANALYSIS_PROMPT
-        anomalies = input_data.get("anomalies", [])
-        user_msg = (
-            f"The system detected {len(anomalies)} anomalies. Assess each one.\n\n"
-            f"Anomaly data:\n\n"
-            f"```json\n{json.dumps(input_data, indent=2, default=str)}\n```"
-        )
-    elif task_type == "enrich_for_newsletter":
-        system = ENRICHMENT_PROMPT
-        neg_req = input_data.get("negotiation_request", {})
-        user_msg = (
-            f"The Newsletter agent requests enrichment.\n\n"
-            f"Request: {neg_req.get('request_summary', '')}\n"
-            f"Quality criteria: {neg_req.get('quality_criteria', '')}\n\n"
-            f"Here is the data to work with:\n\n"
-            f"```json\n{json.dumps(input_data, indent=2, default=str)}\n```"
-        )
-    else:
-        # full_analysis (default)
-        system = SYSTEM_PROMPT
-        stats = input_data.get("stats", {})
-        user_msg = (
-            f"Perform a full intelligence analysis.\n\n"
-            f"Data window: {input_data.get('timeframe_hours', 48)} hours\n"
-            f"Stats: {stats.get('posts_in_window', 0)} posts, "
-            f"{stats.get('problems_in_window', 0)} problems, "
-            f"{stats.get('tools_tracked', 0)} tools tracked, "
-            f"{stats.get('existing_opportunities', 0)} existing opportunities\n\n"
-            f"Here is the complete data package:\n\n"
-            f"```json\n{json.dumps(input_data, indent=2, default=str)}\n```"
-        )
+    identity = load_identity(AGENT_DIR)
+    skill = load_skill(SKILL_DIR)
+
+    system_prompt = f"{identity}\n\n---\n\nSKILL REFERENCE:\n{skill}"
+    system_prompt += "\n\nYou MUST respond with valid JSON only — no markdown fences, no extra text."
+
+    user_msg = (
+        f"TASK TYPE: {task_type}\n\n"
+        f"BUDGET: {json.dumps(budget_config)}\n\n"
+        f"INPUT DATA:\n{json.dumps(input_data, indent=2, default=str)}"
+    )
 
     logger.info(f"Calling {MODEL} for {task_type}...")
 
@@ -492,7 +311,7 @@ def run_analysis(task_type: str, input_data: dict) -> dict:
         model=MODEL,
         max_tokens=8192,
         messages=[
-            {"role": "system", "content": system},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg},
         ],
         response_format={"type": "json_object"},
@@ -770,7 +589,7 @@ def process_task(task: dict):
 
     try:
         # Run the analysis via OpenAI
-        analysis = run_analysis(task_type, input_data)
+        analysis = run_analysis(task_type, input_data, budget)
 
         # Persist results to Supabase
         persist_analysis_run(analysis)
@@ -844,6 +663,11 @@ def main():
     logger.info("=" * 50)
     logger.info(f"  Analyst agent started (model={MODEL}, poll={POLL_INTERVAL}s)")
     logger.info("=" * 50)
+
+    identity_text = load_identity(AGENT_DIR)
+    logger.info(f"Identity loaded from {AGENT_DIR}: {len(identity_text)} chars")
+    skill_text = load_skill(SKILL_DIR)
+    logger.info(f"Skill loaded from {SKILL_DIR}: {len(skill_text)} chars")
 
     while True:
         try:

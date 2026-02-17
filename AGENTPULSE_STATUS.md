@@ -1,7 +1,7 @@
 # AgentPulse Implementation Status Report
 
 **Date:** February 5, 2026  
-**Last Updated:** February 6, 2026  
+**Last Updated:** February 17, 2026  
 **Project:** OpenClaw Bitcoin Agent (Gato) + AgentPulse Intelligence Platform  
 **Repository:** <REPO_URL>  
 **Deployment:** Hetzner server (<SERVER_IP>)
@@ -13,60 +13,66 @@
 ```
 bitcoin_bot/
 ├── .gitignore
-├── AGENTPULSE_ARCHITECTURE.md          # [EXISTING] Architecture spec
-├── AGENTPULSE_STATUS.md                # [NEW] This document
-├── PROJECT_EXPLANATION.md              # [EXISTING]
-├── PROJECT_OVERVIEW.md                 # [EXISTING]
-├── README.md                           # [EXISTING]
-├── research1.txt                       # [EXISTING]
+├── AGENTPULSE_ARCHITECTURE.md
+├── AGENTPULSE_STATUS.md                # This document
+├── CHANGELOG_AGENCY_UPGRADE.md         # [NEW] Agency upgrade changelog
+├── PROJECT_EXPLANATION.md
+├── README.md                           # [UPDATED] Multi-agent docs
+├── test_agency.sh                      # [NEW] Agency upgrade test script
 │
 ├── config/
-│   ├── agentpulse-config.json          # [NEW] AgentPulse pipeline config
-│   ├── env.example                     # [MODIFIED] Added Supabase vars
-│   ├── env.schema.json                 # [EXISTING]
-│   ├── guardrails.md                   # [EXISTING]
-│   ├── openclaw-config.json            # [EXISTING]
-│   └── persona.md                      # [EXISTING]
+│   ├── agentpulse-config.json          # [UPDATED] v1.1.0 + budgets + negotiation
+│   ├── env.example
+│   ├── env.schema.json
+│   ├── openclaw-config.json
+│   └── persona.md
 │
 ├── docker/
-│   ├── agentpulse_cron.sh              # [NEW] Cron wrapper script
-│   ├── agentpulse_crontab              # [NEW] Crontab definitions
-│   ├── agentpulse_processor.py         # [NEW] Main Python processor
-│   ├── docker-compose.yml              # [MODIFIED] Added AgentPulse config volume
-│   ├── Dockerfile                      # [MODIFIED] Added Python + cron deps
-│   ├── entrypoint.sh                   # [MODIFIED] Added AgentPulse startup
-│   ├── moltbook_post_watcher.sh        # [EXISTING]
-│   ├── preflight.sh                    # [EXISTING]
-│   └── requirements-agentpulse.txt     # [NEW] Python dependencies
-│
-├── docs/
-│   ├── lnbits-setup.md                 # [EXISTING]
-│   ├── security-supervisor.md          # [EXISTING]
-│   └── telegram-setup.md               # [EXISTING]
-│
-├── scripts/
-│   ├── install-docker-ubuntu.sh        # [EXISTING]
-│   ├── logs.ps1                        # [EXISTING]
-│   ├── post-moltbook.ps1               # [EXISTING]
-│   ├── reset-session.ps1               # [EXISTING]
-│   ├── start.ps1                       # [EXISTING]
-│   └── stop.ps1                        # [EXISTING]
+│   ├── docker-compose.yml              # [UPDATED] 4 services + config volumes
+│   ├── gato/                           # Telegram agent (OpenClaw/Node.js)
+│   │   ├── Dockerfile
+│   │   └── entrypoint.sh
+│   ├── analyst/                        # Intelligence agent (Python)
+│   │   ├── Dockerfile
+│   │   ├── analyst_poller.py           # [UPDATED] Budget, self-correction, proactive
+│   │   ├── entrypoint.sh
+│   │   └── requirements.txt
+│   ├── newsletter/                     # Newsletter writer (Python)
+│   │   ├── Dockerfile
+│   │   ├── newsletter_poller.py        # [UPDATED] Negotiation requests
+│   │   ├── entrypoint.sh
+│   │   └── requirements.txt
+│   ├── processor/                      # Background orchestrator (Python)
+│   │   ├── Dockerfile
+│   │   └── agentpulse_processor.py     # [UPDATED] Budget, proactive, negotiation
+│   ├── preflight.sh
+│   └── moltbook_post_watcher.sh
 │
 ├── skills/
-│   ├── agentpulse/                     # [NEW] Entire folder
+│   ├── agentpulse/                     # [UPDATED] New commands, underscore names
 │   │   ├── HEARTBEAT.md
 │   │   ├── package.json
 │   │   ├── PIPELINE_1.md
 │   │   ├── PROMPTS.md
 │   │   └── SKILL.md
-│   ├── moltbook/                       # [EXISTING]
-│   ├── safety/                         # [EXISTING]
-│   ├── security-supervisor/            # [EXISTING]
-│   └── wallet/                         # [EXISTING]
+│   ├── analyst/                        # [UPDATED] Budget, proactive, enrichment docs
+│   │   └── SKILL.md
+│   ├── newsletter/                     # [UPDATED] Negotiation, budget docs
+│   │   ├── package.json
+│   │   └── SKILL.md
+│   ├── moltbook/
+│   ├── safety/
+│   ├── security-supervisor/
+│   └── wallet/
 │
-└── supabase/
-    └── migrations/
-        └── 001_initial_schema.sql      # [NEW] Database schema
+├── supabase/
+│   └── migrations/
+│       └── 001_initial_schema.sql
+│
+├── scripts/                            # Local dev scripts (PowerShell)
+├── docs/                               # Setup guides
+└── data/
+    └── openclaw/                       # Persistent agent data (gitignored)
 ```
 
 ---
@@ -173,18 +179,23 @@ Server path: `~/bitcoin_bot/data/openclaw/agents/main/agent/auth-profiles.json`
 
 ---
 
-## 6. What's NOT Done Yet
-
-Based on `AGENTPULSE_ARCHITECTURE.md`, the following are **not yet implemented**:
+## 6. Current Implementation Status
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Pipeline 2: Investment Scanner | ❌ Not started | Architecture marked as "coming soon" |
-| Problem Clustering Logic | ⚠️ Partial | Table exists, but clustering algorithm not implemented in processor |
-| Newsletter Generator | ❌ Not started | Listed as future enhancement |
+| Pipeline 1: Opportunity Finder | ✅ Complete | Scraping, extraction, analysis, opportunities |
+| Pipeline 2: Investment Scanner | ✅ Complete | Added in Phase 2 |
+| Newsletter Generator | ✅ Complete | Dedicated newsletter container, OpenAI-powered |
+| Multi-Agent Architecture | ✅ Complete | 4 Docker services (Gato, Analyst, Newsletter, Processor) |
+| Budget Enforcement | ✅ Complete | Per-task limits, daily global caps, daily usage tracking |
+| Self-Correcting Analysis | ✅ Complete | Multi-step reasoning with retry loops in Analyst |
+| Proactive Monitoring | ✅ Complete | Anomaly detection, alert delegation, cooldown enforcement |
+| Agent Negotiation | ✅ Complete | Newsletter ↔ Analyst negotiation with round tracking |
+| Autonomous Data Requests | ✅ Complete | Analyst can request targeted scrapes from Processor |
+| Stale Task Cleanup | ✅ Complete | Analyst force-fails stuck tasks |
+| Problem Clustering Logic | ⚠️ Partial | Table exists, clustering algorithm not yet implemented |
 | Web Dashboard | ❌ Not started | Listed as future enhancement |
 | REST API | ❌ Not started | Listed as future enhancement |
-| Real-time Alerts | ⚠️ Basic | Telegram notifications exist, but not real-time high-confidence alerts |
 
 ---
 
@@ -344,7 +355,7 @@ When users send these commands, trigger the appropriate AgentPulse task:
 |---------|--------|
 | `/opportunities` | Get top 5 current opportunities |
 | `/scan` | Trigger a new opportunity scan |
-| `/pulse-status` | Get AgentPulse system status |
+| `/pulse_status` | Get AgentPulse system status |
 | `/problem [category]` | Search problems by category |
 
 ## Response Format
@@ -416,35 +427,55 @@ def setup_scheduler():
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| OpenClaw Agent | ✅ Running | Hetzner server, Docker container, single agent "gato" |
+| Gato (Telegram) | ✅ Running | Hetzner server, OpenClaw/Node.js container |
+| Analyst Agent | ✅ Running | Python container, polls `agent_tasks` every 30s |
+| Newsletter Agent | ✅ Running | Python container, polls `agent_tasks` every 30s |
+| Processor | ✅ Running | Python container, scheduled tasks + task execution |
 | Telegram Bot | ✅ Connected | `@gato_beedi_ragabot` |
-| AgentPulse Processor | ✅ Running | Watch mode with scheduler |
-| Supabase | ✅ Connected | All tables created |
+| Supabase | ✅ Connected | All tables created (14 tables verified) |
 | Moltbook API | ✅ Working | Correct endpoint configured |
-| Scheduled Tasks | ✅ Active | Scrape 6h, Analyze 12h, Digest 9AM, Cleanup 3AM |
+| Scheduled Tasks | ✅ Active | Scrape 6h, Analyze 12h, Digest 9AM, Cleanup 3AM, Proactive 60m, Negotiation timeout 10m |
 | Auth (Anthropic) | ✅ Working | `auth-profiles.json` fixed with correct schema |
 | Auth (OpenAI) | ✅ Working | `auth-profiles.json` fixed with correct schema |
-| Agent Commands | ✅ Wired | `/pulse-status`, `/opportunities`, `/scan` via AGENTS.md → queue |
+| Budget System | ✅ Working | Daily usage tracked in `agent_daily_usage` |
+| Proactive Monitoring | ✅ Working | Anomaly detection with cooldown enforcement |
+| Negotiation System | ✅ Working | Agent-to-agent with pair validation and timeout |
+| Agent Commands | ✅ Wired | `/pulse_status`, `/budget`, `/alerts`, `/negotiations`, etc. (underscore format) |
+| Agency Tests | ✅ Passing | 16/16 tests pass via `test_agency.sh` |
 
 ---
 
 ## 10. Useful Commands
 
 ```bash
-# View logs
-docker compose -f ~/bitcoin_bot/docker/docker-compose.yml logs -f
+# View logs (all services)
+cd ~/bitcoin_bot/docker
+docker compose logs -f
+
+# View logs (specific service)
+docker compose logs -f analyst
+docker compose logs -f newsletter
+docker compose logs -f processor
 
 # Check container status
-docker compose -f ~/bitcoin_bot/docker/docker-compose.yml ps
+docker compose ps
 
-# Manual scrape
-docker exec openclaw-bitcoin-agent python3 /home/openclaw/agentpulse_processor.py --task scrape
+# Rebuild and restart
+docker compose build && docker compose up -d
 
-# Manual analysis
-docker exec openclaw-bitcoin-agent python3 /home/openclaw/agentpulse_processor.py --task analyze
+# Restart without rebuild (config/skill changes only)
+docker compose restart
 
-# Check status
-docker exec openclaw-bitcoin-agent python3 /home/openclaw/agentpulse_processor.py --task status
+# Run agency test suite
+cd ~/bitcoin_bot
+chmod +x test_agency.sh
+./test_agency.sh
+
+# Manual tasks via processor
+docker compose exec processor python3 /home/openclaw/agentpulse_processor.py --task scrape
+docker compose exec processor python3 /home/openclaw/agentpulse_processor.py --task analyze
+docker compose exec processor python3 /home/openclaw/agentpulse_processor.py --task status
+docker compose exec processor python3 /home/openclaw/agentpulse_processor.py --task proactive_scan
 
 # Fix permissions (if needed)
 docker exec -u root openclaw-bitcoin-agent chown -R openclaw:openclaw /home/openclaw/.openclaw
@@ -452,19 +483,63 @@ docker exec -u root openclaw-bitcoin-agent chown -R openclaw:openclaw /home/open
 
 ---
 
-## 11. Recommendations for Architect Review
+## 11. Agency Upgrade (February 17, 2026)
 
-1. **Problem Clustering Algorithm** - Currently problems are stored individually. Need to implement semantic similarity clustering to group related problems before opportunity generation.
+The following capabilities were added as part of the Agency Upgrade:
 
-2. **Pipeline 2: Investment Scanner** - Schema exists (`tool_mentions` table) but no extraction logic implemented yet.
+### Budget Enforcement
+- Per-task limits: max LLM calls, time, subtasks, retries
+- Daily global limits: 100 LLM calls, 5 proactive alerts
+- Tracked in `agent_daily_usage` Supabase table
+- Config in `agentpulse-config.json` under `budgets`
 
-3. **Agent Integration** - The agent (Gato) has SKILL.md instructions **and** AGENTS.md wiring for queue-based commands. Needs end-to-end testing to confirm Telegram → queue → response flow works reliably.
+### Self-Correcting Analysis
+- Analyst performs multi-step reasoning with critique loops
+- Budget-aware: stops when budget exhausted
+- Stale task cleanup: force-fails tasks stuck beyond 2x timeout
 
-4. **Error Recovery** - Consider adding retry logic for Supabase failures and better error handling in scheduled tasks.
+### Proactive Monitoring
+- `detect_anomalies()` — pure SQL/Python anomaly detection (no LLM)
+- Checks: problem frequency spikes, tool sentiment crashes, post volume anomalies
+- Delegates `proactive_analysis` tasks to Analyst when anomalies found
+- Budget and cooldown enforcement (60 min between scans)
+- Sends Telegram alerts via `send_alert` task
 
-5. **Monitoring** - Consider adding health checks or metrics endpoint for production monitoring.
+### Agent-to-Agent Negotiation
+- Newsletter can request enrichment from Analyst
+- Formalized protocol: create → respond → close/follow_up
+- Pair validation (only allowed agent pairs can negotiate)
+- Active count limits and timeout enforcement
+- Tracked in `agent_negotiations` Supabase table
+
+### Autonomous Data Requests
+- Analyst can request `targeted_scrape` from Processor when data gaps detected
+- Processor checks overload before accepting (`can_create_subtask`)
+
+### New Telegram Commands
+| Command | Action |
+|---------|--------|
+| `/budget` | Per-agent daily usage vs limits |
+| `/alerts` | Recent proactive anomaly alerts |
+| `/negotiations` | Active agent-to-agent negotiations |
+
+See [CHANGELOG_AGENCY_UPGRADE.md](CHANGELOG_AGENCY_UPGRADE.md) for the complete list of file changes.
+
+---
+
+## 12. Recommendations for Next Steps
+
+1. **End-to-End Pipeline Test** - Run `docker compose exec processor python3 /home/openclaw/agentpulse_processor.py --task run_pipeline` to validate the full Telegram → Queue → Processor → Agent flow.
+
+2. **Problem Clustering Algorithm** - Currently problems are stored individually. Implement semantic similarity clustering to group related problems.
+
+3. **Monitoring Dashboard** - Consider adding a simple web dashboard for real-time system health.
+
+4. **Budget Tuning** - Monitor actual usage patterns and adjust budget limits in `agentpulse-config.json` based on real-world data.
+
+5. **Negotiation Patterns** - Monitor which negotiation pairs are used most and tune `max_rounds_per_negotiation` accordingly.
 
 ---
 
 *Generated: February 5, 2026*  
-*Last Updated: February 6, 2026 — Auth fix, Lloyd removal, AGENTS.md command wiring*
+*Last Updated: February 17, 2026 — Agency upgrade (budget, self-correction, proactive monitoring, negotiation), command underscore fix, config volume mount fix, full test suite passing*
