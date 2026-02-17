@@ -170,6 +170,8 @@ services:
       dockerfile: Dockerfile
     container_name: agentpulse-web
     restart: unless-stopped
+    env_file:
+      - ../config/.env
     networks:
       - agentpulse-net
     ports:
