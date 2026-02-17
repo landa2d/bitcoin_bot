@@ -247,6 +247,70 @@ def save_newsletter(result: dict, input_data: dict):
     logger.info(f"Saved local file: {md_file.name}")
 
 
+# ---------------------------------------------------------------------------
+# Negotiation request handling
+# ---------------------------------------------------------------------------
+
+def handle_negotiation_request(result: dict, task_id: str):
+    """If the Newsletter agent requests enrichment, create the negotiation and task."""
+    if not supabase:
+        return
+
+    negotiation_req = result.get("negotiation_request")
+    if not negotiation_req:
+        return
+
+    target_agent = negotiation_req.get("target_agent", "analyst")
+    request_summary = negotiation_req.get("request", "")
+    quality_criteria = negotiation_req.get("min_quality", "")
+    needed_by = negotiation_req.get("needed_by")
+    enrichment_task_type = negotiation_req.get("task_type", "enrich_for_newsletter")
+    enrichment_input = negotiation_req.get("input_data", {})
+
+    try:
+        # Create the negotiation record via the processor task type
+        neg_result = supabase.table("agent_tasks").insert({
+            "task_type": "create_negotiation",
+            "assigned_to": "processor",
+            "created_by": AGENT_NAME,
+            "priority": 2,
+            "input_data": {
+                "requesting_agent": AGENT_NAME,
+                "responding_agent": target_agent,
+                "request_task_id": task_id,
+                "request_summary": request_summary,
+                "quality_criteria": quality_criteria,
+                "needed_by": needed_by,
+            },
+        }).execute()
+        logger.info(f"Created create_negotiation task for {AGENT_NAME} → {target_agent}")
+
+        # Create the enrichment task for the target agent
+        supabase.table("agent_tasks").insert({
+            "task_type": enrichment_task_type,
+            "assigned_to": target_agent,
+            "created_by": AGENT_NAME,
+            "priority": 2,
+            "input_data": {
+                **enrichment_input,
+                "negotiation_request": {
+                    "requesting_agent": AGENT_NAME,
+                    "request_summary": request_summary,
+                    "quality_criteria": quality_criteria,
+                    "needed_by": needed_by,
+                },
+            },
+        }).execute()
+        logger.info(f"Created {enrichment_task_type} task for {target_agent}")
+
+    except Exception as e:
+        logger.error(f"Failed to handle negotiation request: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Task processing
+# ---------------------------------------------------------------------------
+
 def process_task(task: dict):
     """Process a single write_newsletter task."""
     task_id = task["id"]
@@ -275,6 +339,9 @@ def process_task(task: dict):
 
         # Save to Supabase + local file
         save_newsletter(result, input_data)
+
+        # Handle negotiation requests (e.g. enrichment from Analyst)
+        handle_negotiation_request(result, task_id)
 
         # Mark task completed
         mark_task_status(

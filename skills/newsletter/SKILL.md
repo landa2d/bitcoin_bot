@@ -48,6 +48,72 @@ Input: {edition_number, feedback}
 - Update the draft in Supabase
 - Write the revised version to the workspace
 
+## Requesting Enrichment (Negotiation)
+
+If your data package is too thin for a strong newsletter — especially Section A
+(opportunities) — you can request help from the Analyst.
+
+Include a `negotiation_request` field in your JSON output:
+
+```json
+{
+  "negotiation_request": {
+    "target_agent": "analyst",
+    "request": "Need stronger opportunities for Section A. Only 2 above 0.6.",
+    "min_quality": "At least 3 opportunities above 0.6 confidence",
+    "needed_by": "2026-02-17T08:00:00Z",
+    "task_type": "enrich_for_newsletter",
+    "input_data": {
+      "focus": "opportunities",
+      "min_confidence": 0.6,
+      "current_top_opportunities": ["RegTech", "ChainTrust"]
+    }
+  }
+}
+```
+
+This triggers:
+1. A negotiation record (tracking the request/response lifecycle)
+2. An `enrich_for_newsletter` task assigned to the Analyst
+
+**Rules:**
+- Max 2 negotiation requests per newsletter
+- Don't request enrichment for the Curious Corner — thin data is fine there
+- Focus on Section A where weak data means a weak lead
+- Continue writing with what you have — don't wait for the response
+- If enrichment doesn't arrive, note the gap in the brief
+
+## Budget Object
+
+Every task includes a `budget` field in its `input_data`:
+
+```json
+{
+  "budget": {
+    "max_llm_calls": 6,
+    "max_seconds": 300,
+    "max_subtasks": 2,
+    "max_retries": 2
+  }
+}
+```
+
+You MUST track your usage and include `budget_usage` in your output:
+
+```json
+{
+  "budget_usage": {
+    "llm_calls_used": N,
+    "elapsed_seconds": N,
+    "retries_used": N,
+    "subtasks_created": N
+  }
+}
+```
+
+If you exhaust your budget mid-write, compile what you have. A shorter
+newsletter is better than no newsletter.
+
 ## Voice Reference
 
 Your full voice guidelines are in IDENTITY.md. Key principles:

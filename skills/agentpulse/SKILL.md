@@ -28,6 +28,9 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/deep-dive [topic]` | `{"task":"create_agent_task","params":{"task_type":"deep_dive","assigned_to":"analyst","created_by":"gato","input_data":{"topic":"<user's topic>"}}}` | "Analyst is diving deep into [topic]..." |
 | `/review [opp name]` | `{"task":"create_agent_task","params":{"task_type":"review_opportunity","assigned_to":"analyst","created_by":"gato","input_data":{"opportunity_title":"<name>"}}}` | "Analyst is reviewing [name]..." |
 | `/curious` | `{"task":"get_trending_topics","params":{"limit":5}}` | Display trending topics with titles, descriptions, and why_interesting. Format in a fun, curious tone — these are NOT investment opportunities. |
+| `/budget` | `{"task":"get_budget_status","params":{}}` | Display per-agent usage today (LLM calls, subtasks, alerts) vs global limits. Show remaining budget. |
+| `/alerts` | `{"task":"get_recent_alerts","params":{}}` | Display recent proactive alerts with timestamps and anomaly types. |
+| `/negotiations` | `{"task":"get_active_negotiations","params":{}}` | Display active agent negotiations: requesting/responding agents, status, round, and request summary. |
 
 ---
 

@@ -103,7 +103,108 @@ You can query Supabase directly for additional data during analysis:
 - `analysis_runs` — your previous analysis runs
 - `cross_signals` — previously detected cross-pipeline signals
 
-## Requesting More Data
+### proactive_analysis
+Assess anomalies detected by the proactive monitoring system.
+
+**Input:** `{anomalies, budget}`
+- `anomalies`: Array of anomaly objects, each with `type`, `description`, and relevant metrics (e.g. `multiplier`, `current`, `baseline_hourly`, `drop`)
+- `budget`: Budget constraints for this task (see Budget Object below)
+
+**Process:** Assess each anomaly — is it significant or noise? Be efficient (budget is small).
+
+**Output:**
+```json
+{
+  "run_type": "proactive_analysis",
+  "alert": true,
+  "alert_message": "2-3 sentence specific alert for Telegram",
+  "anomaly_type": "frequency_spike|sentiment_crash|volume_anomaly",
+  "alert_details": {},
+  "assessment": [
+    {
+      "anomaly_type": "...",
+      "verdict": "significant|noise",
+      "reasoning": "...",
+      "confidence": 0.0
+    }
+  ],
+  "executive_summary": "1-2 sentence overall assessment",
+  "budget_usage": { "llm_calls_used": N, "elapsed_seconds": N, "retries_used": N, "subtasks_created": N }
+}
+```
+
+### enrich_for_newsletter
+Review and re-score opportunities at the Newsletter agent's request (via negotiation).
+
+**Input:** `{negotiation_request, budget, ...opportunity data}`
+- `negotiation_request.request_summary`: What the Newsletter agent needs
+- `negotiation_request.quality_criteria`: What "good enough" means
+- `budget`: Budget constraints for this task
+
+**Process:** Review candidate opportunities, look for new supporting signals, re-score where warranted.
+
+**Output:**
+```json
+{
+  "run_type": "enrich_for_newsletter",
+  "executive_summary": "1-2 sentence summary",
+  "upgraded_opportunities": [
+    {
+      "id": "<uuid>",
+      "title": "...",
+      "previous_score": 0.0,
+      "new_score": 0.0,
+      "reasoning": "Why the score changed",
+      "new_signals": ["..."]
+    }
+  ],
+  "negotiation_criteria_met": true,
+  "negotiation_response_summary": "Did you meet the criteria? Explain.",
+  "message": "Plain-language message for the Newsletter agent",
+  "budget_usage": { "llm_calls_used": N, "elapsed_seconds": N, "retries_used": N, "subtasks_created": N }
+}
+```
+
+## Budget Object
+
+Every task includes a `budget` field in its `input_data`:
+
+```json
+{
+  "budget": {
+    "max_llm_calls": 8,
+    "max_seconds": 300,
+    "max_subtasks": 3,
+    "max_retries": 2
+  }
+}
+```
+
+You MUST track your usage and include `budget_usage` in your output (see IDENTITY.md § Budget Awareness). If you exhaust your budget mid-analysis, stop and compile what you have so far.
+
+## Autonomous Data Requests (output format)
+
+When data is thin for a specific area, include a `data_requests` array in your output:
+
+```json
+{
+  "data_requests": [
+    {
+      "type": "targeted_scrape",
+      "submolts": ["payments", "billing"],
+      "posts_per": 50,
+      "reason": "Thin data in payments cluster during full_analysis"
+    }
+  ]
+}
+```
+
+- Maximum 3 requests per task (bounded by `budget.max_subtasks`)
+- The Processor will scrape and extract on your behalf
+- Data arrives asynchronously — it will be available in your next analysis run
+- Flag the thin area in your output so the operator knows enrichment is pending
+
+## Requesting More Data (legacy)
 
 If you need data the Processor hasn't gathered yet, create an agent_task:
 ```json

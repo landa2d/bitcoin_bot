@@ -16,6 +16,7 @@ import json
 import time
 import math
 import logging
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -93,6 +94,280 @@ def init_clients():
         logger.info("OpenAI client initialized")
     else:
         logger.warning("OpenAI not configured")
+
+# ============================================================================
+# Model Routing
+# ============================================================================
+
+_model_config_cache = None
+
+def get_model_config() -> dict:
+    """Load and cache model routing config from agentpulse-config.json."""
+    global _model_config_cache
+    if _model_config_cache is not None:
+        return _model_config_cache
+
+    config_path = Path('/home/openclaw/.openclaw/config/agentpulse-config.json')
+    try:
+        if config_path.exists():
+            with open(config_path) as f:
+                config = json.load(f)
+            _model_config_cache = config.get('models', {})
+        else:
+            logger.warning(f"Config file not found: {config_path}, using env defaults")
+            _model_config_cache = {}
+    except Exception as e:
+        logger.warning(f"Failed to read model config: {e}, using env defaults")
+        _model_config_cache = {}
+
+    return _model_config_cache
+
+
+def get_model(task_name: str) -> str:
+    """Get the model for a given task, with fallback chain."""
+    config = get_model_config()
+    return config.get(task_name, config.get('default', OPENAI_MODEL))
+
+# ============================================================================
+# Full Config Loading
+# ============================================================================
+
+_full_config_cache = None
+
+def get_full_config() -> dict:
+    """Load and cache the full agentpulse-config.json."""
+    global _full_config_cache
+    if _full_config_cache is not None:
+        return _full_config_cache
+
+    config_path = Path('/home/openclaw/.openclaw/config/agentpulse-config.json')
+    try:
+        if config_path.exists():
+            with open(config_path) as f:
+                _full_config_cache = json.load(f)
+        else:
+            logger.warning(f"Config file not found: {config_path}, using empty config")
+            _full_config_cache = {}
+    except Exception as e:
+        logger.warning(f"Failed to read full config: {e}, using empty config")
+        _full_config_cache = {}
+
+    return _full_config_cache
+
+
+# ============================================================================
+# Budget Enforcement System
+# ============================================================================
+
+class AgentBudget:
+    """Tracks and enforces budget limits for a single agent task."""
+
+    def __init__(self, task_type: str, agent_name: str):
+        config = get_budget_config(agent_name, task_type)
+        self.agent_name = agent_name
+        self.task_type = task_type
+        self.max_llm_calls = config.get('max_llm_calls', 5)
+        self.max_seconds = config.get('max_seconds', 180)
+        self.max_subtasks = config.get('max_subtasks', 2)
+        self.max_retries = config.get('max_retries', 1)
+
+        self.llm_calls_used = 0
+        self.subtasks_created = 0
+        self.retries_used = 0
+        self.start_time = time.time()
+
+    def can_call_llm(self) -> bool:
+        return (self.llm_calls_used < self.max_llm_calls and
+                self.elapsed_seconds() < self.max_seconds)
+
+    def can_create_subtask(self) -> bool:
+        return self.subtasks_created < self.max_subtasks
+
+    def can_retry(self) -> bool:
+        return self.retries_used < self.max_retries
+
+    def use_llm_call(self):
+        self.llm_calls_used += 1
+
+    def use_subtask(self):
+        self.subtasks_created += 1
+
+    def use_retry(self):
+        self.retries_used += 1
+
+    def elapsed_seconds(self) -> float:
+        return time.time() - self.start_time
+
+    def remaining(self) -> dict:
+        return {
+            'llm_calls': self.max_llm_calls - self.llm_calls_used,
+            'seconds': max(0, self.max_seconds - self.elapsed_seconds()),
+            'subtasks': self.max_subtasks - self.subtasks_created,
+            'retries': self.max_retries - self.retries_used
+        }
+
+    def exhausted_reason(self) -> str:
+        if self.elapsed_seconds() >= self.max_seconds:
+            return 'time_limit'
+        if self.llm_calls_used >= self.max_llm_calls:
+            return 'llm_call_limit'
+        if self.subtasks_created >= self.max_subtasks:
+            return 'subtask_limit'
+        if self.retries_used >= self.max_retries:
+            return 'retry_limit'
+        return None
+
+    def to_dict(self) -> dict:
+        return {
+            'agent_name': self.agent_name,
+            'task_type': self.task_type,
+            'limits': {
+                'max_llm_calls': self.max_llm_calls,
+                'max_seconds': self.max_seconds,
+                'max_subtasks': self.max_subtasks,
+                'max_retries': self.max_retries
+            },
+            'usage': {
+                'llm_calls_used': self.llm_calls_used,
+                'subtasks_created': self.subtasks_created,
+                'retries_used': self.retries_used,
+                'elapsed_seconds': round(self.elapsed_seconds(), 2)
+            },
+            'remaining': {
+                'llm_calls': self.max_llm_calls - self.llm_calls_used,
+                'seconds': round(max(0, self.max_seconds - self.elapsed_seconds()), 2),
+                'subtasks': self.max_subtasks - self.subtasks_created,
+                'retries': self.max_retries - self.retries_used
+            },
+            'exhausted_reason': self.exhausted_reason()
+        }
+
+
+def get_budget_config(agent_name: str, task_type: str) -> dict:
+    """Read budget config for a specific agent and task type, with defaults."""
+    config = get_full_config()
+    budgets = config.get('budgets', {})
+    agent_budgets = budgets.get(agent_name, {})
+    task_budget = agent_budgets.get(task_type, {})
+
+    defaults = {
+        'max_llm_calls': 5,
+        'max_seconds': 180,
+        'max_subtasks': 2,
+        'max_retries': 1
+    }
+
+    return {k: task_budget.get(k, defaults[k]) for k in defaults}
+
+
+def check_daily_budget(agent_name: str) -> bool:
+    """Check if the agent has LLM call budget remaining for today."""
+    if not supabase:
+        return True
+
+    today = datetime.utcnow().date().isoformat()
+    try:
+        usage = supabase.table('agent_daily_usage')\
+            .select('*')\
+            .eq('agent_name', agent_name)\
+            .eq('date', today)\
+            .execute()
+
+        if not usage.data:
+            return True
+
+        daily = usage.data[0]
+        global_config = get_full_config().get('budgets', {}).get('global', {})
+        max_daily = global_config.get('max_daily_llm_calls', 100)
+
+        return daily.get('llm_calls_used', 0) < max_daily
+
+    except Exception as e:
+        logger.error(f"Failed to check daily budget for {agent_name}: {e}")
+        return True
+
+
+def increment_daily_usage(agent_name: str, llm_calls: int = 0, subtasks: int = 0, alerts: int = 0):
+    """Upsert today's usage row for the given agent."""
+    if not supabase:
+        return
+
+    today = datetime.utcnow().date().isoformat()
+    try:
+        existing = supabase.table('agent_daily_usage')\
+            .select('*')\
+            .eq('agent_name', agent_name)\
+            .eq('date', today)\
+            .execute()
+
+        if existing.data:
+            row = existing.data[0]
+            supabase.table('agent_daily_usage').update({
+                'llm_calls_used': (row.get('llm_calls_used', 0) or 0) + llm_calls,
+                'subtasks_created': (row.get('subtasks_created', 0) or 0) + subtasks,
+                'proactive_alerts_sent': (row.get('proactive_alerts_sent', 0) or 0) + alerts
+            }).eq('id', row['id']).execute()
+        else:
+            supabase.table('agent_daily_usage').insert({
+                'agent_name': agent_name,
+                'date': today,
+                'llm_calls_used': llm_calls,
+                'subtasks_created': subtasks,
+                'proactive_alerts_sent': alerts,
+                'total_cost_estimate': 0
+            }).execute()
+
+    except Exception as e:
+        logger.error(f"Failed to increment daily usage for {agent_name}: {e}")
+
+
+def get_daily_usage(agent_name: str = None) -> dict:
+    """Return today's usage, optionally filtered by agent."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    today = datetime.utcnow().date().isoformat()
+    try:
+        query = supabase.table('agent_daily_usage')\
+            .select('*')\
+            .eq('date', today)
+
+        if agent_name:
+            query = query.eq('agent_name', agent_name)
+
+        result = query.execute()
+
+        global_config = get_full_config().get('budgets', {}).get('global', {})
+        max_daily_llm = global_config.get('max_daily_llm_calls', 100)
+        max_daily_alerts = global_config.get('max_daily_proactive_alerts', 5)
+
+        usage_rows = result.data or []
+        total_llm = sum(r.get('llm_calls_used', 0) or 0 for r in usage_rows)
+        total_subtasks = sum(r.get('subtasks_created', 0) or 0 for r in usage_rows)
+        total_alerts = sum(r.get('proactive_alerts_sent', 0) or 0 for r in usage_rows)
+
+        return {
+            'date': today,
+            'agents': usage_rows,
+            'totals': {
+                'llm_calls_used': total_llm,
+                'subtasks_created': total_subtasks,
+                'proactive_alerts_sent': total_alerts
+            },
+            'limits': {
+                'max_daily_llm_calls': max_daily_llm,
+                'max_daily_proactive_alerts': max_daily_alerts
+            },
+            'remaining': {
+                'llm_calls': max_daily_llm - total_llm,
+                'proactive_alerts': max_daily_alerts - total_alerts
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get daily usage: {e}")
+        return {'error': str(e)}
+
 
 # ============================================================================
 # Moltbook Scraping
@@ -259,7 +534,8 @@ def extract_problems(hours_back: int = 48) -> dict:
         return {'problems_found': 0}
     
     logger.info(f"Processing {len(posts.data)} posts")
-    logger.info(f"Using model: {OPENAI_MODEL} for problem extraction")
+    extraction_model = get_model('extraction')
+    logger.info(f"Using model: {extraction_model} for problem extraction")
     
     # Format posts for prompt
     posts_text = "\n\n".join([
@@ -270,7 +546,7 @@ def extract_problems(hours_back: int = 48) -> dict:
     # Call OpenAI
     try:
         response = openai_client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=extraction_model,
             messages=[
                 {"role": "system", "content": "You extract business problems from text. Respond only with valid JSON."},
                 {"role": "user", "content": PROBLEM_EXTRACTION_PROMPT.format(posts=posts_text)}
@@ -395,7 +671,8 @@ def cluster_problems(min_problems: int = 3) -> dict:
         return {'problems_processed': 0, 'clusters_created': 0}
 
     logger.info(f"Clustering {len(problems.data)} unclustered problems")
-    logger.info(f"Using model: {OPENAI_MODEL} for clustering")
+    clustering_model = get_model('clustering')
+    logger.info(f"Using model: {clustering_model} for clustering")
 
     # Format problems for prompt
     problems_text = json.dumps([
@@ -413,7 +690,7 @@ def cluster_problems(min_problems: int = 3) -> dict:
     # Call OpenAI for clustering
     try:
         response = openai_client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=clustering_model,
             messages=[
                 {"role": "system", "content": "You group business problems into thematic clusters. Respond only with valid JSON."},
                 {"role": "user", "content": CLUSTERING_PROMPT.format(problems=problems_text)}
@@ -600,7 +877,8 @@ def generate_opportunities(min_score: float = 0.3, limit: int = 5) -> dict:
         return {'opportunities_generated': 0}
 
     opportunities_created = 0
-    logger.info(f"Using model: {OPENAI_MODEL} for opportunity generation from {len(new_clusters)} clusters")
+    opp_model = get_model('opportunity_generation')
+    logger.info(f"Using model: {opp_model} for opportunity generation from {len(new_clusters)} clusters")
 
     for cluster in new_clusters[:limit]:
         try:
@@ -614,7 +892,7 @@ def generate_opportunities(min_score: float = 0.3, limit: int = 5) -> dict:
             }, indent=2)
 
             response = openai_client.chat.completions.create(
-                model=OPENAI_MODEL,
+                model=opp_model,
                 messages=[
                     {"role": "system", "content": "You generate startup opportunity briefs. Respond only with valid JSON."},
                     {"role": "user", "content": OPPORTUNITY_PROMPT.format(problem_data=problem_data)}
@@ -771,7 +1049,8 @@ def extract_tool_mentions(hours_back: int = 48) -> dict:
         return {'posts_scanned': 0, 'mentions_found': 0}
 
     logger.info(f"Scanning {len(posts.data)} posts for tool mentions")
-    logger.info(f"Using model: {OPENAI_MODEL} for tool extraction")
+    tool_model = get_model('extraction')
+    logger.info(f"Using model: {tool_model} for tool extraction")
 
     # Format posts for prompt
     posts_text = "\n\n".join([
@@ -781,7 +1060,7 @@ def extract_tool_mentions(hours_back: int = 48) -> dict:
 
     try:
         response = openai_client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=tool_model,
             messages=[
                 {"role": "system", "content": "You extract tool and product mentions. Respond only with valid JSON."},
                 {"role": "user", "content": TOOL_EXTRACTION_PROMPT.format(posts=posts_text)}
@@ -1002,7 +1281,8 @@ def extract_trending_topics(hours_back: int = 48) -> dict:
         return {'posts_scanned': 0, 'topics_found': 0}
 
     logger.info(f"Scanning {len(posts.data)} posts for trending topics")
-    logger.info(f"Using model: {OPENAI_MODEL} for trending topics extraction")
+    trending_model = get_model('trending_topics')
+    logger.info(f"Using model: {trending_model} for trending topics extraction")
 
     # Format posts for prompt
     posts_text = "\n\n".join([
@@ -1012,7 +1292,7 @@ def extract_trending_topics(hours_back: int = 48) -> dict:
 
     try:
         response = openai_client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=trending_model,
             messages=[
                 {"role": "system", "content": "You identify interesting and culturally significant conversations in AI agent communities. Respond only with valid JSON."},
                 {"role": "user", "content": TRENDING_TOPICS_PROMPT.format(posts=posts_text)}
@@ -1529,6 +1809,396 @@ def prepare_analysis_package(hours_back: int = 48) -> dict:
 
 
 # ============================================================================
+# Proactive Monitoring
+# ============================================================================
+
+def detect_anomalies() -> list:
+    """Check for data anomalies. No LLM calls — just SQL and math."""
+    if not supabase:
+        return []
+
+    anomalies = []
+    now = datetime.utcnow()
+    hour_ago = (now - timedelta(hours=1)).isoformat()
+    day_ago = (now - timedelta(days=1)).isoformat()
+    week_ago = (now - timedelta(days=7)).isoformat()
+
+    # 1. Problem frequency spike by category
+    try:
+        recent_problems = supabase.table('problems')\
+            .select('category')\
+            .gte('first_seen', hour_ago)\
+            .execute()
+
+        baseline_problems = supabase.table('problems')\
+            .select('category')\
+            .gte('first_seen', week_ago)\
+            .lt('first_seen', day_ago)\
+            .execute()
+
+        if recent_problems.data and baseline_problems.data:
+            recent_counts = Counter(p['category'] for p in recent_problems.data)
+            baseline_counts = Counter(p['category'] for p in baseline_problems.data)
+            baseline_hours = 24 * 6  # 6 days of baseline
+
+            for category, count in recent_counts.items():
+                baseline_hourly = baseline_counts.get(category, 0) / max(baseline_hours, 1)
+                if baseline_hourly > 0 and count > baseline_hourly * 3:
+                    anomalies.append({
+                        'type': 'frequency_spike',
+                        'category': category,
+                        'current': count,
+                        'baseline_hourly': round(baseline_hourly, 2),
+                        'multiplier': round(count / baseline_hourly, 1),
+                        'description': f"{category} problems spiked {round(count / baseline_hourly, 1)}x above baseline"
+                    })
+    except Exception as e:
+        logger.error(f"Anomaly detection (frequency spike) failed: {e}")
+
+    # 2. Tool sentiment crash
+    try:
+        recent_sentiment = supabase.table('tool_mentions')\
+            .select('tool_name, sentiment_score')\
+            .gte('mentioned_at', day_ago)\
+            .execute()
+
+        if recent_sentiment.data:
+            tool_sentiments = defaultdict(list)
+            for m in recent_sentiment.data:
+                tool_sentiments[m['tool_name']].append(m.get('sentiment_score', 0))
+
+            for tool_name, scores in tool_sentiments.items():
+                avg_recent = sum(scores) / len(scores)
+                try:
+                    stats = supabase.table('tool_stats')\
+                        .select('avg_sentiment')\
+                        .eq('tool_name', tool_name)\
+                        .execute()
+                    if stats.data:
+                        historical_avg = stats.data[0].get('avg_sentiment', 0)
+                        if historical_avg - avg_recent > 0.5:
+                            anomalies.append({
+                                'type': 'sentiment_crash',
+                                'tool_name': tool_name,
+                                'current_avg': round(avg_recent, 2),
+                                'historical_avg': round(historical_avg, 2),
+                                'drop': round(historical_avg - avg_recent, 2),
+                                'description': f"{tool_name} sentiment dropped {round(historical_avg - avg_recent, 2)} points"
+                            })
+                except Exception as e:
+                    logger.error(f"Sentiment comparison failed for {tool_name}: {e}")
+    except Exception as e:
+        logger.error(f"Anomaly detection (sentiment crash) failed: {e}")
+
+    # 3. Volume anomaly
+    try:
+        recent_post_count = supabase.table('moltbook_posts')\
+            .select('id', count='exact')\
+            .gte('scraped_at', hour_ago)\
+            .execute()
+
+        baseline_post_count = supabase.table('moltbook_posts')\
+            .select('id', count='exact')\
+            .gte('scraped_at', week_ago)\
+            .lt('scraped_at', day_ago)\
+            .execute()
+
+        recent_count = recent_post_count.count or 0
+        baseline_count = baseline_post_count.count or 0
+
+        if recent_count and baseline_count:
+            baseline_hourly_posts = baseline_count / (24 * 6)
+            if baseline_hourly_posts > 0:
+                ratio = recent_count / baseline_hourly_posts
+                if ratio > 2.5 or ratio < 0.3:
+                    anomalies.append({
+                        'type': 'volume_anomaly',
+                        'current': recent_count,
+                        'baseline_hourly': round(baseline_hourly_posts, 1),
+                        'ratio': round(ratio, 1),
+                        'direction': 'spike' if ratio > 2.5 else 'drop',
+                        'description': f"Post volume {'spiked' if ratio > 2.5 else 'dropped'} to {round(ratio, 1)}x baseline"
+                    })
+    except Exception as e:
+        logger.error(f"Anomaly detection (volume) failed: {e}")
+
+    return anomalies
+
+
+def check_proactive_budget() -> bool:
+    """Check if proactive alerts budget has remaining capacity for today."""
+    if not supabase:
+        return True
+
+    today = datetime.utcnow().date().isoformat()
+    try:
+        usage = supabase.table('agent_daily_usage')\
+            .select('proactive_alerts_sent')\
+            .eq('agent_name', 'system')\
+            .eq('date', today)\
+            .execute()
+
+        global_config = get_full_config().get('budgets', {}).get('global', {})
+        max_daily = global_config.get('max_daily_proactive_alerts', 5)
+
+        if not usage.data:
+            return True
+        return (usage.data[0].get('proactive_alerts_sent', 0) or 0) < max_daily
+
+    except Exception as e:
+        logger.error(f"Failed to check proactive budget: {e}")
+        return True
+
+
+def check_proactive_cooldown() -> bool:
+    """Ensure minimum time between proactive scans."""
+    if not supabase:
+        return True
+
+    global_config = get_full_config().get('budgets', {}).get('global', {})
+    cooldown_minutes = global_config.get('cooldown_between_proactive_scans_minutes', 60)
+
+    try:
+        last_scan = supabase.table('pipeline_runs')\
+            .select('completed_at')\
+            .eq('pipeline', 'proactive_scan')\
+            .order('completed_at', desc=True)\
+            .limit(1)\
+            .execute()
+
+        if not last_scan.data:
+            return True
+
+        completed_at = last_scan.data[0].get('completed_at')
+        if not completed_at:
+            return True
+
+        if completed_at.endswith('Z'):
+            completed_at = completed_at.replace('Z', '+00:00')
+        last_time = datetime.fromisoformat(completed_at)
+        if last_time.tzinfo is None:
+            last_time = last_time.replace(tzinfo=timezone.utc)
+
+        elapsed_minutes = (datetime.now(timezone.utc) - last_time).total_seconds() / 60
+        return elapsed_minutes >= cooldown_minutes
+
+    except Exception as e:
+        logger.error(f"Failed to check proactive cooldown: {e}")
+        return True
+
+
+def proactive_scan() -> dict:
+    """Periodic scan for anomalies. No LLM unless anomaly found."""
+    if not check_proactive_budget():
+        logger.info("Proactive scan: daily budget exhausted")
+        return {'skipped': 'daily_budget_exhausted'}
+
+    if not check_proactive_cooldown():
+        logger.info("Proactive scan: cooldown active")
+        return {'skipped': 'cooldown_active'}
+
+    run_id = log_pipeline_start('proactive_scan')
+
+    try:
+        anomalies = detect_anomalies()
+
+        if not anomalies:
+            logger.info("Proactive scan: no anomalies detected")
+            log_pipeline_end(run_id, 'completed', {'anomalies': 0})
+            return {'anomalies': 0, 'analysis_requested': False}
+
+        logger.info(f"Proactive scan: {len(anomalies)} anomalies detected")
+
+        # Create a focused analysis task for the Analyst
+        budget = get_budget_config('analyst', 'proactive_scan')
+
+        if supabase:
+            supabase.table('agent_tasks').insert({
+                'task_type': 'proactive_analysis',
+                'assigned_to': 'analyst',
+                'created_by': 'processor',
+                'priority': 2,
+                'input_data': {
+                    'anomalies': anomalies,
+                    'budget': budget
+                }
+            }).execute()
+
+        result = {'anomalies': len(anomalies), 'analysis_requested': True}
+        log_pipeline_end(run_id, 'completed', result)
+        return result
+
+    except Exception as e:
+        logger.error(f"Proactive scan failed: {e}")
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+
+# ============================================================================
+# Agent-to-Agent Negotiation
+# ============================================================================
+
+def create_negotiation(
+    requesting_agent: str,
+    responding_agent: str,
+    request_task_id: str,
+    request_summary: str,
+    quality_criteria: str,
+    needed_by: str = None,
+) -> dict:
+    """Create a negotiation between two agents, with guardrail checks."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    config = get_full_config().get('negotiation', {})
+
+    # Check if this agent pair is allowed
+    allowed_pairs = config.get('allowed_pairs', {})
+    allowed_key = f"{requesting_agent}_can_ask"
+    allowed_targets = allowed_pairs.get(allowed_key, [])
+    if responding_agent not in allowed_targets:
+        reason = f"{requesting_agent} is not allowed to negotiate with {responding_agent}"
+        logger.warning(f"Negotiation blocked: {reason}")
+        return {'error': reason}
+
+    # Check max active negotiations for the requesting agent
+    max_active = config.get('max_active_negotiations_per_agent', 3)
+    try:
+        active = supabase.table('agent_negotiations')\
+            .select('id', count='exact')\
+            .eq('requesting_agent', requesting_agent)\
+            .in_('status', ['open', 'follow_up'])\
+            .execute()
+        active_count = active.count or 0
+        if active_count >= max_active:
+            reason = f"{requesting_agent} already has {active_count} active negotiations (max {max_active})"
+            logger.warning(f"Negotiation blocked: {reason}")
+            return {'error': reason}
+    except Exception as e:
+        logger.error(f"Failed to check active negotiations: {e}")
+        return {'error': str(e)}
+
+    # Create the negotiation
+    try:
+        record = {
+            'requesting_agent': requesting_agent,
+            'responding_agent': responding_agent,
+            'status': 'open',
+            'round': 1,
+            'request_task_id': request_task_id,
+            'request_summary': request_summary,
+            'quality_criteria': quality_criteria,
+        }
+        if needed_by:
+            record['needed_by'] = needed_by
+
+        result = supabase.table('agent_negotiations').insert(record).execute()
+        negotiation_id = result.data[0]['id'] if result.data else None
+        logger.info(f"Negotiation created: {negotiation_id} ({requesting_agent} → {responding_agent})")
+        return {'negotiation_id': negotiation_id}
+
+    except Exception as e:
+        logger.error(f"Failed to create negotiation: {e}")
+        return {'error': str(e)}
+
+
+def respond_to_negotiation(
+    negotiation_id: str,
+    response_task_id: str,
+    criteria_met: bool,
+    response_summary: str,
+) -> dict:
+    """Record a response to a negotiation and advance its state."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    config = get_full_config().get('negotiation', {})
+    max_rounds = config.get('max_rounds_per_negotiation', 2)
+
+    try:
+        # Fetch current negotiation
+        neg = supabase.table('agent_negotiations')\
+            .select('*')\
+            .eq('id', negotiation_id)\
+            .single()\
+            .execute()
+
+        if not neg.data:
+            return {'error': f'Negotiation {negotiation_id} not found'}
+
+        current = neg.data
+        current_round = current.get('round', 1)
+        now = datetime.utcnow().isoformat()
+
+        update = {
+            'response_task_id': response_task_id,
+            'criteria_met': criteria_met,
+            'response_summary': response_summary,
+        }
+
+        if criteria_met:
+            update['status'] = 'closed'
+            update['closed_at'] = now
+        elif current_round < max_rounds:
+            update['status'] = 'follow_up'
+            update['round'] = current_round + 1
+        else:
+            update['status'] = 'closed'
+            update['closed_at'] = now
+
+        supabase.table('agent_negotiations')\
+            .update(update)\
+            .eq('id', negotiation_id)\
+            .execute()
+
+        logger.info(
+            f"Negotiation {negotiation_id} updated: "
+            f"criteria_met={criteria_met}, status={update.get('status')}, round={update.get('round', current_round)}"
+        )
+        return {
+            'negotiation_id': negotiation_id,
+            'status': update.get('status', current.get('status')),
+            'round': update.get('round', current_round),
+            'criteria_met': criteria_met,
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to respond to negotiation {negotiation_id}: {e}")
+        return {'error': str(e)}
+
+
+def check_negotiation_timeouts():
+    """Time out negotiations that have been open too long."""
+    if not supabase:
+        return
+
+    config = get_full_config().get('negotiation', {})
+    timeout_minutes = config.get('negotiation_timeout_minutes', 30)
+    cutoff = (datetime.utcnow() - timedelta(minutes=timeout_minutes)).isoformat()
+
+    try:
+        stale = supabase.table('agent_negotiations')\
+            .select('*')\
+            .in_('status', ['open', 'follow_up'])\
+            .lt('created_at', cutoff)\
+            .execute()
+
+        now = datetime.utcnow().isoformat()
+        for neg in stale.data or []:
+            supabase.table('agent_negotiations')\
+                .update({'status': 'timed_out', 'closed_at': now})\
+                .eq('id', neg['id'])\
+                .execute()
+            logger.warning(
+                f"Negotiation {neg['id']} timed out "
+                f"({neg['requesting_agent']} → {neg['responding_agent']})"
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to check negotiation timeouts: {e}")
+
+
+# ============================================================================
 # Pipeline Logging
 # ============================================================================
 
@@ -1772,6 +2442,120 @@ def execute_task(task: dict) -> dict:
             .single()\
             .execute()
         return task_record.data
+    
+    elif task_type == 'targeted_scrape':
+        submolts = params.get('submolts', [])[:3]
+        posts_per = min(params.get('posts_per_submolt', 50), 50)
+        reason = params.get('reason', 'agent_request')
+
+        results = {}
+        for submolt in submolts:
+            try:
+                posts = fetch_moltbook_posts(submolt=submolt, limit=posts_per)
+                new_count = 0
+                for post in posts:
+                    try:
+                        if store_post(post, submolt_override=submolt):
+                            new_count += 1
+                    except Exception as e:
+                        logger.error(f"Error storing targeted post: {e}")
+                results[submolt] = {'fetched': len(posts), 'new': new_count}
+            except Exception as e:
+                logger.error(f"Targeted scrape failed for submolt '{submolt}': {e}")
+                results[submolt] = {'error': str(e)}
+
+        extract_result = extract_problems(hours_back=1)
+
+        return {
+            'scrape': results,
+            'extract': extract_result,
+            'triggered_by': reason
+        }
+    
+    elif task_type == 'can_create_subtask':
+        if not supabase:
+            return {'can_create': True, 'pending_tasks': 0, 'reason': 'no_supabase'}
+        pending = supabase.table('agent_tasks')\
+            .select('id', count='exact')\
+            .eq('status', 'pending')\
+            .execute()
+        count = pending.count or 0
+        return {
+            'can_create': count < 10,
+            'pending_tasks': count,
+            'reason': 'processor_overloaded' if count >= 10 else 'ok'
+        }
+    
+    elif task_type == 'send_alert':
+        message = params.get('alert_message', 'Unknown alert')
+        send_telegram(f"⚠️ Proactive Alert\n\n{message}")
+        increment_daily_usage('system', alerts=1)
+        return {'sent': True}
+    
+    elif task_type == 'proactive_scan':
+        return proactive_scan()
+    
+    elif task_type == 'create_negotiation':
+        return create_negotiation(
+            requesting_agent=params.get('requesting_agent', ''),
+            responding_agent=params.get('responding_agent', ''),
+            request_task_id=params.get('request_task_id', ''),
+            request_summary=params.get('request_summary', ''),
+            quality_criteria=params.get('quality_criteria', ''),
+            needed_by=params.get('needed_by'),
+        )
+    
+    elif task_type == 'respond_to_negotiation':
+        return respond_to_negotiation(
+            negotiation_id=params.get('negotiation_id', ''),
+            response_task_id=params.get('response_task_id', ''),
+            criteria_met=params.get('criteria_met', False),
+            response_summary=params.get('response_summary', ''),
+        )
+    
+    elif task_type == 'get_active_negotiations':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        agent = params.get('agent_name')
+        query = supabase.table('agent_negotiations')\
+            .select('*')\
+            .in_('status', ['open', 'follow_up'])\
+            .order('created_at', desc=True)
+        if agent:
+            query = query.or_(f"requesting_agent.eq.{agent},responding_agent.eq.{agent}")
+        result = query.execute()
+        return {'negotiations': result.data or [], 'count': len(result.data or [])}
+    
+    elif task_type == 'check_negotiation_timeouts':
+        check_negotiation_timeouts()
+        return {'checked': True}
+    
+    elif task_type == 'get_recent_alerts':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        cutoff = (datetime.utcnow() - timedelta(days=7)).isoformat()
+        result = supabase.table('agent_tasks')\
+            .select('id, created_at, input_data, output_data')\
+            .eq('task_type', 'send_alert')\
+            .gte('created_at', cutoff)\
+            .order('created_at', desc=True)\
+            .limit(10)\
+            .execute()
+        alerts = []
+        for row in result.data or []:
+            input_d = row.get('input_data') or {}
+            alerts.append({
+                'timestamp': row.get('created_at'),
+                'message': input_d.get('alert_message', ''),
+                'anomaly_type': input_d.get('anomaly_type'),
+            })
+        return {'alerts': alerts, 'count': len(alerts)}
+    
+    elif task_type == 'get_budget_status':
+        return get_daily_usage()
+    
+    elif task_type == 'get_budget_config':
+        return get_full_config().get('budgets', {})
     
     else:
         return {'error': f'Unknown task: {task_type}'}
@@ -2128,6 +2912,24 @@ def scheduled_refresh_cache():
         logger.error(f"Scheduled cache refresh failed: {e}")
 
 
+def scheduled_proactive_scan():
+    """Scheduled proactive anomaly detection."""
+    logger.info("Running scheduled proactive scan...")
+    try:
+        result = proactive_scan()
+        logger.info(f"Scheduled proactive scan completed: {result}")
+    except Exception as e:
+        logger.error(f"Scheduled proactive scan failed: {e}")
+
+
+def scheduled_check_negotiation_timeouts():
+    """Scheduled check for timed-out negotiations."""
+    try:
+        check_negotiation_timeouts()
+    except Exception as e:
+        logger.error(f"Scheduled negotiation timeout check failed: {e}")
+
+
 def setup_scheduler():
     """Set up scheduled tasks."""
     # Get intervals from environment or use defaults
@@ -2146,11 +2948,14 @@ def setup_scheduler():
     schedule.every().day.at("09:00").do(scheduled_digest)
     schedule.every().day.at("03:00").do(scheduled_cleanup)
     schedule.every(1).hours.do(scheduled_refresh_cache)
+    schedule.every(60).minutes.do(scheduled_proactive_scan)
+    schedule.every(10).minutes.do(scheduled_check_negotiation_timeouts)
     
     logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h, trending every 12h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
     logger.info("Weekly: newsletter prep Mon 07:00, newsletter notify Mon 08:00 UTC")
-    logger.info("Hourly: workspace cache refresh")
+    logger.info("Hourly: workspace cache refresh, proactive anomaly scan")
+    logger.info("Every 10min: negotiation timeout check")
 
 def run_scheduler():
     """Run the scheduler in a background thread."""
@@ -2164,13 +2969,14 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
     args = parser.parse_args()
     
     init_clients()
+    logger.info(f"Model routing: {json.dumps(get_model_config())}")
     
     if args.task == 'scrape':
         result = scrape_moltbook()
@@ -2224,6 +3030,10 @@ def main():
     
     elif args.task == 'cleanup':
         scheduled_cleanup()
+    
+    elif args.task == 'get_budget_status':
+        result = get_daily_usage()
+        print(json.dumps(result, default=str, indent=2))
     
     elif args.task == 'queue':
         process_queue()

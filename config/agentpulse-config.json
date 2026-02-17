@@ -1,5 +1,61 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "models": {
+    "extraction": "gpt-4o-mini",
+    "clustering": "gpt-4o-mini",
+    "trending_topics": "gpt-4o-mini",
+    "opportunity_generation": "gpt-4o",
+    "digest": "gpt-4o-mini",
+    "default": "gpt-4o"
+  },
+  "budgets": {
+    "analyst": {
+      "full_analysis": {
+        "max_llm_calls": 8,
+        "max_seconds": 300,
+        "max_subtasks": 3,
+        "max_retries": 2
+      },
+      "deep_dive": {
+        "max_llm_calls": 5,
+        "max_seconds": 180,
+        "max_subtasks": 2,
+        "max_retries": 1
+      },
+      "review_opportunity": {
+        "max_llm_calls": 3,
+        "max_seconds": 120,
+        "max_subtasks": 1,
+        "max_retries": 1
+      },
+      "proactive_scan": {
+        "max_llm_calls": 4,
+        "max_seconds": 120,
+        "max_subtasks": 1,
+        "max_retries": 1
+      }
+    },
+    "newsletter": {
+      "write_newsletter": {
+        "max_llm_calls": 6,
+        "max_seconds": 300,
+        "max_subtasks": 2,
+        "max_retries": 2
+      },
+      "revise_newsletter": {
+        "max_llm_calls": 3,
+        "max_seconds": 120,
+        "max_subtasks": 1,
+        "max_retries": 1
+      }
+    },
+    "global": {
+      "max_subtask_depth": 2,
+      "max_daily_llm_calls": 100,
+      "max_daily_proactive_alerts": 5,
+      "cooldown_between_proactive_scans_minutes": 60
+    }
+  },
   "pipelines": {
     "scrape": {
       "enabled": true,
@@ -21,6 +77,17 @@
       "on_new_opportunity": true,
       "daily_digest": true,
       "digest_hour": 9
+    }
+  },
+  "negotiation": {
+    "max_rounds_per_negotiation": 2,
+    "max_active_negotiations_per_agent": 3,
+    "negotiation_timeout_minutes": 30,
+    "allowed_pairs": {
+      "newsletter_can_ask": ["analyst", "processor"],
+      "analyst_can_ask": ["processor"],
+      "gato_can_ask": ["analyst", "processor", "newsletter"],
+      "processor_can_ask": []
     }
   },
   "analysis": {
