@@ -361,7 +361,8 @@ section "9: Negotiation System"
 docker compose exec -T processor python3 -c "
 import sys
 sys.path.insert(0, '/home/openclaw')
-from agentpulse_processor import execute_task
+from agentpulse_processor import execute_task, init_clients
+init_clients()
 
 # Test 1: Create negotiation (valid pair: newsletter -> analyst)
 try:
@@ -413,7 +414,8 @@ echo "  Testing budget status command..."
 docker compose exec -T processor python3 -c "
 import sys
 sys.path.insert(0, '/home/openclaw')
-from agentpulse_processor import execute_task
+from agentpulse_processor import execute_task, init_clients
+init_clients()
 
 # Budget status
 result = execute_task({'task': 'get_budget_status', 'params': {}})
