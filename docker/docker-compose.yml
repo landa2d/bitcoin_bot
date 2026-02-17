@@ -70,6 +70,8 @@ services:
       LOG_LEVEL: info
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
+      - ../data/openclaw/agents/analyst:/home/openclaw/.openclaw/agents/analyst
+      - ../skills/analyst:/home/openclaw/.openclaw/skills/analyst:ro
       - ../config:/home/openclaw/.openclaw/config:ro
     mem_limit: 256m
     depends_on:
@@ -108,6 +110,8 @@ services:
       LOG_LEVEL: info
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
+      - ../data/openclaw/agents/newsletter:/home/openclaw/.openclaw/agents/newsletter
+      - ../skills/newsletter:/home/openclaw/.openclaw/skills/newsletter:ro
       - ../config:/home/openclaw/.openclaw/config:ro
     mem_limit: 256m
     depends_on:
