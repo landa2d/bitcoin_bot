@@ -2085,10 +2085,11 @@ def create_negotiation(
             'responding_agent': responding_agent,
             'status': 'open',
             'round': 1,
-            'request_task_id': request_task_id,
             'request_summary': request_summary,
             'quality_criteria': quality_criteria,
         }
+        if request_task_id:
+            record['request_task_id'] = request_task_id
         if needed_by:
             record['needed_by'] = needed_by
 
@@ -2131,10 +2132,11 @@ def respond_to_negotiation(
         now = datetime.utcnow().isoformat()
 
         update = {
-            'response_task_id': response_task_id,
             'criteria_met': criteria_met,
             'response_summary': response_summary,
         }
+        if response_task_id:
+            update['response_task_id'] = response_task_id
 
         if criteria_met:
             update['status'] = 'closed'
