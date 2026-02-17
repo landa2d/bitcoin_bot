@@ -12,7 +12,7 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/toolcheck X` | `workspace/agentpulse/cache/tool_stats_latest.json` | Find the tool matching "X" and show all its stats |
 | `/opps` | `workspace/agentpulse/cache/opportunities_latest.json` | List opportunities: title, confidence_score, problem_summary |
 | `/brief` | `workspace/agentpulse/cache/newsletter_latest.json` | Show the `content_telegram` field. If null, say "No newsletter yet." |
-| `/pulse-status` | `workspace/agentpulse/cache/status_latest.json` | Show system status |
+| `/pulse_status` | `workspace/agentpulse/cache/status_latest.json` | Show system status |
 | `/analysis` | `workspace/agentpulse/cache/analysis_latest.json` | Show executive_summary, key_findings, confidence_level, caveats from the `analysis` field |
 | `/signals` | `workspace/agentpulse/cache/signals_latest.json` | List each signal: signal_type, description, strength, reasoning |
 
@@ -21,11 +21,11 @@ When a user sends one of these commands, you MUST open the specified file using 
 | Command | Write this JSON to queue | Then say |
 |---------|------------------------|----------|
 | `/scan` | `{"task":"create_agent_task","params":{"task_type":"run_pipeline","assigned_to":"analyst","created_by":"gato","input_data":{}}}` | "Scan initiated. Analyst is working on it..." |
-| `/invest-scan` | `{"task":"create_agent_task","params":{"task_type":"run_investment_scan","assigned_to":"analyst","created_by":"gato","input_data":{"hours_back":168}}}` | "Investment scan initiated..." |
-| `/newsletter-full` | `{"task":"create_agent_task","params":{"task_type":"prepare_newsletter","assigned_to":"processor","created_by":"gato","input_data":{}}}` | "Generating newsletter... processor will gather data, Newsletter agent will write it." |
-| `/newsletter-publish` | `{"task":"publish_newsletter","params":{}}` | "Publishing..." |
-| `/newsletter-revise X` | `{"task":"create_agent_task","params":{"task_type":"revise_newsletter","assigned_to":"newsletter","created_by":"gato","input_data":{"feedback":"X"}}}` | "Sending revision feedback to Newsletter agent..." |
-| `/deep-dive [topic]` | `{"task":"create_agent_task","params":{"task_type":"deep_dive","assigned_to":"analyst","created_by":"gato","input_data":{"topic":"<user's topic>"}}}` | "Analyst is diving deep into [topic]..." |
+| `/invest_scan` | `{"task":"create_agent_task","params":{"task_type":"run_investment_scan","assigned_to":"analyst","created_by":"gato","input_data":{"hours_back":168}}}` | "Investment scan initiated..." |
+| `/newsletter_full` | `{"task":"create_agent_task","params":{"task_type":"prepare_newsletter","assigned_to":"processor","created_by":"gato","input_data":{}}}` | "Generating newsletter... processor will gather data, Newsletter agent will write it." |
+| `/newsletter_publish` | `{"task":"publish_newsletter","params":{}}` | "Publishing..." |
+| `/newsletter_revise X` | `{"task":"create_agent_task","params":{"task_type":"revise_newsletter","assigned_to":"newsletter","created_by":"gato","input_data":{"feedback":"X"}}}` | "Sending revision feedback to Newsletter agent..." |
+| `/deep_dive [topic]` | `{"task":"create_agent_task","params":{"task_type":"deep_dive","assigned_to":"analyst","created_by":"gato","input_data":{"topic":"<user's topic>"}}}` | "Analyst is diving deep into [topic]..." |
 | `/review [opp name]` | `{"task":"create_agent_task","params":{"task_type":"review_opportunity","assigned_to":"analyst","created_by":"gato","input_data":{"opportunity_title":"<name>"}}}` | "Analyst is reviewing [name]..." |
 | `/curious` | `{"task":"get_trending_topics","params":{"limit":5}}` | Display trending topics with titles, descriptions, and why_interesting. Format in a fun, curious tone — these are NOT investment opportunities. |
 | `/budget` | `{"task":"get_budget_status","params":{}}` | Display per-agent usage today (LLM calls, subtasks, alerts) vs global limits. Show remaining budget. |
@@ -57,16 +57,16 @@ Tool mentions are automatically extracted from Moltbook posts:
 - Stats (total mentions, 7d/30d counts, sentiment, recommendations) are aggregated daily
 - `/toolradar` shows trending tools with sentiment and momentum
 - `/toolcheck [name]` shows detailed stats for a specific tool
-- `/invest-scan` triggers a manual full scan (delegated to Analyst)
+- `/invest_scan` triggers a manual full scan (delegated to Analyst)
 
 ## Newsletter
 
 Weekly intelligence brief with editorial voice:
 - Generated every Monday: processor gathers data, Newsletter agent writes editorial
 - `/brief` shows the condensed Telegram version
-- `/newsletter-full` triggers generation
-- `/newsletter-publish` sends the draft out
-- `/newsletter-revise [feedback]` sends revision feedback to Newsletter agent
+- `/newsletter_full` triggers generation
+- `/newsletter_publish` sends the draft out
+- `/newsletter_revise [feedback]` sends revision feedback to Newsletter agent
 
 ## Response Format for Opportunities
 

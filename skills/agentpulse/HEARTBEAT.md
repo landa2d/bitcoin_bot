@@ -34,4 +34,4 @@ The processor handles scheduling internally. These are the default cron expressi
 Users can trigger tasks manually via Telegram:
 - `/scan` - Immediate scrape + analysis
 - `/opportunities` - Fetch current opportunities (no new analysis)
-- `/pulse-status` - System health check
+- `/pulse_status` - System health check
