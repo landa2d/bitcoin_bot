@@ -363,14 +363,14 @@ import sys
 sys.path.insert(0, '/home/openclaw')
 from agentpulse_processor import execute_task
 
-# Test 1: Create negotiation (valid pair: newsletter → analyst)
+# Test 1: Create negotiation (valid pair: newsletter -> analyst)
 try:
-    result = execute_task('create_negotiation', {
+    result = execute_task({'task': 'create_negotiation', 'params': {
         'requesting_agent': 'newsletter',
         'responding_agent': 'analyst',
         'request_summary': 'Test negotiation: need stronger opportunities',
         'quality_criteria': 'At least 3 opportunities above 0.6'
-    })
+    }})
     print(f'Create negotiation: {result}')
     if 'error' in str(result).lower() and 'pair' not in str(result).lower():
         print('CREATE_NEGOTIATION_FAILED')
@@ -382,7 +382,7 @@ except Exception as e:
 
 # Test 2: Get active negotiations
 try:
-    result = execute_task('get_active_negotiations', {})
+    result = execute_task({'task': 'get_active_negotiations', 'params': {}})
     print(f'Active negotiations: {result}')
     print('GET_NEGOTIATIONS_OK')
 except Exception as e:
@@ -390,12 +390,12 @@ except Exception as e:
 
 # Test 3: Pair validation (processor should NOT be allowed to ask anyone)
 try:
-    result = execute_task('create_negotiation', {
+    result = execute_task({'task': 'create_negotiation', 'params': {
         'requesting_agent': 'processor',
         'responding_agent': 'analyst',
         'request_summary': 'This should fail',
         'quality_criteria': 'N/A'
-    })
+    }})
     if 'error' in str(result).lower() or 'not allowed' in str(result).lower():
         print(f'Pair validation works: processor correctly blocked')
         print('PAIR_VALIDATION_OK')
@@ -416,15 +416,15 @@ sys.path.insert(0, '/home/openclaw')
 from agentpulse_processor import execute_task
 
 # Budget status
-result = execute_task('get_budget_status', {})
+result = execute_task({'task': 'get_budget_status', 'params': {}})
 print(f'Budget status: {result}')
 
 # Budget config
-result = execute_task('get_budget_config', {})
+result = execute_task({'task': 'get_budget_config', 'params': {}})
 print(f'Budget config keys: {list(result.keys()) if isinstance(result, dict) else result}')
 
 # Recent alerts
-result = execute_task('get_recent_alerts', {})
+result = execute_task({'task': 'get_recent_alerts', 'params': {}})
 print(f'Recent alerts: {result}')
 
 print('SMOKE_TEST_OK')
