@@ -1,0 +1,16 @@
+{$DOMAIN:localhost} {
+    root * /srv
+    file_server
+    encode gzip
+
+    # SPA fallback — serve index.html for all routes
+    try_files {path} /index.html
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://*.supabase.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https://*.supabase.co; img-src 'self' data:"
+    }
+}

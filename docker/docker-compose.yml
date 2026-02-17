@@ -161,6 +161,38 @@ services:
       retries: 3
       start_period: 30s
 
+  # ═══════════════════════════════════════════════════════
+  # WEB — Newsletter archive (Caddy + static SPA)
+  # ═══════════════════════════════════════════════════════
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: agentpulse-web
+    restart: unless-stopped
+    networks:
+      - agentpulse-net
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      DOMAIN: localhost
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_KEY}
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    mem_limit: 128m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
 networks:
   agentpulse-net:
     driver: bridge
+
+volumes:
+  caddy-data:
+  caddy-config:

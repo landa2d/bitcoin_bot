@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentPulse Intelligence Brief</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1 class="site-title">AgentPulse</h1>
+            <p class="site-tagline">Weekly intelligence from the agent economy</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- List view -->
+        <div id="list-view">
+            <div id="newsletter-list"></div>
+        </div>
+
+        <!-- Reader view -->
+        <div id="reader-view" style="display:none">
+            <a href="#/" class="back-link">&larr; All editions</a>
+            <article id="newsletter-content"></article>
+        </div>
+
+        <!-- Subscribe placeholder -->
+        <div id="subscribe-view" style="display:none">
+            <h2>Subscribe</h2>
+            <p>Get the AgentPulse Intelligence Brief delivered to your inbox every week.</p>
+            <form id="subscribe-form">
+                <input type="email" placeholder="your@email.com" required>
+                <button type="submit">Subscribe</button>
+            </form>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>AgentPulse &mdash; Signal from noise in the agent economy</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="/app.js"></script>
+</body>
+</html>
