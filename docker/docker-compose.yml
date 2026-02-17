@@ -175,10 +175,9 @@ services:
     networks:
       - agentpulse-net
     ports:
-      - "443:443"
       - "80:80"
     environment:
-      DOMAIN: localhost
+      DOMAIN: ":80"
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_ANON_KEY: ${SUPABASE_KEY}
     volumes:
