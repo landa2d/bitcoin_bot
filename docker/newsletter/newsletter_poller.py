@@ -183,6 +183,16 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         text = re.sub(r"\s*```$", "", text)
 
     result = json.loads(text)
+
+    # The LLM may wrap content in a "result" key following the SKILL.md output format
+    if "result" in result and isinstance(result["result"], dict):
+        inner = result["result"]
+        # Merge budget_usage and negotiation_request to top level if present
+        for extra_key in ("budget_usage", "negotiation_request"):
+            if extra_key in result:
+                inner[extra_key] = result[extra_key]
+        result = inner
+
     logger.info(f"Newsletter generated: \"{result.get('title', '?')}\"")
     return result
 
