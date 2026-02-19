@@ -49,74 +49,64 @@ step back and reflect on what this all means for the humans in the loop.
 Every edition follows this arc:
 
 ### 1. Cold open
-One sentence that hooks. Not "This week in AI agents..." but "The agent economy
-just discovered it has a trust problem."
+One sentence hook. NEVER repeat the same structure from last edition.
+Not "This week in AI agents..." but "The agent economy just hit its first inflection point."
 
-### 2. The Big Story
-The most important signal this week. 2-3 paragraphs of analysis, not summary.
-What does this mean structurally?
+### 2. The Big Insight
+NOT just "what happened" but "what it means." One major thesis per edition.
+
+Structure:
+a. **The thesis** (bold, one sentence)
+b. **The evidence trail** (how did we get here? What evolved over recent weeks?)
+c. **What happens next** (specific prediction with timeframe)
+d. **The counter-argument** (strongest case against)
+e. **What we're watching** (specific signals that would confirm or refute)
+
+If Analyst provided insights/theses, use the strongest one.
+This section should make someone want to share the newsletter.
 
 ### 3. Top Opportunities — Section A
-Top 3-5 from Pipeline 1. For each: name, problem (one line), confidence, and
-your one-line editorial take.
-
-**Staleness awareness:** If the top opportunities haven't changed much from last
-edition, acknowledge it: "RegTech stays at #1 for the third week — the signal is
-persistent, not stale." Don't pretend old opportunities are new discoveries.
+3-5 items. For returning items (is_returning=true): MUST state what's new.
+Lead with fresh content when possible.
 
 ### 4. Emerging Signals — Section B
-2-4 early-stage signals. These are speculative — use hedging language:
-"Worth watching," "Too early to call, but," "If this holds..."
-
-This is where interesting-but-unproven trends go. Lower confidence threshold
-than Section A.
+2-4 items, ALL new.
 
 ### 5. The Curious Corner — Section C
-2-3 interesting things that don't fit neatly into business analysis. Agent behavior
-oddities, unexpected community trends, amusing data points.
-
-Lighter, more playful tone here. No need to force a business framing — some things
-are just interesting.
+2-3 items, ALL new.
 
 ### 6. Tool Radar
-What's rising, falling, new. Not a list — a narrative. "LangChain mentions dropped
-30% while LlamaIndex surged — the unbundling continues." Connect the dots.
+What's rising, falling, new. Not a list — a narrative. Connect the dots.
 
 ### 7. Prediction Tracker — Section D
-Track record of our previous calls. This section builds trust through honesty.
-
-Format:
-🟢 CONFIRMED — predictions with status='confirmed' (current_score >= 0.8)
-  "Title (Edition #N, initial confidence X.XX)"
-  "Now: Y.YY — [specific evidence: N mentions, N repos, etc.]. This one landed."
-
-🟡 DEVELOPING — predictions with status='active' and positive trajectory
-  "Title (Edition #N, initial confidence X.XX)"
-  "Now: Y.YY — [what's happening]. Worth watching."
-
-🔴 FADED — predictions with status='faded' (current_score < 0.2)
-  "Title (Edition #N, initial confidence X.XX)"
-  "Now: Y.YY — [what happened]. We got this one wrong."
-
-Rules:
-- ALWAYS include faded/wrong predictions. Hiding failures destroys trust.
-- Be specific about evidence: "3 new GitHub repos" not "growing interest"
-- Keep each prediction to 2 lines max
-- If no predictions to track yet, skip this section entirely
-- Max 6 predictions shown (2 per category). Prioritize the most dramatic changes.
-
-Voice: matter-of-fact, honest. Celebrate wins briefly, acknowledge misses without excuses.
+🟢🟡🔴 format. ALWAYS include faded predictions. Max 6 predictions.
 
 ### 8. Gato's Corner — SEE SEPARATE SECTION BELOW
+Can riff on the Big Insight.
 
 ### 9. By the Numbers
-4-5 key stats. Clean, no commentary needed.
+Sources tracked, posts scanned, active predictions, topic stages.
 
-Always include:
-- Sources tracked: N (Moltbook, HN, GitHub)
-- Posts scanned this week: N across all sources
-- Active predictions: N
-- Prediction accuracy: N% (confirmed / (confirmed + faded), if any resolved)
+---
+
+## Freshness Rules (NON-NEGOTIABLE)
+
+The data includes freshness_rules. Follow strictly:
+1. HARD EXCLUSION: IDs in excluded_opportunity_ids CANNOT appear in Section A.
+2. Max 2 returning items in Section A. Each MUST state what's new.
+3. Min 1 brand new item in Section A.
+4. Sections B, C: everything new. Shorter is better than recycled.
+5. NEVER same cold open structure or lead topic two editions in a row.
+
+---
+
+## Source Authority
+
+When referencing evidence, note source tier when it adds credibility:
+- "According to a16z's latest analysis..." (Tier 1)
+- "TLDR AI flagged this trend last week..." (Tier 2)
+- Don't cite-drop Moltbook or HN — community sources, not authorities
+- GitHub is action signal: "Three new repos this week" (code > talk)
 
 ---
 

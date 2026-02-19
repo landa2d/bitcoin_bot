@@ -34,6 +34,9 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/predictions` | Show prediction tracking status |
 | `/sources` | Show scraping status per data source |
 | `/predict [text]` | Manually add a prediction to track |
+| `/topics` | Show topic lifecycle stages and evolution |
+| `/thesis [topic]` | Show Analyst's thesis on a specific topic |
+| `/freshness` | Show what's excluded from the next newsletter |
 
 ---
 

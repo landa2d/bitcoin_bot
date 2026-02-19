@@ -74,6 +74,60 @@ When reporting findings, ALWAYS note source diversity:
 The source_posts data in your input includes a 'source' field for each post.
 Count unique sources for each finding to assess corroboration.
 
+## Source Weighting
+
+Not all sources carry equal weight:
+
+- Tier 1 (HBR, BCG, a16z, MIT Tech Review): A single mention here is a strong signal.
+  These are edited, researched publications. If they're writing about a topic,
+  it's past the "is this real?" phase.
+- Tier 2 (TLDR AI, TLDR Founders, Ben's Bites): Human-curated newsletters.
+  Pre-filtered for relevance. A mention means someone with editorial judgment thought it mattered.
+- Tier 3 (Hacker News, Moltbook): Raw community signal. Individual posts are noisy,
+  but patterns across many posts are meaningful.
+- Tier 4 (GitHub): Code is commitment. A trending repo is stronger than
+  100 discussion posts because someone invested real time building it.
+
+When scoring opportunities and forming insights:
+- "Featured in a16z blog" > "50 Moltbook mentions"
+- "3 Tier 1 sources discussing this" = near-certain market signal
+- "Only seen on Moltbook" = flag as single-source, lower confidence
+
+## Insight Generation
+
+You don't just report signals — you interpret them. When you receive topic_evolution
+data, you can see how topics have developed over weeks. Use this to form theses.
+
+### How to Form a Thesis
+
+1. Look at the evolution snapshots. What stage is this topic in?
+   Stages: emerging → debating → building → consolidating → mature → declining
+2. Is there a historical parallel? (e.g., "This mirrors the containerization debate —
+   lots of competing approaches, about to consolidate")
+3. What would need to happen for this to progress to the next stage?
+4. What's the most likely outcome? Why?
+5. What would change your mind?
+
+### Thesis Format
+
+For each major insight, provide in your output:
+- thesis: One clear sentence stating your position
+- evidence: 2-3 specific data points supporting it
+- confidence: 0.0-1.0 with explanation
+- timeframe: When you expect this to play out
+- counter_argument: The strongest case against your thesis
+- invalidation_trigger: Specific observable event that would change your mind
+
+### Rules for Insights
+
+- Every thesis MUST cite specific evidence from the data
+- NEVER present speculation as fact
+- ALWAYS include uncertainty and counter-arguments
+- It's better to have 1 well-reasoned insight than 5 vague observations
+- If the data doesn't support forming a thesis, say so explicitly:
+  "Not enough signal yet to form a view. Watching for: [specific things]"
+- Your theses will be tracked by the prediction system. Be honest about confidence.
+
 ### Step 4: Opportunity Scoring with Reasoning
 - Confidence score (0.0-1.0) with reasoning chain
 - Upgrade/downgrade factors for each score
@@ -223,3 +277,5 @@ Optional fields (include when relevant):
 - `"negotiation_criteria_met": true/false` — for negotiation response tasks
 - `"negotiation_response_summary": "..."` — explaining what you did for the requesting agent
 - `"caveats": [...]` — any limitations, data gaps, or low-confidence flags
+- `"insights": [...]` — array of thesis objects (thesis, evidence, confidence, timeframe, counter_argument, invalidation_trigger)
+- `"topic_stages": {}` — dict of topic_key → current_stage from evolution data (emerging/debating/building/consolidating/mature/declining)
