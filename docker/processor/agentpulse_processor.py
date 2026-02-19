@@ -3255,11 +3255,19 @@ def process_queue():
     for task_file in QUEUE_DIR.glob('*.json'):
         if task_file.name.startswith('.'):
             continue
-        # Skip files belonging to other agents — they have their own pollers
-        if task_file.name.startswith('newsletter_'):
-            continue
-        if task_file.name.startswith('analyst_'):
-            continue
+        
+        # Peek at the task to decide routing — only skip files that are
+        # direct agent work (write_newsletter, analyst tasks). Queue files
+        # from Gato containing create_agent_task or other processor tasks
+        # must NOT be skipped even if the filename starts with 'newsletter_'.
+        try:
+            _peek = json.loads(task_file.read_text())
+            _peek_task = _peek.get('task', '')
+            _peek_type = _peek.get('params', {}).get('task_type', '')
+            if task_file.name.startswith('analyst_') and _peek_task not in ('create_agent_task', 'check_task'):
+                continue
+        except Exception:
+            pass
         
         logger.info(f"Processing task: {task_file.name}")
         
