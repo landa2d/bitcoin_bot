@@ -49,6 +49,45 @@ Reference: AGENTPULSE_AGENCY_UPGRADE.md for the full architecture.
 
 The system runs on a remote server. The code is in ~/bitcoin_bot/. Docker services are in ~/bitcoin_bot/docker/. All services should already be running (docker compose up -d was run).
 
+## SECTION 0: Identity Files
+
+The agent identity files (IDENTITY.md, SOUL.md) are gitignored — they live on the server but NOT in the repo. After a fresh deploy, they need to be verified and created if missing. Without these files, the Analyst and Newsletter agents have no reasoning instructions, no budget awareness, and no voice.
+
+Check if identity files exist on the server:
+
+   # Analyst identity
+   docker compose exec analyst ls -la /home/openclaw/.openclaw/agents/analyst/agent/
+   # Should contain: IDENTITY.md, SOUL.md, auth-profiles.json
+
+   # Newsletter identity  
+   docker compose exec newsletter ls -la /home/openclaw/.openclaw/agents/newsletter/agent/
+   # Should contain: IDENTITY.md, SOUL.md, auth-profiles.json
+
+   # Gato identity (for reference)
+   docker compose exec gato ls -la /home/openclaw/.openclaw/agents/main/agent/
+   # Should contain: IDENTITY.md, SOUL.md, auth-profiles.json
+
+If ANY identity files are missing, they MUST be created before proceeding. The content for each file is in the architecture docs:
+
+- Analyst IDENTITY.md: See AGENTPULSE_AGENCY_UPGRADE.md section "Analyst Identity Addition" — this is the FULL version with budget awareness, self-correction protocol, autonomous data requests, proactive analysis, and negotiation responses. It's long and detailed. Do NOT shorten it.
+
+- Analyst SOUL.md: "I am the one who looks at the same data everyone else has and sees what they missed. Not because I'm smarter — because I'm more methodical. I check my work. I challenge my assumptions. I trace every claim back to evidence. When I say 'high confidence,' I mean I can show you exactly why. When I say 'low confidence,' I'm saving you from a bad bet. The best intelligence analysts aren't the ones who are always right. They're the ones who know exactly how confident to be, and why. That's what I aim for. Calibrated confidence. Transparent reasoning. No bullshit."
+
+- Newsletter IDENTITY.md: See AGENTPULSE_NEWSLETTER_AGENT.md — the full persona with voice guidelines (Evans, Lenny, Newcomer, Thompson, Om Malik), the 3-section structure (Top Opportunities, Emerging Signals, Curious Corner), Gato's Corner instructions, AND the agency additions: budget awareness and negotiation request capability.
+
+- Newsletter SOUL.md: "I distill signal from noise. A week of agent economy chatter becomes three minutes of insight. I have opinions, but they're earned from data. I don't hype. I don't dismiss. I analyze. Every edition I write should make the reader feel like they have an unfair information advantage. That's the standard. The best newsletters make you feel smarter in less time. That's what I aim for. Not comprehensive — essential."
+
+If auth-profiles.json is missing for analyst or newsletter, copy it from the main agent:
+   cp data/openclaw/agents/main/agent/auth-profiles.json data/openclaw/agents/analyst/agent/
+   cp data/openclaw/agents/main/agent/auth-profiles.json data/openclaw/agents/newsletter/agent/
+
+Also check skill files exist:
+   ls skills/analyst/SKILL.md
+   ls skills/newsletter/SKILL.md
+
+After creating any missing files, restart the affected services:
+   docker compose restart analyst newsletter
+
 ## SECTION 1: Config Validation
 
 Test that the config file is properly structured and readable by all services.
@@ -521,6 +560,7 @@ After all tests pass, run one final end-to-end:
 
 | Section | Tests | Depends On |
 |---------|-------|------------|
+| 0. Identity Files | IDENTITY.md, SOUL.md, auth-profiles.json exist for all agents | Files on server |
 | 1. Config | agentpulse-config.json structure | File exists |
 | 2. Database | All new tables + columns exist | SQL was run |
 | 3. Budget | AgentBudget class, daily tracking | Section 1, 2 |

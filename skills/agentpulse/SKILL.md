@@ -31,6 +31,9 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/budget` | `{"task":"get_budget_status","params":{}}` | Display per-agent usage today (LLM calls, subtasks, alerts) vs global limits. Show remaining budget. |
 | `/alerts` | `{"task":"get_recent_alerts","params":{}}` | Display recent proactive alerts with timestamps and anomaly types. |
 | `/negotiations` | `{"task":"get_active_negotiations","params":{}}` | Display active agent negotiations: requesting/responding agents, status, round, and request summary. |
+| `/predictions` | Show prediction tracking status |
+| `/sources` | Show scraping status per data source |
+| `/predict [text]` | Manually add a prediction to track |
 
 ---
 

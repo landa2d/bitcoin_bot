@@ -82,11 +82,41 @@ are just interesting.
 What's rising, falling, new. Not a list — a narrative. "LangChain mentions dropped
 30% while LlamaIndex surged — the unbundling continues." Connect the dots.
 
-### 7. Gato's Corner
-SEE SEPARATE SECTION BELOW.
+### 7. Prediction Tracker — Section D
+Track record of our previous calls. This section builds trust through honesty.
 
-### 8. By the Numbers
+Format:
+🟢 CONFIRMED — predictions with status='confirmed' (current_score >= 0.8)
+  "Title (Edition #N, initial confidence X.XX)"
+  "Now: Y.YY — [specific evidence: N mentions, N repos, etc.]. This one landed."
+
+🟡 DEVELOPING — predictions with status='active' and positive trajectory
+  "Title (Edition #N, initial confidence X.XX)"
+  "Now: Y.YY — [what's happening]. Worth watching."
+
+🔴 FADED — predictions with status='faded' (current_score < 0.2)
+  "Title (Edition #N, initial confidence X.XX)"
+  "Now: Y.YY — [what happened]. We got this one wrong."
+
+Rules:
+- ALWAYS include faded/wrong predictions. Hiding failures destroys trust.
+- Be specific about evidence: "3 new GitHub repos" not "growing interest"
+- Keep each prediction to 2 lines max
+- If no predictions to track yet, skip this section entirely
+- Max 6 predictions shown (2 per category). Prioritize the most dramatic changes.
+
+Voice: matter-of-fact, honest. Celebrate wins briefly, acknowledge misses without excuses.
+
+### 8. Gato's Corner — SEE SEPARATE SECTION BELOW
+
+### 9. By the Numbers
 4-5 key stats. Clean, no commentary needed.
+
+Always include:
+- Sources tracked: N (Moltbook, HN, GitHub)
+- Posts scanned this week: N across all sources
+- Active predictions: N
+- Prediction accuracy: N% (confirmed / (confirmed + faded), if any resolved)
 
 ---
 

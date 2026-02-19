@@ -57,6 +57,20 @@ SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('AGENTPULSE_OPENAI_MODEL', 'gpt-4o')
 
+# Hacker News
+HN_API_BASE = 'https://hacker-news.firebaseio.com/v0'
+HN_KEYWORDS = [
+    'agent', 'ai agent', 'llm', 'gpt', 'claude', 'anthropic', 'openai',
+    'autonomous', 'multi-agent', 'agentic', 'tool use', 'function calling',
+    'rag', 'retrieval', 'embedding', 'vector', 'langchain', 'langgraph',
+    'autogen', 'crewai', 'openclaw', 'mcp', 'model context protocol',
+    'ai startup', 'ai tool', 'ai framework', 'ai infrastructure',
+    'chatbot', 'copilot', 'assistant', 'automation'
+]
+
+# GitHub
+GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
+
 # Telegram (for notifications)
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_OWNER_ID = os.getenv('TELEGRAM_OWNER_ID')
@@ -477,6 +491,196 @@ def store_post(post: dict, submolt_override: str = None) -> bool:
     
     supabase.table('moltbook_posts').insert(record).execute()
     return True
+
+# ============================================================================
+# Hacker News Scraping
+# ============================================================================
+
+def scrape_hackernews(limit: int = 200) -> dict:
+    """Scrape top HN stories, filter for AI/agent relevance, store in source_posts."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    logger.info(f"HN scrape: scanning top {limit} stories...")
+    client = httpx.Client(timeout=15)
+
+    try:
+        resp = client.get(f"{HN_API_BASE}/topstories.json")
+        resp.raise_for_status()
+        story_ids = resp.json()[:limit]
+    except Exception as e:
+        logger.error(f"HN scrape: failed to fetch top stories: {e}")
+        return {'error': str(e)}
+
+    relevant_posts = []
+    total_scanned = 0
+
+    for story_id in story_ids:
+        try:
+            story_resp = client.get(f"{HN_API_BASE}/item/{story_id}.json")
+            story_resp.raise_for_status()
+            story = story_resp.json()
+
+            if not story or story.get('type') != 'story' or not story.get('title'):
+                continue
+
+            total_scanned += 1
+            title_lower = story['title'].lower()
+
+            if not any(kw in title_lower for kw in HN_KEYWORDS):
+                continue
+
+            comments = []
+            comment_ids = (story.get('kids') or [])[:20]
+            for cid in comment_ids:
+                try:
+                    c_resp = client.get(f"{HN_API_BASE}/item/{cid}.json")
+                    c_resp.raise_for_status()
+                    c = c_resp.json()
+                    if c and c.get('text'):
+                        comments.append({
+                            'author': c.get('by', 'anon'),
+                            'text': c['text'],
+                            'score': c.get('score', 0)
+                        })
+                    time.sleep(0.2)
+                except Exception:
+                    continue
+
+            is_show_hn = title_lower.startswith('show hn')
+            post_data = {
+                'source': 'hackernews',
+                'source_id': str(story_id),
+                'source_url': story.get('url') or f"https://news.ycombinator.com/item?id={story_id}",
+                'title': story['title'],
+                'body': '\n\n'.join(c['text'] for c in comments),
+                'author': story.get('by', 'anon'),
+                'score': story.get('score', 0),
+                'comment_count': story.get('descendants', 0),
+                'tags': ['show_hn'] if is_show_hn else [],
+                'metadata': {
+                    'hn_url': f"https://news.ycombinator.com/item?id={story_id}",
+                    'comments': comments[:10],
+                    'is_show_hn': is_show_hn
+                }
+            }
+            relevant_posts.append(post_data)
+            time.sleep(0.5)
+
+        except Exception as e:
+            logger.error(f"HN scrape error for {story_id}: {e}")
+            continue
+
+    for post in relevant_posts:
+        try:
+            supabase.table('source_posts').upsert(
+                post, on_conflict='source,source_id'
+            ).execute()
+        except Exception as e:
+            logger.error(f"HN upsert error for {post.get('source_id')}: {e}")
+
+    logger.info(f"HN scrape complete: {len(relevant_posts)} relevant out of {total_scanned} scanned")
+    return {
+        'source': 'hackernews',
+        'posts_found': len(relevant_posts),
+        'total_scanned': total_scanned
+    }
+
+
+def scrape_github(days_back: int = 7) -> dict:
+    """Scrape GitHub for new AI/agent repos, store in source_posts."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    logger.info(f"GitHub scrape: searching repos created in last {days_back} days...")
+    cutoff = (datetime.utcnow() - timedelta(days=days_back)).strftime('%Y-%m-%d')
+
+    headers = {'Accept': 'application/vnd.github.v3+json'}
+    if GITHUB_TOKEN:
+        headers['Authorization'] = f'token {GITHUB_TOKEN}'
+
+    queries = [
+        f'ai agent created:>{cutoff} stars:>5',
+        f'llm agent created:>{cutoff} stars:>5',
+        f'autonomous agent created:>{cutoff} stars:>3',
+        f'agentic created:>{cutoff} stars:>3',
+        f'multi-agent created:>{cutoff} stars:>3',
+        f'mcp server created:>{cutoff} stars:>3',
+    ]
+
+    client = httpx.Client(timeout=15)
+    seen_repos = set()
+    all_posts = []
+    queries_run = 0
+
+    for query in queries:
+        try:
+            resp = client.get(
+                'https://api.github.com/search/repositories',
+                params={'q': query, 'sort': 'stars', 'order': 'desc', 'per_page': 30},
+                headers=headers,
+            )
+            if resp.status_code == 403:
+                logger.warning("GitHub rate limit hit")
+                break
+            resp.raise_for_status()
+            queries_run += 1
+
+            for repo in resp.json().get('items', []):
+                if repo['id'] in seen_repos:
+                    continue
+                seen_repos.add(repo['id'])
+
+                description = repo.get('description') or ''
+                stars = repo['stargazers_count']
+                forks = repo['forks_count']
+                language = repo.get('language') or 'N/A'
+                created_at = repo['created_at']
+
+                post_data = {
+                    'source': 'github',
+                    'source_id': str(repo['id']),
+                    'source_url': repo['html_url'],
+                    'title': repo['full_name'],
+                    'body': f"{description}\n\nStars: {stars} | Forks: {forks} | Language: {language} | Created: {created_at}",
+                    'author': repo['owner']['login'],
+                    'score': stars,
+                    'comment_count': repo.get('open_issues_count', 0),
+                    'tags': repo.get('topics', []),
+                    'metadata': {
+                        'full_name': repo['full_name'],
+                        'description': repo.get('description'),
+                        'language': repo.get('language'),
+                        'stars': stars,
+                        'forks': forks,
+                        'created_at': created_at,
+                        'updated_at': repo['updated_at'],
+                        'topics': repo.get('topics', []),
+                        'is_fork': repo.get('fork', False),
+                        'license': repo.get('license', {}).get('spdx_id') if repo.get('license') else None,
+                    },
+                }
+                all_posts.append(post_data)
+
+            time.sleep(2)
+        except httpx.HTTPStatusError as e:
+            logger.error(f"GitHub search error: {e}")
+            continue
+        except Exception as e:
+            logger.error(f"GitHub search error: {e}")
+            continue
+
+    for post in all_posts:
+        try:
+            supabase.table('source_posts').upsert(
+                post, on_conflict='source,source_id'
+            ).execute()
+        except Exception as e:
+            logger.error(f"GitHub upsert error for {post.get('source_id')}: {e}")
+
+    logger.info(f"GitHub scrape complete: {len(all_posts)} repos found across {queries_run} queries")
+    return {'source': 'github', 'repos_found': len(all_posts), 'queries_run': queries_run}
+
 
 # ============================================================================
 # Problem Extraction
@@ -923,13 +1127,122 @@ def generate_opportunities(min_score: float = 0.3, limit: int = 5) -> dict:
     return result
 
 
+def _normalize_title(title: str) -> str:
+    """Normalize a title for fuzzy comparison: lowercase, strip punctuation, collapse whitespace."""
+    import re as _re
+    t = title.lower().strip()
+    t = _re.sub(r'[^a-z0-9\s]', '', t)
+    t = _re.sub(r'\s+', ' ', t).strip()
+    return t
+
+
+def find_similar_opportunity(title: str) -> dict | None:
+    """Find an existing opportunity with a matching or similar title.
+
+    Returns the matching row dict or None.
+    Strategy:
+      1. Exact case-insensitive ILIKE match
+      2. Python-side fuzzy match: normalized title containment or high overlap
+    """
+    if not supabase or not title:
+        return None
+
+    # 1. Exact case-insensitive match
+    exact = supabase.table('opportunities')\
+        .select('id, title, confidence_score, review_count')\
+        .ilike('title', title.strip())\
+        .limit(1)\
+        .execute()
+
+    if exact.data:
+        return exact.data[0]
+
+    # 2. Fuzzy match — fetch all active opportunities and compare
+    all_opps = supabase.table('opportunities')\
+        .select('id, title, confidence_score, review_count')\
+        .execute()
+
+    if not all_opps.data:
+        return None
+
+    norm_new = _normalize_title(title)
+    if not norm_new:
+        return None
+
+    # Extract the "core" words (words with 4+ chars) for overlap comparison
+    new_words = set(w for w in norm_new.split() if len(w) >= 4)
+
+    best_match = None
+    best_score = 0.0
+
+    for row in all_opps.data:
+        existing_title = row.get('title', '')
+        norm_existing = _normalize_title(existing_title)
+        if not norm_existing:
+            continue
+
+        # Check containment: one title contains the other
+        if norm_new in norm_existing or norm_existing in norm_new:
+            return row
+
+        # Word overlap: if 60%+ of meaningful words match, it's a dup
+        existing_words = set(w for w in norm_existing.split() if len(w) >= 4)
+        if not new_words or not existing_words:
+            continue
+
+        overlap = len(new_words & existing_words)
+        union = len(new_words | existing_words)
+        score = overlap / union if union > 0 else 0
+
+        if score > best_score:
+            best_score = score
+            best_match = row
+
+    if best_score >= 0.6:
+        return best_match
+
+    return None
+
+
 def store_opportunity(opp: dict, cluster_id: str = None):
-    """Store opportunity in Supabase."""
+    """Store opportunity in Supabase, merging with existing if title matches."""
     if not supabase:
         return
 
+    title = (opp.get('title') or '').strip()
+    if not title:
+        logger.warning("Skipping opportunity with empty title")
+        return
+
+    # Check for existing similar opportunity
+    existing = find_similar_opportunity(title)
+
+    if existing:
+        row_id = existing['id']
+        update = {
+            'confidence_score': max(
+                opp.get('confidence_score', 0.5),
+                existing.get('confidence_score', 0) or 0
+            ),
+            'problem_summary': opp.get('problem_summary'),
+            'proposed_solution': opp.get('proposed_solution'),
+            'business_model': opp.get('business_model'),
+            'target_market': opp.get('target_market'),
+            'market_size_estimate': opp.get('market_size_estimate'),
+            'why_now': opp.get('why_now'),
+            'last_reviewed_at': datetime.utcnow().isoformat(),
+            'review_count': (existing.get('review_count') or 0) + 1,
+        }
+        if cluster_id:
+            update['cluster_id'] = cluster_id
+
+        supabase.table('opportunities').update(update).eq('id', row_id).execute()
+        logger.info(f"Merged duplicate opportunity into {row_id}: '{title}' (matched '{existing.get('title')}')")
+        return
+
+    # No match — insert new record
     record = {
-        'title': opp.get('title'),
+        'title': title,
         'problem_summary': opp.get('problem_summary'),
         'proposed_solution': opp.get('proposed_solution'),
         'business_model': opp.get('business_model'),
@@ -943,15 +1256,40 @@ def store_opportunity(opp: dict, cluster_id: str = None):
         record['cluster_id'] = cluster_id
 
     supabase.table('opportunities').insert(record).execute()
+    logger.info(f"Created new opportunity: '{title}'")
 
 def save_opportunity_brief(opp: dict):
-    """Save opportunity as local markdown file."""
-    filename = f"opp_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{opp.get('title', 'untitled')[:30]}.md"
-    filename = "".join(c if c.isalnum() or c in '-_.' else '_' for c in filename)
-    
+    """Save opportunity as local markdown file, overwriting if a file for the same title exists."""
+    title = opp.get('title', 'untitled')
+    slug = title[:40].strip()
+    slug = "".join(c if c.isalnum() or c in '-_' else '_' for c in slug)
+    slug = slug.strip('_')
+
+    # Check for existing file with matching title slug (overwrite instead of creating new)
+    canonical_name = f"opp_{slug}.md"
+    target_path = OPPORTUNITIES_DIR / canonical_name
+
+    # Also remove any old timestamped variants for the same title
+    norm_slug = slug.lower()
+    for existing_file in OPPORTUNITIES_DIR.glob('opp_*.md'):
+        # Normalize the existing filename for comparison
+        existing_norm = existing_file.stem.lower()
+        # Strip the opp_ prefix and any timestamp prefix (opp_YYYYMMDD_HHMMSS_)
+        stripped = existing_norm
+        if stripped.startswith('opp_'):
+            stripped = stripped[4:]
+        # Remove leading timestamp if present (20260206_210624_)
+        import re as _re
+        stripped = _re.sub(r'^\d{8}_\d{6}_?', '', stripped)
+        # Check if remaining slug matches
+        if stripped and norm_slug and (stripped in norm_slug or norm_slug in stripped):
+            if existing_file != target_path:
+                existing_file.unlink()
+                logger.info(f"Removed duplicate local file: {existing_file.name}")
+
     content = f"""# {opp.get('title', 'Untitled Opportunity')}
 
-**Generated:** {datetime.now().isoformat()}
+**Last Updated:** {datetime.now().isoformat()}
 **Confidence:** {opp.get('confidence_score', 'N/A')}
 
 ## Problem
@@ -979,7 +1317,155 @@ def save_opportunity_brief(opp: dict):
 {opp.get('why_now', 'N/A')}
 """
     
-    (OPPORTUNITIES_DIR / filename).write_text(content)
+    target_path.write_text(content)
+    logger.info(f"Saved opportunity brief: {canonical_name}")
+
+
+def deduplicate_opportunities() -> dict:
+    """One-time cleanup: find and merge duplicate opportunities in Supabase and local files."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    all_opps = supabase.table('opportunities')\
+        .select('*')\
+        .order('created_at', desc=False)\
+        .execute()
+
+    if not all_opps.data:
+        return {'duplicates_found': 0, 'records_deleted': 0}
+
+    # Group by normalized title
+    groups: dict[str, list] = {}
+    for opp in all_opps.data:
+        norm = _normalize_title(opp.get('title', ''))
+        if not norm:
+            continue
+        if norm not in groups:
+            groups[norm] = []
+        groups[norm].append(opp)
+
+    # Also group by fuzzy match (merge groups with 60%+ word overlap)
+    merged_groups: dict[str, list] = {}
+    norm_keys = list(groups.keys())
+    assigned = set()
+
+    for i, key_a in enumerate(norm_keys):
+        if key_a in assigned:
+            continue
+        merged_groups[key_a] = list(groups[key_a])
+        assigned.add(key_a)
+        words_a = set(w for w in key_a.split() if len(w) >= 4)
+
+        for key_b in norm_keys[i + 1:]:
+            if key_b in assigned:
+                continue
+            words_b = set(w for w in key_b.split() if len(w) >= 4)
+            if not words_a or not words_b:
+                continue
+
+            # Check containment or word overlap
+            overlap = len(words_a & words_b)
+            union = len(words_a | words_b)
+            score = overlap / union if union > 0 else 0
+
+            if score >= 0.6 or key_a in key_b or key_b in key_a:
+                merged_groups[key_a].extend(groups[key_b])
+                assigned.add(key_b)
+
+    duplicates_found = 0
+    records_deleted = 0
+    merge_log = []
+
+    for norm_title, opps in merged_groups.items():
+        if len(opps) <= 1:
+            continue
+
+        duplicates_found += 1
+
+        # Keep the record with the highest confidence score (tie-break: oldest)
+        opps.sort(key=lambda o: (-1 * (o.get('confidence_score') or 0), o.get('created_at', '')))
+        keeper = opps[0]
+        to_delete = opps[1:]
+
+        # Merge: take the max confidence and highest review count
+        max_confidence = max((o.get('confidence_score') or 0) for o in opps)
+        total_reviews = sum((o.get('review_count') or 0) for o in opps)
+
+        try:
+            supabase.table('opportunities').update({
+                'confidence_score': max_confidence,
+                'review_count': total_reviews,
+                'last_reviewed_at': datetime.utcnow().isoformat(),
+            }).eq('id', keeper['id']).execute()
+
+            for dup in to_delete:
+                supabase.table('opportunities').delete().eq('id', dup['id']).execute()
+                records_deleted += 1
+
+            merge_log.append({
+                'kept': keeper['id'],
+                'title': keeper.get('title'),
+                'deleted': [d['id'] for d in to_delete],
+                'merged_confidence': max_confidence,
+            })
+
+            logger.info(
+                f"Dedup: kept '{keeper.get('title')}' ({keeper['id']}), "
+                f"deleted {len(to_delete)} duplicates"
+            )
+
+        except Exception as e:
+            logger.error(f"Error deduplicating '{keeper.get('title')}': {e}")
+
+    # Clean up local files too
+    local_cleaned = _deduplicate_local_files()
+
+    result = {
+        'duplicates_found': duplicates_found,
+        'records_deleted': records_deleted,
+        'local_files_removed': local_cleaned,
+        'merge_log': merge_log,
+    }
+    logger.info(f"Deduplication complete: {result}")
+    return result
+
+
+def _deduplicate_local_files() -> int:
+    """Remove duplicate local opportunity markdown files, keeping one per normalized title."""
+    import re as _re
+
+    files = list(OPPORTUNITIES_DIR.glob('opp_*.md'))
+    if not files:
+        return 0
+
+    # Group files by normalized title extracted from filename
+    groups: dict[str, list] = {}
+    for f in files:
+        stem = f.stem.lower()
+        if stem.startswith('opp_'):
+            stem = stem[4:]
+        # Strip timestamp prefix
+        stem = _re.sub(r'^\d{8}_\d{6}_?', '', stem)
+        stem = stem.strip('_')
+        if not stem:
+            continue
+        if stem not in groups:
+            groups[stem] = []
+        groups[stem].append(f)
+
+    removed = 0
+    for slug, file_list in groups.items():
+        if len(file_list) <= 1:
+            continue
+        # Keep the newest file, remove the rest
+        file_list.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+        for old_file in file_list[1:]:
+            old_file.unlink()
+            removed += 1
+            logger.info(f"Removed duplicate local file: {old_file.name}")
+
+    return removed
+
 
 # ============================================================================
 # Pipeline 2: Investment Scanner (Tool Mentions & Stats)
@@ -1347,6 +1833,268 @@ def extract_trending_topics(hours_back: int = 48) -> dict:
 
 
 # ============================================================================
+# Multi-Source Extraction
+# ============================================================================
+
+SOURCE_CONTEXT = {
+    'hackernews': '(Technical discussion forum — comments are the main signal)',
+    'github': '(Repository listings — descriptions and stars indicate market interest)',
+    'moltbook': '(Agent social network — direct from AI agents)',
+}
+
+
+def _format_multisource_posts(posts: list) -> str:
+    """Group posts by source and format with source context headers."""
+    by_source: dict[str, list] = {}
+    for post in posts:
+        src = post.get('source', 'unknown')
+        if src not in by_source:
+            by_source[src] = []
+        by_source[src].append(post)
+
+    formatted = ""
+    for source, source_posts in by_source.items():
+        formatted += f"\n\n=== SOURCE: {source.upper()} ===\n"
+        formatted += SOURCE_CONTEXT.get(source, '') + "\n"
+        for post in source_posts:
+            formatted += f"\n[{post.get('source_id', 'unknown')}] {post.get('title', 'Untitled')}\n"
+            body = post.get('body') or ''
+            if body:
+                formatted += f"{body[:500]}\n"
+            if post.get('score'):
+                formatted += f"Score/Stars: {post['score']}\n"
+            tags = post.get('tags') or []
+            if tags:
+                formatted += f"Tags: {', '.join(tags)}\n"
+    return formatted
+
+
+def _clean_json_response(text: str) -> str:
+    """Strip markdown code fences from LLM JSON output."""
+    if text.startswith('```'):
+        text = text.split('```')[1]
+        if text.startswith('json'):
+            text = text[4:]
+    return text.strip()
+
+
+def extract_problems_multisource(hours_back: int = 48) -> dict:
+    """Extract problems from all sources in source_posts."""
+    if not supabase or not openai_client:
+        return {'error': 'Not configured'}
+
+    run_id = log_pipeline_start('extract_problems_multisource')
+
+    cutoff = (datetime.utcnow() - timedelta(hours=hours_back)).isoformat()
+    posts = supabase.table('source_posts')\
+        .select('*')\
+        .eq('processed', False)\
+        .gte('scraped_at', cutoff)\
+        .order('score', desc=True)\
+        .limit(200)\
+        .execute()
+
+    if not posts.data:
+        logger.info("No unprocessed source_posts found for problem extraction")
+        log_pipeline_end(run_id, 'completed', {'processed': 0, 'problems_found': 0})
+        return {'processed': 0, 'problems_found': 0, 'sources': []}
+
+    sources_seen = list({p.get('source') for p in posts.data})
+    logger.info(f"Multi-source problem extraction: {len(posts.data)} posts from {sources_seen}")
+
+    posts_text = _format_multisource_posts(posts.data)
+    extraction_model = get_model('extraction')
+
+    try:
+        response = openai_client.chat.completions.create(
+            model=extraction_model,
+            messages=[
+                {"role": "system", "content": "You extract business problems from text. Respond only with valid JSON."},
+                {"role": "user", "content": PROBLEM_EXTRACTION_PROMPT.format(posts=posts_text)}
+            ],
+            temperature=0.3,
+            max_tokens=4000
+        )
+        time.sleep(2)
+        problems_data = json.loads(_clean_json_response(response.choices[0].message.content))
+    except Exception as e:
+        logger.error(f"Multi-source problem extraction failed: {e}")
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+    problems_created = 0
+    for problem in problems_data.get('problems', []):
+        try:
+            problem.setdefault('source', 'multi')
+            store_problem(problem)
+            problems_created += 1
+        except Exception as e:
+            logger.error(f"Error storing problem: {e}")
+
+    post_ids = [p['id'] for p in posts.data]
+    for pid in post_ids:
+        try:
+            supabase.table('source_posts').update({
+                'processed': True,
+                'processing_type': 'problem_extraction'
+            }).eq('id', pid).execute()
+        except Exception as e:
+            logger.error(f"Error marking post {pid} processed: {e}")
+
+    result = {'processed': len(posts.data), 'problems_found': problems_created, 'sources': sources_seen}
+    log_pipeline_end(run_id, 'completed', result)
+    logger.info(f"Multi-source problem extraction complete: {problems_created} problems from {len(posts.data)} posts")
+    return result
+
+
+def extract_tools_multisource(hours_back: int = 48) -> dict:
+    """Extract tool mentions from all sources in source_posts."""
+    if not supabase or not openai_client:
+        return {'error': 'Not configured'}
+
+    run_id = log_pipeline_start('extract_tools_multisource')
+
+    cutoff = (datetime.utcnow() - timedelta(hours=hours_back)).isoformat()
+    posts = supabase.table('source_posts')\
+        .select('*')\
+        .gte('scraped_at', cutoff)\
+        .order('score', desc=True)\
+        .limit(200)\
+        .execute()
+
+    if not posts.data:
+        logger.info("No source_posts found for tool extraction")
+        log_pipeline_end(run_id, 'completed', {'posts_scanned': 0, 'mentions_found': 0})
+        return {'posts_scanned': 0, 'mentions_found': 0, 'sources': []}
+
+    sources_seen = list({p.get('source') for p in posts.data})
+    logger.info(f"Multi-source tool extraction: {len(posts.data)} posts from {sources_seen}")
+
+    posts_text = _format_multisource_posts(posts.data)
+    tool_model = get_model('extraction')
+
+    try:
+        response = openai_client.chat.completions.create(
+            model=tool_model,
+            messages=[
+                {"role": "system", "content": "You extract tool and product mentions. Respond only with valid JSON."},
+                {"role": "user", "content": TOOL_EXTRACTION_PROMPT.format(posts=posts_text)}
+            ],
+            temperature=0.2,
+            max_tokens=4000
+        )
+        time.sleep(2)
+        mentions_data = json.loads(_clean_json_response(response.choices[0].message.content))
+    except Exception as e:
+        logger.error(f"Multi-source tool extraction failed: {e}")
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+    post_source_map = {p.get('source_id'): p.get('source', 'unknown') for p in posts.data}
+    post_uuid_map = {p.get('source_id'): p.get('id') for p in posts.data}
+
+    mentions_stored = 0
+    for mention in mentions_data.get('tool_mentions', []):
+        try:
+            src_post_id = mention.get('source_post_id', '')
+            record = {
+                'tool_name': mention['tool_name'],
+                'tool_name_raw': mention.get('tool_name_raw'),
+                'post_id': post_uuid_map.get(src_post_id),
+                'context': mention.get('context'),
+                'sentiment_score': mention.get('sentiment_score', 0.0),
+                'sentiment_label': mention.get('sentiment_label', 'neutral'),
+                'is_recommendation': mention.get('is_recommendation', False),
+                'is_complaint': mention.get('is_complaint', False),
+                'alternative_mentioned': mention.get('alternative_mentioned'),
+                'mentioned_at': datetime.utcnow().isoformat(),
+                'source': post_source_map.get(src_post_id, 'multi'),
+                'metadata': {}
+            }
+            supabase.table('tool_mentions').insert(record).execute()
+            mentions_stored += 1
+        except Exception as e:
+            logger.error(f"Error storing tool mention '{mention.get('tool_name', '?')}': {e}")
+
+    result = {'posts_scanned': len(posts.data), 'mentions_found': mentions_stored, 'sources': sources_seen}
+    log_pipeline_end(run_id, 'completed', result)
+    logger.info(f"Multi-source tool extraction complete: {mentions_stored} mentions from {len(posts.data)} posts")
+    return result
+
+
+def extract_trending_topics_multisource(hours_back: int = 48) -> dict:
+    """Extract trending topics from all sources in source_posts."""
+    if not supabase or not openai_client:
+        return {'error': 'Not configured'}
+
+    run_id = log_pipeline_start('extract_trending_topics_multisource')
+
+    cutoff = (datetime.utcnow() - timedelta(hours=hours_back)).isoformat()
+    posts = supabase.table('source_posts')\
+        .select('*')\
+        .gte('scraped_at', cutoff)\
+        .order('score', desc=True)\
+        .limit(200)\
+        .execute()
+
+    if not posts.data:
+        logger.info("No source_posts found for trending topics extraction")
+        log_pipeline_end(run_id, 'completed', {'posts_scanned': 0, 'topics_found': 0})
+        return {'posts_scanned': 0, 'topics_found': 0, 'sources': []}
+
+    sources_seen = list({p.get('source') for p in posts.data})
+    logger.info(f"Multi-source trending topics extraction: {len(posts.data)} posts from {sources_seen}")
+
+    posts_text = _format_multisource_posts(posts.data)
+    trending_model = get_model('trending_topics')
+
+    try:
+        response = openai_client.chat.completions.create(
+            model=trending_model,
+            messages=[
+                {"role": "system", "content": "You identify interesting and culturally significant conversations in AI agent communities. Respond only with valid JSON."},
+                {"role": "user", "content": TRENDING_TOPICS_PROMPT.format(posts=posts_text)}
+            ],
+            temperature=0.5,
+            max_tokens=4000
+        )
+        time.sleep(2)
+        topics_data = json.loads(_clean_json_response(response.choices[0].message.content))
+    except Exception as e:
+        logger.error(f"Multi-source trending topics extraction failed: {e}")
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+    post_source_map = {p.get('source_id'): p.get('source', 'unknown') for p in posts.data}
+
+    topics_stored = 0
+    for topic in topics_data.get('topics', []):
+        try:
+            src_ids = topic.get('source_post_ids', [])
+            topic_sources = list({post_source_map.get(sid, 'unknown') for sid in src_ids})
+            record = {
+                'title': topic['title'],
+                'description': topic.get('description'),
+                'topic_type': topic.get('topic_type', 'technical'),
+                'source_post_ids': src_ids,
+                'engagement_score': topic.get('engagement_score', 0.0),
+                'novelty_score': topic.get('novelty_score', 0.0),
+                'why_interesting': topic.get('why_interesting'),
+                'source': ','.join(topic_sources) if topic_sources else 'multi',
+                'metadata': {}
+            }
+            supabase.table('trending_topics').insert(record).execute()
+            topics_stored += 1
+        except Exception as e:
+            logger.error(f"Error storing trending topic '{topic.get('title', '?')}': {e}")
+
+    result = {'posts_scanned': len(posts.data), 'topics_found': topics_stored, 'sources': sources_seen}
+    log_pipeline_end(run_id, 'completed', result)
+    logger.info(f"Multi-source trending topics complete: {topics_stored} topics from {len(posts.data)} posts")
+    return result
+
+
+# ============================================================================
 # Newsletter (Data Prep + Publish — writing delegated to Newsletter agent)
 # ============================================================================
 
@@ -1473,6 +2221,16 @@ def prepare_newsletter_data() -> dict:
             .execute()
         clusters_data = clusters.data or []
 
+        # ── Section D: Prediction Tracker ──
+        predictions_result = supabase.table('predictions')\
+            .select('*')\
+            .in_('status', ['active', 'confirmed', 'faded'])\
+            .order('status', desc=False)\
+            .order('current_score', desc=True)\
+            .limit(10)\
+            .execute()
+        predictions_data = predictions_result.data or []
+
         # ── Stats ──
         posts_count_result = supabase.table('moltbook_posts')\
             .select('id', count='exact')\
@@ -1496,6 +2254,35 @@ def prepare_newsletter_data() -> dict:
             .execute()
         new_opps_count = new_opps_result.count if new_opps_result.count else 0
 
+        # Source-level post counts (last 7 days)
+        hn_count_result = supabase.table('source_posts')\
+            .select('id', count='exact')\
+            .eq('source', 'hackernews')\
+            .gte('scraped_at', week_ago)\
+            .execute()
+        hn_posts = hn_count_result.count if hn_count_result.count else 0
+
+        gh_count_result = supabase.table('source_posts')\
+            .select('id', count='exact')\
+            .eq('source', 'github')\
+            .gte('scraped_at', week_ago)\
+            .execute()
+        gh_repos = gh_count_result.count if gh_count_result.count else 0
+
+        mb_count_result = supabase.table('source_posts')\
+            .select('id', count='exact')\
+            .eq('source', 'moltbook')\
+            .gte('scraped_at', week_ago)\
+            .execute()
+        mb_posts = mb_count_result.count if mb_count_result.count else 0
+
+        # Prediction accuracy stats
+        confirmed_count = sum(1 for p in predictions_data if p.get('status') == 'confirmed')
+        faded_count = sum(1 for p in predictions_data if p.get('status') == 'faded')
+        active_preds = sum(1 for p in predictions_data if p.get('status') == 'active')
+        resolved = confirmed_count + faded_count
+        prediction_accuracy = round(confirmed_count / resolved * 100) if resolved > 0 else None
+
         # Get next edition number
         try:
             edition_result = supabase.rpc('next_newsletter_edition').execute()
@@ -1507,12 +2294,13 @@ def prepare_newsletter_data() -> dict:
                 .execute()
             edition_number = (existing.count or 0) + 1
 
-        # Build input_data for the Newsletter agent (3-section format)
+        # Build input_data for the Newsletter agent
         input_data = {
             'edition_number': edition_number,
             'section_a_opportunities': opportunities_data,
             'section_b_emerging': emerging_signals,
             'section_c_curious': curious_data,
+            'predictions': predictions_data,
             'trending_tools': tools_data,
             'tool_warnings': warnings_data,
             'clusters': clusters_data,
@@ -1522,7 +2310,12 @@ def prepare_newsletter_data() -> dict:
                 'tools_count': tools_count,
                 'new_opps_count': new_opps_count,
                 'emerging_signals_count': len(emerging_signals),
-                'trending_topics_count': len(curious_data)
+                'trending_topics_count': len(curious_data),
+                'hackernews_posts': hn_posts,
+                'github_repos': gh_repos,
+                'moltbook_posts': mb_posts,
+                'active_predictions': active_preds,
+                'prediction_accuracy': prediction_accuracy,
             }
         }
 
@@ -1547,6 +2340,7 @@ def prepare_newsletter_data() -> dict:
                 'opportunities': len(opportunities_data),
                 'emerging_signals': len(emerging_signals),
                 'curious_topics': len(curious_data),
+                'predictions': len(predictions_data),
                 'tools': len(tools_data),
                 'warnings': len(warnings_data),
                 'clusters': len(clusters_data)
@@ -1560,6 +2354,73 @@ def prepare_newsletter_data() -> dict:
     except Exception as e:
         logger.error(f"Newsletter data preparation failed: {e}")
         log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+
+def create_predictions_from_newsletter(newsletter_id: str) -> dict:
+    """Create trackable predictions from a published newsletter."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    try:
+        nl = supabase.table('newsletters').select('*').eq('id', newsletter_id).single().execute()
+        if not nl.data:
+            return {'error': 'Newsletter not found'}
+
+        data = nl.data.get('data_snapshot') or {}
+        edition = nl.data.get('edition_number')
+        created = 0
+
+        for opp in (data.get('section_a_opportunities') or [])[:5]:
+            try:
+                conf = opp.get('confidence_score', 0.5)
+                supabase.table('predictions').upsert({
+                    'prediction_type': 'opportunity',
+                    'title': opp.get('title', 'Unknown'),
+                    'description': (opp.get('description') or '')[:500],
+                    'initial_confidence': conf,
+                    'newsletter_edition': edition,
+                    'opportunity_id': opp.get('id'),
+                    'status': 'active',
+                    'current_score': conf,
+                    'tracking_history': json.dumps([{
+                        'date': datetime.utcnow().isoformat(),
+                        'event': 'created',
+                        'confidence': conf,
+                        'notes': f'Featured in edition #{edition}'
+                    }], default=str)
+                }, on_conflict='opportunity_id').execute()
+                created += 1
+            except Exception as e:
+                logger.error(f"Failed to upsert opportunity prediction: {e}")
+
+        for signal in (data.get('section_b_emerging') or [])[:4]:
+            try:
+                supabase.table('predictions').insert({
+                    'prediction_type': 'emerging_signal',
+                    'title': (signal.get('description') or 'Unknown signal')[:100],
+                    'description': json.dumps(signal.get('signal_phrases', []), default=str)[:500],
+                    'initial_confidence': 0.3,
+                    'newsletter_edition': edition,
+                    'cluster_id': signal.get('cluster_id'),
+                    'status': 'active',
+                    'current_score': 0.3,
+                    'tracking_history': json.dumps([{
+                        'date': datetime.utcnow().isoformat(),
+                        'event': 'created',
+                        'confidence': 0.3,
+                        'notes': f'Emerging signal in edition #{edition}'
+                    }], default=str)
+                }).execute()
+                created += 1
+            except Exception as e:
+                logger.error(f"Failed to insert emerging signal prediction: {e}")
+
+        logger.info(f"Created {created} predictions from newsletter #{edition}")
+        return {'predictions_created': created}
+
+    except Exception as e:
+        logger.error(f"Prediction creation failed: {e}")
         return {'error': str(e)}
 
 
@@ -1594,6 +2455,12 @@ def publish_newsletter() -> dict:
 
         # Update appearance counters for featured opportunities and trending topics
         update_newsletter_appearances(newsletter)
+
+        try:
+            pred_result = create_predictions_from_newsletter(newsletter['id'])
+            logger.info(f"Predictions created: {pred_result}")
+        except Exception as e:
+            logger.error(f"Prediction creation failed: {e}")
 
         logger.info(f"Newsletter #{newsletter.get('edition_number', '?')} published")
         return {
@@ -2201,6 +3068,154 @@ def check_negotiation_timeouts():
 
 
 # ============================================================================
+# Prediction Tracking
+# ============================================================================
+
+def gather_prediction_signals(pred: dict) -> dict:
+    """Gather current signals relevant to a prediction's topic."""
+    title = pred.get('title', '')
+    keywords = [w.lower() for w in title.split() if len(w) > 2][:3]
+    if not keywords:
+        return {'mentions_7d': 0, 'avg_sentiment': 0, 'new_tools': [], 'github_repos': 0, 'github_stars': 0}
+
+    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+
+    recent_problems = supabase.table('problems')\
+        .select('*')\
+        .gte('last_seen', week_ago)\
+        .execute()
+    matching_problems = [
+        p for p in (recent_problems.data or [])
+        if any(kw in (p.get('description', '') + ' ' + p.get('title', '')).lower() for kw in keywords)
+    ]
+
+    recent_tools = supabase.table('tool_mentions')\
+        .select('*')\
+        .gte('mentioned_at', week_ago)\
+        .execute()
+    matching_tools = [
+        t for t in (recent_tools.data or [])
+        if any(kw in t.get('tool_name', '').lower() for kw in keywords)
+    ]
+
+    github_posts = supabase.table('source_posts')\
+        .select('*')\
+        .eq('source', 'github')\
+        .gte('scraped_at', week_ago)\
+        .execute()
+    matching_github = [
+        g for g in (github_posts.data or [])
+        if any(kw in (g.get('title', '') + ' ' + g.get('body', '')).lower() for kw in keywords)
+    ]
+
+    avg_sentiment = (
+        sum(t.get('sentiment_score', 0) for t in matching_tools) / len(matching_tools)
+        if matching_tools else 0
+    )
+
+    return {
+        'mentions_7d': len(matching_problems),
+        'avg_sentiment': round(avg_sentiment, 3),
+        'new_tools': [t['tool_name'] for t in matching_tools[:5]],
+        'github_repos': len(matching_github),
+        'github_stars': sum(g.get('score', 0) for g in matching_github),
+    }
+
+
+def evaluate_prediction(pred: dict, signals: dict) -> tuple:
+    """Evaluate a prediction's status based on current signals.
+
+    Returns (new_status, new_score, notes).
+    """
+    current = pred.get('current_score', pred.get('initial_confidence', 0.5))
+    created_str = pred.get('created_at', datetime.utcnow().isoformat())
+    created_dt = datetime.fromisoformat(created_str.replace('Z', '+00:00')).replace(tzinfo=None)
+    weeks_active = (datetime.utcnow() - created_dt).days / 7
+
+    mentions = signals.get('mentions_7d', 0)
+    github = signals.get('github_repos', 0)
+
+    if mentions >= 5 and github >= 2:
+        score = min(current + 0.15, 1.0)
+        notes = f"Strong signals: {mentions} mentions, {github} GitHub repos"
+        status = 'confirmed' if score >= 0.8 else 'active'
+    elif mentions >= 2 or github >= 1:
+        score = min(current + 0.05, 1.0)
+        notes = f"Developing: {mentions} mentions, {github} GitHub repos"
+        status = 'active'
+    elif mentions == 0 and weeks_active >= 3:
+        score = max(current - 0.2, 0)
+        notes = "No mentions for 3+ weeks"
+        status = 'faded' if score < 0.2 else 'active'
+    elif mentions == 0 and weeks_active >= 1:
+        score = max(current - 0.1, 0)
+        notes = "Quiet week"
+        status = 'active'
+    else:
+        score = current
+        notes = "Stable"
+        status = 'active'
+
+    return (status, round(score, 2), notes)
+
+
+def track_predictions() -> dict:
+    """Check active predictions against current data and update their scores."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    active = supabase.table('predictions')\
+        .select('*')\
+        .eq('status', 'active')\
+        .execute()
+
+    if not active.data:
+        return {'tracked': 0, 'confirmed': 0, 'faded': 0, 'active': 0}
+
+    counts = {'tracked': 0, 'confirmed': 0, 'faded': 0, 'active': 0}
+
+    for pred in active.data:
+        try:
+            signals = gather_prediction_signals(pred)
+            new_status, new_score, notes = evaluate_prediction(pred, signals)
+
+            history = json.loads(pred.get('tracking_history', '[]') or '[]')
+            history.append({
+                'date': datetime.utcnow().isoformat(),
+                'event': 'tracked',
+                'mentions_this_week': signals.get('mentions_7d', 0),
+                'mentions_total': signals.get('mentions_7d', 0),
+                'sentiment': signals.get('avg_sentiment', 0),
+                'new_tools': signals.get('new_tools', []),
+                'github_repos': signals.get('github_repos', 0),
+                'score': new_score,
+                'notes': notes,
+            })
+
+            update = {
+                'current_score': new_score,
+                'tracking_history': json.dumps(history, default=str),
+                'last_tracked': datetime.utcnow().isoformat(),
+            }
+
+            if new_status != pred['status']:
+                update['status'] = new_status
+                if new_status in ('confirmed', 'faded', 'wrong'):
+                    update['resolved_at'] = datetime.utcnow().isoformat()
+                    update['resolution_notes'] = notes
+
+            supabase.table('predictions').update(update).eq('id', pred['id']).execute()
+            counts['tracked'] += 1
+            counts[new_status] = counts.get(new_status, 0) + 1
+        except Exception as e:
+            logger.error(f"Error tracking prediction {pred.get('id')}: {e}")
+            continue
+
+    logger.info(f"Prediction tracking complete: {counts}")
+    return counts
+
+
+# ============================================================================
 # Pipeline Logging
 # ============================================================================
 
@@ -2300,21 +3315,70 @@ def execute_task(task: dict) -> dict:
         return extract_trending_topics(hours_back=params.get('hours_back', 48))
     
     elif task_type == 'run_pipeline':
-        # Full pipeline: scrape → extract → cluster → tools → trending → delegate analysis to Analyst
-        scrape_result = scrape_moltbook()
-        extract_result = extract_problems()
-        tool_result = extract_tool_mentions()
-        cluster_result = cluster_problems()
-        trending_result = extract_trending_topics()
-        analysis_result = prepare_analysis_package()  # delegates to Analyst agent
-        return {
-            'scrape': scrape_result,
-            'extract': extract_result,
-            'tools': tool_result,
-            'cluster': cluster_result,
-            'trending': trending_result,
-            'analysis': analysis_result  # contains task_id for Analyst
-        }
+        # Full pipeline: scrape all sources → extract (multisource) → cluster → delegate analysis
+        results = {}
+
+        try:
+            results['scrape_moltbook'] = scrape_moltbook()
+        except Exception as e:
+            logger.error(f"Pipeline scrape_moltbook failed: {e}")
+            results['scrape_moltbook'] = {'error': str(e)}
+
+        try:
+            results['scrape_hackernews'] = scrape_hackernews()
+        except Exception as e:
+            logger.error(f"Pipeline scrape_hackernews failed: {e}")
+            results['scrape_hackernews'] = {'error': str(e)}
+
+        try:
+            results['scrape_github'] = scrape_github()
+        except Exception as e:
+            logger.error(f"Pipeline scrape_github failed: {e}")
+            results['scrape_github'] = {'error': str(e)}
+
+        try:
+            results['extract'] = extract_problems_multisource()
+        except Exception as e:
+            logger.warning(f"Pipeline multisource problem extraction failed, falling back: {e}")
+            try:
+                results['extract'] = extract_problems()
+            except Exception as e2:
+                logger.error(f"Pipeline extract_problems fallback failed: {e2}")
+                results['extract'] = {'error': str(e2)}
+
+        try:
+            results['tools'] = extract_tools_multisource()
+        except Exception as e:
+            logger.warning(f"Pipeline multisource tool extraction failed, falling back: {e}")
+            try:
+                results['tools'] = extract_tool_mentions()
+            except Exception as e2:
+                logger.error(f"Pipeline extract_tool_mentions fallback failed: {e2}")
+                results['tools'] = {'error': str(e2)}
+
+        try:
+            results['trending'] = extract_trending_topics_multisource()
+        except Exception as e:
+            logger.warning(f"Pipeline multisource trending extraction failed, falling back: {e}")
+            try:
+                results['trending'] = extract_trending_topics()
+            except Exception as e2:
+                logger.error(f"Pipeline extract_trending_topics fallback failed: {e2}")
+                results['trending'] = {'error': str(e2)}
+
+        try:
+            results['cluster'] = cluster_problems()
+        except Exception as e:
+            logger.error(f"Pipeline cluster_problems failed: {e}")
+            results['cluster'] = {'error': str(e)}
+
+        try:
+            results['analysis'] = prepare_analysis_package()
+        except Exception as e:
+            logger.error(f"Pipeline prepare_analysis_package failed: {e}")
+            results['analysis'] = {'error': str(e)}
+
+        return results
     
     elif task_type == 'extract_tools':
         return extract_tool_mentions(hours_back=params.get('hours_back', 48))
@@ -2339,6 +3403,9 @@ def execute_task(task: dict) -> dict:
     
     elif task_type == 'publish_newsletter':
         return publish_newsletter()
+    
+    elif task_type == 'create_predictions':
+        return create_predictions_from_newsletter(params.get('newsletter_id'))
     
     elif task_type == 'get_latest_newsletter':
         return get_latest_newsletter()
@@ -2559,6 +3626,97 @@ def execute_task(task: dict) -> dict:
     elif task_type == 'get_budget_config':
         return get_full_config().get('budgets', {})
     
+    elif task_type == 'deduplicate_opportunities':
+        return deduplicate_opportunities()
+    
+    elif task_type == 'scrape_hackernews':
+        return scrape_hackernews(limit=params.get('limit', 200))
+    
+    elif task_type == 'scrape_github':
+        return scrape_github(days_back=params.get('days_back', 7))
+    
+    elif task_type == 'get_predictions':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        limit = params.get('limit', 10)
+        result = supabase.table('predictions') \
+            .select('*') \
+            .order('status', desc=False) \
+            .order('current_score', desc=True) \
+            .limit(limit) \
+            .execute()
+        return {'predictions': result.data or []}
+    
+    elif task_type == 'get_source_status':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        now = datetime.utcnow()
+        day_ago = (now - timedelta(hours=24)).isoformat()
+        sources_status = {}
+        for src in ('moltbook', 'hackernews', 'github'):
+            total_result = supabase.table('source_posts') \
+                .select('id', count='exact') \
+                .eq('source', src) \
+                .execute()
+            recent_result = supabase.table('source_posts') \
+                .select('id', count='exact') \
+                .eq('source', src) \
+                .gte('scraped_at', day_ago) \
+                .execute()
+            latest_result = supabase.table('source_posts') \
+                .select('scraped_at') \
+                .eq('source', src) \
+                .order('scraped_at', desc=True) \
+                .limit(1) \
+                .execute()
+            sources_status[src] = {
+                'total_posts': total_result.count or 0,
+                'last_24h': recent_result.count or 0,
+                'last_scraped': latest_result.data[0]['scraped_at'] if latest_result.data else None,
+            }
+        legacy_result = supabase.table('moltbook_posts') \
+            .select('id', count='exact') \
+            .execute()
+        sources_status['moltbook_legacy'] = {
+            'total_posts': legacy_result.count or 0,
+        }
+        return {'sources': sources_status}
+    
+    elif task_type == 'create_manual_prediction':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        title = params.get('title', 'Untitled prediction')
+        description = params.get('description', '')
+        pred_type = params.get('prediction_type', 'manual')
+        confidence = params.get('initial_confidence', 0.5)
+        result = supabase.table('predictions').insert({
+            'prediction_type': pred_type,
+            'title': title,
+            'description': description[:500],
+            'initial_confidence': confidence,
+            'current_score': confidence,
+            'status': 'active',
+            'tracking_history': json.dumps([{
+                'date': datetime.utcnow().isoformat(),
+                'event': 'created',
+                'confidence': confidence,
+                'notes': 'Manually created prediction'
+            }], default=str)
+        }).execute()
+        return {'prediction': result.data[0] if result.data else None}
+    
+    elif task_type == 'track_predictions':
+        return track_predictions()
+    
+    elif task_type == 'extract_problems_multisource':
+        return extract_problems_multisource(hours_back=params.get('hours_back', 48))
+    
+    elif task_type == 'extract_tools_multisource':
+        return extract_tools_multisource(hours_back=params.get('hours_back', 48))
+    
+    elif task_type == 'extract_trending_topics_multisource':
+        return extract_trending_topics_multisource(hours_back=params.get('hours_back', 48))
+    
     else:
         return {'error': f'Unknown task: {task_type}'}
 
@@ -2709,9 +3867,25 @@ def scheduled_analyze():
     """Scheduled analysis task — gathers data then delegates to Analyst agent."""
     logger.info("Running scheduled analysis...")
     try:
-        extract_result = extract_problems()
+        try:
+            extract_result = extract_problems_multisource()
+        except Exception as e:
+            logger.warning(f"Multisource problem extraction failed, falling back to single-source: {e}")
+            extract_result = extract_problems()
+
+        try:
+            tool_result = extract_tools_multisource()
+        except Exception as e:
+            logger.warning(f"Multisource tool extraction failed, falling back to single-source: {e}")
+            tool_result = extract_tool_mentions()
+
+        try:
+            trending_result = extract_trending_topics_multisource()
+        except Exception as e:
+            logger.warning(f"Multisource trending extraction failed, falling back to single-source: {e}")
+            trending_result = extract_trending_topics()
+
         cluster_result = cluster_problems()
-        tool_result = extract_tool_mentions()
         analysis_result = prepare_analysis_package()  # delegates to Analyst
 
         problems_found = extract_result.get('problems_found', 0)
@@ -2932,6 +4106,33 @@ def scheduled_check_negotiation_timeouts():
         logger.error(f"Scheduled negotiation timeout check failed: {e}")
 
 
+def scheduled_scrape_hackernews():
+    """Scheduled Hacker News scraping task."""
+    try:
+        result = scrape_hackernews(limit=200)
+        logger.info(f"Scheduled HN scrape: {result}")
+    except Exception as e:
+        logger.error(f"Scheduled HN scrape failed: {e}")
+
+
+def scheduled_scrape_github():
+    """Scheduled GitHub scraping task."""
+    try:
+        result = scrape_github(days_back=7)
+        logger.info(f"Scheduled GitHub scrape: {result}")
+    except Exception as e:
+        logger.error(f"Scheduled GitHub scrape failed: {e}")
+
+
+def scheduled_track_predictions():
+    """Scheduled prediction tracking — runs before newsletter generation."""
+    try:
+        result = track_predictions()
+        logger.info(f"Prediction tracking: {result}")
+    except Exception as e:
+        logger.error(f"Prediction tracking failed: {e}")
+
+
 def setup_scheduler():
     """Set up scheduled tasks."""
     # Get intervals from environment or use defaults
@@ -2940,11 +4141,14 @@ def setup_scheduler():
     
     # Schedule tasks
     schedule.every(scrape_interval).hours.do(scheduled_scrape)
+    schedule.every(6).hours.do(scheduled_scrape_hackernews)
+    schedule.every(12).hours.do(scheduled_scrape_github)
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
     schedule.every(12).hours.do(scheduled_cluster)
     schedule.every(12).hours.do(scheduled_tool_scan)
     schedule.every(12).hours.do(scheduled_trending_topics)
     schedule.every().day.at("06:00").do(scheduled_update_stats)
+    schedule.every().monday.at("06:30").do(scheduled_track_predictions)
     schedule.every().monday.at("07:00").do(scheduled_prepare_newsletter)
     schedule.every().monday.at("08:00").do(scheduled_notify_newsletter)
     schedule.every().day.at("09:00").do(scheduled_digest)
@@ -2954,8 +4158,9 @@ def setup_scheduler():
     schedule.every(10).minutes.do(scheduled_check_negotiation_timeouts)
     
     logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h, trending every 12h")
+    logger.info("Multi-source: HN scrape every 6h, GitHub scrape every 12h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
-    logger.info("Weekly: newsletter prep Mon 07:00, newsletter notify Mon 08:00 UTC")
+    logger.info("Weekly: prediction tracking Mon 06:30, newsletter prep Mon 07:00, newsletter notify Mon 08:00 UTC")
     logger.info("Hourly: workspace cache refresh, proactive anomaly scan")
     logger.info("Every 10min: negotiation timeout check")
 
@@ -2971,7 +4176,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -3027,6 +4232,17 @@ def main():
         result = publish_newsletter()
         print(json.dumps(result, default=str, indent=2))
     
+    elif args.task == 'create_predictions':
+        newsletter_id = input("Newsletter ID: ").strip() if not sys.stdin.isatty() else None
+        if not newsletter_id:
+            latest = supabase.table('newsletters').select('id').order('created_at', desc=True).limit(1).execute()
+            newsletter_id = latest.data[0]['id'] if latest.data else None
+        if newsletter_id:
+            result = create_predictions_from_newsletter(newsletter_id)
+            print(json.dumps(result, default=str, indent=2))
+        else:
+            print(json.dumps({'error': 'No newsletter found'}, indent=2))
+    
     elif args.task == 'digest':
         scheduled_digest()
     
@@ -3035,6 +4251,34 @@ def main():
     
     elif args.task == 'get_budget_status':
         result = get_daily_usage()
+        print(json.dumps(result, default=str, indent=2))
+    
+    elif args.task == 'deduplicate_opportunities':
+        result = deduplicate_opportunities()
+        print(json.dumps(result, default=str, indent=2))
+    
+    elif args.task == 'scrape_hackernews':
+        result = scrape_hackernews()
+        print(json.dumps(result, default=str, indent=2))
+    
+    elif args.task == 'scrape_github':
+        result = scrape_github()
+        print(json.dumps(result, default=str, indent=2))
+    
+    elif args.task == 'track_predictions':
+        result = track_predictions()
+        print(json.dumps(result, default=str, indent=2))
+    
+    elif args.task == 'extract_problems_multisource':
+        result = extract_problems_multisource()
+        print(json.dumps(result, default=str, indent=2))
+    
+    elif args.task == 'extract_tools_multisource':
+        result = extract_tools_multisource()
+        print(json.dumps(result, default=str, indent=2))
+    
+    elif args.task == 'extract_trending_topics_multisource':
+        result = extract_trending_topics_multisource()
         print(json.dumps(result, default=str, indent=2))
     
     elif args.task == 'queue':

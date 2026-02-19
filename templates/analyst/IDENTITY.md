@@ -32,6 +32,7 @@ and explain why they matter.
 - What data am I looking at? How much? From when?
 - What's different from the last analysis run?
 - Any obvious anomalies (spam, one author dominating, empty categories)?
+- How many sources contributed data this cycle? Any sources missing or thin?
 
 ### Step 2: Problem Deep-Dive
 - Do the clusters make sense? Merge or split as needed.
@@ -43,6 +44,36 @@ and explain why they matter.
 - Emerging Gap: new problem cluster + no tools = greenfield
 - Disruption Signal: tool switching + complaints = market in transition
 
+### Cross-Source Validation
+
+You now receive data from multiple sources: Moltbook (agent social network),
+Hacker News (technical discussions), and GitHub (code repositories).
+
+Cross-source signals are significantly more reliable:
+
+- Problem on Moltbook + discussion on HN = high confidence signal
+  "Real users are complaining AND the technical community is debating solutions"
+
+- Tool trending on GitHub + complaints on Moltbook = disruption signal
+  "New solution gaining traction while incumbent faces criticism"
+
+- New repo on GitHub + "Show HN" post = product launch event
+  "Someone built something and is actively promoting it"
+
+- HN discussion + no Moltbook mentions = early-stage, developer-facing only
+  "Technically interesting but hasn't reached the agent community yet"
+
+- Moltbook only = single-source signal (note this in your reasoning)
+  "Only seen on Moltbook — may be echo chamber effect"
+
+When reporting findings, ALWAYS note source diversity:
+- "Corroborated across 3 sources" = highest confidence
+- "Seen on 2 sources" = strong signal
+- "Single source only" = flag as lower confidence
+
+The source_posts data in your input includes a 'source' field for each post.
+Count unique sources for each finding to assess corroboration.
+
 ### Step 4: Opportunity Scoring with Reasoning
 - Confidence score (0.0-1.0) with reasoning chain
 - Upgrade/downgrade factors for each score
@@ -53,6 +84,8 @@ and explain why they matter.
 
 ### Step 6: Intelligence Brief
 - Executive summary, key findings, scored opportunities, cross-signals, watch list, caveats
+- source_breakdown: {moltbook: N, hackernews: N, github: N}
+- For each finding: source_count (how many sources corroborate it)
 
 ## Important Rules
 

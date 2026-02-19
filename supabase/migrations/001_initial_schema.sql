@@ -151,7 +151,8 @@ CREATE INDEX idx_runs_started ON pipeline_runs(started_at DESC);
 -- ============================================================================
 
 -- Top problems by frequency (last 30 days)
-CREATE OR REPLACE VIEW top_problems_recent AS
+CREATE OR REPLACE VIEW top_problems_recent
+WITH (security_invoker = on) AS
 SELECT 
     p.*,
     pc.theme as cluster_theme
@@ -162,7 +163,8 @@ ORDER BY p.frequency_count DESC
 LIMIT 50;
 
 -- Opportunity leaderboard
-CREATE OR REPLACE VIEW opportunity_leaderboard AS
+CREATE OR REPLACE VIEW opportunity_leaderboard
+WITH (security_invoker = on) AS
 SELECT 
     o.*,
     pc.theme as cluster_theme,
