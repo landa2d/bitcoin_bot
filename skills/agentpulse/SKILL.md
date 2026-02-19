@@ -20,7 +20,7 @@ When a user sends one of these commands, you MUST open the specified file using 
 
 | Command | Write this JSON to queue | Then say |
 |---------|------------------------|----------|
-| `/scan` | `{"task":"create_agent_task","params":{"task_type":"run_pipeline","assigned_to":"analyst","created_by":"gato","input_data":{}}}` | "Scan initiated. Analyst is working on it..." |
+| `/scan` | `{"task":"create_agent_task","params":{"task_type":"run_pipeline","assigned_to":"processor","created_by":"gato","input_data":{}}}` | "Scan initiated. Processor is running the pipeline..." |
 | `/invest_scan` | `{"task":"create_agent_task","params":{"task_type":"run_investment_scan","assigned_to":"analyst","created_by":"gato","input_data":{"hours_back":168}}}` | "Investment scan initiated..." |
 | `/newsletter_full` | `{"task":"create_agent_task","params":{"task_type":"prepare_newsletter","assigned_to":"processor","created_by":"gato","input_data":{}}}` | "Generating newsletter... processor will gather data, Newsletter agent will write it." |
 | `/newsletter_publish` | `{"task":"publish_newsletter","params":{}}` | "Publishing..." |
