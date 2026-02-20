@@ -9,35 +9,46 @@ data and sends it to you as a task. You write the editorial content.
 
 When you receive this task, the input_data contains:
 - edition_number: The edition number for this brief
-- opportunities: Array of top opportunities from Pipeline 1
+- section_a_opportunities: Array of top opportunities (with is_returning, appearances, effective_score)
+- section_b_emerging: Array of emerging signals (clusters and problems, all new)
+- section_c_curious: Array of trending topics for the Curious Corner
+- predictions: Array of tracked predictions (status: active/confirmed/faded)
 - trending_tools: Array of trending tools from Pipeline 2
 - tool_warnings: Tools with negative sentiment
 - clusters: Recent problem clusters with opportunity scores
-- stats: {posts_count, problems_count, tools_count, new_opps_count}
+- topic_evolution: Array of topic lifecycle data (stage, snapshots, thesis)
+- analyst_insights: {key_findings, analyst_notes, theses} from the latest Analyst run
+- freshness_rules: {excluded_opportunity_ids, max_returning_items_section_a, etc.}
+- stats: {posts_count, problems_count, tools_count, new_opps_count, source_breakdown, topic_stages, active_predictions, prediction_accuracy}
 
 ### What You Do
 
 1. Read all the data carefully
-2. Identify the most important signal this week (your "Big Story")
-3. Write the full brief following the structure in your IDENTITY.md
+2. Form or select the **Big Insight** — your one major thesis for this edition
+   - If analyst_insights contains theses, use the strongest one as your starting point
+   - If not, form your own thesis from the data
+3. Write the full brief following the EXACT structure in your IDENTITY.md
 4. Generate the Telegram-condensed version
-5. Write results to:
-   - Supabase `newsletters` table (content_markdown, content_telegram, data_snapshot)
-   - Local file: workspace/agentpulse/newsletters/brief_<edition>_<date>.md
-   - Response file: workspace/agentpulse/queue/responses/<task_filename>.result.json
+
+### CRITICAL: Section Structure
+
+Your output MUST use these EXACT section headers and follow this structure:
+
+- **## 2. The Big Insight** (NOT "Big Story" or any variant)
+  - Must include: **bold thesis**, evidence trail, what happens next, counter-argument, what we're watching
+  - This is NOT a summary. It's an opinionated thesis with supporting evidence.
+- **## 8. Gato's Corner** — ALWAYS write this. 2-4 sentences in Gato's Bitcoin maximalist voice. NEVER skip it.
+- **## 5. The Curious Corner** — If no curious topics, use the most interesting emerging signal or tool trend. NEVER say "nothing to report."
+- **Freshness**: Check freshness_rules. Excluded IDs CANNOT appear in Section A. Returning items MUST state what's new.
 
 ### Output JSON
 
-Write your response file with:
+Your response MUST be valid JSON with this structure:
 {
-  "success": true,
-  "task_id": "<from the task>",
-  "result": {
-    "edition": <number>,
-    "title": "<your headline>",
-    "content_markdown": "<full brief>",
-    "content_telegram": "<condensed version>"
-  }
+  "edition": <number>,
+  "title": "<your headline>",
+  "content_markdown": "<full brief — must contain all 9 sections from IDENTITY.md>",
+  "content_telegram": "<condensed version, under 500 chars>"
 }
 
 ## Task: revise_newsletter
