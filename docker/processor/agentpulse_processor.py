@@ -103,6 +103,36 @@ RSS_FEEDS = {
         'tier': 1,
         'category': 'authority'
     },
+    'andrew_ng': {
+        'url': 'https://www.deeplearning.ai/the-batch/feed/',
+        'tier': 1,
+        'category': 'thought_leader'
+    },
+    'simon_willison': {
+        'url': 'https://simonwillison.net/atom/everything/',
+        'tier': 1,
+        'category': 'thought_leader'
+    },
+    'latent_space': {
+        'url': 'https://www.latent.space/feed',
+        'tier': 1,
+        'category': 'thought_leader'
+    },
+    'swyx': {
+        'url': 'https://www.swyx.io/rss.xml',
+        'tier': 1,
+        'category': 'thought_leader'
+    },
+    'langchain_blog': {
+        'url': 'https://blog.langchain.dev/rss/',
+        'tier': 1,
+        'category': 'thought_leader'
+    },
+    'ethan_mollick': {
+        'url': 'https://www.oneusefulthing.org/feed',
+        'tier': 1,
+        'category': 'thought_leader'
+    },
 }
 
 RSS_RELEVANCE_KEYWORDS = [
@@ -112,6 +142,41 @@ RSS_RELEVANCE_KEYWORDS = [
     'openai', 'copilot', 'automation', 'ai infrastructure',
     'rag', 'vector', 'embedding', 'mcp', 'langchain'
 ]
+
+THOUGHT_LEADER_FEEDS = {
+    'deeplearning_ai': {
+        'url': 'https://www.deeplearning.ai/the-batch/feed/',
+        'name': 'DeepLearning.AI (Andrew Ng)',
+        'purpose': 'Research-to-practice crossing signals',
+    },
+    'simon_willison': {
+        'url': 'https://simonwillison.net/atom/everything/',
+        'name': 'Simon Willison',
+        'purpose': 'Real-world agent implementation patterns',
+    },
+    'latent_space': {
+        'url': 'https://www.latent.space/feed',
+        'name': 'Latent Space',
+        'purpose': 'Infrastructure-level trends beneath agents',
+    },
+    'swyx': {
+        'url': 'https://www.swyx.io/rss.xml',
+        'name': 'Swyx',
+        'purpose': 'Agent ecosystem analysis, DX trends',
+    },
+    'langchain_blog': {
+        'url': 'https://blog.langchain.dev/rss/',
+        'name': 'LangChain Blog (Harrison Chase)',
+        'purpose': 'Tooling direction signals before obvious',
+    },
+    'ethan_mollick': {
+        'url': 'https://www.oneusefulthing.org/feed',
+        'name': 'Ethan Mollick (One Useful Thing)',
+        'purpose': 'Adoption patterns, non-technical agent usage',
+    },
+}
+
+THOUGHT_LEADER_TIER = 1.5
 
 # Telegram (for notifications)
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -788,6 +853,131 @@ def scrape_rss_feeds() -> dict:
     log_pipeline_end(run_id, 'completed', {'feeds_scraped': feeds_scraped, 'total_articles': total_articles})
     logger.info(f"RSS scrape complete: {feeds_scraped} feeds, {total_articles} articles")
     return {'source': 'rss', 'feeds_scraped': feeds_scraped, 'results': results}
+
+
+# ============================================================================
+# Thought Leader Ingestion
+# ============================================================================
+
+def _detect_topics(text: str) -> list:
+    """Lightweight keyword-based topic detection for thought leader content."""
+    topic_map = {
+        'agents': ['agent', 'agentic', 'multi-agent', 'autonomous'],
+        'llm': ['llm', 'large language model', 'foundation model', 'gpt', 'claude', 'gemini'],
+        'rag': ['rag', 'retrieval', 'vector', 'embedding'],
+        'tooling': ['langchain', 'llamaindex', 'autogen', 'crewai', 'mcp', 'function call', 'tool use'],
+        'infrastructure': ['inference', 'gpu', 'deployment', 'serving', 'fine-tun', 'training'],
+        'adoption': ['enterprise', 'adoption', 'production', 'real-world', 'case study'],
+        'safety': ['alignment', 'safety', 'guardrail', 'hallucination', 'eval'],
+        'developer_experience': ['developer', 'dx', 'sdk', 'api', 'framework'],
+        'open_source': ['open source', 'open-source', 'hugging face', 'ollama', 'llama'],
+        'startups': ['startup', 'funding', 'yc', 'seed', 'series a', 'venture'],
+    }
+    text_lower = text.lower()
+    return [topic for topic, keywords in topic_map.items() if any(kw in text_lower for kw in keywords)]
+
+
+def scrape_thought_leaders() -> dict:
+    """Ingest thought leader RSS feeds as Tier 1.5 sources with topic detection and dedup."""
+    import feedparser
+
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    run_id = log_pipeline_start('scrape_thought_leaders')
+    feeds_scraped = 0
+    results = {}
+
+    existing_urls = set()
+    try:
+        recent = supabase.table('source_posts')\
+            .select('source_url')\
+            .eq('source_tier', 'thought_leader')\
+            .gte('scraped_at', (datetime.utcnow() - timedelta(days=14)).isoformat())\
+            .execute()
+        existing_urls = {r['source_url'] for r in (recent.data or []) if r.get('source_url')}
+    except Exception as e:
+        logger.warning(f"Could not pre-fetch existing thought leader URLs: {e}")
+
+    for feed_key, feed_config in THOUGHT_LEADER_FEEDS.items():
+        try:
+            logger.info(f"Thought leader scrape: parsing {feed_config['name']} ({feed_config['url']})")
+            feed = feedparser.parse(feed_config['url'])
+
+            if feed.bozo and not feed.entries:
+                logger.warning(f"Feed {feed_key} returned errors and no entries — skipping")
+                results[feed_key] = {'error': 'Feed parse failed / empty'}
+                continue
+
+            ingested_count = 0
+
+            for entry in feed.entries[:20]:
+                url = entry.get('link', '')
+                if url in existing_urls:
+                    continue
+
+                title = entry.get('title', '')
+                summary = entry.get('summary', entry.get('description', ''))
+                content = entry.get('content', [{}])[0].get('value', '') if entry.get('content') else ''
+                full_text = f"{title} {summary} {content}"
+
+                published = entry.get('published', entry.get('updated', ''))
+
+                topics = _detect_topics(full_text)
+
+                source_id = entry.get('id') or url
+
+                post_data = {
+                    'source': f'thought_leader_{feed_key}',
+                    'source_id': source_id,
+                    'source_url': url,
+                    'source_tier': 'thought_leader',
+                    'title': title,
+                    'body': (summary or content)[:2000],
+                    'author': feed_config['name'],
+                    'score': THOUGHT_LEADER_TIER,
+                    'comment_count': 0,
+                    'tags': topics + ['thought_leader', f'tl_{feed_key}'],
+                    'metadata': {
+                        'feed_key': feed_key,
+                        'source_name': feed_config['name'],
+                        'source_tier': 'thought_leader',
+                        'tier_numeric': THOUGHT_LEADER_TIER,
+                        'purpose': feed_config['purpose'],
+                        'published_at': published,
+                        'topics_detected': topics,
+                        'content_summary': (summary or content)[:500],
+                        'feed_url': feed_config['url'],
+                    },
+                }
+
+                try:
+                    supabase.table('source_posts').upsert(
+                        post_data, on_conflict='source,source_id'
+                    ).execute()
+                    existing_urls.add(url)
+                    ingested_count += 1
+                except Exception as e:
+                    logger.error(f"Thought leader upsert error for {feed_key}/{source_id}: {e}")
+
+            results[feed_key] = ingested_count
+            feeds_scraped += 1
+            logger.info(f"Thought leader scrape: {feed_config['name']} — {ingested_count} articles ingested")
+
+        except Exception as e:
+            logger.error(f"Thought leader scrape failed for {feed_key} ({feed_config['name']}): {e}")
+            results[feed_key] = {'error': str(e)}
+
+    total_articles = sum(v for v in results.values() if isinstance(v, int))
+    summary = {
+        'source': 'thought_leaders',
+        'feeds_scraped': feeds_scraped,
+        'total_articles': total_articles,
+        'results': results,
+    }
+    log_pipeline_end(run_id, 'completed', summary)
+    logger.info(f"Thought leader scrape complete: {feeds_scraped}/{len(THOUGHT_LEADER_FEEDS)} feeds, {total_articles} articles")
+    return summary
 
 
 # ============================================================================
@@ -2643,6 +2833,16 @@ def prepare_newsletter_data() -> dict:
             .execute()
         predictions_data = predictions_result.data or []
 
+        # ── Thought Leader Content ──
+        tl_posts = supabase.table('source_posts')\
+            .select('*')\
+            .eq('source_tier', 'thought_leader')\
+            .gte('scraped_at', week_ago)\
+            .order('scraped_at', desc=True)\
+            .limit(20)\
+            .execute()
+        thought_leader_data = tl_posts.data or []
+
         # ── Topic Evolution ──
         topic_evolution = supabase.table('topic_evolution')\
             .select('*')\
@@ -2690,6 +2890,13 @@ def prepare_newsletter_data() -> dict:
             .gte('scraped_at', week_ago)\
             .execute()
         source_stats['rss_premium'] = rss_count.count or 0
+
+        tl_count = supabase.table('source_posts')\
+            .select('id', count='exact')\
+            .eq('source_tier', 'thought_leader')\
+            .gte('scraped_at', week_ago)\
+            .execute()
+        source_stats['thought_leaders'] = tl_count.count or 0
 
         hn_posts = source_stats.get('hackernews', 0)
         gh_repos = source_stats.get('github', 0)
@@ -2745,6 +2952,7 @@ def prepare_newsletter_data() -> dict:
                 'total_posts_all_sources': sum(source_stats.values()),
                 'topic_stages': topic_stages,
             },
+            'thought_leader_content': thought_leader_data,
             'topic_evolution': topic_evolution_data,
             'freshness_rules': {
                 'excluded_opportunity_ids': [str(eid) for eid in excluded_ids],
@@ -3074,6 +3282,14 @@ def prepare_analysis_package(hours_back: int = 48) -> dict:
             .gte('scraped_at', cutoff)\
             .execute()
 
+        thought_leader_posts = supabase.table('source_posts')\
+            .select('*')\
+            .eq('source_tier', 'thought_leader')\
+            .gte('scraped_at', cutoff)\
+            .order('scraped_at', desc=True)\
+            .limit(50)\
+            .execute()
+
         data_package = {
             'timeframe_hours': hours_back,
             'gathered_at': datetime.utcnow().isoformat(),
@@ -3083,11 +3299,13 @@ def prepare_analysis_package(hours_back: int = 48) -> dict:
             'tool_stats': tool_stats.data or [],
             'existing_opportunities': existing_opps.data or [],
             'previous_run': prev_run.data[0] if prev_run.data else None,
+            'thought_leader_content': thought_leader_posts.data or [],
             'stats': {
                 'posts_in_window': total_posts.count or 0,
                 'problems_in_window': len(problems.data or []),
                 'tools_tracked': len(tool_stats.data or []),
-                'existing_opportunities': len(existing_opps.data or [])
+                'existing_opportunities': len(existing_opps.data or []),
+                'thought_leader_posts': len(thought_leader_posts.data or [])
             }
         }
 
@@ -3804,6 +4022,12 @@ def execute_task(task: dict) -> dict:
             results['rss'] = {'error': str(e)}
 
         try:
+            results['thought_leaders'] = scrape_thought_leaders()
+        except Exception as e:
+            logger.error(f"Thought leader scrape failed in pipeline: {e}")
+            results['thought_leaders'] = {'error': str(e)}
+
+        try:
             results['extract'] = extract_problems_multisource()
         except Exception as e:
             logger.warning(f"Pipeline multisource problem extraction failed, falling back: {e}")
@@ -4204,6 +4428,20 @@ def execute_task(task: dict) -> dict:
         sources_status['moltbook_legacy'] = {
             'total_posts': legacy_result.count or 0,
         }
+        tl_total = supabase.table('source_posts') \
+            .select('id', count='exact') \
+            .eq('source_tier', 'thought_leader') \
+            .execute()
+        tl_recent = supabase.table('source_posts') \
+            .select('id', count='exact') \
+            .eq('source_tier', 'thought_leader') \
+            .gte('scraped_at', day_ago) \
+            .execute()
+        sources_status['thought_leaders'] = {
+            'total_posts': tl_total.count or 0,
+            'last_24h': tl_recent.count or 0,
+            'tier': 1.5,
+        }
         return {'sources': sources_status}
     
     elif task_type == 'create_manual_prediction':
@@ -4231,6 +4469,9 @@ def execute_task(task: dict) -> dict:
     
     elif task_type == 'scrape_rss':
         return scrape_rss_feeds()
+
+    elif task_type == 'scrape_thought_leaders':
+        return scrape_thought_leaders()
     
     elif task_type == 'track_predictions':
         return track_predictions()
@@ -4663,6 +4904,15 @@ def scheduled_scrape_rss():
         logger.error(f"Scheduled RSS scrape failed: {e}")
 
 
+def scheduled_scrape_thought_leaders():
+    """Scheduled thought leader feed ingestion."""
+    try:
+        result = scrape_thought_leaders()
+        logger.info(f"Scheduled thought leader scrape: {result}")
+    except Exception as e:
+        logger.error(f"Scheduled thought leader scrape failed: {e}")
+
+
 def scheduled_update_evolution():
     """Scheduled topic evolution update."""
     try:
@@ -4692,6 +4942,7 @@ def setup_scheduler():
     schedule.every(6).hours.do(scheduled_scrape_hackernews)
     schedule.every(12).hours.do(scheduled_scrape_github)
     schedule.every(6).hours.do(scheduled_scrape_rss)
+    schedule.every(6).hours.do(scheduled_scrape_thought_leaders)
     schedule.every().monday.at("06:00").do(scheduled_update_evolution)
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
     schedule.every(12).hours.do(scheduled_cluster)
@@ -4708,7 +4959,7 @@ def setup_scheduler():
     schedule.every(10).minutes.do(scheduled_check_negotiation_timeouts)
     
     logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h, trending every 12h")
-    logger.info("Multi-source: HN scrape every 6h, GitHub scrape every 12h, RSS scrape every 6h")
+    logger.info("Multi-source: HN scrape every 6h, GitHub scrape every 12h, RSS scrape every 6h, thought leaders every 6h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
     logger.info("Weekly: topic evolution Mon 06:00, prediction tracking Mon 06:30, newsletter prep Mon 07:00, newsletter notify Mon 08:00 UTC")
     logger.info("Hourly: workspace cache refresh, proactive anomaly scan")
@@ -4726,7 +4977,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -4813,6 +5064,10 @@ def main():
     
     elif args.task == 'scrape_github':
         result = scrape_github()
+        print(json.dumps(result, default=str, indent=2))
+
+    elif args.task == 'scrape_thought_leaders':
+        result = scrape_thought_leaders()
         print(json.dumps(result, default=str, indent=2))
     
     elif args.task == 'track_predictions':

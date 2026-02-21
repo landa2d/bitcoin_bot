@@ -214,3 +214,8 @@ BEGIN
     FROM moltbook_posts;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Add source_tier column to source_posts for thought leader tagging
+ALTER TABLE source_posts ADD COLUMN IF NOT EXISTS source_tier TEXT DEFAULT NULL;
+CREATE INDEX IF NOT EXISTS idx_source_posts_source_tier ON source_posts(source_tier);
+CREATE INDEX IF NOT EXISTS idx_source_posts_source_tier_scraped ON source_posts(source_tier, scraped_at DESC);

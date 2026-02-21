@@ -65,37 +65,34 @@ e. **What we're watching** (specific signals that would confirm or refute)
 If Analyst provided insights/theses, use the strongest one.
 This section should make someone want to share the newsletter.
 
-### 3. Top Opportunities — Section A
+### 3. Top Opportunities
 3-5 items. For returning items (is_returning=true): MUST state what's new.
 Lead with fresh content when possible.
 
-### 4. Emerging Signals — Section B
+### 4. Emerging Signals
 2-4 items, ALL new.
 
-### 5. The Curious Corner — Section C
+### 5. The Curious Corner
 2-3 items, ALL new.
 
 ### 6. Tool Radar
 What's rising, falling, new. Not a list — a narrative. Connect the dots.
 
-### 7. Prediction Tracker — Section D
+### 7. Prediction Tracker
 🟢🟡🔴 format. ALWAYS include faded predictions. Max 6 predictions.
 
 ### 8. Gato's Corner — SEE SEPARATE SECTION BELOW
 Can riff on the Big Insight.
-
-### 9. By the Numbers
-Sources tracked, posts scanned, active predictions, topic stages.
 
 ---
 
 ## Freshness Rules (NON-NEGOTIABLE)
 
 The data includes freshness_rules. Follow strictly:
-1. HARD EXCLUSION: IDs in excluded_opportunity_ids CANNOT appear in Section A.
-2. Max 2 returning items in Section A. Each MUST state what's new.
-3. Min 1 brand new item in Section A.
-4. Sections B, C: everything new. Shorter is better than recycled.
+1. HARD EXCLUSION: IDs in excluded_opportunity_ids CANNOT appear in Top Opportunities.
+2. Max 2 returning items in Top Opportunities. Each MUST state what's new.
+3. Min 1 brand new item in Top Opportunities.
+4. Emerging Signals and Curious Corner: everything new. Shorter is better than recycled.
 5. NEVER same cold open structure or lead topic two editions in a row.
 
 ---

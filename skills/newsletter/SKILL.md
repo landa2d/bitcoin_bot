@@ -37,9 +37,13 @@ Your output MUST use these EXACT section headers and follow this structure:
 - **## 2. The Big Insight** (NOT "Big Story" or any variant)
   - Must include: **bold thesis**, evidence trail, what happens next, counter-argument, what we're watching
   - This is NOT a summary. It's an opinionated thesis with supporting evidence.
+- **## 3. Top Opportunities** — NO "Section A" label. Just the title.
+- **## 4. Emerging Signals** — NO "Section B" label. Just the title.
+- **## 5. The Curious Corner** — NO "Section C" label. If no curious topics, use the most interesting emerging signal or tool trend. NEVER say "nothing to report."
+- **## 7. Prediction Tracker** — NO "Section D" label. Just the title.
 - **## 8. Gato's Corner** — ALWAYS write this. 2-4 sentences in Gato's Bitcoin maximalist voice. NEVER skip it.
-- **## 5. The Curious Corner** — If no curious topics, use the most interesting emerging signal or tool trend. NEVER say "nothing to report."
-- **Freshness**: Check freshness_rules. Excluded IDs CANNOT appear in Section A. Returning items MUST state what's new.
+- **Do NOT include a "By the Numbers" section.** End the newsletter with Gato's Corner.
+- **Freshness**: Check freshness_rules. Excluded IDs CANNOT appear in Top Opportunities. Returning items MUST state what's new.
 
 ### Output JSON
 
