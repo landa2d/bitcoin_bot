@@ -15,8 +15,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
+from pydantic import ValidationError
 from supabase import create_client, Client
 from openai import OpenAI
+
+from schemas import TASK_INPUT_SCHEMAS, NewsletterOutput
 
 load_dotenv()
 
@@ -131,17 +134,32 @@ def ensure_dirs():
     NEWSLETTERS_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def fetch_pending_tasks(limit: int = 5):
-    return (
-        supabase.table("agent_tasks")
-        .select("*")
-        .eq("status", "pending")
-        .eq("assigned_to", AGENT_NAME)
-        .order("priority", desc=False)
-        .order("created_at", desc=False)
-        .limit(limit)
-        .execute()
-    )
+def fetch_pending_tasks(limit: int = 5) -> list[dict]:
+    """Atomically claim up to `limit` pending tasks via FOR UPDATE SKIP LOCKED."""
+    result = supabase.rpc(
+        "claim_agent_task",
+        {"p_assigned_to": AGENT_NAME, "p_limit": limit},
+    ).execute()
+    return result.data or []
+
+
+def validate_task_input(task_type: str, input_data: dict) -> None:
+    """Validate inbound task input. Raises ValidationError on bad input (fail fast)."""
+    schema = TASK_INPUT_SCHEMAS.get(task_type)
+    if schema is None:
+        logger.warning(f"No input schema for task_type='{task_type}', skipping validation")
+        return
+    schema.model_validate(input_data)
+
+
+def validate_llm_output(raw: dict, model_cls: type) -> object:
+    """Validate LLM output. On failure, constructs partial model and logs."""
+    try:
+        return model_cls.model_validate(raw)
+    except ValidationError as e:
+        logger.warning(f"LLM output validation errors ({model_cls.__name__}): {e}")
+        valid_fields = {k: raw[k] for k in model_cls.model_fields if k in raw}
+        return model_cls.model_construct(**valid_fields)
 
 
 def mark_task_status(task_id: str, status: str, **fields):
@@ -168,7 +186,7 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
 
     response = client.chat.completions.create(
         model=MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg},
@@ -211,13 +229,19 @@ def save_newsletter(result: dict, input_data: dict):
         "data_snapshot": input_data,
         "status": "draft",
     }
-    supabase.table("newsletters").insert(row).execute()
-    logger.info(f"Saved newsletter edition #{edition} to Supabase (status=draft)")
+    try:
+        supabase.table("newsletters").insert(row).execute()
+        logger.info(f"Saved newsletter edition #{edition} to Supabase (status=draft)")
+    except Exception as e:
+        logger.error(f"Failed to insert newsletter #{edition} into Supabase: {e}")
 
     # Save local markdown
     md_file = NEWSLETTERS_DIR / f"brief_{edition}_{date_str}.md"
-    md_file.write_text(result.get("content_markdown", ""))
-    logger.info(f"Saved local file: {md_file.name}")
+    try:
+        md_file.write_text(result.get("content_markdown", ""))
+        logger.info(f"Saved local file: {md_file.name}")
+    except OSError as e:
+        logger.error(f"Failed to write newsletter file {md_file}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -231,6 +255,9 @@ def handle_negotiation_request(result: dict, task_id: str):
 
     negotiation_req = result.get("negotiation_request")
     if not negotiation_req:
+        return
+    if not isinstance(negotiation_req, dict):
+        logger.warning(f"negotiation_request is not a dict (got {type(negotiation_req).__name__}) — skipping")
         return
 
     target_agent = negotiation_req.get("target_agent", "analyst")
@@ -281,6 +308,118 @@ def handle_negotiation_request(result: dict, task_id: str):
 
 
 # ---------------------------------------------------------------------------
+# Scorecard — "Looking Back" blurb generation
+# ---------------------------------------------------------------------------
+
+LOOKBACK_PROMPT = """You are writing a brief lookback for the AgentPulse newsletter. Be honest and direct. No defensive language. If the prediction was wrong, say so plainly. If right, state it without gloating. Keep it to 3-4 sentences maximum.
+
+Original thesis: "{thesis}"
+Our prediction (Issue #{issue_number}): "{prediction_text}"
+What actually happened: "{resolution_notes}"
+Assessment: {status}
+
+Write the lookback blurb. Start with "In Issue #{issue_number}, we predicted..." or similar. End with an honest one-sentence assessment of what we got right and wrong. Output ONLY the blurb text, no JSON, no formatting."""
+
+MAX_LOOKBACKS_PER_ISSUE = 2
+
+
+def generate_scorecard(current_issue_number: int) -> list[str]:
+    """Fetch resolved predictions and generate Looking Back blurbs. Returns list of blurb strings."""
+    try:
+        resolved = supabase.table("predictions")\
+            .select("*, spotlight_history(*)")\
+            .in_("status", ["confirmed", "refuted", "partially_correct"])\
+            .is_("scorecard_issue", "null")\
+            .order("resolved_at", desc=True)\
+            .limit(MAX_LOOKBACKS_PER_ISSUE)\
+            .execute()
+    except Exception as e:
+        logger.error(f"Failed to fetch resolved predictions for scorecard: {e}")
+        return []
+
+    if not resolved.data:
+        logger.info("No resolved predictions — skipping Scorecard")
+        return []
+
+    logger.info(f"Generating scorecard for {len(resolved.data)} resolved predictions")
+    blurbs = []
+
+    for prediction in resolved.data:
+        pred_id = prediction.get("id", "")
+        pred_text = prediction.get("prediction_text", "")
+        issue_num = prediction.get("issue_number", "?")
+        status = prediction.get("status", "unknown")
+        resolution_notes = prediction.get("resolution_notes", "No details available.")
+
+        spotlight = prediction.get("spotlight_history") or {}
+        thesis = spotlight.get("thesis", pred_text)
+
+        blurb = generate_lookback_blurb(
+            thesis=thesis,
+            prediction_text=pred_text,
+            issue_number=issue_num,
+            resolution_notes=resolution_notes,
+            status=status,
+        )
+
+        if blurb:
+            blurbs.append(blurb)
+            try:
+                supabase.table("predictions").update({
+                    "scorecard_issue": current_issue_number,
+                }).eq("id", pred_id).execute()
+                logger.info(f"Marked prediction {pred_id[:8]} as included in scorecard (issue {current_issue_number})")
+            except Exception as e:
+                logger.error(f"Failed to mark prediction {pred_id[:8]} scorecard_issue: {e}")
+
+    return blurbs
+
+
+def generate_lookback_blurb(thesis: str, prediction_text: str, issue_number, resolution_notes: str, status: str) -> str | None:
+    """Generate a single Looking Back blurb via LLM."""
+    prompt = LOOKBACK_PROMPT.format(
+        thesis=thesis,
+        issue_number=issue_number,
+        prediction_text=prediction_text,
+        resolution_notes=resolution_notes,
+        status=status,
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.4,
+        )
+
+        blurb = response.choices[0].message.content.strip()
+
+        if blurb.startswith('"') and blurb.endswith('"'):
+            blurb = blurb[1:-1]
+
+        tokens = response.usage.total_tokens if response.usage else 0
+        logger.info(f"Lookback blurb generated ({tokens} tokens): {blurb[:60]}...")
+        return blurb
+
+    except Exception as e:
+        logger.error(f"Failed to generate lookback blurb for issue #{issue_number}: {e}")
+        return None
+
+
+def format_scorecard_section(blurbs: list[str]) -> str:
+    """Format scorecard blurbs into the Looking Back newsletter section."""
+    if not blurbs:
+        return ""
+
+    parts = ["\n\n---\n\n## Looking Back\n"]
+    for blurb in blurbs:
+        parts.append(f"\n{blurb}\n")
+
+    return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
 # Task processing
 # ---------------------------------------------------------------------------
 
@@ -316,8 +455,7 @@ def process_task(task: dict):
 
     logger.info(f"Processing task {task_id}: {task_type}")
 
-    # Mark in progress
-    mark_task_status(task_id, "in_progress", started_at=datetime.now(timezone.utc).isoformat())
+    # Task is already in_progress — claimed atomically by fetch_pending_tasks()
 
     supported = {"write_newsletter", "revise_newsletter"}
     if task_type not in supported:
@@ -331,6 +469,19 @@ def process_task(task: dict):
         )
         return
 
+    # Validate input schema (fail fast on malformed input)
+    try:
+        validate_task_input(task_type, input_data)
+    except ValidationError as e:
+        error = f"Input validation: {e}"
+        logger.error(error)
+        mark_task_status(
+            task_id, "failed",
+            completed_at=datetime.now(timezone.utc).isoformat(),
+            error_message=error,
+        )
+        return
+
     # Inject budget constraints
     budget = get_budget_config(AGENT_NAME, task_type)
     input_data["budget"] = budget
@@ -338,7 +489,23 @@ def process_task(task: dict):
 
     try:
         # Generate newsletter via OpenAI
-        result = generate_newsletter(task_type, input_data, budget)
+        raw_result = generate_newsletter(task_type, input_data, budget)
+        validated = validate_llm_output(raw_result, NewsletterOutput)
+        result = validated.model_dump()
+
+        # Generate scorecard (Looking Back) if resolved predictions exist
+        edition = result.get("edition", input_data.get("edition_number", 0))
+        try:
+            scorecard_blurbs = generate_scorecard(edition)
+            if scorecard_blurbs:
+                scorecard_md = format_scorecard_section(scorecard_blurbs)
+                if result.get("content_markdown"):
+                    result["content_markdown"] += scorecard_md
+                if result.get("content_telegram"):
+                    result["content_telegram"] += scorecard_md
+                logger.info(f"Appended {len(scorecard_blurbs)} Looking Back blurb(s) to newsletter")
+        except Exception as e:
+            logger.error(f"Scorecard generation failed (non-blocking): {e}")
 
         # Save to Supabase + local file
         save_newsletter(result, input_data)
@@ -390,7 +557,7 @@ def main():
 
     while True:
         try:
-            tasks = fetch_pending_tasks().data or []
+            tasks = fetch_pending_tasks()
             for task in tasks:
                 process_task(task)
         except Exception as e:

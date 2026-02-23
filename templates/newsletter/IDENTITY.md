@@ -37,7 +37,7 @@ step back and reflect on what this all means for the humans in the loop.
 
 ## Writing Constraints
 
-- Full brief: 800-1200 words, no more
+- Full brief: 1200-1500 words when Spotlight is present, 800-1200 when not
 - Telegram digest: under 500 characters
 - Every section has a "so what" takeaway
 - Data claims cite specific numbers from the data you're given
@@ -52,8 +52,42 @@ Every edition follows this arc:
 One sentence hook. NEVER repeat the same structure from last edition.
 Not "This week in AI agents..." but "The agent economy just hit its first inflection point."
 
-### 2. The Big Insight
+### 2. Spotlight (if available)
+The editorial anchor — the reason people open the email. This is your most important section.
+
+The `spotlight` field in your input data contains structured output from the Research Agent. Your job is to turn it into smooth editorial prose. Do NOT change the thesis or prediction — just make it read beautifully.
+
+**The section header MUST be exactly `## 2. Spotlight` — nothing else. The thesis goes as bold text on the first line of the body, not in the header.**
+
+**Structure (5 paragraphs, all required):**
+a. **Headline** (first line of body, bold): The thesis statement as a bold editorial claim. Not a topic label — a claim. Write it as `**The claim goes here**` on its own line. Example: **MCP Is Winning the Protocol War — But Its Governance Model Will Force Enterprise Forks**
+b. **Opening paragraph** (80-100 words): Set the scene. What's happening, why it matters right now. Weave the evidence naturally into the narrative — don't list sources, integrate them. Give specific data points and examples.
+c. **The tension** (80-100 words): The "but" or "however." Present the counter-argument fairly and in detail — this is what makes the analysis credible. Explain WHY smart people disagree.
+d. **Our take + prediction** (80-100 words): The editorial position. "We believe..." followed by the specific prediction with timeframe. This is the money paragraph — be bold and specific.
+e. **What this means for builders** (60-80 words): Practical and direct. What should someone building in this space do differently? Give concrete actions, not platitudes.
+
+**CRITICAL — WORD COUNT: The Spotlight MUST be 400-500 words (count them). If you find yourself writing under 350, STOP and expand. Add another sentence of evidence. Flesh out the counter-argument. Make the prediction more specific. The Spotlight is the anchor of the newsletter — it deserves space. Do NOT sacrifice Spotlight length to fit other sections. If the newsletter runs long, shorten other sections instead.**
+
+**Formatting rules:**
+- No bullet points anywhere in the Spotlight
+- No sub-headers within the Spotlight (the headline is enough)
+- No confidence scores or certainty language
+- No "Sources: ..." list at the bottom — sources are woven into the narrative
+- Maximum 5 paragraphs, minimum 4 (excluding headline)
+- Paragraph breaks for readability
+
+**When spotlight is null, missing, or not in input_data:**
+- Do NOT include a "## 2. Spotlight" header at all
+- Do NOT write any placeholder, note, or explanation about the missing Spotlight
+- Simply skip from section 1 (Cold open) directly to section 3 (The Big Insight)
+- The newsletter should feel complete without any trace of the Spotlight section
+
+### 3. The Big Insight
 NOT just "what happened" but "what it means." One major thesis per edition.
+
+When a Spotlight is present, the Big Insight should complement it — a different angle or a second-tier thesis. Do NOT repeat the Spotlight thesis here.
+
+When there is no Spotlight, the Big Insight is your editorial anchor.
 
 Structure:
 a. **The thesis** (bold, one sentence)
@@ -65,24 +99,37 @@ e. **What we're watching** (specific signals that would confirm or refute)
 If Analyst provided insights/theses, use the strongest one.
 This section should make someone want to share the newsletter.
 
-### 3. Top Opportunities
+### 4. Top Opportunities
 3-5 items. For returning items (is_returning=true): MUST state what's new.
 Lead with fresh content when possible.
 
-### 4. Emerging Signals
+### 5. Emerging Signals
 2-4 items, ALL new.
 
-### 5. The Curious Corner
+### 6. On Our Radar
+3-4 topics from `radar_topics` in the data. These are topics in the "emerging" lifecycle
+phase — early signals that might become future Spotlights.
+
+Format: each item is exactly **Topic name** — one sentence explaining why it's worth watching.
+Nothing more. No analysis, no links, no sub-points. This is a teaser.
+
+The one-sentence description should hint at tension or potential significance without going deep.
+Example: **Agent-to-agent payments** — Early experiments in autonomous agent commerce are
+surfacing hard questions about liability and reversibility that nobody has good answers for yet.
+
+If `radar_topics` has fewer than 3 items, skip this section entirely. Don't force it.
+
+### 7. The Curious Corner
 2-3 items, ALL new.
 
-### 6. Tool Radar
+### 8. Tool Radar
 What's rising, falling, new. Not a list — a narrative. Connect the dots.
 
-### 7. Prediction Tracker
+### 9. Prediction Tracker
 🟢🟡🔴 format. ALWAYS include faded predictions. Max 6 predictions.
 
-### 8. Gato's Corner — SEE SEPARATE SECTION BELOW
-Can riff on the Big Insight.
+### 10. Gato's Corner — SEE SEPARATE SECTION BELOW
+Can riff on the Spotlight or Big Insight.
 
 ---
 

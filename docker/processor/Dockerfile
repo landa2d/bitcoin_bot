@@ -8,6 +8,10 @@ RUN groupadd -r openclaw && useradd -r -g openclaw -m -d /home/openclaw openclaw
 
 WORKDIR /home/openclaw
 
+# Install procps for pgrep (used in health check)
+RUN apt-get update && apt-get install -y --no-install-recommends procps \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Python dependencies
 COPY --chown=openclaw:openclaw requirements.txt /home/openclaw/requirements.txt
 RUN pip install --no-cache-dir -r /home/openclaw/requirements.txt

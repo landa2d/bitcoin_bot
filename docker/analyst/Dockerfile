@@ -17,8 +17,9 @@ WORKDIR /home/openclaw
 COPY --chown=openclaw:openclaw requirements.txt /home/openclaw/requirements.txt
 RUN pip install --no-cache-dir -r /home/openclaw/requirements.txt
 
-# Copy analyst poller
+# Copy analyst poller and schemas
 COPY --chown=openclaw:openclaw analyst_poller.py /home/openclaw/analyst_poller.py
+COPY --chown=openclaw:openclaw schemas.py /home/openclaw/schemas.py
 
 # Copy entrypoint
 COPY --chown=openclaw:openclaw entrypoint.sh /home/openclaw/entrypoint.sh

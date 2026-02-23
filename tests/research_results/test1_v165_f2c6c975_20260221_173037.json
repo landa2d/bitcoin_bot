@@ -1,0 +1,72 @@
+{
+  "test": 1,
+  "label": "High-signal debating topic",
+  "topic_key": "security_and_trust",
+  "mode": "spotlight",
+  "description": "[problem_clusters] Highest-velocity debating topic: security_and_trust",
+  "sources": {
+    "general": 123,
+    "thought_leader": 20
+  },
+  "usage": {
+    "input_tokens": 5678,
+    "output_tokens": 657,
+    "elapsed_seconds": 17.7,
+    "model": "claude-sonnet-4-20250514"
+  },
+  "output": {
+    "mode": "spotlight",
+    "topic_name": "Security And Trust",
+    "thesis": "The agent economy is scaling faster than security fundamentals, but Microsoft's Copilot confidential email leak reveals we're debugging trust issues in production with enterprise data.",
+    "evidence": "The security conversation has shifted from theoretical to operational as real-world breaches accumulate. Microsoft's acknowledgment that Copilot was summarizing confidential emails demonstrates how quickly trust assumptions break at scale \u2014 the bug wasn't in the AI, but in the access controls that nobody fully understood. Meanwhile, Ethan Mollick warns that visibility into agent behavior is 'the easiest piece' while teams are recording 100,000+ traces daily with no analysis framework. The community response is telling: new projects like Sandstorm are racing to build 'secure cloud sandboxes' for agents, while Anthropic is officially banning third-party subscription auth \u2014 a move that looks less like product strategy and more like liability management. The HackerNews discussion around Claude's 8% adversarial injection success rate reveals the uncomfortable truth: we're deploying systems where 'greatly improved resistance' still means frequent failures. The timing isn't coincidental \u2014 as agents move from coding assistants to autonomous financial traders (OpenAlice) and content creators, the blast radius of security failures is expanding exponentially.",
+    "counter_argument": "The strongest argument against this is that we're seeing normal growing pains, not fundamental flaws. Every new computing paradigm \u2014 from early internet protocols to mobile app permissions \u2014 went through similar security maturation cycles. The Microsoft bug was disclosed and patched quickly, Anthropic's auth restrictions show responsible platform governance, and the surge in security-focused agent infrastructure suggests the market is self-correcting. These aren't signs of systemic failure but evidence that the ecosystem is professionalizing.",
+    "prediction": "At least one major enterprise will publicly halt their agent deployment program due to a data leak by March 2026, triggering industry-wide agent security audits similar to post-SolarWinds reviews.",
+    "builder_implications": "Don't build agent security as an afterthought \u2014 it's now table stakes for enterprise adoption. Focus on explainable access controls and comprehensive audit trails rather than just prompt injection defense. The market is moving toward security-first agent architectures, making this a differentiator for the next six months before it becomes a requirement.",
+    "key_sources": [
+      "https://www.oneusefulthing.org/p/real-ai-agents-and-real-work",
+      "https://www.bleepingcomputer.com/news/microsoft/microsoft-says-bug-causes-copilot-to-summarize-confidential-emails/",
+      "https://blog.langchain.com/from-traces-to-insights-understanding-agent-behavior-at-scale/"
+    ],
+    "topic_id": "security-and-trust"
+  },
+  "scoring": {
+    "scores": {
+      "thesis_quality": 5,
+      "prediction_specificity": 5,
+      "voice_quality": 5,
+      "counter_argument_quality": 4,
+      "evidence_quality": 4,
+      "builder_actionability": 4
+    },
+    "details": {
+      "thesis_quality": [
+        "concise (25 words)"
+      ],
+      "prediction_specificity": [
+        "has timeframe",
+        "has number"
+      ],
+      "voice_quality": [
+        "clean voice"
+      ],
+      "counter_argument_quality": [
+        "adequate (75 words)",
+        "not strawman"
+      ],
+      "evidence_quality": [
+        "adequate (162 words)",
+        "prose format",
+        "16 source references"
+      ],
+      "builder_actionability": [
+        "2 action words"
+      ]
+    },
+    "total": 27,
+    "max": 30,
+    "pct": 90.0,
+    "weakest": "counter_argument_quality"
+  },
+  "prompt_version": "v165_f2c6c975",
+  "timestamp": "2026-02-21T17:30:37.453717+00:00"
+}

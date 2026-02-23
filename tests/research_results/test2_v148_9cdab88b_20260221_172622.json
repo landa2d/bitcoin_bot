@@ -1,0 +1,73 @@
+{
+  "test": 2,
+  "label": "Emerging topic with thin signal",
+  "topic_key": "scientific_data_analysis",
+  "mode": "spotlight",
+  "description": "[problem_clusters] Low-signal fallback (1 mentions): scientific_data_analysis",
+  "sources": {
+    "general": 39,
+    "thought_leader": 0
+  },
+  "usage": {
+    "input_tokens": 4384,
+    "output_tokens": 646,
+    "elapsed_seconds": 17.0,
+    "model": "claude-sonnet-4-20250514"
+  },
+  "output": {
+    "mode": "synthesis",
+    "topic_name": "The Agent Skills Infrastructure Layer",
+    "thesis": "The agent economy is fragmenting around skill definition standards, creating a winner-take-all race for the middleware layer that will determine which frameworks survive enterprise adoption",
+    "evidence": "Three converging signals reveal the real battle happening beneath the agent hype. First, we're seeing specialized skill repositories emerge across the stack \u2014 PlanetScale just released database-skills for AI agents, while visual-explainer hit 2000 GitHub stars for generating rich HTML analysis pages. This isn't random tooling; it's infrastructure preparing for scale. Second, the benchmarking wars have begun. SkillsBench is measuring how agent skills transfer across diverse tasks, revealing that LLM-generated skills actually hurt performance while human-defined procedural knowledge provides marginal gains. The gap between marketing claims and measurable outcomes is widening. Third, production reality is hitting hard. Stripe's Minions blog post reveals almost nothing about their 'one-shot end-to-end coding agents' \u2014 a telling sign that even sophisticated teams are struggling with basic agent reliability. Meanwhile, Microsoft's Copilot is accidentally summarizing confidential emails, and Anthropic is finding that 8% of adversarial prompts still succeed against their latest safety measures. The common thread: everyone is building agent skills differently, with no standard for composition, safety, or measurement. The winner won't be the best model \u2014 it'll be whoever controls the skill definition layer that makes agents actually work in production.",
+    "counter_argument": "The strongest argument against this is that skills standardization is premature optimization. The agent space is too nascent for infrastructure lock-in, and developers will naturally converge on the most effective patterns through market forces rather than early standardization battles. Large model labs like Anthropic and OpenAI have more leverage to define these standards organically through their APIs than middleware players.",
+    "prediction": "We'll see at least one major enterprise framework announce a 'Universal Agent Skills Protocol' by April 2026, triggering a standards war that forces consolidation in the agent tooling ecosystem",
+    "builder_implications": "Stop building custom agent skills from scratch. The companies winning enterprise deals in 2026 will be those who bet early on the emerging skill definition standards. Watch which formats the database-skills and visual-explainer projects adopt \u2014 that's your signal for which protocol will dominate. Focus on making your agents work with standardized skill interfaces rather than proprietary implementations.",
+    "key_sources": [
+      "https://github.com/planetscale/database-skills",
+      "https://arxiv.org/abs/2602.12670",
+      "https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents-part-2"
+    ],
+    "topic_id": "scientific-data-analysis"
+  },
+  "scoring": {
+    "scores": {
+      "thesis_quality": 3,
+      "prediction_specificity": 5,
+      "voice_quality": 5,
+      "counter_argument_quality": 4,
+      "evidence_quality": 4,
+      "builder_actionability": 4
+    },
+    "details": {
+      "thesis_quality": [
+        "no tension word",
+        "concise (25 words)"
+      ],
+      "prediction_specificity": [
+        "has timeframe",
+        "has number"
+      ],
+      "voice_quality": [
+        "clean voice"
+      ],
+      "counter_argument_quality": [
+        "adequate (60 words)",
+        "not strawman"
+      ],
+      "evidence_quality": [
+        "adequate (188 words)",
+        "prose format",
+        "12 source references"
+      ],
+      "builder_actionability": [
+        "4 action words"
+      ]
+    },
+    "total": 25,
+    "max": 30,
+    "pct": 83.3,
+    "weakest": "thesis_quality"
+  },
+  "prompt_version": "v148_9cdab88b",
+  "timestamp": "2026-02-21T17:26:22.934609+00:00"
+}

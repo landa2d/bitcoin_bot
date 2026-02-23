@@ -1,0 +1,72 @@
+{
+  "test": 3,
+  "label": "Technical infrastructure topic",
+  "topic_key": "security_and_trust",
+  "mode": "spotlight",
+  "description": "[problem_clusters] Technical topic: security_and_trust",
+  "sources": {
+    "general": 123,
+    "thought_leader": 20
+  },
+  "usage": {
+    "input_tokens": 5753,
+    "output_tokens": 768,
+    "elapsed_seconds": 23.0,
+    "model": "claude-sonnet-4-20250514"
+  },
+  "output": {
+    "mode": "spotlight",
+    "topic_name": "Security And Trust",
+    "thesis": "Agent security is becoming the enterprise adoption bottleneck, yet the most promising solutions are emerging from indie developers who understand sandboxing while the giants ship vulnerable integration layers.",
+    "evidence": "The security crisis is real and immediate. Microsoft's Copilot summarized confidential emails due to a 'bug' \u2014 the kind of data leak that would have ended careers in pre-AI enterprise software. Anthropic admits their own safety evaluation shows 8% successful prompt injections despite 'greatly improved resistance.' Meanwhile, HackerNews discussions reveal someone 'vibe coded software with major security vulnerabilities' just joined OpenAI, highlighting how the industry prioritizes shipping over security fundamentals. But the most telling signal comes from where real solutions are emerging. Independent developers are building the infrastructure the giants should have: tomascupr's Sandstorm runs Claude agents in secure cloud sandboxes, while Gentleman-Programming's Engram creates agent-agnostic memory systems with proper isolation. These aren't cosmetic security theaters \u2014 they're architectural responses to the fundamental problem that current agent frameworks assume trusted environments that don't exist in enterprise contexts. Ethan Mollick's analysis of 'Real AI Agents and Real Work' captures the tension: agents can accomplish impressive things with the right tools, but enterprises are stuck between human-centered workflows and systems that leak data by design. The thought leader consensus focuses on agent capabilities while indie builders are solving the trust infrastructure problem.",
+    "counter_argument": "The strongest argument against this is that security concerns are overblown early-adoption friction, not fundamental barriers. Every transformative enterprise technology \u2014 from cloud computing to mobile devices \u2014 faced similar security skepticism that eventually dissolved as standards matured. Microsoft's Copilot bug and Anthropic's 8% injection rate are typical growing pains, not existential flaws. Major vendors have far more resources to solve security at scale than indie developers building niche sandboxing tools. Enterprise buyers consistently choose integrated solutions from trusted vendors over point security solutions, regardless of technical superiority. The pattern suggests enterprises will accept higher security risks for comprehensive agent capabilities, especially as insurance and compliance frameworks adapt. Security theater often matters more than actual security in enterprise procurement decisions.",
+    "prediction": "At least one of the top-3 enterprise software vendors (Microsoft, Salesforce, ServiceNow) will acquire an independent agent security startup by Q1 2025.",
+    "builder_implications": "Don't wait for the giants to solve agent security \u2014 build isolation into your architecture from day one. The current window where security-first agent infrastructure can win enterprise deals against feature-rich but vulnerable platforms won't last long. Focus on sandboxing, audit trails, and data isolation as core differentiators, not afterthoughts. The indie developers building agent security tools today are positioning themselves for acquisition by vendors who realize they can't retrofit trust into systems designed for speed.",
+    "key_sources": [
+      "https://www.oneusefulthing.org/p/real-ai-agents-and-real-work",
+      "https://github.com/tomascupr/sandstorm",
+      "https://www.bleepingcomputer.com/news/microsoft/microsoft-says-bug-causes-copilot-to-summarize-confidential-emails/"
+    ],
+    "topic_id": "security-and-trust"
+  },
+  "scoring": {
+    "scores": {
+      "thesis_quality": 5,
+      "prediction_specificity": 5,
+      "voice_quality": 5,
+      "counter_argument_quality": 5,
+      "evidence_quality": 4,
+      "builder_actionability": 4
+    },
+    "details": {
+      "thesis_quality": [
+        "concise (28 words)"
+      ],
+      "prediction_specificity": [
+        "has timeframe",
+        "has number"
+      ],
+      "voice_quality": [
+        "clean voice"
+      ],
+      "counter_argument_quality": [
+        "substantive (120 words)",
+        "not strawman"
+      ],
+      "evidence_quality": [
+        "adequate (190 words)",
+        "prose format",
+        "15 source references"
+      ],
+      "builder_actionability": [
+        "1 action word(s)"
+      ]
+    },
+    "total": 28,
+    "max": 30,
+    "pct": 93.3,
+    "weakest": "evidence_quality"
+  },
+  "prompt_version": "v171_fe4f7ecf",
+  "timestamp": "2026-02-21T17:34:13.348279+00:00"
+}

@@ -12,12 +12,15 @@ import logging
 import os
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from dotenv import load_dotenv
+from pydantic import ValidationError
 from supabase import create_client, Client
 from openai import OpenAI
+
+from schemas import TASK_INPUT_SCHEMAS, AnalystOutput
 
 load_dotenv()
 
@@ -35,6 +38,10 @@ MODEL = os.getenv("ANALYST_MODEL", "gpt-4o")
 
 WORKSPACE = Path(OPENCLAW_DATA_DIR) / "workspace"
 ANALYSIS_DIR = WORKSPACE / "agentpulse" / "analysis"
+
+# Prediction monitoring
+PREDICTION_MAX_OPEN = int(os.getenv("PREDICTION_MAX_OPEN", "20"))
+PREDICTION_STALE_DAYS = int(os.getenv("PREDICTION_STALE_DAYS", "180"))
 
 # Logging
 LOG_DIR = Path(OPENCLAW_DATA_DIR) / "logs"
@@ -176,6 +183,41 @@ def get_budget_config(agent_name: str, task_type: str) -> dict:
     return {k: task_budget.get(k, defaults[k]) for k in defaults}
 
 
+def is_daily_budget_exhausted(agent_name: str) -> bool:
+    """Return True if this agent has hit its daily LLM call limit."""
+    if not supabase:
+        return False
+
+    config_path = Path(OPENCLAW_DATA_DIR) / "config" / "agentpulse-config.json"
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+        max_calls = config.get("budgets", {}).get("global", {}).get("max_daily_llm_calls", 100)
+    except Exception:
+        max_calls = 100
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    try:
+        row = (
+            supabase.table("agent_daily_usage")
+            .select("llm_calls_used")
+            .eq("agent_name", agent_name)
+            .eq("date", today)
+            .execute()
+        )
+        if row.data:
+            used = row.data[0].get("llm_calls_used", 0) or 0
+            if used >= max_calls:
+                logger.warning(
+                    f"Daily LLM budget exhausted for {agent_name}: "
+                    f"{used}/{max_calls} calls used today — skipping task"
+                )
+                return True
+    except Exception as e:
+        logger.warning(f"Could not check daily budget for {agent_name}: {e}")
+    return False
+
+
 def increment_daily_usage(agent_name: str, llm_calls: int = 0, subtasks: int = 0, alerts: int = 0):
     """Upsert today's usage row for the given agent in agent_daily_usage."""
     if not supabase:
@@ -268,17 +310,32 @@ def check_stale_tasks():
 # Task polling
 # ---------------------------------------------------------------------------
 
-def fetch_pending_tasks(limit: int = 3):
-    return (
-        supabase.table("agent_tasks")
-        .select("*")
-        .eq("status", "pending")
-        .eq("assigned_to", AGENT_NAME)
-        .order("priority", desc=False)
-        .order("created_at", desc=False)
-        .limit(limit)
-        .execute()
-    )
+def fetch_pending_tasks(limit: int = 3) -> list[dict]:
+    """Atomically claim up to `limit` pending tasks via FOR UPDATE SKIP LOCKED."""
+    result = supabase.rpc(
+        "claim_agent_task",
+        {"p_assigned_to": AGENT_NAME, "p_limit": limit},
+    ).execute()
+    return result.data or []
+
+
+def validate_task_input(task_type: str, input_data: dict) -> None:
+    """Validate inbound task input. Raises ValidationError on bad input (fail fast)."""
+    schema = TASK_INPUT_SCHEMAS.get(task_type)
+    if schema is None:
+        logger.warning(f"No input schema for task_type='{task_type}', skipping validation")
+        return
+    schema.model_validate(input_data)
+
+
+def validate_llm_output(raw: dict, model_cls: type) -> object:
+    """Validate LLM output. On failure, constructs partial model and logs."""
+    try:
+        return model_cls.model_validate(raw)
+    except ValidationError as e:
+        logger.warning(f"LLM output validation errors ({model_cls.__name__}): {e}")
+        valid_fields = {k: raw[k] for k in model_cls.model_fields if k in raw}
+        return model_cls.model_construct(**valid_fields)
 
 
 def mark_task_status(task_id: str, status: str, **fields):
@@ -567,8 +624,7 @@ def process_task(task: dict):
 
     logger.info(f"Processing task {task_id}: {task_type}")
 
-    # Mark in progress
-    mark_task_status(task_id, "in_progress", started_at=datetime.now(timezone.utc).isoformat())
+    # Task is already in_progress — claimed atomically by fetch_pending_tasks()
 
     # Validate task type
     supported = {"full_analysis", "deep_dive", "review_opportunity", "proactive_analysis", "enrich_for_newsletter"}
@@ -582,14 +638,38 @@ def process_task(task: dict):
         )
         return
 
+    # Validate input schema (fail fast on malformed input)
+    try:
+        validate_task_input(task_type, input_data)
+    except ValidationError as e:
+        error = f"Input validation: {e}"
+        logger.error(error)
+        mark_task_status(
+            task_id, "failed",
+            completed_at=datetime.now(timezone.utc).isoformat(),
+            error_message=error,
+        )
+        return
+
     # Inject budget constraints so the LLM knows its limits
     budget = get_budget_config(AGENT_NAME, task_type)
     input_data["budget"] = budget
     logger.info(f"Budget for {task_type}: {budget}")
 
+    # Check global daily LLM budget before making any API calls
+    if is_daily_budget_exhausted(AGENT_NAME):
+        mark_task_status(
+            task_id, "failed",
+            completed_at=datetime.now(timezone.utc).isoformat(),
+            error_message="daily_budget_exhausted",
+        )
+        return
+
     try:
         # Run the analysis via OpenAI
-        analysis = run_analysis(task_type, input_data, budget)
+        raw_analysis = run_analysis(task_type, input_data, budget)
+        validated = validate_llm_output(raw_analysis, AnalystOutput)
+        analysis = validated.model_dump()
 
         # Persist results to Supabase
         persist_analysis_run(analysis)
@@ -651,6 +731,195 @@ def process_task(task: dict):
 
 
 # ---------------------------------------------------------------------------
+# Prediction monitoring
+# ---------------------------------------------------------------------------
+
+PREDICTION_ASSESSMENT_PROMPT = """You are evaluating whether new evidence affects an existing prediction.
+
+Prediction: "{prediction_text}"
+Made in issue #{issue_number} on {created_at}
+
+New evidence from the last 7 days:
+{evidence_summary}
+
+Assess:
+1. Does this evidence CONFIRM the prediction, CONTRADICT it, or is it NEUTRAL?
+2. How significant is this evidence? (low / medium / high)
+3. If significant, summarize in 2-3 sentences what happened and how it relates to the prediction.
+
+Output as JSON:
+{{"direction": "confirms" | "contradicts" | "neutral", "significance": "low" | "medium" | "high", "evidence_summary": "..."}}"""
+
+
+def monitor_predictions():
+    """Check open predictions against recent source material. Flags HIGH significance only."""
+    if not supabase or not client:
+        return
+
+    try:
+        expire_stale_predictions()
+    except Exception as e:
+        logger.error(f"Stale prediction expiry failed: {e}")
+
+    try:
+        result = supabase.table("predictions")\
+            .select("*")\
+            .eq("status", "open")\
+            .order("created_at", desc=True)\
+            .limit(PREDICTION_MAX_OPEN)\
+            .execute()
+        open_predictions = result.data or []
+    except Exception as e:
+        logger.error(f"Failed to fetch open predictions: {e}")
+        return
+
+    if not open_predictions:
+        logger.debug("No open predictions to monitor")
+        return
+
+    logger.info(f"Monitoring {len(open_predictions)} open predictions")
+
+    now = datetime.now(timezone.utc)
+    cutoff = (now - timedelta(days=7)).isoformat()
+
+    try:
+        recent = supabase.table("source_posts")\
+            .select("title, body, source, source_url, tags")\
+            .gte("scraped_at", cutoff)\
+            .order("score", desc=True)\
+            .limit(200)\
+            .execute()
+        recent_items = recent.data or []
+    except Exception as e:
+        logger.error(f"Failed to fetch recent items for prediction monitoring: {e}")
+        return
+
+    if not recent_items:
+        logger.info("No recent items — skipping prediction monitoring")
+        return
+
+    total_tokens = 0
+    flagged_count = 0
+
+    for prediction in open_predictions:
+        try:
+            tokens = assess_and_flag(prediction, recent_items)
+            total_tokens += tokens
+            if tokens < 0:
+                flagged_count += 1
+                total_tokens += abs(tokens)
+        except Exception as e:
+            logger.error(f"Error assessing prediction {prediction.get('id', '?')}: {e}")
+
+    logger.info(f"Prediction monitoring done: {len(open_predictions)} checked, {flagged_count} flagged, ~{total_tokens} tokens used")
+    increment_daily_usage(AGENT_NAME, llm_calls=len(open_predictions))
+
+
+def assess_and_flag(prediction: dict, recent_items: list) -> int:
+    """Assess one prediction against recent items. Returns token count (negative if flagged)."""
+    pred_id = prediction.get("id", "")
+    topic_id = prediction.get("topic_id", "")
+    pred_text = prediction.get("prediction_text", "")
+
+    if not pred_text:
+        return 0
+
+    search_terms = topic_id.lower().replace("_", " ").split() if topic_id else pred_text.lower().split()[:5]
+
+    related = []
+    for item in recent_items:
+        text = f"{item.get('title', '')} {item.get('body', '')}".lower()
+        if any(term in text for term in search_terms if len(term) > 2):
+            related.append(item)
+
+    if not related:
+        return 0
+
+    evidence_lines = []
+    for item in related[:10]:
+        src = item.get("source", "?")
+        title = item.get("title", "Untitled")
+        body = (item.get("body") or "")[:200]
+        evidence_lines.append(f"[{src}] {title}\n{body}")
+
+    evidence_text = "\n\n".join(evidence_lines)
+
+    prompt = PREDICTION_ASSESSMENT_PROMPT.format(
+        prediction_text=pred_text,
+        issue_number=prediction.get("issue_number", "?"),
+        created_at=prediction.get("created_at", "?"),
+        evidence_summary=evidence_text,
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model=MODEL,
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.2,
+        )
+
+        tokens_used = (response.usage.total_tokens if response.usage else 0)
+        raw = response.choices[0].message.content.strip()
+
+        if raw.startswith("```"):
+            raw = re.sub(r"^```(?:json)?\s*", "", raw)
+            raw = re.sub(r"\s*```$", "", raw)
+
+        assessment = json.loads(raw)
+
+        significance = assessment.get("significance", "low")
+        direction = assessment.get("direction", "neutral")
+        summary = assessment.get("evidence_summary", "")
+
+        logger.info(f"Prediction {pred_id[:8]}: {direction}/{significance}")
+
+        if significance == "high" and direction != "neutral":
+            existing_notes = prediction.get("evidence_notes") or ""
+            new_note = f"[{direction}] {summary}"
+            combined_notes = f"{existing_notes}\n{new_note}".strip() if existing_notes else new_note
+
+            supabase.table("predictions").update({
+                "status": "flagged",
+                "evidence_notes": combined_notes,
+                "flagged_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", pred_id).execute()
+            logger.info(f"FLAGGED prediction {pred_id[:8]}: {direction} -- {summary[:80]}")
+            return -tokens_used
+
+        return tokens_used
+
+    except Exception as e:
+        logger.error(f"LLM assessment failed for prediction {pred_id[:8]}: {e}")
+        return 0
+
+
+def expire_stale_predictions():
+    """Auto-close predictions older than PREDICTION_STALE_DAYS as 'expired'."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=PREDICTION_STALE_DAYS)).isoformat()
+
+    try:
+        stale = supabase.table("predictions")\
+            .select("id")\
+            .eq("status", "open")\
+            .lt("created_at", cutoff)\
+            .execute()
+
+        for pred in (stale.data or []):
+            supabase.table("predictions").update({
+                "status": "expired",
+                "resolution_notes": f"Auto-expired after {PREDICTION_STALE_DAYS} days with no resolution",
+                "resolved_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", pred["id"]).execute()
+
+        if stale.data:
+            logger.info(f"Expired {len(stale.data)} stale predictions (>{PREDICTION_STALE_DAYS} days)")
+    except Exception as e:
+        logger.error(f"Failed to expire stale predictions: {e}")
+
+
+# ---------------------------------------------------------------------------
 # Main loop
 # ---------------------------------------------------------------------------
 
@@ -672,11 +941,16 @@ def main():
     while True:
         try:
             check_stale_tasks()
-            tasks = fetch_pending_tasks().data or []
+            tasks = fetch_pending_tasks()
             for task in tasks:
                 process_task(task)
         except Exception as e:
             logger.error(f"Poll loop error: {e}")
+
+        try:
+            monitor_predictions()
+        except Exception as e:
+            logger.error(f"Prediction monitoring error: {e}")
 
         time.sleep(POLL_INTERVAL)
 

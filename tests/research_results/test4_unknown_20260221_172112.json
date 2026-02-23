@@ -1,0 +1,6 @@
+{
+  "test": 4,
+  "label": "Synthesis mode (3 topics)",
+  "skipped": true,
+  "reason": "Not enough topics for synthesis"
+}

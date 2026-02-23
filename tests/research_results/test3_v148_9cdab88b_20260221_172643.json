@@ -1,0 +1,74 @@
+{
+  "test": 3,
+  "label": "Technical infrastructure topic",
+  "topic_key": "security_and_trust",
+  "mode": "spotlight",
+  "description": "[problem_clusters] Technical topic: security_and_trust",
+  "sources": {
+    "general": 123,
+    "thought_leader": 20
+  },
+  "usage": {
+    "input_tokens": 5422,
+    "output_tokens": 718,
+    "elapsed_seconds": 20.2,
+    "model": "claude-sonnet-4-20250514"
+  },
+  "output": {
+    "mode": "spotlight",
+    "topic_name": "Security And Trust",
+    "thesis": "The agent security model is fundamentally broken because we're applying human-scale trust assumptions to systems that operate at machine speed and scale",
+    "evidence": "The evidence is everywhere, but we're not connecting the dots. Microsoft's Copilot is summarizing confidential emails due to a 'bug' \u2014 but this isn't a bug, it's the inevitable result of giving agents broad access without agent-appropriate guardrails. Anthropic admits their own automated adversarial system successfully injects Claude 8% of the time in single attempts, yet we're deploying these systems to handle sensitive data. Meanwhile, the community is building increasingly powerful agent frameworks like Sandstorm for 'secure cloud sandboxes' and Engram for persistent agent memory, but security is an afterthought bolted on rather than designed in. The most telling signal comes from the field reports: developers are 'vibe coding' agents with major security vulnerabilities, admitting they never read the code they're deploying. HackerNews discussions reveal a pattern \u2014 every major agent deployment story includes a security incident that 'nobody saw coming.' Ethan Mollick's research on AI teammates shows performance gains, but he's studying human-AI collaboration, not agent-agent ecosystems where trust relationships cascade exponentially. The GitHub activity tells the real story: agent frameworks are proliferating faster than security standards can be established, with most repositories showing security considerations added retroactively, if at all.",
+    "counter_argument": "The strongest argument against this is that we're in the early adopter phase where security naturally lags innovation, just as it did with web applications in the 1990s. Major cloud providers and AI companies have massive incentives to solve these problems and the technical capability to do so. Current incidents are growing pains, not fundamental flaws \u2014 and the market will force rapid improvement as enterprise adoption increases.",
+    "prediction": "Within 90 days, we'll see the first major enterprise data breach directly attributed to agent-to-agent trust chain failure, where one compromised agent cascades access across multiple systems faster than human operators can respond",
+    "builder_implications": "Stop building agent systems with human trust models. Design for zero-trust agent architectures from day one \u2014 assume every agent interaction is adversarial until proven otherwise. Implement agent-specific access controls that can revoke permissions at machine speed, not human speed. Most importantly, if you're building agent infrastructure, security isn't a feature you add later \u2014 it's the foundation that determines whether your system survives contact with production.",
+    "key_sources": [
+      "https://www.bleepingcomputer.com/news/microsoft/microsoft-says-bug-causes-copilot-to-summarize-confidential-emails/",
+      "https://www.anthropic.com/news/claude-sonnet-4-6",
+      "https://github.com/tomascupr/sandstorm",
+      "https://www.oneusefulthing.org/p/the-cybernetic-teammate"
+    ],
+    "topic_id": "security-and-trust"
+  },
+  "scoring": {
+    "scores": {
+      "thesis_quality": 3,
+      "prediction_specificity": 5,
+      "voice_quality": 5,
+      "counter_argument_quality": 4,
+      "evidence_quality": 4,
+      "builder_actionability": 5
+    },
+    "details": {
+      "thesis_quality": [
+        "no tension word",
+        "concise (22 words)"
+      ],
+      "prediction_specificity": [
+        "has timeframe",
+        "has number"
+      ],
+      "voice_quality": [
+        "clean voice"
+      ],
+      "counter_argument_quality": [
+        "adequate (68 words)",
+        "not strawman"
+      ],
+      "evidence_quality": [
+        "adequate (192 words)",
+        "prose format",
+        "17 source references"
+      ],
+      "builder_actionability": [
+        "2 action words"
+      ]
+    },
+    "total": 26,
+    "max": 30,
+    "pct": 86.7,
+    "weakest": "thesis_quality"
+  },
+  "prompt_version": "v148_9cdab88b",
+  "timestamp": "2026-02-21T17:26:43.767635+00:00"
+}

@@ -1,6 +1,7 @@
 # OpenClaw AgentPulse — Multi-Service Docker Compose
-# 3 services: gato (Telegram agent), analyst (analysis worker), processor (background scraper)
+# 6 services: gato (Telegram), analyst, processor, research, newsletter, web
 #
+# Monday pipeline: scrapers → analyst → spotlight selection → research agent → newsletter
 # Secrets (SUPABASE_URL, OPENAI_API_KEY, etc.) come from env_file: ../config/.env
 # Only non-secret, service-specific vars are set in the environment block.
 
@@ -45,7 +46,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "node", "-e", "console.log('healthy')"]
+      test: ["CMD", "pgrep", "-f", "node"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -76,7 +77,8 @@ services:
       - ../config:/home/openclaw/.openclaw/config:ro
     mem_limit: 256m
     depends_on:
-      - processor
+      processor:
+        condition: service_healthy
     networks:
       - agentpulse-net
     logging:
@@ -116,7 +118,8 @@ services:
       - ../config:/home/openclaw/.openclaw/config:ro
     mem_limit: 256m
     depends_on:
-      - processor
+      processor:
+        condition: service_healthy
     networks:
       - agentpulse-net
     logging:
@@ -130,6 +133,46 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  # ═══════════════════════════════════════════════════════
+  # RESEARCH — Conviction-driven thesis builder (Anthropic)
+  # ═══════════════════════════════════════════════════════
+  research:
+    build:
+      context: ./research
+      dockerfile: Dockerfile
+    container_name: agentpulse-research
+    restart: unless-stopped
+    env_file:
+      - ../config/.env
+    environment:
+      <<: *common-env
+      AGENT_NAME: research
+      RESEARCH_MODEL: claude-sonnet-4-20250514
+      RESEARCH_POLL_INTERVAL: "60"
+      OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
+      LOG_LEVEL: info
+    volumes:
+      - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
+      - ../config:/home/openclaw/.openclaw/config:ro
+      - ../templates/research/IDENTITY.md:/home/openclaw/IDENTITY.md:ro
+    mem_limit: 256m
+    depends_on:
+      processor:
+        condition: service_healthy
+    networks:
+      - agentpulse-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "research_agent.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ═══════════════════════════════════════════════════════
   # PROCESSOR — Background scraper & task orchestrator
@@ -156,7 +199,7 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "python3", "-c", "print('healthy')"]
+      test: ["CMD", "pgrep", "-f", "agentpulse_processor.py"]
       interval: 30s
       timeout: 10s
       retries: 3

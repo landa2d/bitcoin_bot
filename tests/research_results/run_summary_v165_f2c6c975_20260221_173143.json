@@ -1,0 +1,54 @@
+{
+  "prompt_version": "v165_f2c6c975",
+  "timestamp": "2026-02-21T17:31:43.513058+00:00",
+  "tests_run": 5,
+  "tests_passed": 5,
+  "results": [
+    {
+      "test": 1,
+      "label": "High-signal debating topic",
+      "topic": "security_and_trust",
+      "total_score": 27,
+      "pct": 90.0,
+      "weakest": "counter_argument_quality"
+    },
+    {
+      "test": 2,
+      "label": "Emerging topic with thin signal",
+      "topic": "scientific_data_analysis",
+      "total_score": 18,
+      "pct": 60.0,
+      "weakest": "prediction_specificity"
+    },
+    {
+      "test": 3,
+      "label": "Technical infrastructure topic",
+      "topic": "security_and_trust",
+      "total_score": 27,
+      "pct": 90.0,
+      "weakest": "counter_argument_quality"
+    },
+    {
+      "test": 4,
+      "label": "Synthesis mode (3 topics)",
+      "topic": "scientific_data_analysis+ai_governance_and_compliance+ai_coordination_challenges",
+      "total_score": 29,
+      "pct": 96.7,
+      "weakest": "evidence_quality"
+    },
+    {
+      "test": 5,
+      "label": "Thought leader disagreement",
+      "topic": "api_cost_management",
+      "total_score": 27,
+      "pct": 90.0,
+      "weakest": "counter_argument_quality"
+    }
+  ],
+  "average_score_pct": 85.3,
+  "most_common_weakness": "counter_argument_quality",
+  "best_test": {
+    "test": 4,
+    "pct": 96.7
+  }
+}

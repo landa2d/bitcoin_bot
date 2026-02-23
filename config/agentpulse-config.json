@@ -90,6 +90,13 @@
       "processor_can_ask": []
     }
   },
+  "spotlight_selection": {
+    "min_score_threshold": 0.5,
+    "cooldown_issues": 4,
+    "min_mentions": 3,
+    "min_source_tiers": 2,
+    "max_queue_items": 1
+  },
   "analysis": {
     "model": "gpt-4o",
     "max_tokens": 4000,

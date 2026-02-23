@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gettext-base \
     jq \
+    procps \
     && rm -rf /var/lib/apt/lists/*
 
 # Install pnpm globally
@@ -57,9 +58,9 @@ RUN chmod +x /home/openclaw/preflight.sh
 COPY --chown=openclaw:openclaw moltbook_post_watcher.sh /home/openclaw/moltbook_post_watcher.sh
 RUN chmod +x /home/openclaw/moltbook_post_watcher.sh
 
-# Health check
+# Health check — verify the Node process is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD node -e "console.log('healthy')" || exit 1
+    CMD pgrep -f "node" || exit 1
 
 # Set entrypoint
 ENTRYPOINT ["/home/openclaw/entrypoint.sh"]

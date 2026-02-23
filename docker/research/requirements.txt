@@ -1,0 +1,6 @@
+# AgentPulse Research Agent — Python dependencies
+anthropic>=0.80.0
+httpx>=0.25.0
+pydantic>=2.0.0
+supabase>=2.0.0
+python-dotenv>=1.0.0

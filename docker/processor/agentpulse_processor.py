@@ -104,7 +104,7 @@ RSS_FEEDS = {
         'category': 'authority'
     },
     'andrew_ng': {
-        'url': 'https://www.deeplearning.ai/the-batch/feed/',
+        'url': 'https://www.deeplearning.ai/the-batch/feed',
         'tier': 1,
         'category': 'thought_leader'
     },
@@ -145,7 +145,7 @@ RSS_RELEVANCE_KEYWORDS = [
 
 THOUGHT_LEADER_FEEDS = {
     'deeplearning_ai': {
-        'url': 'https://www.deeplearning.ai/the-batch/feed/',
+        'url': 'https://www.deeplearning.ai/the-batch/feed',
         'name': 'DeepLearning.AI (Andrew Ng)',
         'purpose': 'Research-to-practice crossing signals',
     },
@@ -386,7 +386,7 @@ def check_daily_budget(agent_name: str) -> bool:
     if not supabase:
         return True
 
-    today = datetime.utcnow().date().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     try:
         usage = supabase.table('agent_daily_usage')\
             .select('*')\
@@ -413,7 +413,7 @@ def increment_daily_usage(agent_name: str, llm_calls: int = 0, subtasks: int = 0
     if not supabase:
         return
 
-    today = datetime.utcnow().date().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     try:
         existing = supabase.table('agent_daily_usage')\
             .select('*')\
@@ -447,7 +447,7 @@ def get_daily_usage(agent_name: str = None) -> dict:
     if not supabase:
         return {'error': 'Supabase not configured'}
 
-    today = datetime.utcnow().date().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     try:
         query = supabase.table('agent_daily_usage')\
             .select('*')\
@@ -596,95 +596,99 @@ def store_post(post: dict, submolt_override: str = None) -> bool:
         'processed': False
     }
     
-    supabase.table('moltbook_posts').insert(record).execute()
-    return True
+    try:
+        supabase.table('moltbook_posts').insert(record).execute()
+        return True
+    except Exception as e:
+        logger.error(f"store_post: failed to insert post {moltbook_id}: {e}")
+        return None
 
 # ============================================================================
 # Hacker News Scraping
 # ============================================================================
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
 def scrape_hackernews(limit: int = 200) -> dict:
     """Scrape top HN stories, filter for AI/agent relevance, store in source_posts."""
     if not supabase:
         return {'error': 'Supabase not configured'}
 
     logger.info(f"HN scrape: scanning top {limit} stories...")
-    client = httpx.Client(timeout=15)
-
-    try:
-        resp = client.get(f"{HN_API_BASE}/topstories.json")
-        resp.raise_for_status()
-        story_ids = resp.json()[:limit]
-    except Exception as e:
-        logger.error(f"HN scrape: failed to fetch top stories: {e}")
-        return {'error': str(e)}
-
-    relevant_posts = []
-    total_scanned = 0
-
-    for story_id in story_ids:
+    with httpx.Client(timeout=15) as client:
         try:
-            story_resp = client.get(f"{HN_API_BASE}/item/{story_id}.json")
-            story_resp.raise_for_status()
-            story = story_resp.json()
+            resp = client.get(f"{HN_API_BASE}/topstories.json")
+            resp.raise_for_status()
+            story_ids = resp.json()[:limit]
+        except Exception as e:
+            logger.error(f"HN scrape: failed to fetch top stories: {e}")
+            return {'error': str(e)}
 
-            if not story or story.get('type') != 'story' or not story.get('title'):
-                continue
+        relevant_posts = []
+        total_scanned = 0
 
-            total_scanned += 1
-            title_lower = story['title'].lower()
+        for story_id in story_ids:
+            try:
+                story_resp = client.get(f"{HN_API_BASE}/item/{story_id}.json")
+                story_resp.raise_for_status()
+                story = story_resp.json()
 
-            if not any(kw in title_lower for kw in HN_KEYWORDS):
-                continue
-
-            comments = []
-            comment_ids = (story.get('kids') or [])[:20]
-            for cid in comment_ids:
-                try:
-                    c_resp = client.get(f"{HN_API_BASE}/item/{cid}.json")
-                    c_resp.raise_for_status()
-                    c = c_resp.json()
-                    if c and c.get('text'):
-                        comments.append({
-                            'author': c.get('by', 'anon'),
-                            'text': c['text'],
-                            'score': c.get('score', 0)
-                        })
-                    time.sleep(0.2)
-                except Exception:
+                if not story or story.get('type') != 'story' or not story.get('title'):
                     continue
 
-            is_show_hn = title_lower.startswith('show hn')
-            post_data = {
-                'source': 'hackernews',
-                'source_id': str(story_id),
-                'source_url': story.get('url') or f"https://news.ycombinator.com/item?id={story_id}",
-                'title': story['title'],
-                'body': '\n\n'.join(c['text'] for c in comments),
-                'author': story.get('by', 'anon'),
-                'score': story.get('score', 0),
-                'comment_count': story.get('descendants', 0),
-                'tags': ['show_hn'] if is_show_hn else [],
-                'metadata': {
-                    'hn_url': f"https://news.ycombinator.com/item?id={story_id}",
-                    'comments': comments[:10],
-                    'is_show_hn': is_show_hn
+                total_scanned += 1
+                title_lower = story['title'].lower()
+
+                if not any(kw in title_lower for kw in HN_KEYWORDS):
+                    continue
+
+                comments = []
+                comment_ids = (story.get('kids') or [])[:20]
+                for cid in comment_ids:
+                    try:
+                        c_resp = client.get(f"{HN_API_BASE}/item/{cid}.json")
+                        c_resp.raise_for_status()
+                        c = c_resp.json()
+                        if c and c.get('text'):
+                            comments.append({
+                                'author': c.get('by', 'anon'),
+                                'text': c['text'],
+                                'score': c.get('score', 0)
+                            })
+                        time.sleep(0.2)
+                    except Exception:
+                        continue
+
+                is_show_hn = title_lower.startswith('show hn')
+                post_data = {
+                    'source': 'hackernews',
+                    'source_id': str(story_id),
+                    'source_url': story.get('url') or f"https://news.ycombinator.com/item?id={story_id}",
+                    'title': story['title'],
+                    'body': '\n\n'.join(c['text'] for c in comments),
+                    'author': story.get('by', 'anon'),
+                    'score': story.get('score', 0),
+                    'comment_count': story.get('descendants', 0),
+                    'tags': ['show_hn'] if is_show_hn else [],
+                    'metadata': {
+                        'hn_url': f"https://news.ycombinator.com/item?id={story_id}",
+                        'comments': comments[:10],
+                        'is_show_hn': is_show_hn
+                    }
                 }
-            }
-            relevant_posts.append(post_data)
-            time.sleep(0.5)
+                relevant_posts.append(post_data)
+                time.sleep(0.5)
 
-        except Exception as e:
-            logger.error(f"HN scrape error for {story_id}: {e}")
-            continue
+            except Exception as e:
+                logger.error(f"HN scrape error for {story_id}: {e}")
+                continue
 
-    for post in relevant_posts:
-        try:
-            supabase.table('source_posts').upsert(
-                post, on_conflict='source,source_id'
-            ).execute()
-        except Exception as e:
-            logger.error(f"HN upsert error for {post.get('source_id')}: {e}")
+        for post in relevant_posts:
+            try:
+                supabase.table('source_posts').upsert(
+                    post, on_conflict='source,source_id'
+                ).execute()
+            except Exception as e:
+                logger.error(f"HN upsert error for {post.get('source_id')}: {e}")
 
     logger.info(f"HN scrape complete: {len(relevant_posts)} relevant out of {total_scanned} scanned")
     return {
@@ -694,13 +698,14 @@ def scrape_hackernews(limit: int = 200) -> dict:
     }
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
 def scrape_github(days_back: int = 7) -> dict:
     """Scrape GitHub for new AI/agent repos, store in source_posts."""
     if not supabase:
         return {'error': 'Supabase not configured'}
 
     logger.info(f"GitHub scrape: searching repos created in last {days_back} days...")
-    cutoff = (datetime.utcnow() - timedelta(days=days_back)).strftime('%Y-%m-%d')
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days_back)).strftime('%Y-%m-%d')
 
     headers = {'Accept': 'application/vnd.github.v3+json'}
     if GITHUB_TOKEN:
@@ -715,67 +720,67 @@ def scrape_github(days_back: int = 7) -> dict:
         f'mcp server created:>{cutoff} stars:>3',
     ]
 
-    client = httpx.Client(timeout=15)
     seen_repos = set()
     all_posts = []
     queries_run = 0
 
-    for query in queries:
-        try:
-            resp = client.get(
-                'https://api.github.com/search/repositories',
-                params={'q': query, 'sort': 'stars', 'order': 'desc', 'per_page': 30},
-                headers=headers,
-            )
-            if resp.status_code == 403:
-                logger.warning("GitHub rate limit hit")
-                break
-            resp.raise_for_status()
-            queries_run += 1
+    with httpx.Client(timeout=15) as client:
+        for query in queries:
+            try:
+                resp = client.get(
+                    'https://api.github.com/search/repositories',
+                    params={'q': query, 'sort': 'stars', 'order': 'desc', 'per_page': 30},
+                    headers=headers,
+                )
+                if resp.status_code == 403:
+                    logger.warning("GitHub rate limit hit")
+                    break
+                resp.raise_for_status()
+                queries_run += 1
 
-            for repo in resp.json().get('items', []):
-                if repo['id'] in seen_repos:
-                    continue
-                seen_repos.add(repo['id'])
+                for repo in resp.json().get('items', []):
+                    if repo['id'] in seen_repos:
+                        continue
+                    seen_repos.add(repo['id'])
 
-                description = repo.get('description') or ''
-                stars = repo['stargazers_count']
-                forks = repo['forks_count']
-                language = repo.get('language') or 'N/A'
-                created_at = repo['created_at']
+                    description = repo.get('description') or ''
+                    stars = repo['stargazers_count']
+                    forks = repo['forks_count']
+                    language = repo.get('language') or 'N/A'
+                    created_at = repo['created_at']
 
-                post_data = {
-                    'source': 'github',
-                    'source_id': str(repo['id']),
-                    'source_url': repo['html_url'],
-                    'title': repo['full_name'],
-                    'body': f"{description}\n\nStars: {stars} | Forks: {forks} | Language: {language} | Created: {created_at}",
-                    'author': repo['owner']['login'],
-                    'score': stars,
-                    'comment_count': repo.get('open_issues_count', 0),
-                    'tags': repo.get('topics', []),
-                    'metadata': {
-                        'full_name': repo['full_name'],
-                        'description': repo.get('description'),
-                        'language': repo.get('language'),
-                        'stars': stars,
-                        'forks': forks,
-                        'created_at': created_at,
-                        'updated_at': repo['updated_at'],
-                        'topics': repo.get('topics', []),
-                        'is_fork': repo.get('fork', False),
-                        'license': repo.get('license', {}).get('spdx_id') if repo.get('license') else None,
-                    },
-                }
-                all_posts.append(post_data)
+                    post_data = {
+                        'source': 'github',
+                        'source_id': str(repo['id']),
+                        'source_url': repo['html_url'],
+                        'title': repo['full_name'],
+                        'body': f"{description}\n\nStars: {stars} | Forks: {forks} | Language: {language} | Created: {created_at}",
+                        'author': repo['owner']['login'],
+                        'score': stars,
+                        'comment_count': repo.get('open_issues_count', 0),
+                        'tags': repo.get('topics', []),
+                        'metadata': {
+                            'full_name': repo['full_name'],
+                            'description': repo.get('description'),
+                            'language': repo.get('language'),
+                            'stars': stars,
+                            'forks': forks,
+                            'created_at': created_at,
+                            'updated_at': repo['updated_at'],
+                            'topics': repo.get('topics', []),
+                            'is_fork': repo.get('fork', False),
+                            'license': repo.get('license', {}).get('spdx_id') if repo.get('license') else None,
+                        },
+                    }
+                    all_posts.append(post_data)
 
-            time.sleep(2)
-        except httpx.HTTPStatusError as e:
-            logger.error(f"GitHub search error: {e}")
-            continue
-        except Exception as e:
-            logger.error(f"GitHub search error: {e}")
-            continue
+                time.sleep(2)
+            except httpx.HTTPStatusError as e:
+                logger.error(f"GitHub search error: {e}")
+                continue
+            except Exception as e:
+                logger.error(f"GitHub search error: {e}")
+                continue
 
     for post in all_posts:
         try:
@@ -822,6 +827,7 @@ def scrape_rss_feeds() -> dict:
                     'body': summary[:1000],
                     'author': entry.get('author', feed_name),
                     'score': feed_config['tier'],
+                    'source_tier': feed_config['tier'],
                     'comment_count': 0,
                     'tags': [feed_config['category'], f"tier_{feed_config['tier']}"],
                     'metadata': {
@@ -877,6 +883,7 @@ def _detect_topics(text: str) -> list:
     return [topic for topic, keywords in topic_map.items() if any(kw in text_lower for kw in keywords)]
 
 
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
 def scrape_thought_leaders() -> dict:
     """Ingest thought leader RSS feeds as Tier 1.5 sources with topic detection and dedup."""
     import feedparser
@@ -892,8 +899,8 @@ def scrape_thought_leaders() -> dict:
     try:
         recent = supabase.table('source_posts')\
             .select('source_url')\
-            .eq('source_tier', 'thought_leader')\
-            .gte('scraped_at', (datetime.utcnow() - timedelta(days=14)).isoformat())\
+            .like('source', 'thought_leader_%')\
+            .gte('scraped_at', (datetime.now(timezone.utc) - timedelta(days=14)).isoformat())\
             .execute()
         existing_urls = {r['source_url'] for r in (recent.data or []) if r.get('source_url')}
     except Exception as e:
@@ -902,7 +909,14 @@ def scrape_thought_leaders() -> dict:
     for feed_key, feed_config in THOUGHT_LEADER_FEEDS.items():
         try:
             logger.info(f"Thought leader scrape: parsing {feed_config['name']} ({feed_config['url']})")
-            feed = feedparser.parse(feed_config['url'])
+            try:
+                with httpx.Client(timeout=15, follow_redirects=True) as client:
+                    resp = client.get(feed_config['url'], headers={'User-Agent': 'AgentPulse/1.0'})
+                feed = feedparser.parse(resp.text)
+            except Exception as fetch_err:
+                logger.warning(f"Feed {feed_key} fetch failed: {fetch_err}")
+                results[feed_key] = {'error': f'Fetch failed: {fetch_err}'}
+                continue
 
             if feed.bozo and not feed.entries:
                 logger.warning(f"Feed {feed_key} returned errors and no entries — skipping")
@@ -931,7 +945,7 @@ def scrape_thought_leaders() -> dict:
                     'source': f'thought_leader_{feed_key}',
                     'source_id': source_id,
                     'source_url': url,
-                    'source_tier': 'thought_leader',
+                    'source_tier': 2,
                     'title': title,
                     'body': (summary or content)[:2000],
                     'author': feed_config['name'],
@@ -1023,7 +1037,7 @@ def extract_problems(hours_back: int = 48) -> dict:
     run_id = log_pipeline_start('extract_problems')
     
     # Fetch unprocessed posts
-    cutoff = datetime.utcnow() - timedelta(hours=hours_back)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
     posts = supabase.table('moltbook_posts')\
         .select('*')\
         .eq('processed', False)\
@@ -1241,7 +1255,7 @@ def cluster_problems(min_problems: int = 3) -> dict:
             total_mentions = sum(p.get('frequency_count', 1) for p in cluster_problems_data)
 
             # Compute average recency in days
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
             recency_days = []
             for p in cluster_problems_data:
                 created = p.get('created_at')
@@ -1528,7 +1542,7 @@ def store_opportunity(opp: dict, cluster_id: str = None):
             'target_market': opp.get('target_market'),
             'market_size_estimate': opp.get('market_size_estimate'),
             'why_now': opp.get('why_now'),
-            'last_reviewed_at': datetime.utcnow().isoformat(),
+            'last_reviewed_at': datetime.now(timezone.utc).isoformat(),
             'review_count': (existing.get('review_count') or 0) + 1,
         }
         if cluster_id:
@@ -1693,7 +1707,7 @@ def deduplicate_opportunities() -> dict:
             supabase.table('opportunities').update({
                 'confidence_score': max_confidence,
                 'review_count': total_reviews,
-                'last_reviewed_at': datetime.utcnow().isoformat(),
+                'last_reviewed_at': datetime.now(timezone.utc).isoformat(),
             }).eq('id', keeper['id']).execute()
 
             for dup in to_delete:
@@ -1821,7 +1835,7 @@ def extract_tool_mentions(hours_back: int = 48) -> dict:
 
     # Fetch posts from the last N hours (regardless of processed status —
     # tool extraction is independent from problem extraction)
-    cutoff = datetime.utcnow() - timedelta(hours=hours_back)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
     posts = supabase.table('moltbook_posts')\
         .select('*')\
         .gte('scraped_at', cutoff.isoformat())\
@@ -1891,7 +1905,7 @@ def extract_tool_mentions(hours_back: int = 48) -> dict:
                 'is_recommendation': mention.get('is_recommendation', False),
                 'is_complaint': mention.get('is_complaint', False),
                 'alternative_mentioned': mention.get('alternative_mentioned'),
-                'mentioned_at': datetime.utcnow().isoformat(),
+                'mentioned_at': datetime.now(timezone.utc).isoformat(),
                 'metadata': {}
             }
 
@@ -1932,7 +1946,7 @@ def update_tool_stats() -> dict:
     logger.info(f"Updating stats for {len(unique_tools)} tools")
 
     stats_updated = 0
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     week_ago = (now - timedelta(days=7)).isoformat()
     month_ago = (now - timedelta(days=30)).isoformat()
 
@@ -2052,7 +2066,7 @@ def extract_trending_topics(hours_back: int = 48) -> dict:
     run_id = log_pipeline_start('extract_trending_topics')
 
     # Fetch recent posts
-    cutoff = datetime.utcnow() - timedelta(hours=hours_back)
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=hours_back)
     posts = supabase.table('moltbook_posts')\
         .select('*')\
         .gte('scraped_at', cutoff.isoformat())\
@@ -2183,7 +2197,7 @@ def extract_problems_multisource(hours_back: int = 48) -> dict:
 
     run_id = log_pipeline_start('extract_problems_multisource')
 
-    cutoff = (datetime.utcnow() - timedelta(hours=hours_back)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours_back)).isoformat()
     posts = supabase.table('source_posts')\
         .select('*')\
         .eq('processed', False)\
@@ -2254,7 +2268,7 @@ def extract_tools_multisource(hours_back: int = 48) -> dict:
 
     run_id = log_pipeline_start('extract_tools_multisource')
 
-    cutoff = (datetime.utcnow() - timedelta(hours=hours_back)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours_back)).isoformat()
     posts = supabase.table('source_posts')\
         .select('*')\
         .gte('scraped_at', cutoff)\
@@ -2307,7 +2321,7 @@ def extract_tools_multisource(hours_back: int = 48) -> dict:
                 'is_recommendation': mention.get('is_recommendation', False),
                 'is_complaint': mention.get('is_complaint', False),
                 'alternative_mentioned': mention.get('alternative_mentioned'),
-                'mentioned_at': datetime.utcnow().isoformat(),
+                'mentioned_at': datetime.now(timezone.utc).isoformat(),
                 'source': post_source_map.get(src_post_id, 'multi'),
                 'metadata': {}
             }
@@ -2329,7 +2343,7 @@ def extract_trending_topics_multisource(hours_back: int = 48) -> dict:
 
     run_id = log_pipeline_start('extract_trending_topics_multisource')
 
-    cutoff = (datetime.utcnow() - timedelta(hours=hours_back)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours_back)).isoformat()
     posts = supabase.table('source_posts')\
         .select('*')\
         .gte('scraped_at', cutoff)\
@@ -2412,7 +2426,7 @@ def count_mentions_for_topic(topic_key: str, days: int = 7) -> int:
     """Count how many recent problems mention this topic's keywords."""
     if not supabase:
         return 0
-    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     problems = supabase.table('problems')\
         .select('description')\
         .gte('last_seen', cutoff)\
@@ -2434,7 +2448,7 @@ def avg_sentiment_for_topic(topic_key: str, days: int = 7) -> float:
     """Average sentiment score for tool mentions related to this topic."""
     if not supabase:
         return 0.0
-    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     mentions = supabase.table('tool_mentions')\
         .select('tool_name, context, sentiment_score')\
         .gte('mentioned_at', cutoff)\
@@ -2458,7 +2472,7 @@ def unique_sources_for_topic(topic_key: str, days: int = 7) -> list:
     """List unique sources that mention this topic in recent source_posts."""
     if not supabase:
         return []
-    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     posts = supabase.table('source_posts')\
         .select('source, title, body')\
         .gte('scraped_at', cutoff)\
@@ -2480,7 +2494,7 @@ def github_repos_for_topic(topic_key: str, days: int = 7) -> int:
     """Count GitHub repos mentioning this topic in recent source_posts."""
     if not supabase:
         return 0
-    cutoff = (datetime.utcnow() - timedelta(days=days)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     posts = supabase.table('source_posts')\
         .select('title, body, tags')\
         .eq('source', 'github')\
@@ -2557,7 +2571,7 @@ def update_topic_evolution() -> dict:
         return {'topics_updated': 0}
 
     topics_updated = 0
-    today = datetime.utcnow().strftime('%Y-%m-%d')
+    today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
     for cluster in clusters.data:
         theme = cluster.get('theme', '')
@@ -2599,10 +2613,10 @@ def update_topic_evolution() -> dict:
                 update_data = {
                     'snapshots': snapshots,
                     'current_stage': new_stage,
-                    'last_updated': datetime.utcnow().isoformat()
+                    'last_updated': datetime.now(timezone.utc).isoformat()
                 }
                 if new_stage != row.get('current_stage'):
-                    update_data['stage_changed_at'] = datetime.utcnow().isoformat()
+                    update_data['stage_changed_at'] = datetime.now(timezone.utc).isoformat()
 
                 supabase.table('topic_evolution')\
                     .update(update_data)\
@@ -2614,8 +2628,8 @@ def update_topic_evolution() -> dict:
                     'topic_key': topic_key,
                     'snapshots': [snapshot],
                     'current_stage': new_stage,
-                    'first_seen': datetime.utcnow().isoformat(),
-                    'last_updated': datetime.utcnow().isoformat()
+                    'first_seen': datetime.now(timezone.utc).isoformat(),
+                    'last_updated': datetime.now(timezone.utc).isoformat()
                 }).execute()
 
             topics_updated += 1
@@ -2679,6 +2693,82 @@ def get_previously_featured_titles(editions_back: int = 4) -> set:
         return set()
 
 
+def _fetch_latest_spotlight_for_newsletter(edition_number: int) -> dict | None:
+    """Fetch the latest completed spotlight for the newsletter, with a 90-minute timeout check.
+
+    If the Research Agent hasn't completed within 90 minutes of the trigger,
+    returns None so the newsletter proceeds without the Spotlight section.
+    """
+    if not supabase:
+        return None
+
+    try:
+        result = supabase.table('spotlight_history')\
+            .select('*')\
+            .order('created_at', desc=True)\
+            .limit(1)\
+            .execute()
+
+        if not result.data:
+            logger.info("No spotlight found in spotlight_history — newsletter will skip Spotlight")
+            return None
+
+        spotlight = result.data[0]
+        created_at = spotlight.get('created_at', '')
+        if created_at:
+            if created_at.endswith('Z'):
+                created_at = created_at.replace('Z', '+00:00')
+            try:
+                created_dt = datetime.fromisoformat(created_at)
+                if created_dt.tzinfo is None:
+                    created_dt = created_dt.replace(tzinfo=timezone.utc)
+                age_hours = (datetime.now(timezone.utc) - created_dt).total_seconds() / 3600
+                if age_hours > 168:
+                    logger.info(f"Latest spotlight is {age_hours:.0f}h old — too stale, skipping")
+                    return None
+            except (ValueError, TypeError) as e:
+                logger.warning(f"Spotlight age parse skipped: {e}")
+
+        queued_item = supabase.table('research_queue')\
+            .select('status, started_at')\
+            .eq('status', 'in_progress')\
+            .order('created_at', desc=True)\
+            .limit(1)\
+            .execute()
+
+        if queued_item.data:
+            started_at = queued_item.data[0].get('started_at', '')
+            if started_at:
+                if started_at.endswith('Z'):
+                    started_at = started_at.replace('Z', '+00:00')
+                try:
+                    started_dt = datetime.fromisoformat(started_at)
+                    if started_dt.tzinfo is None:
+                        started_dt = started_dt.replace(tzinfo=timezone.utc)
+                    elapsed_min = (datetime.now(timezone.utc) - started_dt).total_seconds() / 60
+                    if elapsed_min > 90:
+                        logger.warning(f"Research Agent in_progress for {elapsed_min:.0f}m (>90m timeout) — proceeding without Spotlight")
+                        return None
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Research queue start_at parse skipped: {e}")
+
+        logger.info(f"Spotlight found: '{spotlight.get('topic_name', '?')}' (mode={spotlight.get('mode', '?')})")
+        return {
+            'topic_name': spotlight.get('topic_name', ''),
+            'mode': spotlight.get('mode', 'spotlight'),
+            'thesis': spotlight.get('thesis', ''),
+            'evidence': spotlight.get('evidence', ''),
+            'counter_argument': spotlight.get('counter_argument', ''),
+            'prediction': spotlight.get('prediction', ''),
+            'builder_implications': spotlight.get('builder_implications', ''),
+            'sources_used': spotlight.get('sources_used', []),
+        }
+
+    except Exception as e:
+        logger.warning(f"Failed to fetch spotlight for newsletter: {e}")
+        return None
+
+
 def prepare_newsletter_data() -> dict:
     """Gather data for the Newsletter agent and create a write_newsletter task."""
     if not supabase:
@@ -2686,7 +2776,7 @@ def prepare_newsletter_data() -> dict:
         return {'error': 'Not configured'}
 
     run_id = log_pipeline_start('prepare_newsletter')
-    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
 
     try:
         # ── Section A: Established Opportunities (freshness-aware) ──
@@ -2826,9 +2916,9 @@ def prepare_newsletter_data() -> dict:
         # ── Section D: Prediction Tracker ──
         predictions_result = supabase.table('predictions')\
             .select('*')\
-            .in_('status', ['active', 'confirmed', 'faded'])\
+            .in_('status', ['active', 'open', 'confirmed', 'refuted', 'faded'])\
             .order('status', desc=False)\
-            .order('current_score', desc=True)\
+            .order('created_at', desc=True)\
             .limit(10)\
             .execute()
         predictions_data = predictions_result.data or []
@@ -2836,7 +2926,7 @@ def prepare_newsletter_data() -> dict:
         # ── Thought Leader Content ──
         tl_posts = supabase.table('source_posts')\
             .select('*')\
-            .eq('source_tier', 'thought_leader')\
+            .like('source', 'thought_leader_%')\
             .gte('scraped_at', week_ago)\
             .order('scraped_at', desc=True)\
             .limit(20)\
@@ -2893,7 +2983,7 @@ def prepare_newsletter_data() -> dict:
 
         tl_count = supabase.table('source_posts')\
             .select('id', count='exact')\
-            .eq('source_tier', 'thought_leader')\
+            .like('source', 'thought_leader_%')\
             .gte('scraped_at', week_ago)\
             .execute()
         source_stats['thought_leaders'] = tl_count.count or 0
@@ -2907,6 +2997,27 @@ def prepare_newsletter_data() -> dict:
         for topic in topic_evolution_data:
             stage = topic.get('current_stage', 'unknown')
             topic_stages[stage] = topic_stages.get(stage, 0) + 1
+
+        # ── Radar: emerging topics not already in Signals ──
+        signals_themes = {(s.get('theme') or '').lower() for s in emerging_signals}
+        radar_candidates = [
+            t for t in topic_evolution_data
+            if t.get('current_stage') == 'emerging'
+            and t.get('topic_key', '').replace('_', ' ') not in signals_themes
+        ]
+        radar_candidates.sort(
+            key=lambda t: (t.get('snapshots') or [{}])[-1].get('mentions', 0),
+            reverse=True
+        )
+        if len(radar_candidates) < 3:
+            debating_fill = [
+                t for t in topic_evolution_data
+                if t.get('current_stage') == 'debating'
+                and t.get('topic_key', '').replace('_', ' ') not in signals_themes
+                and t not in radar_candidates
+            ]
+            radar_candidates.extend(debating_fill)
+        radar_topics = radar_candidates[:4]
 
         # Prediction accuracy stats
         confirmed_count = sum(1 for p in predictions_data if p.get('status') == 'confirmed')
@@ -2954,6 +3065,8 @@ def prepare_newsletter_data() -> dict:
             },
             'thought_leader_content': thought_leader_data,
             'topic_evolution': topic_evolution_data,
+            'radar_topics': radar_topics,
+            'spotlight': _fetch_latest_spotlight_for_newsletter(edition_number),
             'freshness_rules': {
                 'excluded_opportunity_ids': [str(eid) for eid in excluded_ids],
                 'max_returning_items_section_a': 2,
@@ -3044,7 +3157,7 @@ def create_predictions_from_newsletter(newsletter_id: str) -> dict:
                     'status': 'active',
                     'current_score': conf,
                     'tracking_history': json.dumps([{
-                        'date': datetime.utcnow().isoformat(),
+                        'date': datetime.now(timezone.utc).isoformat(),
                         'event': 'created',
                         'confidence': conf,
                         'notes': f'Featured in edition #{edition}'
@@ -3066,7 +3179,7 @@ def create_predictions_from_newsletter(newsletter_id: str) -> dict:
                     'status': 'active',
                     'current_score': 0.3,
                     'tracking_history': json.dumps([{
-                        'date': datetime.utcnow().isoformat(),
+                        'date': datetime.now(timezone.utc).isoformat(),
                         'event': 'created',
                         'confidence': 0.3,
                         'notes': f'Emerging signal in edition #{edition}'
@@ -3110,7 +3223,7 @@ def publish_newsletter() -> dict:
         # Update status to published
         supabase.table('newsletters').update({
             'status': 'published',
-            'published_at': datetime.utcnow().isoformat()
+            'published_at': datetime.now(timezone.utc).isoformat()
         }).eq('id', newsletter['id']).execute()
 
         # Update appearance counters for featured opportunities and trending topics
@@ -3138,7 +3251,7 @@ def update_newsletter_appearances(newsletter: dict):
     if not supabase:
         return
 
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
 
     try:
         # Get the data snapshot from the newsletter's input or stored data
@@ -3231,7 +3344,7 @@ def prepare_analysis_package(hours_back: int = 48) -> dict:
         return {'error': 'Not configured'}
 
     run_id = log_pipeline_start('prepare_analysis')
-    cutoff = (datetime.utcnow() - timedelta(hours=hours_back)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours_back)).isoformat()
 
     try:
         # Gather data from all sources
@@ -3284,7 +3397,7 @@ def prepare_analysis_package(hours_back: int = 48) -> dict:
 
         thought_leader_posts = supabase.table('source_posts')\
             .select('*')\
-            .eq('source_tier', 'thought_leader')\
+            .like('source', 'thought_leader_%')\
             .gte('scraped_at', cutoff)\
             .order('scraped_at', desc=True)\
             .limit(50)\
@@ -3292,7 +3405,7 @@ def prepare_analysis_package(hours_back: int = 48) -> dict:
 
         data_package = {
             'timeframe_hours': hours_back,
-            'gathered_at': datetime.utcnow().isoformat(),
+            'gathered_at': datetime.now(timezone.utc).isoformat(),
             'problems': problems.data or [],
             'clusters': clusters.data or [],
             'tool_mentions': tool_mentions.data or [],
@@ -3355,7 +3468,7 @@ def detect_anomalies() -> list:
         return []
 
     anomalies = []
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     hour_ago = (now - timedelta(hours=1)).isoformat()
     day_ago = (now - timedelta(days=1)).isoformat()
     week_ago = (now - timedelta(days=7)).isoformat()
@@ -3467,7 +3580,7 @@ def check_proactive_budget() -> bool:
     if not supabase:
         return True
 
-    today = datetime.utcnow().date().isoformat()
+    today = datetime.now(timezone.utc).date().isoformat()
     try:
         usage = supabase.table('agent_daily_usage')\
             .select('proactive_alerts_sent')\
@@ -3666,7 +3779,7 @@ def respond_to_negotiation(
 
         current = neg.data
         current_round = current.get('round', 1)
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
 
         update = {
             'criteria_met': criteria_met,
@@ -3713,7 +3826,7 @@ def check_negotiation_timeouts():
 
     config = get_full_config().get('negotiation', {})
     timeout_minutes = config.get('negotiation_timeout_minutes', 30)
-    cutoff = (datetime.utcnow() - timedelta(minutes=timeout_minutes)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=timeout_minutes)).isoformat()
 
     try:
         stale = supabase.table('agent_negotiations')\
@@ -3722,7 +3835,7 @@ def check_negotiation_timeouts():
             .lt('created_at', cutoff)\
             .execute()
 
-        now = datetime.utcnow().isoformat()
+        now = datetime.now(timezone.utc).isoformat()
         for neg in stale.data or []:
             supabase.table('agent_negotiations')\
                 .update({'status': 'timed_out', 'closed_at': now})\
@@ -3748,7 +3861,7 @@ def gather_prediction_signals(pred: dict) -> dict:
     if not keywords:
         return {'mentions_7d': 0, 'avg_sentiment': 0, 'new_tools': [], 'github_repos': 0, 'github_stars': 0}
 
-    week_ago = (datetime.utcnow() - timedelta(days=7)).isoformat()
+    week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
 
     recent_problems = supabase.table('problems')\
         .select('*')\
@@ -3798,9 +3911,9 @@ def evaluate_prediction(pred: dict, signals: dict) -> tuple:
     Returns (new_status, new_score, notes).
     """
     current = pred.get('current_score', pred.get('initial_confidence', 0.5))
-    created_str = pred.get('created_at', datetime.utcnow().isoformat())
+    created_str = pred.get('created_at', datetime.now(timezone.utc).isoformat())
     created_dt = datetime.fromisoformat(created_str.replace('Z', '+00:00')).replace(tzinfo=None)
-    weeks_active = (datetime.utcnow() - created_dt).days / 7
+    weeks_active = (datetime.now(timezone.utc) - created_dt).days / 7
 
     mentions = signals.get('mentions_7d', 0)
     github = signals.get('github_repos', 0)
@@ -3851,7 +3964,7 @@ def track_predictions() -> dict:
 
             history = json.loads(pred.get('tracking_history', '[]') or '[]')
             history.append({
-                'date': datetime.utcnow().isoformat(),
+                'date': datetime.now(timezone.utc).isoformat(),
                 'event': 'tracked',
                 'mentions_this_week': signals.get('mentions_7d', 0),
                 'mentions_total': signals.get('mentions_7d', 0),
@@ -3865,13 +3978,13 @@ def track_predictions() -> dict:
             update = {
                 'current_score': new_score,
                 'tracking_history': json.dumps(history, default=str),
-                'last_tracked': datetime.utcnow().isoformat(),
+                'last_tracked': datetime.now(timezone.utc).isoformat(),
             }
 
             if new_status != pred['status']:
                 update['status'] = new_status
                 if new_status in ('confirmed', 'faded', 'wrong'):
-                    update['resolved_at'] = datetime.utcnow().isoformat()
+                    update['resolved_at'] = datetime.now(timezone.utc).isoformat()
                     update['resolution_notes'] = notes
 
             supabase.table('predictions').update(update).eq('id', pred['id']).execute()
@@ -3883,6 +3996,565 @@ def track_predictions() -> dict:
 
     logger.info(f"Prediction tracking complete: {counts}")
     return counts
+
+
+# ============================================================================
+# Research Queue / Spotlight / Scorecard Helpers
+# ============================================================================
+
+def queue_research_topic(topic_id: str, topic_name: str, priority_score: float,
+                         velocity: float = None, source_diversity: float = None,
+                         lifecycle_phase: str = None, context_payload: dict = None,
+                         mode: str = 'spotlight', issue_number: int = None) -> dict:
+    """Add a topic to the research queue for the Research Agent to pick up."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    record = {
+        'topic_id': topic_id,
+        'topic_name': topic_name,
+        'priority_score': priority_score,
+        'status': 'queued',
+        'mode': mode,
+    }
+    if velocity is not None:
+        record['velocity'] = velocity
+    if source_diversity is not None:
+        record['source_diversity'] = source_diversity
+    if lifecycle_phase:
+        record['lifecycle_phase'] = lifecycle_phase
+    if context_payload:
+        record['context_payload'] = context_payload
+    if issue_number is not None:
+        record['issue_number'] = issue_number
+
+    result = supabase.table('research_queue').insert(record).execute()
+    logger.info(f"Queued research topic '{topic_name}' (mode={mode}, priority={priority_score})")
+    return result.data[0] if result.data else {}
+
+
+def get_research_queue(status: str = 'queued', limit: int = 5) -> list:
+    """Fetch research queue items filtered by status, ordered by priority."""
+    if not supabase:
+        return []
+
+    result = supabase.table('research_queue')\
+        .select('*')\
+        .eq('status', status)\
+        .order('priority_score', desc=True)\
+        .limit(limit)\
+        .execute()
+    return result.data or []
+
+
+def update_research_status(queue_id: str, status: str, **extra) -> dict:
+    """Update a research queue item's status (queued -> in_progress -> completed/failed)."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    update = {'status': status}
+    if status == 'in_progress':
+        update['started_at'] = datetime.now(timezone.utc).isoformat()
+    elif status in ('completed', 'failed'):
+        update['completed_at'] = datetime.now(timezone.utc).isoformat()
+    update.update(extra)
+
+    result = supabase.table('research_queue').update(update).eq('id', queue_id).execute()
+    return result.data[0] if result.data else {}
+
+
+def store_spotlight(research_queue_id: str, topic_id: str, topic_name: str,
+                    issue_number: int, thesis: str, evidence: str,
+                    counter_argument: str, prediction: str,
+                    builder_implications: str = None, full_output: str = '',
+                    sources_used: list = None, mode: str = 'spotlight') -> dict:
+    """Store a completed Spotlight analysis."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    record = {
+        'research_queue_id': research_queue_id,
+        'topic_id': topic_id,
+        'topic_name': topic_name,
+        'issue_number': issue_number,
+        'mode': mode,
+        'thesis': thesis,
+        'evidence': evidence,
+        'counter_argument': counter_argument,
+        'prediction': prediction,
+        'builder_implications': builder_implications or '',
+        'full_output': full_output,
+        'sources_used': sources_used or [],
+    }
+
+    result = supabase.table('spotlight_history').insert(record).execute()
+    spotlight = result.data[0] if result.data else {}
+
+    if spotlight and prediction:
+        create_spotlight_prediction(
+            spotlight_id=spotlight['id'],
+            topic_id=topic_id,
+            prediction_text=prediction,
+            issue_number=issue_number,
+        )
+
+    logger.info(f"Stored spotlight for '{topic_name}' (issue #{issue_number})")
+    return spotlight
+
+
+def get_latest_spotlight(issue_number: int = None) -> dict:
+    """Get the latest spotlight, optionally for a specific issue."""
+    if not supabase:
+        return {}
+
+    query = supabase.table('spotlight_history').select('*')
+    if issue_number is not None:
+        query = query.eq('issue_number', issue_number)
+    result = query.order('created_at', desc=True).limit(1).execute()
+    return result.data[0] if result.data else {}
+
+
+def create_spotlight_prediction(spotlight_id: str, topic_id: str,
+                                prediction_text: str, issue_number: int) -> dict:
+    """Create a prediction record linked to a spotlight for scorecard tracking."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    record = {
+        'spotlight_id': spotlight_id,
+        'prediction_type': 'spotlight',
+        'title': prediction_text[:100],
+        'prediction_text': prediction_text,
+        'topic_id': topic_id,
+        'issue_number': issue_number,
+        'newsletter_edition': issue_number,
+        'status': 'open',
+        'initial_confidence': 0.6,
+        'current_score': 0.6,
+        'tracking_history': json.dumps([{
+            'date': datetime.now(timezone.utc).isoformat(),
+            'event': 'created_from_spotlight',
+            'confidence': 0.6,
+        }], default=str),
+    }
+
+    result = supabase.table('predictions').insert(record).execute()
+    return result.data[0] if result.data else {}
+
+
+def flag_prediction(prediction_id: str, evidence_notes: str) -> dict:
+    """Flag a prediction with new evidence (Analyst uses this during tracking)."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    pred = supabase.table('predictions').select('*').eq('id', prediction_id).execute()
+    if not pred.data:
+        return {'error': 'Prediction not found'}
+
+    existing = pred.data[0]
+    history = json.loads(existing.get('tracking_history') or '[]')
+    history.append({
+        'date': datetime.now(timezone.utc).isoformat(),
+        'event': 'flagged',
+        'notes': evidence_notes,
+    })
+
+    update = {
+        'status': 'flagged',
+        'evidence_notes': evidence_notes,
+        'flagged_at': datetime.now(timezone.utc).isoformat(),
+        'tracking_history': json.dumps(history, default=str),
+    }
+
+    result = supabase.table('predictions').update(update).eq('id', prediction_id).execute()
+    return result.data[0] if result.data else {}
+
+
+def resolve_prediction(prediction_id: str, status: str, resolution_notes: str,
+                       scorecard_issue: int = None) -> dict:
+    """Resolve a prediction (confirmed/refuted/partially_correct/expired)."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    pred = supabase.table('predictions').select('*').eq('id', prediction_id).execute()
+    if not pred.data:
+        return {'error': 'Prediction not found'}
+
+    existing = pred.data[0]
+    history = json.loads(existing.get('tracking_history') or '[]')
+    history.append({
+        'date': datetime.now(timezone.utc).isoformat(),
+        'event': f'resolved_{status}',
+        'notes': resolution_notes,
+    })
+
+    update = {
+        'status': status,
+        'resolution_notes': resolution_notes,
+        'resolved_at': datetime.now(timezone.utc).isoformat(),
+        'tracking_history': json.dumps(history, default=str),
+    }
+    if scorecard_issue is not None:
+        update['scorecard_issue'] = scorecard_issue
+
+    result = supabase.table('predictions').update(update).eq('id', prediction_id).execute()
+    return result.data[0] if result.data else {}
+
+
+def get_spotlight_cooldown() -> list:
+    """Get topics on cooldown (spotlighted in last 4 issues)."""
+    if not supabase:
+        return []
+
+    result = supabase.table('spotlight_cooldown')\
+        .select('*')\
+        .eq('on_cooldown', True)\
+        .execute()
+    return result.data or []
+
+
+def get_scorecard(limit: int = 20) -> dict:
+    """Build a scorecard summary of prediction accuracy."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    result = supabase.table('predictions')\
+        .select('*')\
+        .order('created_at', desc=True)\
+        .limit(limit)\
+        .execute()
+
+    preds = result.data or []
+    total = len(preds)
+    by_status = {}
+    for p in preds:
+        s = p.get('status', 'unknown')
+        by_status[s] = by_status.get(s, 0) + 1
+
+    confirmed = by_status.get('confirmed', 0)
+    refuted = by_status.get('refuted', 0)
+    resolved = confirmed + refuted + by_status.get('partially_correct', 0) + by_status.get('expired', 0)
+    accuracy = (confirmed / resolved * 100) if resolved > 0 else None
+
+    return {
+        'total': total,
+        'by_status': by_status,
+        'resolved': resolved,
+        'accuracy_pct': round(accuracy, 1) if accuracy is not None else None,
+        'predictions': preds,
+    }
+
+
+# ============================================================================
+# Spotlight Selection Heuristic
+# ============================================================================
+
+LIFECYCLE_BONUS = {
+    'emerging': 1.0,
+    'debating': 1.5,
+    'building': 1.3,
+    'consolidating': 1.0,
+    'mature': 0.5,
+    'declining': 0.2,
+}
+
+
+def _get_spotlight_config() -> dict:
+    """Load spotlight selection config, with defaults."""
+    config = get_full_config().get('spotlight_selection', {})
+    return {
+        'min_score_threshold': config.get('min_score_threshold', 0.5),
+        'cooldown_issues': config.get('cooldown_issues', 4),
+        'min_mentions': config.get('min_mentions', 3),
+        'min_source_tiers': config.get('min_source_tiers', 2),
+        'max_queue_items': config.get('max_queue_items', 1),
+    }
+
+
+def _compute_velocity(topic: dict, days: int = 7) -> float:
+    """Compute normalized mention velocity from recent snapshots (0-1)."""
+    snapshots = topic.get('snapshots') or []
+    if not snapshots:
+        return 0.0
+    recent = snapshots[-1]
+    mentions = recent.get('mentions', 0)
+    return min(mentions / 20.0, 1.0)
+
+
+def _compute_source_diversity(topic: dict) -> float:
+    """Compute source tier diversity (0-1) from recent snapshot."""
+    snapshots = topic.get('snapshots') or []
+    if not snapshots:
+        return 0.0
+    recent = snapshots[-1]
+    sources = recent.get('sources', [])
+    tier_set = set()
+    for src in sources:
+        src_lower = src.lower()
+        if 'rss' in src_lower:
+            tier_set.add('institutional')
+        elif src_lower in ('hackernews', 'moltbook'):
+            tier_set.add('community')
+        elif src_lower == 'github':
+            tier_set.add('community')
+        else:
+            tier_set.add('community')
+    if not supabase:
+        return len(tier_set) / 3.0
+
+    topic_key = topic.get('topic_key', '')
+    keywords = [w for w in topic_key.split('_') if len(w) >= 3]
+    if keywords:
+        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        try:
+            tl_posts = supabase.table('source_posts')\
+                .select('title, body')\
+                .like('source', 'thought_leader_%')\
+                .gte('scraped_at', week_ago)\
+                .limit(50)\
+                .execute()
+            for p in (tl_posts.data or []):
+                text = ((p.get('title') or '') + ' ' + (p.get('body') or '')).lower()
+                if any(kw in text for kw in keywords):
+                    tier_set.add('thought_leader')
+                    break
+        except Exception as e:
+            logger.warning(f"Source diversity calculation skipped: {e}")
+
+    return min(len(tier_set) / 3.0, 1.0)
+
+
+def _get_recent_mentions_for_context(topic_key: str, days: int = 7, limit: int = 5) -> list:
+    """Get recent source_posts mentioning this topic for the context payload."""
+    if not supabase:
+        return []
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    posts = supabase.table('source_posts')\
+        .select('source, source_tier, title, body, source_url')\
+        .gte('scraped_at', cutoff)\
+        .order('score', desc=True)\
+        .limit(200)\
+        .execute()
+    if not posts.data:
+        return []
+    keywords = [w for w in topic_key.split('_') if len(w) >= 3]
+    if not keywords:
+        return []
+    matches = []
+    for p in posts.data:
+        text = ((p.get('title') or '') + ' ' + (p.get('body') or '')).lower()
+        if any(kw in text for kw in keywords):
+            matches.append({
+                'source': p.get('source', 'unknown'),
+                'tier': p.get('source_tier', 3),
+                'title': p.get('title', ''),
+                'summary': (p.get('body') or '')[:200],
+                'url': p.get('source_url', ''),
+            })
+        if len(matches) >= limit:
+            break
+    return matches
+
+
+RESEARCH_TRIGGER_DIR = QUEUE_DIR / 'research'
+RESEARCH_TRIGGER_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _write_research_trigger(queue_id: str, topic_name: str, mode: str) -> str | None:
+    """Write a trigger file for the Research Agent. Returns filename or None on duplicate."""
+    existing = list(RESEARCH_TRIGGER_DIR.glob('research-trigger-*.json'))
+    for f in existing:
+        try:
+            data = json.loads(f.read_text())
+            if data.get('research_queue_id') == queue_id:
+                logger.info(f"Duplicate trigger skipped for queue_id={queue_id}")
+                return None
+        except Exception as e:
+            logger.warning(f"Duplicate trigger check skipped: {e}")
+
+    ts = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')
+    filename = f'research-trigger-{ts}.json'
+    trigger_path = RESEARCH_TRIGGER_DIR / filename
+
+    trigger_data = {
+        'trigger_type': 'research_request',
+        'research_queue_id': queue_id,
+        'topic_name': topic_name,
+        'mode': mode,
+        'triggered_at': datetime.now(timezone.utc).isoformat() + 'Z',
+        'triggered_by': 'analyst',
+    }
+
+    trigger_path.write_text(json.dumps(trigger_data, indent=2))
+    logger.info(f"Research trigger written: {filename} (queue_id={queue_id})")
+    return filename
+
+
+def select_spotlight_topic() -> dict:
+    """Run the Spotlight selection heuristic and queue the best topic for research."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    config = _get_spotlight_config()
+    logger.info(f"Spotlight selection: config={config}")
+
+    topics = supabase.table('topic_evolution')\
+        .select('*')\
+        .order('last_updated', desc=True)\
+        .limit(50)\
+        .execute()
+
+    if not topics.data:
+        logger.info("Spotlight selection: no topics found")
+        return {'selected': None, 'reason': 'no topics'}
+
+    cooldown_topics = set()
+    try:
+        cooldown = get_spotlight_cooldown()
+        cooldown_topics = {c.get('topic_id') for c in cooldown}
+    except Exception as e:
+        logger.warning(f"Could not fetch cooldown: {e}")
+
+    candidates = []
+    for topic in topics.data:
+        topic_key = topic.get('topic_key', '')
+        phase = topic.get('current_stage', 'emerging')
+
+        if topic_key in cooldown_topics:
+            continue
+
+        velocity = _compute_velocity(topic)
+        snapshots = topic.get('snapshots') or []
+        recent_mentions = snapshots[-1].get('mentions', 0) if snapshots else 0
+        recent_sources = snapshots[-1].get('sources', []) if snapshots else []
+
+        if recent_mentions < config['min_mentions']:
+            continue
+        if len(set(recent_sources)) < config['min_source_tiers']:
+            continue
+
+        source_diversity = _compute_source_diversity(topic)
+        lifecycle_bonus = LIFECYCLE_BONUS.get(phase, 1.0)
+        spotlight_score = velocity * source_diversity * lifecycle_bonus
+
+        related_keys = []
+        for other in topics.data:
+            if other.get('topic_key') == topic_key:
+                continue
+            other_kws = set(other.get('topic_key', '').split('_'))
+            topic_kws = set(topic_key.split('_'))
+            if len(topic_kws & other_kws) >= 1 and len(topic_kws & other_kws) / max(len(topic_kws | other_kws), 1) > 0.3:
+                related_keys.append(other.get('topic_key'))
+
+        candidates.append({
+            'topic': topic,
+            'topic_key': topic_key,
+            'phase': phase,
+            'velocity': round(velocity, 3),
+            'source_diversity': round(source_diversity, 3),
+            'lifecycle_bonus': lifecycle_bonus,
+            'spotlight_score': round(spotlight_score, 3),
+            'recent_mentions': recent_mentions,
+            'related_topics': related_keys[:5],
+        })
+
+    candidates.sort(key=lambda c: c['spotlight_score'], reverse=True)
+
+    if not candidates:
+        logger.info("Spotlight selection: no eligible candidates after filtering")
+        return {'selected': None, 'reason': 'all filtered out'}
+
+    best = candidates[0]
+
+    if best['spotlight_score'] >= config['min_score_threshold']:
+        recent_mentions_data = _get_recent_mentions_for_context(best['topic_key'])
+        context_payload = {
+            'topic_id': best['topic_key'],
+            'topic_name': best['topic_key'].replace('_', ' ').title(),
+            'priority_score': best['spotlight_score'],
+            'velocity': best['velocity'],
+            'source_diversity': best['source_diversity'],
+            'lifecycle_phase': best['phase'],
+            'recent_mentions': recent_mentions_data,
+            'contrarian_signals': [],
+            'related_topics': best['related_topics'],
+            'last_spotlighted': None,
+        }
+
+        queued = queue_research_topic(
+            topic_id=best['topic_key'],
+            topic_name=context_payload['topic_name'],
+            priority_score=best['spotlight_score'],
+            velocity=best['velocity'],
+            source_diversity=best['source_diversity'],
+            lifecycle_phase=best['phase'],
+            context_payload=context_payload,
+            mode='spotlight',
+        )
+
+        logger.info(f"Spotlight selected: '{best['topic_key']}' (score={best['spotlight_score']}, phase={best['phase']})")
+
+        trigger_file = None
+        if queued.get('id'):
+            trigger_file = _write_research_trigger(
+                queued['id'], context_payload['topic_name'], 'spotlight')
+
+        return {
+            'selected': best['topic_key'],
+            'mode': 'spotlight',
+            'score': best['spotlight_score'],
+            'phase': best['phase'],
+            'queue_id': queued.get('id'),
+            'trigger_file': trigger_file,
+            'candidates_evaluated': len(candidates),
+        }
+
+    else:
+        top3 = candidates[:3]
+        synthesis_topics = []
+        all_mentions = []
+        for c in top3:
+            mentions = _get_recent_mentions_for_context(c['topic_key'], limit=3)
+            all_mentions.extend(mentions)
+            synthesis_topics.append({
+                'topic_id': c['topic_key'],
+                'topic_name': c['topic_key'].replace('_', ' ').title(),
+                'score': c['spotlight_score'],
+                'phase': c['phase'],
+                'velocity': c['velocity'],
+            })
+
+        context_payload = {
+            'topics': synthesis_topics,
+            'recent_mentions': all_mentions[:10],
+            'synthesis_reason': f"No single topic scored above {config['min_score_threshold']}. "
+                                f"Top score was {best['spotlight_score']}.",
+        }
+
+        queued = queue_research_topic(
+            topic_id='synthesis',
+            topic_name='Landscape Synthesis',
+            priority_score=best['spotlight_score'],
+            context_payload=context_payload,
+            mode='synthesis',
+        )
+
+        logger.info(f"Spotlight: synthesis mode — top 3 topics queued (best score={best['spotlight_score']})")
+
+        trigger_file = None
+        if queued.get('id'):
+            trigger_file = _write_research_trigger(
+                queued['id'], 'Landscape Synthesis', 'synthesis')
+
+        return {
+            'selected': [c['topic_key'] for c in top3],
+            'mode': 'synthesis',
+            'best_score': best['spotlight_score'],
+            'threshold': config['min_score_threshold'],
+            'queue_id': queued.get('id'),
+            'trigger_file': trigger_file,
+            'candidates_evaluated': len(candidates),
+        }
 
 
 # ============================================================================
@@ -3910,7 +4582,7 @@ def log_pipeline_end(run_id: str, status: str, results: dict):
     try:
         supabase.table('pipeline_runs').update({
             'status': status,
-            'completed_at': datetime.utcnow().isoformat(),
+            'completed_at': datetime.now(timezone.utc).isoformat(),
             'results': results
         }).eq('id', run_id).execute()
     except:
@@ -3936,8 +4608,8 @@ def process_queue():
             _peek_type = _peek.get('params', {}).get('task_type', '')
             if task_file.name.startswith('analyst_') and _peek_task not in ('create_agent_task', 'check_task'):
                 continue
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Task type peek skipped: {e}")
         
         logger.info(f"Processing task: {task_file.name}")
         
@@ -3951,7 +4623,7 @@ def process_queue():
                 'success': True,
                 'task': task.get('task'),
                 'result': result,
-                'completed_at': datetime.utcnow().isoformat()
+                'completed_at': datetime.now(timezone.utc).isoformat()
             }, indent=2))
             
         except Exception as e:
@@ -3960,7 +4632,7 @@ def process_queue():
             result_file.write_text(json.dumps({
                 'success': False,
                 'error': str(e),
-                'completed_at': datetime.utcnow().isoformat()
+                'completed_at': datetime.now(timezone.utc).isoformat()
             }, indent=2))
         
         finally:
@@ -4071,6 +4743,12 @@ def execute_task(task: dict) -> dict:
             results['topic_evolution'] = {'error': str(e)}
 
         try:
+            results['spotlight_selection'] = select_spotlight_topic()
+        except Exception as e:
+            logger.error(f"Spotlight selection failed in pipeline: {e}")
+            results['spotlight_selection'] = {'error': str(e)}
+
+        try:
             results['analysis'] = prepare_analysis_package()
         except Exception as e:
             logger.error(f"Pipeline prepare_analysis_package failed: {e}")
@@ -4143,7 +4821,7 @@ def execute_task(task: dict) -> dict:
         if not supabase:
             return {'error': 'Supabase not configured'}
         limit = params.get('limit', 5)
-        cutoff = (datetime.utcnow() - timedelta(days=14)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=14)).isoformat()
         result = supabase.table('trending_topics') \
             .select('*') \
             .gte('extracted_at', cutoff) \
@@ -4350,7 +5028,7 @@ def execute_task(task: dict) -> dict:
     elif task_type == 'get_recent_alerts':
         if not supabase:
             return {'error': 'Supabase not configured'}
-        cutoff = (datetime.utcnow() - timedelta(days=7)).isoformat()
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         result = supabase.table('agent_tasks')\
             .select('id, created_at, input_data, output_data')\
             .eq('task_type', 'send_alert')\
@@ -4390,7 +5068,7 @@ def execute_task(task: dict) -> dict:
         result = supabase.table('predictions') \
             .select('*') \
             .order('status', desc=False) \
-            .order('current_score', desc=True) \
+            .order('created_at', desc=True) \
             .limit(limit) \
             .execute()
         return {'predictions': result.data or []}
@@ -4398,7 +5076,7 @@ def execute_task(task: dict) -> dict:
     elif task_type == 'get_source_status':
         if not supabase:
             return {'error': 'Supabase not configured'}
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         day_ago = (now - timedelta(hours=24)).isoformat()
         sources_status = {}
         for src in ('moltbook', 'hackernews', 'github'):
@@ -4430,11 +5108,11 @@ def execute_task(task: dict) -> dict:
         }
         tl_total = supabase.table('source_posts') \
             .select('id', count='exact') \
-            .eq('source_tier', 'thought_leader') \
+            .like('source', 'thought_leader_%') \
             .execute()
         tl_recent = supabase.table('source_posts') \
             .select('id', count='exact') \
-            .eq('source_tier', 'thought_leader') \
+            .like('source', 'thought_leader_%') \
             .gte('scraped_at', day_ago) \
             .execute()
         sources_status['thought_leaders'] = {
@@ -4459,7 +5137,7 @@ def execute_task(task: dict) -> dict:
             'current_score': confidence,
             'status': 'active',
             'tracking_history': json.dumps([{
-                'date': datetime.utcnow().isoformat(),
+                'date': datetime.now(timezone.utc).isoformat(),
                 'event': 'created',
                 'confidence': confidence,
                 'notes': 'Manually created prediction'
@@ -4488,6 +5166,65 @@ def execute_task(task: dict) -> dict:
     elif task_type == 'update_topic_evolution':
         return update_topic_evolution()
     
+    elif task_type == 'queue_research':
+        return queue_research_topic(
+            topic_id=params.get('topic_id', ''),
+            topic_name=params.get('topic_name', ''),
+            priority_score=params.get('priority_score', 0.5),
+            velocity=params.get('velocity'),
+            source_diversity=params.get('source_diversity'),
+            lifecycle_phase=params.get('lifecycle_phase'),
+            context_payload=params.get('context_payload'),
+            mode=params.get('mode', 'spotlight'),
+            issue_number=params.get('issue_number'),
+        )
+
+    elif task_type == 'get_research_queue':
+        return {'queue': get_research_queue(
+            status=params.get('status', 'queued'),
+            limit=params.get('limit', 5),
+        )}
+
+    elif task_type == 'get_spotlight':
+        return get_latest_spotlight(issue_number=params.get('issue_number'))
+
+    elif task_type == 'get_scorecard':
+        return get_scorecard(limit=params.get('limit', 20))
+
+    elif task_type == 'get_spotlight_cooldown':
+        return {'cooldown_topics': get_spotlight_cooldown()}
+
+    elif task_type == 'select_spotlight':
+        return select_spotlight_topic()
+
+    elif task_type == 'run_research':
+        import subprocess
+        result = subprocess.run(
+            ['python3', '-c',
+             'import sys; sys.path.insert(0, "/home/openclaw"); '
+             'from research_agent import init, run_once; init(); run_once()'],
+            capture_output=True, text=True, timeout=360,
+        )
+        return {
+            'stdout': result.stdout[-2000:] if result.stdout else '',
+            'stderr': result.stderr[-2000:] if result.stderr else '',
+            'returncode': result.returncode,
+        }
+
+    elif task_type == 'flag_prediction':
+        return flag_prediction(
+            prediction_id=params.get('prediction_id', ''),
+            evidence_notes=params.get('evidence_notes', ''),
+        )
+
+    elif task_type == 'resolve_prediction':
+        return resolve_prediction(
+            prediction_id=params.get('prediction_id', ''),
+            status=params.get('resolution_status', 'confirmed'),
+            resolution_notes=params.get('resolution_notes', ''),
+            scorecard_issue=params.get('scorecard_issue'),
+        )
+
     else:
         return {'error': f'Unknown task: {task_type}'}
 
@@ -4524,8 +5261,8 @@ def get_status() -> dict:
         try:
             stats = supabase.rpc('get_scrape_stats').execute()
             status['db_stats'] = stats.data
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"get_scrape_stats skipped: {e}")
     
     return status
 
@@ -4560,7 +5297,7 @@ def process_db_tasks(agent_name: str = 'analyst'):
             # Mark in progress
             supabase.table('agent_tasks').update({
                 'status': 'in_progress',
-                'started_at': datetime.utcnow().isoformat()
+                'started_at': datetime.now(timezone.utc).isoformat()
             }).eq('id', task_id).execute()
             
             # Execute using existing task router
@@ -4575,13 +5312,13 @@ def process_db_tasks(agent_name: str = 'analyst'):
                 'success': True,
                 'task': task_type,
                 'result': result,
-                'completed_at': datetime.utcnow().isoformat()
+                'completed_at': datetime.now(timezone.utc).isoformat()
             }, indent=2))
             
             # Mark completed in DB
             supabase.table('agent_tasks').update({
                 'status': 'completed',
-                'completed_at': datetime.utcnow().isoformat(),
+                'completed_at': datetime.now(timezone.utc).isoformat(),
                 'output_data': result
             }).eq('id', task_id).execute()
             
@@ -4592,7 +5329,7 @@ def process_db_tasks(agent_name: str = 'analyst'):
             try:
                 supabase.table('agent_tasks').update({
                     'status': 'failed',
-                    'completed_at': datetime.utcnow().isoformat(),
+                    'completed_at': datetime.now(timezone.utc).isoformat(),
                     'error_message': str(e)
                 }).eq('id', task_id).execute()
             except Exception as update_err:
@@ -4619,6 +5356,146 @@ def send_telegram(message: str):
             )
     except Exception as e:
         logger.error(f"Telegram send failed: {e}")
+
+# ============================================================================
+# Full Newsletter Pipeline (manual / cron backup)
+# ============================================================================
+
+def run_full_newsletter_pipeline():
+    """Run the complete newsletter pipeline end-to-end with monitoring.
+
+    Phases:
+        1. Data collection (scrape all sources)
+        2. Analysis (extract, cluster, topic evolution, spotlight selection)
+        3. Wait for Research Agent (poll spotlight_history)
+        4. Newsletter generation
+    """
+    pipeline_start = time.time()
+    logger.info("[PIPELINE] ========== Full pipeline started ==========")
+
+    results = {}
+
+    # ── Phase 1: Data Collection ──
+    logger.info("[PIPELINE] Phase 1: Data Collection")
+    for label, fn in [
+        ("moltbook", scrape_moltbook),
+        ("hackernews", scrape_hackernews),
+        ("github", scrape_github),
+        ("rss", scrape_rss_feeds),
+        ("thought_leaders", scrape_thought_leaders),
+    ]:
+        try:
+            r = fn()
+            results[f"scrape_{label}"] = r
+            count = r.get('total_new', r.get('items_stored', r.get('feeds_scraped', '?')))
+            logger.info(f"[PIPELINE] Scrape {label}: {count} items")
+        except Exception as e:
+            logger.error(f"[PIPELINE] Scrape {label} failed: {e}")
+            results[f"scrape_{label}"] = {'error': str(e)}
+
+    elapsed_p1 = time.time() - pipeline_start
+    logger.info(f"[PIPELINE] Phase 1 complete in {elapsed_p1:.0f}s")
+
+    # ── Phase 2: Analysis ──
+    logger.info("[PIPELINE] Phase 2: Analysis")
+    for label, fn in [
+        ("extract_problems", lambda: extract_problems_multisource()),
+        ("extract_tools", lambda: extract_tools_multisource()),
+        ("extract_trending", lambda: extract_trending_topics_multisource()),
+        ("cluster", cluster_problems),
+        ("topic_evolution", update_topic_evolution),
+        ("track_predictions", track_predictions),
+    ]:
+        try:
+            r = fn()
+            results[label] = r
+            logger.info(f"[PIPELINE] {label}: done")
+        except Exception as e:
+            logger.error(f"[PIPELINE] {label} failed: {e}")
+            results[label] = {'error': str(e)}
+
+    # Spotlight selection (writes trigger for Research Agent)
+    try:
+        spotlight_result = select_spotlight_topic()
+        results['spotlight_selection'] = spotlight_result
+        selected = spotlight_result.get('selected')
+        mode = spotlight_result.get('mode', '?')
+        score = spotlight_result.get('score') or spotlight_result.get('best_score', 0)
+        if selected:
+            logger.info(f"[PIPELINE] Spotlight selected: '{selected}' (score={score}, mode={mode})")
+        else:
+            logger.info(f"[PIPELINE] No spotlight selected: {spotlight_result.get('reason', '?')}")
+    except Exception as e:
+        logger.error(f"[PIPELINE] Spotlight selection failed: {e}")
+        results['spotlight_selection'] = {'error': str(e)}
+
+    elapsed_p2 = time.time() - pipeline_start
+    logger.info(f"[PIPELINE] Phase 2 complete in {elapsed_p2:.0f}s")
+
+    # ── Phase 3: Wait for Research Agent ──
+    logger.info("[PIPELINE] Phase 3: Waiting for Research Agent...")
+    spotlight_result = results.get('spotlight_selection', {})
+    queue_id = spotlight_result.get('queue_id') if isinstance(spotlight_result, dict) else None
+    research_timeout = 300
+    research_start = time.time()
+    spotlight_ready = False
+
+    if queue_id:
+        while (time.time() - research_start) < research_timeout:
+            try:
+                q = supabase.table('research_queue').select('status')\
+                    .eq('id', queue_id).execute()
+                if q.data and q.data[0].get('status') in ('completed', 'failed'):
+                    status = q.data[0]['status']
+                    elapsed = time.time() - research_start
+                    logger.info(f"[PIPELINE] Research Agent {status} in {elapsed:.0f}s")
+                    spotlight_ready = status == 'completed'
+                    break
+            except Exception as e:
+                logger.warning(f"Research queue status check skipped: {e}")
+            time.sleep(15)
+        else:
+            elapsed = time.time() - research_start
+            logger.warning(f"[PIPELINE] Research Agent timeout after {elapsed:.0f}s — proceeding without Spotlight")
+    else:
+        logger.info("[PIPELINE] No research queued — proceeding without Spotlight")
+
+    results['research_completed'] = spotlight_ready
+
+    # ── Phase 4: Newsletter Generation ──
+    logger.info("[PIPELINE] Phase 4: Newsletter Generation")
+    try:
+        nl_result = prepare_newsletter_data()
+        results['newsletter'] = nl_result
+        edition = nl_result.get('edition_number', '?')
+
+        sections = []
+        if nl_result.get('input_data', {}).get('spotlight') if isinstance(nl_result.get('input_data'), dict) else False:
+            sections.append("Spotlight")
+        sections.extend(["Signals", "Radar"])
+        logger.info(f"[PIPELINE] Newsletter #{edition} prepared — sections: {', '.join(sections)}")
+    except Exception as e:
+        logger.error(f"[PIPELINE] Newsletter generation failed: {e}")
+        results['newsletter'] = {'error': str(e)}
+
+    # ── Summary ──
+    total_elapsed = time.time() - pipeline_start
+    logger.info(f"[PIPELINE] ========== Pipeline completed in {total_elapsed:.0f}s ==========")
+
+    errors = [k for k, v in results.items() if isinstance(v, dict) and 'error' in v]
+    if errors:
+        logger.warning(f"[PIPELINE] Components with errors: {errors}")
+    else:
+        logger.info("[PIPELINE] All components succeeded")
+
+    print(json.dumps({
+        'pipeline_elapsed_seconds': round(total_elapsed, 1),
+        'spotlight_ready': spotlight_ready,
+        'errors': errors,
+        'results': {k: ('ok' if isinstance(v, dict) and 'error' not in v else v)
+                    for k, v in results.items()},
+    }, indent=2, default=str))
+
 
 # ============================================================================
 # Scheduled Tasks
@@ -4721,17 +5598,25 @@ def scheduled_trending_topics():
 
 def scheduled_prepare_newsletter():
     """Scheduled: gather data and delegate newsletter writing to Newsletter agent."""
-    logger.info("Running scheduled newsletter preparation...")
+    logger.info("[PIPELINE] Running newsletter preparation...")
     try:
         result = prepare_newsletter_data()
-        logger.info(f"Scheduled newsletter prep completed: {result}")
         edition = result.get('edition_number', '?')
+        spotlight_present = result.get('input_data', {}).get('spotlight') is not None if isinstance(result.get('input_data'), dict) else False
+
+        sections = []
+        if spotlight_present:
+            sections.append("Spotlight")
+        sections.append("Signals")
+
+        logger.info(f"[PIPELINE] Newsletter #{edition} data prepared, sections: {', '.join(sections)}")
         send_telegram(f"📝 Newsletter #{edition} data prepared and sent to Newsletter agent for writing.")
     except Exception as e:
-        logger.error(f"Scheduled newsletter prep failed: {e}")
+        logger.error(f"[PIPELINE] Newsletter prep failed: {e}")
 
 def scheduled_notify_newsletter():
     """Notify owner that a new newsletter may be ready for review."""
+    logger.info("[PIPELINE] Newsletter notification sent")
     send_telegram("📰 New AgentPulse Brief is ready for review. Send /newsletter to see it.")
 
 def scheduled_digest():
@@ -4917,9 +5802,34 @@ def scheduled_update_evolution():
     """Scheduled topic evolution update."""
     try:
         result = update_topic_evolution()
-        logger.info(f"Topic evolution update: {result}")
+        logger.info(f"[PIPELINE] Topic evolution: {result}")
     except Exception as e:
-        logger.error(f"Topic evolution update failed: {e}")
+        logger.error(f"[PIPELINE] Topic evolution failed: {e}")
+
+
+def scheduled_select_spotlight():
+    """Scheduled spotlight selection — runs after topic evolution, before newsletter."""
+    logger.info("[PIPELINE] Running spotlight selection heuristic...")
+    try:
+        result = select_spotlight_topic()
+        selected = result.get('selected')
+        mode = result.get('mode', '?')
+        score = result.get('score') or result.get('best_score', 0)
+        trigger = result.get('trigger_file')
+
+        if selected:
+            logger.info(f"[PIPELINE] Spotlight selected: '{selected}' (score={score}, mode={mode})")
+            if trigger:
+                logger.info(f"[PIPELINE] Research trigger written: {trigger}")
+            send_telegram(
+                f"🎯 Spotlight selected: {selected} (score={score}, mode={mode})\n"
+                f"Research Agent will generate thesis."
+            )
+        else:
+            reason = result.get('reason', 'unknown')
+            logger.info(f"[PIPELINE] No spotlight selected: {reason}")
+    except Exception as e:
+        logger.error(f"[PIPELINE] Spotlight selection failed: {e}")
 
 
 def scheduled_track_predictions():
@@ -4943,15 +5853,28 @@ def setup_scheduler():
     schedule.every(12).hours.do(scheduled_scrape_github)
     schedule.every(6).hours.do(scheduled_scrape_rss)
     schedule.every(6).hours.do(scheduled_scrape_thought_leaders)
+    # Monday newsletter pipeline (times in UTC):
+    #   06:00 — Topic evolution update (lifecycle phases)
+    #   06:10 — Analysis cycle (problems, tools, clusters, delegate to Analyst)
+    #   06:30 — Spotlight selection heuristic → writes research trigger
+    #   06:30 — Research Agent picks up trigger (runs in its own container)
+    #   06:30 — Prediction tracking (before newsletter)
+    #   09:00 — Newsletter preparation (allows ~2.5h for Research Agent)
+    #   10:00 — Newsletter notification
     schedule.every().monday.at("06:00").do(scheduled_update_evolution)
+    schedule.every().monday.at("06:30").do(scheduled_select_spotlight)
+    schedule.every().monday.at("06:30").do(scheduled_track_predictions)
+    schedule.every().monday.at("09:00").do(scheduled_prepare_newsletter)
+    schedule.every().monday.at("10:00").do(scheduled_notify_newsletter)
+
+    # Recurring analysis & extraction
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
     schedule.every(12).hours.do(scheduled_cluster)
     schedule.every(12).hours.do(scheduled_tool_scan)
     schedule.every(12).hours.do(scheduled_trending_topics)
     schedule.every().day.at("06:00").do(scheduled_update_stats)
-    schedule.every().monday.at("06:30").do(scheduled_track_predictions)
-    schedule.every().monday.at("07:00").do(scheduled_prepare_newsletter)
-    schedule.every().monday.at("08:00").do(scheduled_notify_newsletter)
+
+    # Daily & periodic
     schedule.every().day.at("09:00").do(scheduled_digest)
     schedule.every().day.at("03:00").do(scheduled_cleanup)
     schedule.every(1).hours.do(scheduled_refresh_cache)
@@ -4961,7 +5884,7 @@ def setup_scheduler():
     logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h, trending every 12h")
     logger.info("Multi-source: HN scrape every 6h, GitHub scrape every 12h, RSS scrape every 6h, thought leaders every 6h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
-    logger.info("Weekly: topic evolution Mon 06:00, prediction tracking Mon 06:30, newsletter prep Mon 07:00, newsletter notify Mon 08:00 UTC")
+    logger.info("Monday pipeline: evolution 06:00, spotlight+predictions 06:30, newsletter 09:00, notify 10:00 UTC")
     logger.info("Hourly: workspace cache refresh, proactive anomaly scan")
     logger.info("Every 10min: negotiation timeout check")
 
@@ -4977,7 +5900,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -5089,6 +6012,13 @@ def main():
     elif args.task == 'update_topic_evolution':
         result = update_topic_evolution()
         print(json.dumps(result, default=str, indent=2))
+    
+    elif args.task == 'select_spotlight':
+        result = select_spotlight_topic()
+        print(json.dumps(result, default=str, indent=2))
+
+    elif args.task == 'run_full_pipeline':
+        run_full_newsletter_pipeline()
     
     elif args.task == 'queue':
         process_queue()

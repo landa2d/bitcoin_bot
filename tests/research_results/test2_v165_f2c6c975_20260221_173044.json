@@ -1,0 +1,69 @@
+{
+  "test": 2,
+  "label": "Emerging topic with thin signal",
+  "topic_key": "scientific_data_analysis",
+  "mode": "spotlight",
+  "description": "[problem_clusters] Low-signal fallback (1 mentions): scientific_data_analysis",
+  "sources": {
+    "general": 39,
+    "thought_leader": 0
+  },
+  "usage": {
+    "input_tokens": 4640,
+    "output_tokens": 245,
+    "elapsed_seconds": 6.8,
+    "model": "claude-sonnet-4-20250514"
+  },
+  "output": {
+    "mode": "insufficient_data",
+    "topic_name": "Scientific Data Analysis",
+    "thesis": "Insufficient data for a strong thesis - topic appears to be catching scattered mentions without coherent direction",
+    "evidence": "The provided sources contain only one actual mention of scientific data analysis, making it impossible to construct a meaningful thesis. The bulk of sources discuss general agent capabilities, coding agents, and AI safety concerns, but lack the focused discussion needed for a Spotlight analysis. Without thought leader perspectives or concentrated community debate around scientific data analysis specifically, this topic hasn't reached the threshold for substantive analysis. The 'debating' lifecycle phase designation appears to be algorithmic noise rather than genuine community discourse.",
+    "counter_argument": "N/A - insufficient coherent discourse to counter",
+    "prediction": "N/A - cannot make falsifiable predictions without substantive data",
+    "builder_implications": "N/A - no actionable insights available from current data",
+    "key_sources": [],
+    "topic_id": "scientific-data-analysis"
+  },
+  "scoring": {
+    "scores": {
+      "thesis_quality": 3,
+      "prediction_specificity": 2,
+      "voice_quality": 5,
+      "counter_argument_quality": 2,
+      "evidence_quality": 4,
+      "builder_actionability": 2
+    },
+    "details": {
+      "thesis_quality": [
+        "no tension word",
+        "concise (17 words)"
+      ],
+      "prediction_specificity": [
+        "no timeframe"
+      ],
+      "voice_quality": [
+        "clean voice"
+      ],
+      "counter_argument_quality": [
+        "thin (7 words)",
+        "not strawman"
+      ],
+      "evidence_quality": [
+        "thin (81 words)",
+        "prose format",
+        "8 source references"
+      ],
+      "builder_actionability": [
+        "too short (9 words)",
+        "no action language"
+      ]
+    },
+    "total": 18,
+    "max": 30,
+    "pct": 60.0,
+    "weakest": "prediction_specificity"
+  },
+  "prompt_version": "v165_f2c6c975",
+  "timestamp": "2026-02-21T17:30:44.703165+00:00"
+}

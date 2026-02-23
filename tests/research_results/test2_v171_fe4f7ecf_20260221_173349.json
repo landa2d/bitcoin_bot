@@ -1,0 +1,71 @@
+{
+  "test": 2,
+  "label": "Emerging topic with thin signal",
+  "topic_key": "scientific_data_analysis",
+  "mode": "spotlight",
+  "description": "[problem_clusters] Low-signal fallback (1 mentions): scientific_data_analysis",
+  "sources": {
+    "general": 39,
+    "thought_leader": 0
+  },
+  "usage": {
+    "input_tokens": 4715,
+    "output_tokens": 622,
+    "elapsed_seconds": 18.1,
+    "model": "claude-sonnet-4-20250514"
+  },
+  "output": {
+    "mode": "spotlight",
+    "topic_name": "Scientific Data Analysis",
+    "thesis": "The agent economy is fragmenting into specialized tooling niches, yet the infrastructure assumes general-purpose agents that don't exist in practice.",
+    "evidence": "The evidence tells a story of profound mismatch between agent marketing hype and operational reality. GitHub activity reveals the real pattern: agents are becoming highly specialized tools rather than general assistants. PlanetScale's database-skills repository and the visual-explainer project represent practical, narrow-scope implementations that actually work. Meanwhile, broader evaluations like SkillsBench show that even when agents are given explicit skills, performance improvements are marginal\u2014just 4% better than no skills at all. This isn't a training problem; it's an architecture problem. The most successful agent deployments, like Stripe's Minions, succeed precisely because they're constrained to specific domains rather than trying to be everything to everyone. The community discussion around these tools consistently emphasizes the gap between expectation and execution. HackerNews threads reveal practitioners struggling with basic reliability issues\u2014from Microsoft's Copilot leaking confidential data to fundamental questions about whether LLM-generated skills actually transfer across tasks. The pattern emerges clearly: specialized agent tooling is thriving while general-purpose agent platforms remain largely theoretical.",
+    "counter_argument": "The strongest argument against this is that specialization is simply the natural evolution path for any new technology category. Every transformative platform\u2014from operating systems to cloud infrastructure\u2014began with highly specific use cases before generalizing. The current fragmentation might actually indicate a healthy ecosystem finding product-market fit in different domains before consolidating around common patterns. Companies like Anthropic are actively working on autonomy benchmarks and safety measures that could enable the general-purpose agents that current infrastructure anticipates. The database skills and visualization tools we're seeing today might be the building blocks for more capable general agents, not evidence that general agents are impossible. Early specialization often precedes successful abstraction.",
+    "prediction": "At least three of the top-10 agent framework providers will pivot to domain-specific offerings by Q2 2025, abandoning general-purpose positioning.",
+    "builder_implications": "Stop building for the general agent future and start solving specific workflow problems today. The market is rewarding narrow, reliable agent tools over broad, unreliable ones. Focus on single-domain expertise with clear success metrics rather than trying to build the next ChatGPT wrapper. The infrastructure layer will consolidate later, but the application layer is where value is being created now.",
+    "key_sources": [
+      "https://github.com/planetscale/database-skills",
+      "https://arxiv.org/abs/2602.12670"
+    ],
+    "topic_id": "scientific-data-analysis"
+  },
+  "scoring": {
+    "scores": {
+      "thesis_quality": 5,
+      "prediction_specificity": 5,
+      "voice_quality": 5,
+      "counter_argument_quality": 5,
+      "evidence_quality": 4,
+      "builder_actionability": 5
+    },
+    "details": {
+      "thesis_quality": [
+        "concise (20 words)"
+      ],
+      "prediction_specificity": [
+        "has timeframe",
+        "has number"
+      ],
+      "voice_quality": [
+        "clean voice"
+      ],
+      "counter_argument_quality": [
+        "substantive (108 words)",
+        "not strawman"
+      ],
+      "evidence_quality": [
+        "adequate (158 words)",
+        "prose format",
+        "19 source references"
+      ],
+      "builder_actionability": [
+        "3 action words"
+      ]
+    },
+    "total": 29,
+    "max": 30,
+    "pct": 96.7,
+    "weakest": "evidence_quality"
+  },
+  "prompt_version": "v171_fe4f7ecf",
+  "timestamp": "2026-02-21T17:33:49.843973+00:00"
+}

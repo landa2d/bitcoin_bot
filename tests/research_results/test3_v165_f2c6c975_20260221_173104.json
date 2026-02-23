@@ -1,0 +1,72 @@
+{
+  "test": 3,
+  "label": "Technical infrastructure topic",
+  "topic_key": "security_and_trust",
+  "mode": "spotlight",
+  "description": "[problem_clusters] Technical topic: security_and_trust",
+  "sources": {
+    "general": 123,
+    "thought_leader": 20
+  },
+  "usage": {
+    "input_tokens": 5678,
+    "output_tokens": 642,
+    "elapsed_seconds": 19.1,
+    "model": "claude-sonnet-4-20250514"
+  },
+  "output": {
+    "mode": "spotlight",
+    "topic_name": "Security And Trust",
+    "thesis": "Agent security is entering production reality, but the security model assumes human oversight that's disappearing as agents become more autonomous.",
+    "evidence": "The infrastructure layer is frantically building containment while the application layer races toward autonomy. GitHub repos like sandstorm and portless show the infrastructure community taking security seriously \u2014 secure cloud sandboxes and stable localhost URLs signal an ecosystem preparing for untrustworthy code. Yet simultaneously, projects like OpenAlice are building fully autonomous trading agents with wallets, and Quoroom is publicly experimenting with agent swarms earning real money. The tension is stark: we're building better cages while simultaneously removing the zookeepers. Ethan Mollick's analysis of 'Real AI Agents and Real Work' highlights this paradox \u2014 agents are becoming genuinely capable of independent work, but our security frameworks still assume a human will review, approve, or intervene. The HackerNews discussion around Claude's computer use reveals the core problem: Anthropic claims 'greatly improved resistance' to adversarial attacks, yet their own safety evaluations show 8% success rates for automated injection attacks. When Microsoft's Copilot leaked confidential emails due to a 'bug,' the community's response wasn't about the bug itself but about the fundamental architecture that allows such exposure. The agent economy is being built on web-scale infrastructure where 'oops' affects millions simultaneously, not dozens.",
+    "counter_argument": "The strongest argument against this thesis is that security-first development is actually winning. The proliferation of sandboxing tools, secure agent runtimes, and formal verification approaches suggests the industry learned from web security failures and is building defenses proactively rather than reactively. The fact that we're seeing security infrastructure emerge alongside agent capabilities, rather than after security incidents, indicates a mature approach to the threat model.",
+    "prediction": "At least one major agent platform will implement mandatory human approval for any action involving external APIs or financial transactions by Q2 2025, reversing their current autonomous-by-default positioning.",
+    "builder_implications": "Stop building agents that assume they'll always have human oversight. Design for the reality that your agent will eventually run unsupervised, and build your security model around that assumption from day one. If your agent architecture requires human approval for safety, you're building technical debt that will force a complete rewrite when demand for true autonomy arrives.",
+    "key_sources": [
+      "https://www.oneusefulthing.org/p/real-ai-agents-and-real-work",
+      "https://github.com/tomascupr/sandstorm",
+      "https://github.com/quoroom-ai/room"
+    ],
+    "topic_id": "security-and-trust"
+  },
+  "scoring": {
+    "scores": {
+      "thesis_quality": 5,
+      "prediction_specificity": 5,
+      "voice_quality": 5,
+      "counter_argument_quality": 4,
+      "evidence_quality": 4,
+      "builder_actionability": 4
+    },
+    "details": {
+      "thesis_quality": [
+        "concise (20 words)"
+      ],
+      "prediction_specificity": [
+        "has timeframe",
+        "has number"
+      ],
+      "voice_quality": [
+        "clean voice"
+      ],
+      "counter_argument_quality": [
+        "adequate (65 words)",
+        "not strawman"
+      ],
+      "evidence_quality": [
+        "adequate (189 words)",
+        "prose format",
+        "10 source references"
+      ],
+      "builder_actionability": [
+        "2 action words"
+      ]
+    },
+    "total": 27,
+    "max": 30,
+    "pct": 90.0,
+    "weakest": "counter_argument_quality"
+  },
+  "prompt_version": "v165_f2c6c975",
+  "timestamp": "2026-02-21T17:31:04.281574+00:00"
+}

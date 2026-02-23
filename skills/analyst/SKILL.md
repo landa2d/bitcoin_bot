@@ -104,13 +104,15 @@ You can query Supabase directly for additional data during analysis:
 - `cross_signals` — previously detected cross-pipeline signals
 
 ### proactive_analysis
-Assess anomalies detected by the proactive monitoring system.
+Assess a single anomaly detected by the proactive monitoring system.
 
-**Input:** `{anomalies, budget}`
-- `anomalies`: Array of anomaly objects, each with `type`, `description`, and relevant metrics (e.g. `multiplier`, `current`, `baseline_hourly`, `drop`)
+**Input:** `{anomaly_type, description, metrics, budget}`
+- `anomaly_type`: Type of anomaly — e.g. `frequency_spike`, `sentiment_crash`, `volume_anomaly`
+- `description`: Plain-language description of what was detected
+- `metrics`: Relevant numeric metrics dict — e.g. `{"multiplier": 3.2, "current": 45, "baseline_hourly": 14, "drop": 0.4}`
 - `budget`: Budget constraints for this task (see Budget Object below)
 
-**Process:** Assess each anomaly — is it significant or noise? Be efficient (budget is small).
+**Process:** Assess the anomaly — is it significant or noise? Be efficient (budget is small).
 
 **Output:**
 ```json

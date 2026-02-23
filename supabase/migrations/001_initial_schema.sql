@@ -3,15 +3,14 @@
 -- Run this in the Supabase SQL Editor
 -- ============================================================================
 
--- Enable UUID extension (usually already enabled)
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- gen_random_uuid() is built into Postgres 14+ and Supabase — no extension needed.
 
 -- ============================================================================
 -- RAW DATA: Moltbook Posts
 -- ============================================================================
 
 CREATE TABLE moltbook_posts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     moltbook_id TEXT UNIQUE NOT NULL,          -- Original ID from Moltbook
     author_name TEXT,
     author_id TEXT,
@@ -40,7 +39,7 @@ CREATE INDEX idx_posts_created ON moltbook_posts(moltbook_created_at DESC);
 -- ============================================================================
 
 CREATE TABLE problems (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     description TEXT NOT NULL,                  -- The extracted problem statement
     category TEXT,                              -- e.g., "tools", "infrastructure", "payments"
     keywords TEXT[],                            -- Key terms for matching
@@ -63,7 +62,7 @@ CREATE INDEX idx_problems_validated ON problems(is_validated);
 -- ============================================================================
 
 CREATE TABLE problem_clusters (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     theme TEXT NOT NULL,                        -- Cluster name/theme
     description TEXT,                           -- What this cluster represents
     problem_ids UUID[],                         -- Problems in this cluster
@@ -82,7 +81,7 @@ CREATE INDEX idx_clusters_score ON problem_clusters(opportunity_score DESC);
 -- ============================================================================
 
 CREATE TABLE opportunities (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cluster_id UUID REFERENCES problem_clusters(id),
     title TEXT NOT NULL,                        -- Opportunity name
     problem_summary TEXT,                       -- What problem this solves
@@ -106,7 +105,7 @@ CREATE INDEX idx_opportunities_score ON opportunities(confidence_score DESC);
 -- ============================================================================
 
 CREATE TABLE tool_mentions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tool_name TEXT NOT NULL,                    -- Normalized tool name
     tool_name_raw TEXT,                         -- As mentioned in post
     post_id UUID REFERENCES moltbook_posts(id),
@@ -129,7 +128,7 @@ CREATE INDEX idx_tools_date ON tool_mentions(mentioned_at DESC);
 -- ============================================================================
 
 CREATE TABLE pipeline_runs (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pipeline TEXT NOT NULL,                     -- 'scrape', 'extract_problems', 'cluster', etc.
     status TEXT DEFAULT 'running',              -- running, completed, failed
     trigger_type TEXT,                          -- 'manual', 'scheduled'
@@ -215,7 +214,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Add source_tier column to source_posts for thought leader tagging
-ALTER TABLE source_posts ADD COLUMN IF NOT EXISTS source_tier TEXT DEFAULT NULL;
-CREATE INDEX IF NOT EXISTS idx_source_posts_source_tier ON source_posts(source_tier);
-CREATE INDEX IF NOT EXISTS idx_source_posts_source_tier_scraped ON source_posts(source_tier, scraped_at DESC);
+-- Thought leader source posts are identified by source LIKE 'thought_leader_%'
+-- source_tier column (integer) already exists on source_posts
+CREATE INDEX IF NOT EXISTS idx_source_posts_thought_leader ON source_posts(source) WHERE source LIKE 'thought_leader_%';

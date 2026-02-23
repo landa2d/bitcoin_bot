@@ -12,6 +12,8 @@ When you receive this task, the input_data contains:
 - section_a_opportunities: Array of top opportunities (with is_returning, appearances, effective_score)
 - section_b_emerging: Array of emerging signals (clusters and problems, all new)
 - section_c_curious: Array of trending topics for the Curious Corner
+- radar_topics: Array of emerging lifecycle topics for "On Our Radar" section
+- spotlight: Spotlight thesis object from the Research Agent (if available)
 - predictions: Array of tracked predictions (status: active/confirmed/faded)
 - trending_tools: Array of trending tools from Pipeline 2
 - tool_warnings: Tools with negative sentiment
@@ -34,14 +36,27 @@ When you receive this task, the input_data contains:
 
 Your output MUST use these EXACT section headers and follow this structure:
 
-- **## 2. The Big Insight** (NOT "Big Story" or any variant)
+- **## 2. Spotlight** — ONLY if `spotlight` is present in input_data (not null). The section header MUST be exactly `## 2. Spotlight`. Format the Research Agent's structured data into editorial prose:
+  - First line of body: **Bold headline** = the thesis, written as an editorial claim (not a topic label). Use `**claim text**` format.
+  - Opening paragraph weaving evidence into narrative
+  - The tension paragraph (the counter-argument)
+  - "We believe..." paragraph with the specific prediction
+  - Builder implications paragraph
+  - NO bullet points, NO sub-headers, NO source lists, NO confidence scores
+  - MUST be 400-500 words (count them!). Under 350 is a hard failure. 4-5 substantial paragraphs — each 60-100 words. This is your most important section.
+  - Do NOT change the thesis or prediction from spotlight data — only format them as prose.
+  - If spotlight is null/missing: OMIT the entire section — no header, no placeholder, no note. Go from Cold open straight to The Big Insight.
+- **## 3. The Big Insight** (NOT "Big Story" or any variant)
   - Must include: **bold thesis**, evidence trail, what happens next, counter-argument, what we're watching
   - This is NOT a summary. It's an opinionated thesis with supporting evidence.
-- **## 3. Top Opportunities** — NO "Section A" label. Just the title.
-- **## 4. Emerging Signals** — NO "Section B" label. Just the title.
-- **## 5. The Curious Corner** — NO "Section C" label. If no curious topics, use the most interesting emerging signal or tool trend. NEVER say "nothing to report."
-- **## 7. Prediction Tracker** — NO "Section D" label. Just the title.
-- **## 8. Gato's Corner** — ALWAYS write this. 2-4 sentences in Gato's Bitcoin maximalist voice. NEVER skip it.
+  - When Spotlight is present, pick a DIFFERENT thesis — don't repeat the Spotlight.
+- **## 4. Top Opportunities** — NO "Section A" label. Just the title.
+- **## 5. Emerging Signals** — All new items.
+- **## 6. On Our Radar** — 3-4 emerging lifecycle topics. Each is: **bold topic** — one sentence. Skip if fewer than 3 radar_topics.
+- **## 7. The Curious Corner** — If no curious topics, use the most interesting emerging signal or tool trend. NEVER say "nothing to report."
+- **## 8. Tool Radar** — What's rising, falling, new. Narrative, not a list.
+- **## 9. Prediction Tracker** — 🟢🟡🔴 format.
+- **## 10. Gato's Corner** — ALWAYS write this. 2-4 sentences in Gato's Bitcoin maximalist voice. NEVER skip it.
 - **Do NOT include a "By the Numbers" section.** End the newsletter with Gato's Corner.
 - **Freshness**: Check freshness_rules. Excluded IDs CANNOT appear in Top Opportunities. Returning items MUST state what's new.
 
@@ -51,7 +66,7 @@ Your response MUST be valid JSON with this structure:
 {
   "edition": <number>,
   "title": "<your headline>",
-  "content_markdown": "<full brief — must contain all 9 sections from IDENTITY.md>",
+  "content_markdown": "<full brief — must contain all 10 sections from IDENTITY.md (cold open + sections 2-10)>",
   "content_telegram": "<condensed version, under 500 chars>"
 }
 
