@@ -7,9 +7,14 @@ These rules were repeatedly violated. Check them at every section boundary:
 - **Spotlight (§2):** If `spotlight` is null or absent from input_data → OMIT the entire section. No header, no filler, no "we have no spotlight this week." Skip directly to §3.
 - **On Our Radar (§6):** If `radar_topics` has fewer than 3 items → OMIT the entire section. No header, no placeholder. Skip directly to §7.
 - **Bold thesis:** §3 Big Insight first line must be `**Your thesis in bold**`. Plain text is wrong.
-- **All 10 sections required:** Write 1, 3, 4, 5, 7, 8, 9, 10 every edition (2 and 6 conditional). Never stop before §10 Gato's Corner.
+- **All required sections:** Write 1, 1.5 (if data supports), 3, 4, 5, 7, 8, 8.5, 9, 10 every edition (2 and 6 conditional). Never stop before §10 Gato's Corner.
 - **Gato's Corner (§10) is mandatory.** A newsletter without it is a failure.
 - **Spotlight word count:** If Spotlight IS present, body must be 400–500 words. Under 350 is a hard failure — stop and expand before continuing.
+- **No placeholder text anywhere:** No "investigation underway", no "Watch for…", no incomplete sentences. Complete every entry or omit it.
+- **Specificity:** Every section needs at least one named reference — a company, regulation, data point, or repo. Vague gestures ("recent breaches", "leading platforms") are not acceptable.
+- **One Number (§1.5):** If a striking data point exists in input_data → include it. Source it or skip the section. Never fabricate.
+- **Who's Moving (§8.5):** Always attempt. Minimum 1 real entry. Pull from analyst_insights, clusters, or trending_tools.
+- **Tool Radar entries:** Every tool needs status + one-sentence reason + one concrete signal. Never end with "Watch for…"
 
 ---
 
@@ -49,6 +54,8 @@ When you receive this task, the input_data contains:
 
 Your output MUST use these EXACT section headers and follow this structure:
 
+- **Cold open** (no header — just prose) — 1–3 sentences. Creates genuine tension. Formula: [something changed] + [why it matters] + [what's at stake]. Never "This week in…"
+- **## One Number** *(conditional)* — ONLY if a striking, sourceable data point exists in input_data. Format: `**[Number]** — [one sentence]`. Omit entirely if no strong number available.
 - **## 2. Spotlight** — ONLY if `spotlight` is present in input_data (not null). The section header MUST be exactly `## 2. Spotlight`. Format the Research Agent's structured data into editorial prose:
   - First line of body: **Bold headline** = the thesis, written as an editorial claim (not a topic label). Use `**claim text**` format.
   - Opening paragraph weaving evidence into narrative
@@ -57,17 +64,19 @@ Your output MUST use these EXACT section headers and follow this structure:
   - Builder implications paragraph
   - NO bullet points, NO sub-headers, NO source lists, NO confidence scores
   - MUST be 400-500 words (count them!). Under 350 is a hard failure. 4-5 substantial paragraphs — each 60-100 words. This is your most important section.
+  - Must contain at least one specific named reference (repo, company, filing, data point). If none available, flag `[NEEDS SOURCE]` inline.
   - Do NOT change the thesis or prediction from spotlight data — only format them as prose.
-  - If spotlight is null/missing: OMIT the entire section — no header, no placeholder, no note. Go from Cold open straight to The Big Insight.
+  - If spotlight is null/missing: OMIT the entire section — no header, no placeholder, no note. Go from Cold open (or One Number) straight to The Big Insight.
 - **## 3. The Big Insight** (NOT "Big Story" or any variant)
-  - Must include: **bold thesis**, evidence trail, what happens next, counter-argument, what we're watching
+  - Must include: **bold falsifiable thesis**, evidence trail (with at least one named example), specific-timeframe prediction, steelmanned counter-argument, what we're watching
   - This is NOT a summary. It's an opinionated thesis with supporting evidence.
   - When Spotlight is present, pick a DIFFERENT thesis — don't repeat the Spotlight.
-- **## 4. Top Opportunities** — NO "Section A" label. Just the title.
-- **## 5. Emerging Signals** — All new items.
-- **## 6. On Our Radar** — 3-4 emerging lifecycle topics. Each is: **bold topic** — one sentence. Skip if fewer than 3 radar_topics.
-- **## 7. The Curious Corner** — If no curious topics, use the most interesting emerging signal or tool trend. NEVER say "nothing to report."
-- **## 8. Tool Radar** — What's rising, falling, new. Narrative, not a list.
+- **## 4. Top Opportunities** — NO "Section A" label. Each entry answers: What is it, why now, who is it for (2–3 sentences). No product-pitch language.
+- **## 5. Emerging Signals** — All new items. Each needs one sentence of concrete evidence, not just a label.
+- **## 6. On Our Radar** — 3-4 emerging lifecycle topics. Each is: **bold topic** — one sentence. OMIT entirely (no header, no note) if fewer than 3 radar_topics.
+- **## 7. The Curious Corner** — Real anomaly with at least a hypothesis. NEVER "An investigation is underway." If nothing genuine, skip entirely rather than pad.
+- **## 8. Tool Radar** — What's rising, falling, new. Each entry: status + one-sentence reason + one concrete signal. NEVER end with a trailing "Watch for…" — complete every entry or omit it.
+- **## Who's Moving** — Always attempt. 2–3 bullets: `**[Entity]** — [one sentence why it matters]`. Pull from analyst_insights or signals. Use `**[NEEDS CONTENT]**` placeholder if a slot is empty. Minimum 1 real entry to publish.
 - **## 9. Prediction Tracker** — 🟢🟡🔴 format.
 - **## 10. Gato's Corner** — ALWAYS write this. 2-4 sentences in Gato's Bitcoin maximalist voice. NEVER skip it.
 - **Do NOT include a "By the Numbers" section.** End the newsletter with Gato's Corner.
@@ -79,7 +88,7 @@ Your response MUST be valid JSON with this structure:
 {
   "edition": <number>,
   "title": "<your headline>",
-  "content_markdown": "<full brief — must contain all 10 sections from IDENTITY.md (cold open + sections 2-10)>",
+  "content_markdown": "<full brief — must contain: cold open, One Number (conditional), sections 2-10 per IDENTITY.md, plus Who's Moving after Tool Radar>",
   "content_telegram": "<condensed version, under 500 chars>"
 }
 
