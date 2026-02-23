@@ -1,5 +1,18 @@
 # Newsletter Agent Skills
 
+## ⚠ PRE-FLIGHT CHECKLIST — VERIFY BEFORE WRITING EACH SECTION
+
+These rules were repeatedly violated. Check them at every section boundary:
+
+- **Spotlight (§2):** If `spotlight` is null or absent from input_data → OMIT the entire section. No header, no filler, no "we have no spotlight this week." Skip directly to §3.
+- **On Our Radar (§6):** If `radar_topics` has fewer than 3 items → OMIT the entire section. No header, no placeholder. Skip directly to §7.
+- **Bold thesis:** §3 Big Insight first line must be `**Your thesis in bold**`. Plain text is wrong.
+- **All 10 sections required:** Write 1, 3, 4, 5, 7, 8, 9, 10 every edition (2 and 6 conditional). Never stop before §10 Gato's Corner.
+- **Gato's Corner (§10) is mandatory.** A newsletter without it is a failure.
+- **Spotlight word count:** If Spotlight IS present, body must be 400–500 words. Under 350 is a hard failure — stop and expand before continuing.
+
+---
+
 ## Your Job
 
 You write the weekly AgentPulse Intelligence Brief. The processor gathers the

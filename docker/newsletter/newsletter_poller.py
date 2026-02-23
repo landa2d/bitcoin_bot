@@ -174,7 +174,25 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
     skill = load_skill(SKILL_DIR)
 
     system_prompt = f"{identity}\n\n---\n\nSKILL REFERENCE:\n{skill}"
-    system_prompt += "\n\nYou MUST respond with valid JSON only — no markdown fences, no extra text."
+    system_prompt += (
+        "\n\nYou MUST respond with valid JSON only — no markdown fences, no extra text."
+        "\n\nCRITICAL RULES — CHECK BEFORE WRITING EACH SECTION:"
+        "\n1. SPOTLIGHT (section 2): If `spotlight` is null OR missing from input_data,"
+        " OMIT the ENTIRE section — no header, no placeholder text, no explanation."
+        " Go directly from the Cold open to section 3 The Big Insight."
+        "\n2. ON OUR RADAR (section 6): If `radar_topics` has fewer than 3 items,"
+        " OMIT the ENTIRE section — no header, no 'nothing to report' note."
+        " Skip from section 5 straight to section 7."
+        "\n3. SECTION ORDER: Write every required section in order and complete it"
+        " before moving on. Required sections are: 1 (Cold open), 3, 4, 5, 7, 8, 9, 10."
+        " Never stop before completing section 10 (Gato's Corner)."
+        "\n4. SECTION 3 BIG INSIGHT: The first line of the body MUST be the thesis in"
+        " **bold markdown** — e.g. `**Your thesis here**`."
+        "\n5. GATO'S CORNER (section 10): ALWAYS write this. It is the last section."
+        " NEVER omit it. A newsletter without Gato's Corner is a failed newsletter."
+        "\n6. SECTION 2 SPOTLIGHT WORD COUNT: If spotlight IS present, the section body"
+        " MUST be 400-500 words. Under 350 is a hard failure — expand before moving on."
+    )
 
     user_msg = (
         f"TASK TYPE: {task_type}\n\n"
@@ -186,7 +204,7 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
 
     response = client.chat.completions.create(
         model=MODEL,
-        max_tokens=8192,
+        max_tokens=16000,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg},
