@@ -162,6 +162,230 @@ def validate_llm_output(raw: dict, model_cls: type) -> object:
         return model_cls.model_construct(**valid_fields)
 
 
+# ---------------------------------------------------------------------------
+# Post-generation quality validators
+# ---------------------------------------------------------------------------
+
+def _extract_sections(md: str) -> dict[str, str]:
+    """Split markdown into named sections based on ## headers."""
+    sections: dict[str, str] = {}
+    current = "_preamble"
+    lines: list[str] = []
+    for line in md.split("\n"):
+        m = re.match(r"^#{1,3}\s+(.+)", line)
+        if m:
+            if lines:
+                sections[current] = "\n".join(lines)
+            current = m.group(1).strip()
+            lines = []
+        else:
+            lines.append(line)
+    if lines:
+        sections[current] = "\n".join(lines)
+    return sections
+
+
+def _find_one_number_stat(sections: dict[str, str]) -> str | None:
+    """Extract the primary stat from the One Number section."""
+    for key, val in sections.items():
+        if "one number" in key.lower():
+            match = re.search(r'\*\*([^*]+)\*\*', val)
+            if match:
+                return match.group(1).strip()
+    return None
+
+
+def validate_stat_repetition(content_md: str) -> list[dict]:
+    """Issue #1: Check that the One Number stat doesn't repeat across sections."""
+    issues = []
+    sections = _extract_sections(content_md)
+    stat = _find_one_number_stat(sections)
+    if not stat:
+        return issues
+
+    stat_normalized = stat.replace(",", "").replace("$", "").strip()
+
+    occurrences = []
+    for key, val in sections.items():
+        if "one number" in key.lower():
+            continue
+        if stat in val or stat_normalized in val.replace(",", ""):
+            occurrences.append(key)
+
+    if occurrences:
+        issues.append({
+            "severity": "warning",
+            "issue": "stat_repetition",
+            "section": "One Number",
+            "detail": f"Stat '{stat}' repeated in: {', '.join(occurrences)}",
+        })
+    return issues
+
+
+def validate_section_echo(content_md: str) -> list[dict]:
+    """Issue #2: Check that Spotlight and Big Insight don't echo each other."""
+    issues = []
+    sections = _extract_sections(content_md)
+
+    spotlight_text = ""
+    insight_text = ""
+    insight_key = ""
+
+    for key, val in sections.items():
+        if "spotlight" in key.lower():
+            spotlight_text = val.lower()
+        elif (key != "_preamble"
+              and "one number" not in key.lower()
+              and "spotlight" not in key.lower()
+              and not insight_text):
+            insight_text = val.lower()
+            insight_key = key
+
+    if not spotlight_text or not insight_text:
+        return issues
+
+    stop_words = {
+        "about", "which", "their", "these", "being", "would", "could",
+        "should", "other", "where", "there", "agent", "agents", "between",
+        "through", "because", "before", "after", "while", "might", "still",
+    }
+
+    def sig_words(text: str) -> set[str]:
+        return set(re.findall(r'\b[a-z]{5,}\b', text)) - stop_words
+
+    spot_words = sig_words(spotlight_text)
+    insight_words = sig_words(insight_text)
+
+    if spot_words and insight_words:
+        overlap = spot_words & insight_words
+        overlap_ratio = len(overlap) / min(len(spot_words), len(insight_words))
+        if overlap_ratio > 0.5:
+            issues.append({
+                "severity": "warning",
+                "issue": "section_echo",
+                "section": f"Spotlight vs {insight_key}",
+                "detail": (f"Overlap ratio {overlap_ratio:.0%} — sections may echo "
+                           f"each other. Shared: {', '.join(list(overlap)[:5])}"),
+            })
+    return issues
+
+
+def validate_stale_predictions(content_md: str, input_data: dict) -> list[dict]:
+    """Issue #4: Check for stale predictions published without resolution."""
+    issues = []
+    stale_ids = input_data.get('stale_prediction_ids', [])
+    if not stale_ids:
+        return issues
+
+    sections = _extract_sections(content_md)
+    pred_section = ""
+    for key, val in sections.items():
+        if "prediction" in key.lower() or "tracker" in key.lower():
+            pred_section = val
+            break
+
+    if not pred_section:
+        return issues
+
+    stale_predictions = [
+        p for p in input_data.get('predictions', [])
+        if p.get('id') in stale_ids
+    ]
+
+    for pred in stale_predictions:
+        title = (pred.get('title') or pred.get('prediction_text', ''))[:40]
+        if title and title.lower() in pred_section.lower():
+            issues.append({
+                "severity": "critical",
+                "issue": "stale_prediction",
+                "section": "Prediction Tracker",
+                "detail": (f"Prediction '{title}...' is past target_date "
+                           f"({pred.get('target_date')}) — must be resolved"),
+            })
+    return issues
+
+
+def validate_prediction_format(content_md: str) -> list[dict]:
+    """Issue #6: Check predictions have specific dates and falsifiable outcomes."""
+    issues = []
+    sections = _extract_sections(content_md)
+
+    pred_section = ""
+    for key, val in sections.items():
+        if "prediction" in key.lower() or "tracker" in key.lower():
+            pred_section = val
+            break
+
+    if not pred_section:
+        return issues
+
+    # Match prediction lines: emoji + bold text
+    pred_lines = re.findall(
+        r'[\U0001f7e2\U0001f7e1\U0001f534\u2705\u274c\U0001f504]\s*\*\*(.+?)\*\*',
+        pred_section)
+
+    date_pattern = re.compile(
+        r'(?:by|before|within)\s+(?:Q[1-4]\s+\d{4}|'
+        r'(?:January|February|March|April|May|June|July|August|September|'
+        r'October|November|December)\s+\d{4}|'
+        r'(?:year[- ]?end|end\s+of)\s+\d{4}|\d+\s+months?)',
+        re.IGNORECASE
+    )
+
+    for pred_text in pred_lines:
+        if not date_pattern.search(pred_text):
+            issues.append({
+                "severity": "warning",
+                "issue": "unfalsifiable_prediction",
+                "section": "Prediction Tracker",
+                "detail": f"Prediction lacks specific date: '{pred_text[:60]}'",
+            })
+    return issues
+
+
+def run_quality_checks(result: dict, input_data: dict) -> list[dict]:
+    """Run all post-generation quality checks. Returns list of issues."""
+    content = result.get('content_markdown', '')
+    if not content:
+        return [{"severity": "critical", "issue": "empty_content",
+                 "section": "Newsletter", "detail": "No content_markdown"}]
+
+    all_issues: list[dict] = []
+    all_issues.extend(validate_stat_repetition(content))
+    all_issues.extend(validate_section_echo(content))
+    all_issues.extend(validate_stale_predictions(content, input_data))
+    all_issues.extend(validate_prediction_format(content))
+    return all_issues
+
+
+def _auto_fix_stat_repetition(result: dict) -> dict:
+    """Auto-fix: remove duplicate One Number stats from later sections."""
+    content = result.get('content_markdown', '')
+    if not content:
+        return result
+
+    sections = _extract_sections(content)
+    stat = _find_one_number_stat(sections)
+    if not stat:
+        return result
+
+    stat_pattern = re.escape(stat)
+    matches = list(re.finditer(stat_pattern, content))
+
+    if len(matches) <= 1:
+        return result
+
+    fixed = content
+    for match in reversed(matches[1:]):
+        start, end = match.span()
+        fixed = fixed[:start] + "the figure highlighted above" + fixed[end:]
+
+    if fixed != content:
+        result['content_markdown'] = fixed
+        logger.info(f"Auto-fixed: removed {len(matches) - 1} duplicate stat occurrence(s)")
+    return result
+
+
 def mark_task_status(task_id: str, status: str, **fields):
     payload = {"status": status, **fields}
     supabase.table("agent_tasks").update(payload).eq("id", task_id).execute()
@@ -206,7 +430,36 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         " 'smart businesses are already', 'sifting through the narrative', 'elevated"
         " urgency', 'in today's rapidly evolving', 'it remains to be seen'."
         " Write like a reporter, not a business deck."
+        "\n11. ONE NUMBER REPETITION: The One Number stat appears with its full figure"
+        " ONCE in the One Number section. Later sections reference it by description"
+        " only ('the incident spike', 'the cost figure above'), NEVER re-quote the"
+        " exact number."
+        "\n12. SPOTLIGHT vs BIG INSIGHT: Before writing Big Insight, state what"
+        " Spotlight already covered. Then choose a DIFFERENT angle: second-order"
+        " effects, security implications, business model impact, supply chain"
+        " consequences, regulatory risk, or a contrarian take."
+        "\n13. JARGON GROUNDING: Every technical concept must be grounded on first"
+        " use: name it, explain it in one sentence, then give a specific real-world"
+        " scenario. Write for a smart founder, not an AI engineer."
+        "\n14. STALE PREDICTIONS: Check input_data for stale_prediction_ids. Any"
+        " prediction whose target_date has passed MUST be resolved as ✅ Confirmed,"
+        " ❌ Wrong, or 🔄 Revised — with honest explanation. NEVER publish a"
+        " past-due prediction as Active or Developing."
+        "\n15. PREDICTION FORMAT: Every new prediction must follow: 'By [specific"
+        " date], [specific measurable outcome].' Target dates must be at least 4"
+        " weeks in the future."
+        "\n16. GATO'S CORNER STRUCTURE: (1) Reference the week's main theme,"
+        " (2) draw a genuine parallel to Bitcoin/decentralization that feels earned,"
+        " (3) deliver an actionable insight. End with 'Stay humble, stack sats.'"
     )
+
+    # Inject quality feedback on retry
+    quality_feedback = input_data.pop('_quality_feedback', None)
+    if quality_feedback:
+        system_prompt += (
+            "\n\nQUALITY ISSUES FROM PREVIOUS ATTEMPT — FIX THESE:"
+            + "".join(f"\n- {issue}" for issue in quality_feedback)
+        )
 
     user_msg = (
         f"TASK TYPE: {task_type}\n\n"
@@ -524,6 +777,41 @@ def process_task(task: dict):
         raw_result = generate_newsletter(task_type, input_data, budget)
         validated = validate_llm_output(raw_result, NewsletterOutput)
         result = validated.model_dump()
+
+        # ── Post-generation quality checks ──
+        quality_issues = run_quality_checks(result, input_data)
+        critical_issues = [i for i in quality_issues if i["severity"] == "critical"]
+        warning_issues = [i for i in quality_issues if i["severity"] == "warning"]
+
+        if critical_issues:
+            logger.warning(
+                f"Newsletter has {len(critical_issues)} critical quality issue(s): "
+                f"{critical_issues}"
+            )
+            retries = budget.get('max_retries', 2)
+            if retries > 0:
+                logger.info("Retrying newsletter generation due to critical quality issues...")
+                input_data['_quality_feedback'] = [i["detail"] for i in critical_issues]
+                budget['max_retries'] = retries - 1
+                raw_result = generate_newsletter(task_type, input_data, budget)
+                validated = validate_llm_output(raw_result, NewsletterOutput)
+                result = validated.model_dump()
+                quality_issues = run_quality_checks(result, input_data)
+                critical_issues = [i for i in quality_issues if i["severity"] == "critical"]
+                warning_issues = [i for i in quality_issues if i["severity"] == "warning"]
+                if critical_issues:
+                    logger.warning(f"Critical issues persist after retry: {critical_issues}")
+
+        if warning_issues:
+            logger.info(f"Newsletter quality warnings: {warning_issues}")
+
+        # Auto-fix: strip duplicate stats where possible
+        result = _auto_fix_stat_repetition(result)
+
+        # Store quality warnings in result
+        all_warnings = [i["detail"] for i in quality_issues]
+        if all_warnings:
+            result["quality_warnings"] = all_warnings
 
         # Generate scorecard (Looking Back) if resolved predictions exist
         edition = result.get("edition", input_data.get("edition_number", 0))

@@ -13,6 +13,7 @@ Handles:
 import os
 import sys
 import json
+import re
 import time
 import math
 import logging
@@ -2923,6 +2924,27 @@ def prepare_newsletter_data() -> dict:
             .execute()
         predictions_data = predictions_result.data or []
 
+        # Annotate stale predictions (target_date passed but still active/open)
+        today_str = datetime.now(timezone.utc).date().isoformat()
+        stale_prediction_ids = []
+        for pred in predictions_data:
+            target = pred.get('target_date')
+            if target and pred.get('status') in ('active', 'open'):
+                if str(target) < today_str:
+                    pred['_is_stale'] = True
+                    stale_prediction_ids.append(pred.get('id'))
+                    logger.warning(
+                        f"Stale prediction: {pred.get('title', '?')[:50]} "
+                        f"(target_date={target}, overdue)"
+                    )
+                else:
+                    pred['_is_stale'] = False
+            else:
+                pred['_is_stale'] = False
+
+        if stale_prediction_ids:
+            logger.warning(f"{len(stale_prediction_ids)} stale prediction(s) in newsletter data")
+
         # ── Thought Leader Content ──
         tl_posts = supabase.table('source_posts')\
             .select('*')\
@@ -3067,6 +3089,7 @@ def prepare_newsletter_data() -> dict:
             'topic_evolution': topic_evolution_data,
             'radar_topics': radar_topics,
             'spotlight': _fetch_latest_spotlight_for_newsletter(edition_number),
+            'stale_prediction_ids': stale_prediction_ids,
             'freshness_rules': {
                 'excluded_opportunity_ids': [str(eid) for eid in excluded_ids],
                 'max_returning_items_section_a': 2,
@@ -3147,7 +3170,7 @@ def create_predictions_from_newsletter(newsletter_id: str) -> dict:
         for opp in (data.get('section_a_opportunities') or [])[:5]:
             try:
                 conf = opp.get('confidence_score', 0.5)
-                supabase.table('predictions').upsert({
+                record = {
                     'prediction_type': 'opportunity',
                     'title': opp.get('title', 'Unknown'),
                     'description': (opp.get('description') or '')[:500],
@@ -3162,7 +3185,13 @@ def create_predictions_from_newsletter(newsletter_id: str) -> dict:
                         'confidence': conf,
                         'notes': f'Featured in edition #{edition}'
                     }], default=str)
-                }, on_conflict='opportunity_id').execute()
+                }
+                target = extract_target_date(opp.get('description', ''))
+                if target:
+                    record['target_date'] = target.isoformat()
+                supabase.table('predictions').upsert(
+                    record, on_conflict='opportunity_id'
+                ).execute()
                 created += 1
             except Exception as e:
                 logger.error(f"Failed to upsert opportunity prediction: {e}")
@@ -3911,6 +3940,21 @@ def evaluate_prediction(pred: dict, signals: dict) -> tuple:
     Returns (new_status, new_score, notes).
     """
     current = pred.get('current_score', pred.get('initial_confidence', 0.5))
+
+    # Check target_date-based expiry first
+    target_date_str = pred.get('target_date')
+    if target_date_str:
+        try:
+            target_dt = datetime.fromisoformat(str(target_date_str)).date()
+            today = datetime.now(timezone.utc).date()
+            if target_dt < today:
+                days_overdue = (today - target_dt).days
+                notes = (f"Target date {target_date_str} passed "
+                         f"({days_overdue} days ago) — requires resolution")
+                return ('expired', max(round(current - 0.3, 2), 0), notes)
+        except (ValueError, TypeError):
+            pass
+
     created_str = pred.get('created_at', datetime.now(timezone.utc).isoformat())
     created_dt = datetime.fromisoformat(created_str.replace('Z', '+00:00')).replace(tzinfo=None)
     weeks_active = (datetime.now(timezone.utc) - created_dt).days / 7
@@ -4114,6 +4158,53 @@ def get_latest_spotlight(issue_number: int = None) -> dict:
     return result.data[0] if result.data else {}
 
 
+# ---------------------------------------------------------------------------
+# Target-date extraction for predictions
+# ---------------------------------------------------------------------------
+
+_MONTH_MAP = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4, 'may': 5, 'june': 6,
+    'july': 7, 'august': 8, 'september': 9, 'october': 10, 'november': 11, 'december': 12,
+}
+
+_DATE_PATTERNS: list[tuple] = [
+    # "by Q1 2026" -> end of quarter
+    (r'(?:by|before)\s+Q([1-4])\s+(\d{4})',
+     lambda m: datetime(int(m.group(2)), int(m.group(1)) * 3, 28).date()),
+    # "by March 2026" / "before April 2026"
+    (r'(?:by|before)\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})',
+     lambda m: datetime(int(m.group(2)), _MONTH_MAP[m.group(1).lower()], 28).date()),
+    # "within N months"
+    (r'within\s+(\d+)\s+months?',
+     lambda m: (datetime.now(timezone.utc) + timedelta(days=int(m.group(1)) * 30)).date()),
+    # "by year-end" / "by end of 2026"
+    (r'(?:by|before)\s+(?:year[- ]?end|end\s+of)\s+(\d{4})',
+     lambda m: datetime(int(m.group(1)), 12, 31).date()),
+    # "by mid-2026"
+    (r'(?:by|before)\s+mid[- ](\d{4})',
+     lambda m: datetime(int(m.group(1)), 6, 30).date()),
+]
+
+
+def extract_target_date(prediction_text: str):
+    """Extract a target date from prediction text.
+
+    Supports: 'by Q3 2026', 'before July 2026', 'within 6 months',
+    'by year-end 2026', 'by mid-2026'.
+    Returns a date or None.
+    """
+    if not prediction_text:
+        return None
+    for pattern, resolver in _DATE_PATTERNS:
+        match = re.search(pattern, prediction_text, re.IGNORECASE)
+        if match:
+            try:
+                return resolver(match)
+            except (ValueError, TypeError):
+                continue
+    return None
+
+
 def create_spotlight_prediction(spotlight_id: str, topic_id: str,
                                 prediction_text: str, issue_number: int) -> dict:
     """Create a prediction record linked to a spotlight for scorecard tracking."""
@@ -4137,6 +4228,13 @@ def create_spotlight_prediction(spotlight_id: str, topic_id: str,
             'confidence': 0.6,
         }], default=str),
     }
+
+    # Extract target_date from prediction text
+    target = extract_target_date(prediction_text)
+    if target:
+        record['target_date'] = target.isoformat()
+    else:
+        logger.warning(f"No target_date extracted from spotlight prediction: {prediction_text[:80]}")
 
     result = supabase.table('predictions').insert(record).execute()
     return result.data[0] if result.data else {}

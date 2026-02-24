@@ -26,6 +26,7 @@ class NewsletterOutput(BaseModel):
     edition: int | None = None
     negotiation_request: NegotiationRequest | None = None
     budget_usage: BudgetUsage = Field(default_factory=BudgetUsage)
+    quality_warnings: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------

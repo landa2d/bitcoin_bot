@@ -678,3 +678,283 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------------------
+# Pytest unit tests for post-generation quality validators
+# These run without Supabase/OpenAI — pure function tests.
+# ---------------------------------------------------------------------------
+
+# Import validators (newsletter_poller is on docker path; add it for tests)
+_NL_DIR = Path(__file__).resolve().parent.parent / "docker" / "newsletter"
+if str(_NL_DIR) not in sys.path:
+    sys.path.insert(0, str(_NL_DIR))
+
+from newsletter_poller import (  # noqa: E402
+    _extract_sections,
+    _find_one_number_stat,
+    validate_stat_repetition,
+    validate_section_echo,
+    validate_stale_predictions,
+    validate_prediction_format,
+    run_quality_checks,
+    _auto_fix_stat_repetition,
+)
+
+# Also test extract_target_date from processor
+_PROC_DIR = Path(__file__).resolve().parent.parent / "docker" / "processor"
+if str(_PROC_DIR) not in sys.path:
+    sys.path.insert(0, str(_PROC_DIR))
+
+from agentpulse_processor import extract_target_date  # noqa: E402
+
+
+# ── Stat repetition ──
+
+SAMPLE_MD_REPEATED_STAT = """\
+## One Number
+
+**3,117** — GitHub stars for React Doctor in just two weeks.
+
+## Spotlight
+
+React Doctor's rapid rise to **3,117** stars signals a growing demand for
+diagnostic tooling in the agent ecosystem.
+
+## The Agent Memory Market Is About to Consolidate
+
+**The next wave of agent consolidation will be led by memory vendors.**
+React Doctor's 3,117 GitHub stars prove that developers want visibility.
+"""
+
+SAMPLE_MD_CLEAN_STAT = """\
+## One Number
+
+**3,117** — GitHub stars for React Doctor in just two weeks.
+
+## Spotlight
+
+React Doctor's rapid adoption signals a growing demand for diagnostic tooling.
+
+## The Agent Memory Market Is About to Consolidate
+
+**The next wave of agent consolidation will be led by memory vendors.**
+The tool's popularity proves that developers want visibility.
+"""
+
+
+def test_stat_repetition_detected():
+    issues = validate_stat_repetition(SAMPLE_MD_REPEATED_STAT)
+    assert len(issues) == 1
+    assert issues[0]["issue"] == "stat_repetition"
+    assert "3,117" in issues[0]["detail"]
+
+
+def test_stat_no_repetition():
+    issues = validate_stat_repetition(SAMPLE_MD_CLEAN_STAT)
+    assert len(issues) == 0
+
+
+# ── Section echo ──
+
+SAMPLE_MD_ECHO = """\
+## Spotlight
+
+Agent memory is failing in production. Stale context causes hallucinations
+and incorrect responses. Memory management systems cannot handle the volume
+of interactions at scale. Enterprise deployments suffer from context window
+limitations and retrieval failures.
+
+## Why Agent Memory Keeps Breaking
+
+Memory management remains the critical bottleneck. Stale context causes
+hallucinations and failures. Systems cannot handle interaction volume.
+Enterprise context windows are too small and retrieval keeps failing.
+"""
+
+SAMPLE_MD_DISTINCT = """\
+## Spotlight
+
+Agent memory is failing in production. Stale context causes hallucinations
+and incorrect responses. Memory management systems cannot handle the volume
+of interactions at scale. Enterprise deployments suffer from context window
+limitations and retrieval failures.
+
+## Memory Poisoning Is the Next Attack Surface
+
+**Adversarial actors will target agent memory stores within 6 months.**
+If agents trust their memory implicitly, injecting false context into vector
+databases becomes the cheapest attack vector since prompt injection.
+Security teams should audit memory write permissions immediately.
+"""
+
+
+def test_section_echo_detected():
+    issues = validate_section_echo(SAMPLE_MD_ECHO)
+    assert len(issues) == 1
+    assert issues[0]["issue"] == "section_echo"
+
+
+def test_section_echo_clean():
+    issues = validate_section_echo(SAMPLE_MD_DISTINCT)
+    assert len(issues) == 0
+
+
+# ── Stale predictions ──
+
+def test_stale_prediction_detected():
+    md = """\
+## Prediction Tracker
+
+🟢 **MCP adoption will double** — Active, on track.
+"""
+    input_data = {
+        "stale_prediction_ids": ["pred-001"],
+        "predictions": [
+            {"id": "pred-001", "title": "MCP adoption will double",
+             "target_date": "2025-06-01", "status": "active"},
+        ],
+    }
+    issues = validate_stale_predictions(md, input_data)
+    assert len(issues) == 1
+    assert issues[0]["severity"] == "critical"
+    assert issues[0]["issue"] == "stale_prediction"
+
+
+def test_stale_prediction_clean():
+    md = """\
+## Prediction Tracker
+
+🟢 **By Q3 2027, MCP adoption will double** — Active.
+"""
+    input_data = {"stale_prediction_ids": [], "predictions": []}
+    issues = validate_stale_predictions(md, input_data)
+    assert len(issues) == 0
+
+
+# ── Prediction format ──
+
+SAMPLE_MD_VAGUE_PRED = """\
+## Prediction Tracker
+
+🟢 **Agent frameworks will evolve significantly**
+🟢 **The market will consolidate eventually**
+"""
+
+SAMPLE_MD_GOOD_PRED = """\
+## Prediction Tracker
+
+🟢 **By Q3 2026, at least two major frameworks will ship native memory lifecycle management**
+🟢 **Within 6 months, OpenAI will ship agent-to-agent communication**
+"""
+
+
+def test_unfalsifiable_prediction_detected():
+    issues = validate_prediction_format(SAMPLE_MD_VAGUE_PRED)
+    assert len(issues) == 2
+    assert all(i["issue"] == "unfalsifiable_prediction" for i in issues)
+
+
+def test_falsifiable_prediction_clean():
+    issues = validate_prediction_format(SAMPLE_MD_GOOD_PRED)
+    assert len(issues) == 0
+
+
+# ── extract_target_date ──
+
+def test_extract_target_date_q_format():
+    d = extract_target_date("By Q3 2026, at least two frameworks will fork MCP")
+    assert d is not None
+    assert d.year == 2026
+    assert d.month == 9
+
+
+def test_extract_target_date_month_format():
+    d = extract_target_date("before July 2026, OpenAI will ship native comms")
+    assert d is not None
+    assert d.year == 2026
+    assert d.month == 7
+
+
+def test_extract_target_date_within_months():
+    d = extract_target_date("within 6 months, two cloud providers will ship")
+    assert d is not None
+    # Should be ~180 days from now
+    from datetime import date
+    delta = (d - date.today()).days
+    assert 150 < delta < 210
+
+
+def test_extract_target_date_year_end():
+    d = extract_target_date("by end of 2026, the market will consolidate")
+    assert d is not None
+    assert d.year == 2026
+    assert d.month == 12
+
+
+def test_extract_target_date_mid_year():
+    d = extract_target_date("by mid-2027, agents will handle payments natively")
+    assert d is not None
+    assert d.year == 2027
+    assert d.month == 6
+
+
+def test_extract_target_date_no_match():
+    d = extract_target_date("The market will eventually consolidate somehow")
+    assert d is None
+
+
+# ── Auto-fix stat repetition ──
+
+def test_auto_fix_stat_repetition():
+    result = {"content_markdown": SAMPLE_MD_REPEATED_STAT}
+    fixed = _auto_fix_stat_repetition(result)
+    md = fixed["content_markdown"]
+    # The stat should appear exactly once now
+    assert md.count("3,117") == 1
+    assert "the figure highlighted above" in md
+
+
+def test_auto_fix_no_change_when_clean():
+    result = {"content_markdown": SAMPLE_MD_CLEAN_STAT}
+    fixed = _auto_fix_stat_repetition(result)
+    assert fixed["content_markdown"] == SAMPLE_MD_CLEAN_STAT
+
+
+# ── run_quality_checks orchestrator ──
+
+def test_run_quality_checks_empty_content():
+    issues = run_quality_checks({"content_markdown": ""}, {})
+    assert len(issues) == 1
+    assert issues[0]["severity"] == "critical"
+    assert issues[0]["issue"] == "empty_content"
+
+
+def test_run_quality_checks_clean_newsletter():
+    md = """\
+## One Number
+
+**42%** — of enterprise agents now use structured memory.
+
+## Spotlight
+
+Enterprise agent memory adoption hit a tipping point this quarter. Structured
+memory vendors saw unprecedented demand as production failures mounted across
+the industry. The shift from unstructured to structured approaches represents
+a fundamental change in how organizations deploy autonomous systems.
+
+## The Security Implications of Universal Agent Memory
+
+**Within 18 months, agent memory poisoning will become the primary attack
+vector against enterprise AI deployments.** Unlike prompt injection, memory
+attacks persist across sessions and are harder to detect. Security teams
+should audit memory write permissions immediately.
+
+## Prediction Tracker
+
+🟢 **By Q3 2026, at least two frameworks will ship native memory management**
+"""
+    issues = run_quality_checks({"content_markdown": md}, {})
+    # Should have no critical issues
+    critical = [i for i in issues if i["severity"] == "critical"]
+    assert len(critical) == 0

@@ -114,13 +114,51 @@ If you can't find at least 1 real entry from the data, skip the section.
 
 **Prediction Tracker**
 Header: "## Prediction Tracker"
-🟢 Confirmed, 🟡 Developing, 🔴 Faded. Max 6. Always show the faded ones.
+
+Every prediction MUST follow: "By [specific date], [specific measurable outcome]."
+Reject any prediction that lacks a concrete date or a falsifiable outcome.
+
+Status icons:
+- 🟢 Active (target date in the future)
+- ✅ Confirmed
+- ❌ Wrong — always show these
+- 🔄 Revised (date passed, updated with explanation)
+- 🟡 Developing (evidence accumulating)
+
+CRITICAL: Check input_data for `stale_prediction_ids`. Any prediction whose
+target_date has passed MUST be resolved (✅/❌/🔄) with an honest assessment.
+Publishing a past-due prediction as "Active" or "Developing" is a hard failure.
+
+New predictions: target date must be at least 4 weeks from publication date.
+Max 6 predictions total. Always include wrong ones — hiding failures destroys trust.
 
 **Gato's Corner**
 Header: "## Gato's Corner"
 Always write this. Always. 2-4 sentences in Gato's voice. Confident, Bitcoin-pilled,
-skeptical of VC middleware, bullish on open protocols. Ends with a take that connects
-the week's data to sound money principles. This is the dessert — make it memorable.
+skeptical of VC middleware, bullish on open protocols.
+
+STRUCTURE:
+1. Reference this week's main theme (from Spotlight or Big Insight)
+2. Draw a genuine parallel to Bitcoin/decentralization — must feel earned
+3. Deliver an actionable insight or sharp take
+
+Ends with "Stay humble, stack sats." Re-read the cold open and Big Insight before
+writing. If the Bitcoin connection feels forced, find what DOES connect naturally.
+
+### Anti-Patterns — Check Before Submitting
+
+1. **Stat repetition**: One Number stat appears ONCE with its full figure. All later
+   references use the name ("the incident spike", "the cost figure we flagged"),
+   never the number itself.
+2. **Section echo**: Spotlight and Big Insight MUST present distinct arguments. If
+   Big Insight could be summarized as "Spotlight rephrased," choose a different angle.
+3. **Jargon without grounding**: First use of any technical term must include:
+   name, one-sentence explanation, specific real-world scenario.
+4. **Stale predictions**: Past-due predictions must be resolved before publication.
+5. **Forced Gato analogy**: If the Bitcoin parallel doesn't feel natural, find a
+   different decentralization angle.
+6. **Vague predictions**: "X might happen eventually" is not a prediction.
+   "By Q3 2026, X will reach Y" is.
 
 ### Kill Rules
 
