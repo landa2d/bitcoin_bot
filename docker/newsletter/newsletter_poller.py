@@ -447,7 +447,8 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         " past-due prediction as Active or Developing."
         "\n15. PREDICTION FORMAT: Every new prediction must follow: 'By [specific"
         " date], [specific measurable outcome].' Target dates must be at least 4"
-        " weeks in the future."
+        " weeks in the future FROM TODAY'S DATE (shown in user message). NEVER"
+        " use dates in the past. Check TODAY'S DATE before writing any prediction."
         "\n16. GATO'S CORNER STRUCTURE: (1) Reference the week's main theme,"
         " (2) draw a genuine parallel to Bitcoin/decentralization that feels earned,"
         " (3) deliver an actionable insight. End with 'Stay humble, stack sats.'"
@@ -461,7 +462,9 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
             + "".join(f"\n- {issue}" for issue in quality_feedback)
         )
 
+    today = datetime.now(timezone.utc).strftime("%B %d, %Y")
     user_msg = (
+        f"TODAY'S DATE: {today}\n\n"
         f"TASK TYPE: {task_type}\n\n"
         f"BUDGET: {json.dumps(budget_config)}\n\n"
         f"INPUT DATA:\n{json.dumps(input_data, indent=2, default=str)}"
