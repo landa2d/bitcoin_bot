@@ -443,6 +443,30 @@ def increment_daily_usage(agent_name: str, llm_calls: int = 0, subtasks: int = 0
         logger.error(f"Failed to increment daily usage for {agent_name}: {e}")
 
 
+def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
+    """Log an LLM call with token counts and estimated cost."""
+    try:
+        pricing = get_full_config().get("pricing", {}).get(model, {})
+        input_tok = getattr(usage, 'input_tokens', 0) or getattr(usage, 'prompt_tokens', 0) or 0
+        output_tok = getattr(usage, 'output_tokens', 0) or getattr(usage, 'completion_tokens', 0) or 0
+        total_tok = input_tok + output_tok
+        cost = (input_tok * pricing.get("input", 0) + output_tok * pricing.get("output", 0)) / 1_000_000
+
+        supabase.table("llm_call_log").insert({
+            "agent_name": agent_name,
+            "task_type": task_type,
+            "model": model,
+            "provider": pricing.get("provider", "unknown"),
+            "input_tokens": input_tok,
+            "output_tokens": output_tok,
+            "total_tokens": total_tok,
+            "estimated_cost": round(cost, 6),
+            "duration_ms": duration_ms,
+        }).execute()
+    except Exception as e:
+        logger.warning(f"Failed to log LLM call: {e}")
+
+
 def get_daily_usage(agent_name: str = None) -> dict:
     """Return today's usage, optionally filtered by agent."""
     if not supabase:
@@ -1062,6 +1086,7 @@ def extract_problems(hours_back: int = 48) -> dict:
     
     # Call OpenAI
     try:
+        _t0 = time.time()
         response = openai_client.chat.completions.create(
             model=extraction_model,
             messages=[
@@ -1071,6 +1096,7 @@ def extract_problems(hours_back: int = 48) -> dict:
             temperature=0.3,
             max_tokens=4000
         )
+        log_llm_call("processor", "extraction", extraction_model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)  # Rate limiting: avoid hitting API limits
         
         result_text = response.choices[0].message.content
@@ -1206,6 +1232,7 @@ def cluster_problems(min_problems: int = 3) -> dict:
 
     # Call OpenAI for clustering
     try:
+        _t0 = time.time()
         response = openai_client.chat.completions.create(
             model=clustering_model,
             messages=[
@@ -1215,6 +1242,7 @@ def cluster_problems(min_problems: int = 3) -> dict:
             temperature=0.3,
             max_tokens=4000
         )
+        log_llm_call("processor", "clustering", clustering_model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)  # Rate limiting
 
         result_text = response.choices[0].message.content
@@ -1408,6 +1436,7 @@ def generate_opportunities(min_score: float = 0.3, limit: int = 5) -> dict:
                 'market_validation': cluster.get('market_validation', {})
             }, indent=2)
 
+            _t0 = time.time()
             response = openai_client.chat.completions.create(
                 model=opp_model,
                 messages=[
@@ -1417,6 +1446,7 @@ def generate_opportunities(min_score: float = 0.3, limit: int = 5) -> dict:
                 temperature=0.5,
                 max_tokens=2000
             )
+            log_llm_call("processor", "opportunity_generation", opp_model, response.usage, int((time.time() - _t0) * 1000))
             time.sleep(2)  # Rate limiting
 
             result_text = response.choices[0].message.content
@@ -1858,6 +1888,7 @@ def extract_tool_mentions(hours_back: int = 48) -> dict:
     ])
 
     try:
+        _t0 = time.time()
         response = openai_client.chat.completions.create(
             model=tool_model,
             messages=[
@@ -1867,6 +1898,7 @@ def extract_tool_mentions(hours_back: int = 48) -> dict:
             temperature=0.2,
             max_tokens=4000
         )
+        log_llm_call("processor", "tool_extraction", tool_model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)  # Rate limiting
 
         result_text = response.choices[0].message.content
@@ -2090,6 +2122,7 @@ def extract_trending_topics(hours_back: int = 48) -> dict:
     ])
 
     try:
+        _t0 = time.time()
         response = openai_client.chat.completions.create(
             model=trending_model,
             messages=[
@@ -2099,6 +2132,7 @@ def extract_trending_topics(hours_back: int = 48) -> dict:
             temperature=0.5,
             max_tokens=4000
         )
+        log_llm_call("processor", "trending_topics", trending_model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)  # Rate limiting
 
         result_text = response.choices[0].message.content
@@ -2220,6 +2254,7 @@ def extract_problems_multisource(hours_back: int = 48) -> dict:
     extraction_model = get_model('extraction')
 
     try:
+        _t0 = time.time()
         response = openai_client.chat.completions.create(
             model=extraction_model,
             messages=[
@@ -2229,6 +2264,7 @@ def extract_problems_multisource(hours_back: int = 48) -> dict:
             temperature=0.3,
             max_tokens=4000
         )
+        log_llm_call("processor", "extraction_multisource", extraction_model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)
         problems_data = json.loads(_clean_json_response(response.choices[0].message.content))
     except Exception as e:
@@ -2289,6 +2325,7 @@ def extract_tools_multisource(hours_back: int = 48) -> dict:
     tool_model = get_model('extraction')
 
     try:
+        _t0 = time.time()
         response = openai_client.chat.completions.create(
             model=tool_model,
             messages=[
@@ -2298,6 +2335,7 @@ def extract_tools_multisource(hours_back: int = 48) -> dict:
             temperature=0.2,
             max_tokens=4000
         )
+        log_llm_call("processor", "tool_extraction_multisource", tool_model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)
         mentions_data = json.loads(_clean_json_response(response.choices[0].message.content))
     except Exception as e:
@@ -2364,6 +2402,7 @@ def extract_trending_topics_multisource(hours_back: int = 48) -> dict:
     trending_model = get_model('trending_topics')
 
     try:
+        _t0 = time.time()
         response = openai_client.chat.completions.create(
             model=trending_model,
             messages=[
@@ -2373,6 +2412,7 @@ def extract_trending_topics_multisource(hours_back: int = 48) -> dict:
             temperature=0.5,
             max_tokens=4000
         )
+        log_llm_call("processor", "trending_topics_multisource", trending_model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)
         topics_data = json.loads(_clean_json_response(response.choices[0].message.content))
     except Exception as e:

@@ -183,6 +183,30 @@ def get_budget_config(agent_name: str, task_type: str) -> dict:
     return {k: task_budget.get(k, defaults[k]) for k in defaults}
 
 
+def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
+    """Log an LLM call with token counts and estimated cost."""
+    try:
+        pricing = (_budget_config_cache or {}).get("pricing", {}).get(model, {})
+        input_tok = getattr(usage, 'input_tokens', 0) or getattr(usage, 'prompt_tokens', 0) or 0
+        output_tok = getattr(usage, 'output_tokens', 0) or getattr(usage, 'completion_tokens', 0) or 0
+        total_tok = input_tok + output_tok
+        cost = (input_tok * pricing.get("input", 0) + output_tok * pricing.get("output", 0)) / 1_000_000
+
+        supabase.table("llm_call_log").insert({
+            "agent_name": agent_name,
+            "task_type": task_type,
+            "model": model,
+            "provider": pricing.get("provider", "unknown"),
+            "input_tokens": input_tok,
+            "output_tokens": output_tok,
+            "total_tokens": total_tok,
+            "estimated_cost": round(cost, 6),
+            "duration_ms": duration_ms,
+        }).execute()
+    except Exception as e:
+        logger.warning(f"Failed to log LLM call: {e}")
+
+
 def is_daily_budget_exhausted(agent_name: str) -> bool:
     """Return True if this agent has hit its daily LLM call limit."""
     if not supabase:
@@ -364,6 +388,7 @@ def run_analysis(task_type: str, input_data: dict, budget_config: dict) -> dict:
 
     logger.info(f"Calling {MODEL} for {task_type}...")
 
+    _t0 = time.time()
     response = client.chat.completions.create(
         model=MODEL,
         max_tokens=8192,
@@ -374,6 +399,7 @@ def run_analysis(task_type: str, input_data: dict, budget_config: dict) -> dict:
         response_format={"type": "json_object"},
         temperature=0.3,
     )
+    log_llm_call("analyst", task_type, MODEL, response.usage, int((time.time() - _t0) * 1000))
 
     text = response.choices[0].message.content.strip()
 
@@ -852,6 +878,7 @@ def assess_and_flag(prediction: dict, recent_items: list) -> int:
     )
 
     try:
+        _t0 = time.time()
         response = client.chat.completions.create(
             model=MODEL,
             max_tokens=300,
@@ -859,6 +886,7 @@ def assess_and_flag(prediction: dict, recent_items: list) -> int:
             response_format={"type": "json_object"},
             temperature=0.2,
         )
+        log_llm_call("analyst", "prediction_assessment", MODEL, response.usage, int((time.time() - _t0) * 1000))
 
         tokens_used = (response.usage.total_tokens if response.usage else 0)
         raw = response.choices[0].message.content.strip()

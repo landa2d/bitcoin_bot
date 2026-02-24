@@ -364,6 +364,46 @@ def _count_distinct_sources(sources: dict) -> int:
 
 
 # ============================================================================
+# Cost tracking
+# ============================================================================
+
+def _load_pricing() -> dict:
+    """Load pricing config from agentpulse-config.json."""
+    config_path = Path(OPENCLAW_DATA_DIR) / "config" / "agentpulse-config.json"
+    try:
+        if config_path.exists():
+            with open(config_path) as f:
+                return json.load(f).get("pricing", {})
+    except Exception:
+        pass
+    return {}
+
+
+def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
+    """Log an LLM call with token counts and estimated cost."""
+    try:
+        pricing = _load_pricing().get(model, {})
+        input_tok = getattr(usage, 'input_tokens', 0) or getattr(usage, 'prompt_tokens', 0) or 0
+        output_tok = getattr(usage, 'output_tokens', 0) or getattr(usage, 'completion_tokens', 0) or 0
+        total_tok = input_tok + output_tok
+        cost = (input_tok * pricing.get("input", 0) + output_tok * pricing.get("output", 0)) / 1_000_000
+
+        supabase.table("llm_call_log").insert({
+            "agent_name": agent_name,
+            "task_type": task_type,
+            "model": model,
+            "provider": pricing.get("provider", "unknown"),
+            "input_tokens": input_tok,
+            "output_tokens": output_tok,
+            "total_tokens": total_tok,
+            "estimated_cost": round(cost, 6),
+            "duration_ms": duration_ms,
+        }).execute()
+    except Exception as e:
+        logger.warning(f"Failed to log LLM call: {e}")
+
+
+# ============================================================================
 # LLM Thesis Generation
 # ============================================================================
 
@@ -386,12 +426,14 @@ Respond with valid JSON only, following the output format in your instructions."
 
     for attempt in range(1 + RETRY_ON_FAILURE):
         try:
+            _t0 = time.time()
             response = claude_client.messages.create(
                 model=MODEL,
                 max_tokens=MAX_GENERATION_TOKENS,
                 system=system_prompt,
                 messages=[{"role": "user", "content": user_msg}],
             )
+            log_llm_call("research", "generate_thesis", MODEL, response.usage, int((time.time() - _t0) * 1000))
 
             usage_stats["input_tokens"] = response.usage.input_tokens
             usage_stats["output_tokens"] = response.usage.output_tokens
@@ -545,12 +587,14 @@ def _create_prediction(spotlight: dict, thesis_data: dict, queue_item: dict):
 def _extract_prediction(raw_prediction: str) -> str | None:
     """Use Claude to sharpen a raw prediction into a single falsifiable sentence."""
     try:
+        _t0 = time.time()
         response = claude_client.messages.create(
             model=MODEL,
             max_tokens=200,
             system=PREDICTION_EXTRACTOR_PROMPT,
             messages=[{"role": "user", "content": raw_prediction}],
         )
+        log_llm_call("research", "prediction_extraction", MODEL, response.usage, int((time.time() - _t0) * 1000))
 
         extracted = response.content[0].text.strip()
         extracted = extracted.strip('"').strip("'")

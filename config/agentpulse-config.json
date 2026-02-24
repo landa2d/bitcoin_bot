@@ -101,5 +101,10 @@
     "model": "gpt-4o",
     "max_tokens": 4000,
     "temperature": 0.3
+  },
+  "pricing": {
+    "gpt-4o": {"input": 2.50, "output": 10.00, "provider": "openai"},
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60, "provider": "openai"},
+    "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00, "provider": "anthropic"}
   }
 }

@@ -958,3 +958,80 @@ should audit memory write permissions immediately.
     # Should have no critical issues
     critical = [i for i in issues if i["severity"] == "critical"]
     assert len(critical) == 0
+
+
+# ---------------------------------------------------------------------------
+# LLM cost tracking tests — pure computation, no DB
+# ---------------------------------------------------------------------------
+
+class _FakeUsageOpenAI:
+    """Mimics OpenAI response.usage object."""
+    def __init__(self, prompt_tokens, completion_tokens):
+        self.prompt_tokens = prompt_tokens
+        self.completion_tokens = completion_tokens
+        self.total_tokens = prompt_tokens + completion_tokens
+
+
+class _FakeUsageAnthropic:
+    """Mimics Anthropic response.usage object."""
+    def __init__(self, input_tokens, output_tokens):
+        self.input_tokens = input_tokens
+        self.output_tokens = output_tokens
+
+
+PRICING = {
+    "gpt-4o": {"input": 2.50, "output": 10.00, "provider": "openai"},
+    "gpt-4o-mini": {"input": 0.15, "output": 0.60, "provider": "openai"},
+    "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00, "provider": "anthropic"},
+}
+
+
+def _compute_cost(model, usage):
+    """Replicate the cost calculation from log_llm_call."""
+    pricing = PRICING.get(model, {})
+    input_tok = getattr(usage, 'input_tokens', 0) or getattr(usage, 'prompt_tokens', 0) or 0
+    output_tok = getattr(usage, 'output_tokens', 0) or getattr(usage, 'completion_tokens', 0) or 0
+    return (input_tok * pricing.get("input", 0) + output_tok * pricing.get("output", 0)) / 1_000_000
+
+
+def test_cost_gpt4o_mini():
+    usage = _FakeUsageOpenAI(prompt_tokens=1000, completion_tokens=500)
+    cost = _compute_cost("gpt-4o-mini", usage)
+    # 1000 * 0.15/1M + 500 * 0.60/1M = 0.00015 + 0.0003 = 0.00045
+    assert abs(cost - 0.00045) < 1e-8
+
+
+def test_cost_gpt4o():
+    usage = _FakeUsageOpenAI(prompt_tokens=2000, completion_tokens=1000)
+    cost = _compute_cost("gpt-4o", usage)
+    # 2000 * 2.50/1M + 1000 * 10.00/1M = 0.005 + 0.01 = 0.015
+    assert abs(cost - 0.015) < 1e-8
+
+
+def test_cost_claude_sonnet():
+    usage = _FakeUsageAnthropic(input_tokens=3000, output_tokens=800)
+    cost = _compute_cost("claude-sonnet-4-20250514", usage)
+    # 3000 * 3.00/1M + 800 * 15.00/1M = 0.009 + 0.012 = 0.021
+    assert abs(cost - 0.021) < 1e-8
+
+
+def test_cost_unknown_model():
+    usage = _FakeUsageOpenAI(prompt_tokens=1000, completion_tokens=500)
+    cost = _compute_cost("unknown-model", usage)
+    assert cost == 0.0
+
+
+def test_token_extraction_openai():
+    usage = _FakeUsageOpenAI(prompt_tokens=500, completion_tokens=200)
+    input_tok = getattr(usage, 'input_tokens', 0) or getattr(usage, 'prompt_tokens', 0) or 0
+    output_tok = getattr(usage, 'output_tokens', 0) or getattr(usage, 'completion_tokens', 0) or 0
+    assert input_tok == 500
+    assert output_tok == 200
+
+
+def test_token_extraction_anthropic():
+    usage = _FakeUsageAnthropic(input_tokens=1500, output_tokens=300)
+    input_tok = getattr(usage, 'input_tokens', 0) or getattr(usage, 'prompt_tokens', 0) or 0
+    output_tok = getattr(usage, 'output_tokens', 0) or getattr(usage, 'completion_tokens', 0) or 0
+    assert input_tok == 1500
+    assert output_tok == 300

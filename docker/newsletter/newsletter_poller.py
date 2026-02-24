@@ -472,6 +472,7 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
 
     logger.info(f"Calling {MODEL} for {task_type}...")
 
+    _t0 = time.time()
     response = client.chat.completions.create(
         model=MODEL,
         max_tokens=16000,
@@ -481,6 +482,7 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         ],
         response_format={"type": "json_object"},
     )
+    log_llm_call("newsletter", task_type, MODEL, response.usage, int((time.time() - _t0) * 1000))
 
     text = response.choices[0].message.content.strip()
 
@@ -674,12 +676,14 @@ def generate_lookback_blurb(thesis: str, prediction_text: str, issue_number, res
     )
 
     try:
+        _t0 = time.time()
         response = client.chat.completions.create(
             model=MODEL,
             max_tokens=300,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.4,
         )
+        log_llm_call("newsletter", "lookback_blurb", MODEL, response.usage, int((time.time() - _t0) * 1000))
 
         blurb = response.choices[0].message.content.strip()
 
@@ -705,6 +709,46 @@ def format_scorecard_section(blurbs: list[str]) -> str:
         parts.append(f"\n{blurb}\n")
 
     return "\n".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# Cost tracking
+# ---------------------------------------------------------------------------
+
+def _load_pricing() -> dict:
+    """Load pricing config from agentpulse-config.json."""
+    config_path = Path(OPENCLAW_DATA_DIR) / "config" / "agentpulse-config.json"
+    try:
+        if config_path.exists():
+            with open(config_path) as f:
+                return json.load(f).get("pricing", {})
+    except Exception:
+        pass
+    return {}
+
+
+def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
+    """Log an LLM call with token counts and estimated cost."""
+    try:
+        pricing = _load_pricing().get(model, {})
+        input_tok = getattr(usage, 'input_tokens', 0) or getattr(usage, 'prompt_tokens', 0) or 0
+        output_tok = getattr(usage, 'output_tokens', 0) or getattr(usage, 'completion_tokens', 0) or 0
+        total_tok = input_tok + output_tok
+        cost = (input_tok * pricing.get("input", 0) + output_tok * pricing.get("output", 0)) / 1_000_000
+
+        supabase.table("llm_call_log").insert({
+            "agent_name": agent_name,
+            "task_type": task_type,
+            "model": model,
+            "provider": pricing.get("provider", "unknown"),
+            "input_tokens": input_tok,
+            "output_tokens": output_tok,
+            "total_tokens": total_tok,
+            "estimated_cost": round(cost, 6),
+            "duration_ms": duration_ms,
+        }).execute()
+    except Exception as e:
+        logger.warning(f"Failed to log LLM call: {e}")
 
 
 # ---------------------------------------------------------------------------
