@@ -6,7 +6,7 @@
     "trending_topics": "deepseek-chat",
     "opportunity_generation": "deepseek-chat",
     "digest": "deepseek-chat",
-    "default": "gpt-4o"
+    "default": "deepseek-chat"
   },
   "budgets": {
     "analyst": {

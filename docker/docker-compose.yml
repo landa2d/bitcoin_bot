@@ -7,7 +7,7 @@
 
 x-common-env: &common-env
   AGENTPULSE_ENABLED: "true"
-  AGENTPULSE_OPENAI_MODEL: gpt-4o
+  AGENTPULSE_OPENAI_MODEL: deepseek-chat
   GITHUB_TOKEN: ${GITHUB_TOKEN:-}
 
 services:
@@ -67,7 +67,7 @@ services:
       <<: *common-env
       AGENT_NAME: analyst
       ANALYST_POLL_INTERVAL: "15"
-      ANALYST_MODEL: gpt-4o
+      ANALYST_MODEL: deepseek-chat
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
@@ -110,7 +110,7 @@ services:
       <<: *common-env
       AGENT_NAME: newsletter
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
-      NEWSLETTER_MODEL: gpt-4o
+      NEWSLETTER_MODEL: deepseek-chat
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       NEWSLETTER_POLL_INTERVAL: "30"
