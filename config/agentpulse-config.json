@@ -1,11 +1,11 @@
 {
   "version": "1.1.0",
   "models": {
-    "extraction": "gpt-4o-mini",
-    "clustering": "gpt-4o-mini",
-    "trending_topics": "gpt-4o-mini",
-    "opportunity_generation": "gpt-4o",
-    "digest": "gpt-4o-mini",
+    "extraction": "deepseek-chat",
+    "clustering": "deepseek-chat",
+    "trending_topics": "deepseek-chat",
+    "opportunity_generation": "deepseek-chat",
+    "digest": "deepseek-chat",
     "default": "gpt-4o"
   },
   "budgets": {
@@ -105,6 +105,8 @@
   "pricing": {
     "gpt-4o": {"input": 2.50, "output": 10.00, "provider": "openai"},
     "gpt-4o-mini": {"input": 0.15, "output": 0.60, "provider": "openai"},
+    "deepseek-chat": {"input": 0.27, "output": 1.10, "provider": "deepseek"},
+    "deepseek-reasoner": {"input": 0.55, "output": 2.19, "provider": "deepseek"},
     "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00, "provider": "anthropic"}
   }
 }

@@ -31,6 +31,8 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 AGENT_NAME = os.getenv("AGENT_NAME", "analyst")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 POLL_INTERVAL = int(os.getenv("ANALYST_POLL_INTERVAL", "15"))
@@ -59,6 +61,7 @@ logger = logging.getLogger("analyst-agent")
 
 supabase: Client | None = None
 client: OpenAI | None = None
+deepseek_client: OpenAI | None = None
 
 # ---------------------------------------------------------------------------
 # Identity + Skill loading (from disk, with mtime caching)
@@ -130,7 +133,7 @@ def load_skill(skill_dir: Path) -> str:
 # ---------------------------------------------------------------------------
 
 def init():
-    global supabase, client
+    global supabase, client, deepseek_client
     if not SUPABASE_URL or not SUPABASE_KEY:
         logger.error("Supabase not configured (SUPABASE_URL / SUPABASE_KEY missing)")
         return False
@@ -139,6 +142,9 @@ def init():
         return False
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
     client = OpenAI(api_key=OPENAI_API_KEY)
+    if DEEPSEEK_API_KEY:
+        deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
+        logger.info("DeepSeek client initialized")
     return True
 
 
@@ -205,6 +211,18 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
         }).execute()
     except Exception as e:
         logger.warning(f"Failed to log LLM call: {e}")
+
+
+def routed_llm_call(model, messages, **kwargs):
+    """Route LLM call to correct provider. DeepSeek falls back to OpenAI."""
+    provider = (_budget_config_cache or {}).get("pricing", {}).get(model, {}).get("provider", "openai")
+    if provider == "deepseek" and deepseek_client:
+        try:
+            return deepseek_client.chat.completions.create(model=model, messages=messages, **kwargs)
+        except Exception as e:
+            logger.warning(f"DeepSeek failed: {e} — falling back to OpenAI")
+            return client.chat.completions.create(model="gpt-4o", messages=messages, **kwargs)
+    return client.chat.completions.create(model=model, messages=messages, **kwargs)
 
 
 def is_daily_budget_exhausted(agent_name: str) -> bool:
@@ -389,17 +407,17 @@ def run_analysis(task_type: str, input_data: dict, budget_config: dict) -> dict:
     logger.info(f"Calling {MODEL} for {task_type}...")
 
     _t0 = time.time()
-    response = client.chat.completions.create(
-        model=MODEL,
-        max_tokens=8192,
+    response = routed_llm_call(
+        MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg},
         ],
+        max_tokens=8192,
         response_format={"type": "json_object"},
         temperature=0.3,
     )
-    log_llm_call("analyst", task_type, MODEL, response.usage, int((time.time() - _t0) * 1000))
+    log_llm_call("analyst", task_type, response.model, response.usage, int((time.time() - _t0) * 1000))
 
     text = response.choices[0].message.content.strip()
 
@@ -879,14 +897,14 @@ def assess_and_flag(prediction: dict, recent_items: list) -> int:
 
     try:
         _t0 = time.time()
-        response = client.chat.completions.create(
-            model=MODEL,
-            max_tokens=300,
+        response = routed_llm_call(
+            MODEL,
             messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
             response_format={"type": "json_object"},
             temperature=0.2,
         )
-        log_llm_call("analyst", "prediction_assessment", MODEL, response.usage, int((time.time() - _t0) * 1000))
+        log_llm_call("analyst", "prediction_assessment", response.model, response.usage, int((time.time() - _t0) * 1000))
 
         tokens_used = (response.usage.total_tokens if response.usage else 0)
         raw = response.choices[0].message.content.strip()

@@ -68,6 +68,8 @@ services:
       AGENT_NAME: analyst
       ANALYST_POLL_INTERVAL: "15"
       ANALYST_MODEL: gpt-4o
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
       LOG_LEVEL: info
     volumes:
@@ -109,6 +111,8 @@ services:
       AGENT_NAME: newsletter
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
       NEWSLETTER_MODEL: gpt-4o
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       NEWSLETTER_POLL_INTERVAL: "30"
       LOG_LEVEL: info
     volumes:
@@ -187,6 +191,8 @@ services:
       - ../config/.env
     environment:
       <<: *common-env
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../config:/home/openclaw/.openclaw/config:ro

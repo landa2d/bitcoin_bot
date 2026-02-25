@@ -27,6 +27,8 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 AGENT_NAME = os.getenv("AGENT_NAME", "newsletter")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 POLL_INTERVAL = int(os.getenv("NEWSLETTER_POLL_INTERVAL", "30"))
@@ -51,6 +53,7 @@ logger = logging.getLogger("newsletter-agent")
 
 supabase: Client | None = None
 client: OpenAI | None = None
+deepseek_client: OpenAI | None = None
 
 # ---------------------------------------------------------------------------
 # Identity + Skill loading (from disk, with mtime caching)
@@ -118,7 +121,7 @@ def load_skill(skill_dir: Path) -> str:
 
 
 def init():
-    global supabase, client
+    global supabase, client, deepseek_client
     if not SUPABASE_URL or not SUPABASE_KEY:
         logger.error("Supabase not configured (SUPABASE_URL / SUPABASE_KEY missing)")
         return False
@@ -127,6 +130,9 @@ def init():
         return False
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
     client = OpenAI(api_key=OPENAI_API_KEY)
+    if DEEPSEEK_API_KEY:
+        deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
+        logger.info("DeepSeek client initialized")
     return True
 
 
@@ -473,16 +479,16 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
     logger.info(f"Calling {MODEL} for {task_type}...")
 
     _t0 = time.time()
-    response = client.chat.completions.create(
-        model=MODEL,
-        max_tokens=16000,
+    response = routed_llm_call(
+        MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg},
         ],
+        max_tokens=16000,
         response_format={"type": "json_object"},
     )
-    log_llm_call("newsletter", task_type, MODEL, response.usage, int((time.time() - _t0) * 1000))
+    log_llm_call("newsletter", task_type, response.model, response.usage, int((time.time() - _t0) * 1000))
 
     text = response.choices[0].message.content.strip()
 
@@ -677,13 +683,13 @@ def generate_lookback_blurb(thesis: str, prediction_text: str, issue_number, res
 
     try:
         _t0 = time.time()
-        response = client.chat.completions.create(
-            model=MODEL,
-            max_tokens=300,
+        response = routed_llm_call(
+            MODEL,
             messages=[{"role": "user", "content": prompt}],
+            max_tokens=300,
             temperature=0.4,
         )
-        log_llm_call("newsletter", "lookback_blurb", MODEL, response.usage, int((time.time() - _t0) * 1000))
+        log_llm_call("newsletter", "lookback_blurb", response.model, response.usage, int((time.time() - _t0) * 1000))
 
         blurb = response.choices[0].message.content.strip()
 
@@ -749,6 +755,18 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
         }).execute()
     except Exception as e:
         logger.warning(f"Failed to log LLM call: {e}")
+
+
+def routed_llm_call(model, messages, **kwargs):
+    """Route LLM call to correct provider. DeepSeek falls back to OpenAI."""
+    provider = _load_pricing().get(model, {}).get("provider", "openai")
+    if provider == "deepseek" and deepseek_client:
+        try:
+            return deepseek_client.chat.completions.create(model=model, messages=messages, **kwargs)
+        except Exception as e:
+            logger.warning(f"DeepSeek failed: {e} — falling back to OpenAI")
+            return client.chat.completions.create(model="gpt-4o", messages=messages, **kwargs)
+    return client.chat.completions.create(model=model, messages=messages, **kwargs)
 
 
 # ---------------------------------------------------------------------------

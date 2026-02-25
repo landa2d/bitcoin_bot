@@ -57,6 +57,8 @@ SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('AGENTPULSE_OPENAI_MODEL', 'gpt-4o')
+DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
+DEEPSEEK_BASE_URL = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
 
 # Hacker News
 HN_API_BASE = 'https://hacker-news.firebaseio.com/v0'
@@ -200,22 +202,29 @@ logger = logging.getLogger('agentpulse')
 
 supabase: Optional[Client] = None
 openai_client: Optional[OpenAI] = None
+deepseek_client: Optional[OpenAI] = None
 
 def init_clients():
     """Initialize API clients."""
-    global supabase, openai_client
-    
+    global supabase, openai_client, deepseek_client
+
     if SUPABASE_URL and SUPABASE_KEY:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
         logger.info("Supabase client initialized")
     else:
         logger.warning("Supabase not configured")
-    
+
     if OPENAI_API_KEY:
         openai_client = OpenAI(api_key=OPENAI_API_KEY)
         logger.info("OpenAI client initialized")
     else:
         logger.warning("OpenAI not configured")
+
+    if DEEPSEEK_API_KEY:
+        deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
+        logger.info("DeepSeek client initialized")
+    else:
+        logger.info("DeepSeek not configured — bulk tasks will use OpenAI fallback")
 
 # ============================================================================
 # Model Routing
@@ -249,6 +258,75 @@ def get_model(task_name: str) -> str:
     """Get the model for a given task, with fallback chain."""
     config = get_model_config()
     return config.get(task_name, config.get('default', OPENAI_MODEL))
+
+
+def get_provider(model: str) -> str:
+    """Determine provider from pricing config."""
+    return get_full_config().get("pricing", {}).get(model, {}).get("provider", "openai")
+
+
+# ============================================================================
+# DeepSeek Circuit Breaker
+# ============================================================================
+
+_deepseek_failures: list = []
+_circuit_open_until: float = 0.0
+
+
+def _is_deepseek_available() -> bool:
+    """Return False if circuit breaker is open (5+ failures in 10 min window)."""
+    global _circuit_open_until
+    now = time.time()
+    if now < _circuit_open_until:
+        return False
+    # Prune failures older than 10 minutes
+    cutoff = now - 600
+    while _deepseek_failures and _deepseek_failures[0] < cutoff:
+        _deepseek_failures.pop(0)
+    return len(_deepseek_failures) < 5
+
+
+def _record_deepseek_failure():
+    """Record a DeepSeek failure; open circuit breaker if threshold reached."""
+    global _circuit_open_until
+    _deepseek_failures.append(time.time())
+    cutoff = time.time() - 600
+    while _deepseek_failures and _deepseek_failures[0] < cutoff:
+        _deepseek_failures.pop(0)
+    if len(_deepseek_failures) >= 5:
+        _circuit_open_until = time.time() + 300
+        logger.warning("Circuit breaker OPEN — routing DeepSeek tasks to OpenAI for 5 minutes")
+
+
+def routed_llm_call(model, messages, temperature=0.3, max_tokens=4000, **kwargs):
+    """Route LLM call to correct provider with DeepSeek→OpenAI fallback."""
+    provider = get_provider(model)
+    actual_model = model
+
+    # If DeepSeek requested but unavailable, fall back to OpenAI
+    if provider == "deepseek" and (not deepseek_client or not _is_deepseek_available()):
+        actual_model = "gpt-4o-mini"
+        provider = "openai"
+        logger.info(f"Routing {model} → {actual_model} (circuit breaker or no client)")
+
+    client = deepseek_client if provider == "deepseek" else openai_client
+
+    try:
+        return client.chat.completions.create(
+            model=actual_model, messages=messages,
+            temperature=temperature, max_tokens=max_tokens, **kwargs
+        )
+    except Exception as e:
+        if provider == "deepseek":
+            _record_deepseek_failure()
+            fallback = "gpt-4o-mini"
+            logger.warning(f"DeepSeek failed: {e} — falling back to {fallback}")
+            return openai_client.chat.completions.create(
+                model=fallback, messages=messages,
+                temperature=temperature, max_tokens=max_tokens, **kwargs
+            )
+        raise
+
 
 # ============================================================================
 # Full Config Loading
@@ -1084,11 +1162,11 @@ def extract_problems(hours_back: int = 48) -> dict:
         for p in posts.data
     ])
     
-    # Call OpenAI
+    # Call LLM (routed to DeepSeek or OpenAI based on config)
     try:
         _t0 = time.time()
-        response = openai_client.chat.completions.create(
-            model=extraction_model,
+        response = routed_llm_call(
+            extraction_model,
             messages=[
                 {"role": "system", "content": "You extract business problems from text. Respond only with valid JSON."},
                 {"role": "user", "content": PROBLEM_EXTRACTION_PROMPT.format(posts=posts_text)}
@@ -1096,7 +1174,7 @@ def extract_problems(hours_back: int = 48) -> dict:
             temperature=0.3,
             max_tokens=4000
         )
-        log_llm_call("processor", "extraction", extraction_model, response.usage, int((time.time() - _t0) * 1000))
+        log_llm_call("processor", "extraction", response.model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)  # Rate limiting: avoid hitting API limits
         
         result_text = response.choices[0].message.content
@@ -1230,11 +1308,11 @@ def cluster_problems(min_problems: int = 3) -> dict:
         for p in problems.data
     ], indent=2)
 
-    # Call OpenAI for clustering
+    # Call LLM for clustering
     try:
         _t0 = time.time()
-        response = openai_client.chat.completions.create(
-            model=clustering_model,
+        response = routed_llm_call(
+            clustering_model,
             messages=[
                 {"role": "system", "content": "You group business problems into thematic clusters. Respond only with valid JSON."},
                 {"role": "user", "content": CLUSTERING_PROMPT.format(problems=problems_text)}
@@ -1242,7 +1320,7 @@ def cluster_problems(min_problems: int = 3) -> dict:
             temperature=0.3,
             max_tokens=4000
         )
-        log_llm_call("processor", "clustering", clustering_model, response.usage, int((time.time() - _t0) * 1000))
+        log_llm_call("processor", "clustering", response.model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)  # Rate limiting
 
         result_text = response.choices[0].message.content
@@ -1437,8 +1515,8 @@ def generate_opportunities(min_score: float = 0.3, limit: int = 5) -> dict:
             }, indent=2)
 
             _t0 = time.time()
-            response = openai_client.chat.completions.create(
-                model=opp_model,
+            response = routed_llm_call(
+                opp_model,
                 messages=[
                     {"role": "system", "content": "You generate startup opportunity briefs. Respond only with valid JSON."},
                     {"role": "user", "content": OPPORTUNITY_PROMPT.format(problem_data=problem_data)}
@@ -1446,7 +1524,7 @@ def generate_opportunities(min_score: float = 0.3, limit: int = 5) -> dict:
                 temperature=0.5,
                 max_tokens=2000
             )
-            log_llm_call("processor", "opportunity_generation", opp_model, response.usage, int((time.time() - _t0) * 1000))
+            log_llm_call("processor", "opportunity_generation", response.model, response.usage, int((time.time() - _t0) * 1000))
             time.sleep(2)  # Rate limiting
 
             result_text = response.choices[0].message.content
@@ -1889,8 +1967,8 @@ def extract_tool_mentions(hours_back: int = 48) -> dict:
 
     try:
         _t0 = time.time()
-        response = openai_client.chat.completions.create(
-            model=tool_model,
+        response = routed_llm_call(
+            tool_model,
             messages=[
                 {"role": "system", "content": "You extract tool and product mentions. Respond only with valid JSON."},
                 {"role": "user", "content": TOOL_EXTRACTION_PROMPT.format(posts=posts_text)}
@@ -1898,7 +1976,7 @@ def extract_tool_mentions(hours_back: int = 48) -> dict:
             temperature=0.2,
             max_tokens=4000
         )
-        log_llm_call("processor", "tool_extraction", tool_model, response.usage, int((time.time() - _t0) * 1000))
+        log_llm_call("processor", "tool_extraction", response.model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)  # Rate limiting
 
         result_text = response.choices[0].message.content
@@ -2123,8 +2201,8 @@ def extract_trending_topics(hours_back: int = 48) -> dict:
 
     try:
         _t0 = time.time()
-        response = openai_client.chat.completions.create(
-            model=trending_model,
+        response = routed_llm_call(
+            trending_model,
             messages=[
                 {"role": "system", "content": "You identify interesting and culturally significant conversations in AI agent communities. Respond only with valid JSON."},
                 {"role": "user", "content": TRENDING_TOPICS_PROMPT.format(posts=posts_text)}
@@ -2132,7 +2210,7 @@ def extract_trending_topics(hours_back: int = 48) -> dict:
             temperature=0.5,
             max_tokens=4000
         )
-        log_llm_call("processor", "trending_topics", trending_model, response.usage, int((time.time() - _t0) * 1000))
+        log_llm_call("processor", "trending_topics", response.model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)  # Rate limiting
 
         result_text = response.choices[0].message.content
@@ -2255,8 +2333,8 @@ def extract_problems_multisource(hours_back: int = 48) -> dict:
 
     try:
         _t0 = time.time()
-        response = openai_client.chat.completions.create(
-            model=extraction_model,
+        response = routed_llm_call(
+            extraction_model,
             messages=[
                 {"role": "system", "content": "You extract business problems from text. Respond only with valid JSON."},
                 {"role": "user", "content": PROBLEM_EXTRACTION_PROMPT.format(posts=posts_text)}
@@ -2264,7 +2342,7 @@ def extract_problems_multisource(hours_back: int = 48) -> dict:
             temperature=0.3,
             max_tokens=4000
         )
-        log_llm_call("processor", "extraction_multisource", extraction_model, response.usage, int((time.time() - _t0) * 1000))
+        log_llm_call("processor", "extraction_multisource", response.model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)
         problems_data = json.loads(_clean_json_response(response.choices[0].message.content))
     except Exception as e:
@@ -2326,8 +2404,8 @@ def extract_tools_multisource(hours_back: int = 48) -> dict:
 
     try:
         _t0 = time.time()
-        response = openai_client.chat.completions.create(
-            model=tool_model,
+        response = routed_llm_call(
+            tool_model,
             messages=[
                 {"role": "system", "content": "You extract tool and product mentions. Respond only with valid JSON."},
                 {"role": "user", "content": TOOL_EXTRACTION_PROMPT.format(posts=posts_text)}
@@ -2335,7 +2413,7 @@ def extract_tools_multisource(hours_back: int = 48) -> dict:
             temperature=0.2,
             max_tokens=4000
         )
-        log_llm_call("processor", "tool_extraction_multisource", tool_model, response.usage, int((time.time() - _t0) * 1000))
+        log_llm_call("processor", "tool_extraction_multisource", response.model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)
         mentions_data = json.loads(_clean_json_response(response.choices[0].message.content))
     except Exception as e:
@@ -2403,8 +2481,8 @@ def extract_trending_topics_multisource(hours_back: int = 48) -> dict:
 
     try:
         _t0 = time.time()
-        response = openai_client.chat.completions.create(
-            model=trending_model,
+        response = routed_llm_call(
+            trending_model,
             messages=[
                 {"role": "system", "content": "You identify interesting and culturally significant conversations in AI agent communities. Respond only with valid JSON."},
                 {"role": "user", "content": TRENDING_TOPICS_PROMPT.format(posts=posts_text)}
@@ -2412,7 +2490,7 @@ def extract_trending_topics_multisource(hours_back: int = 48) -> dict:
             temperature=0.5,
             max_tokens=4000
         )
-        log_llm_call("processor", "trending_topics_multisource", trending_model, response.usage, int((time.time() - _t0) * 1000))
+        log_llm_call("processor", "trending_topics_multisource", response.model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)
         topics_data = json.loads(_clean_json_response(response.choices[0].message.content))
     except Exception as e:
