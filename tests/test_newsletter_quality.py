@@ -1158,3 +1158,102 @@ def test_newsletter_output_primary_theme_optional():
         content_telegram="Test",
     )
     assert output.primary_theme is None
+
+
+# =====================================================================
+# Opportunity theme penalty tests
+# =====================================================================
+
+def _apply_opp_theme_penalty(opp_title: str, avoided_themes: list[str]) -> float:
+    """Reproduce the opportunity theme penalty logic for testing."""
+    _stopwords = {'the', 'and', 'for', 'in', 'of', 'a', 'an', 'is', 'to', 'ai', 'agent', 'agents'}
+    theme_words = set()
+    for theme in avoided_themes:
+        theme_words.update(w for w in theme.split() if w not in _stopwords)
+
+    opp_words = set(opp_title.lower().split()) - _stopwords
+    overlap = opp_words & theme_words
+    if len(overlap) >= 2:
+        return 0.3
+    elif len(overlap) == 1:
+        return 0.7
+    return 1.0
+
+
+def test_opp_theme_penalty_strong():
+    """Opportunity matching 2+ theme words gets heavy penalty."""
+    # Theme words after stopword removal: {"navigating", "assumption", "gap"}
+    # Opp words: {"assumption", "gap", "production", "systems"}
+    # Overlap: {"assumption", "gap"} = 2 words → 0.3
+    penalty = _apply_opp_theme_penalty(
+        "Assumption Gap in Production Systems",
+        ["navigating the assumption gap in ai agents"]
+    )
+    assert penalty == 0.3
+
+
+def test_opp_theme_penalty_weak():
+    """Opportunity matching 1 theme word gets mild penalty."""
+    # Theme words: {"navigating", "assumption", "gap"}
+    # Opp words: {"assumption", "validation", "production"}
+    # Overlap: {"assumption"} = 1 word → 0.7
+    penalty = _apply_opp_theme_penalty(
+        "Assumption Validation in Production",
+        ["navigating the assumption gap in ai agents"]
+    )
+    assert penalty == 0.7
+
+
+def test_opp_theme_penalty_none():
+    """Opportunity with no theme overlap gets no penalty."""
+    penalty = _apply_opp_theme_penalty(
+        "Bitcoin Lightning Fee Market Analysis",
+        ["navigating the assumption gap in ai agents"]
+    )
+    assert penalty == 1.0
+
+
+# =====================================================================
+# Analyst insight filtering tests
+# =====================================================================
+
+def _filter_theses(theses: list[str], avoided_themes: list[str]) -> list[str]:
+    """Reproduce the analyst thesis filtering logic."""
+    _stopwords = {'the', 'and', 'for', 'in', 'of', 'a', 'an', 'is', 'to', 'ai', 'agent', 'agents'}
+    theme_words = set()
+    for theme in avoided_themes:
+        theme_words.update(w for w in theme.split() if w not in _stopwords)
+
+    if not theme_words:
+        return theses
+
+    filtered = []
+    for thesis in theses:
+        thesis_words = set(thesis.lower().split()) - _stopwords
+        if len(thesis_words & theme_words) < 2:
+            filtered.append(thesis)
+    return filtered or theses[:1]
+
+
+def test_analyst_thesis_filtered():
+    """Theses overlapping 2+ words with recent themes get filtered out."""
+    # Theme words: {"navigating", "assumption", "gap"}
+    # Thesis 1 words include "assumption" + "gap" → 2 overlap → filtered
+    # Thesis 2 has no overlap → kept
+    theses = [
+        "Assumption gap analysis is critical for agent reliability",
+        "Bitcoin mining economics are shifting toward renewable energy",
+    ]
+    result = _filter_theses(theses, ["navigating the assumption gap in ai agents"])
+    assert len(result) == 1
+    assert "Bitcoin" in result[0]
+
+
+def test_analyst_thesis_keeps_one_if_all_filtered():
+    """At least 1 thesis is kept even if all overlap."""
+    theses = [
+        "Assumption gap layers are critical",
+        "Navigating assumption failures in production",
+    ]
+    result = _filter_theses(theses, ["navigating the assumption gap in ai agents"])
+    assert len(result) == 1  # Keeps first one as fallback

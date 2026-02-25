@@ -2846,12 +2846,13 @@ def _fetch_latest_spotlight_for_newsletter(edition_number: int) -> dict | None:
     try:
         result = supabase.table('spotlight_history')\
             .select('*')\
+            .gte('issue_number', edition_number)\
             .order('created_at', desc=True)\
             .limit(1)\
             .execute()
 
         if not result.data:
-            logger.info("No spotlight found in spotlight_history — newsletter will skip Spotlight")
+            logger.info(f"No spotlight for edition #{edition_number} — newsletter will skip Spotlight")
             return None
 
         spotlight = result.data[0]
@@ -2920,6 +2921,31 @@ def prepare_newsletter_data() -> dict:
     week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
 
     try:
+        # ── Bootstrap: backfill primary_theme for old newsletters ──
+        try:
+            null_themes = supabase.table('newsletters')\
+                .select('id, title')\
+                .is_('primary_theme', 'null')\
+                .order('edition_number', desc=True)\
+                .limit(5)\
+                .execute()
+            for nl in (null_themes.data or []):
+                if nl.get('title'):
+                    supabase.table('newsletters').update({
+                        'primary_theme': nl['title'].lower().strip()[:100]
+                    }).eq('id', nl['id']).execute()
+            if null_themes.data:
+                logger.info(f"Backfilled primary_theme for {len(null_themes.data)} newsletter(s)")
+        except Exception as e:
+            logger.warning(f"Theme backfill failed (non-critical): {e}")
+
+        # ── Theme diversity: compute avoided theme words ──
+        _theme_stopwords = {'the', 'and', 'for', 'in', 'of', 'a', 'an', 'is', 'to', 'ai', 'agent', 'agents'}
+        avoided_themes = get_recent_newsletter_themes(3)
+        avoided_theme_words = set()
+        for theme in avoided_themes:
+            avoided_theme_words.update(w for w in theme.split() if w not in _theme_stopwords)
+
         # ── Section A: Established Opportunities (freshness-aware) ──
         opps = supabase.table('opportunities')\
             .select('*')\
@@ -2928,7 +2954,7 @@ def prepare_newsletter_data() -> dict:
             .execute()
         opps_raw = opps.data or []
 
-        # Compute effective_score with staleness decay
+        # Compute effective_score with staleness decay + theme diversity penalty
         for opp in opps_raw:
             appearances = opp.get('newsletter_appearances', 0) or 0
             effective_score = opp.get('confidence_score', 0) * (0.7 ** appearances)
@@ -2937,6 +2963,17 @@ def prepare_newsletter_data() -> dict:
             last_reviewed = opp.get('last_reviewed_at')
             if last_featured and last_reviewed and last_reviewed > last_featured:
                 effective_score *= 1.3
+
+            # Theme diversity penalty: demote opportunities matching recent themes
+            if avoided_theme_words:
+                opp_title = opp.get('title', '').lower()
+                opp_words = set(opp_title.split()) - _theme_stopwords
+                theme_overlap = opp_words & avoided_theme_words
+                if len(theme_overlap) >= 2:
+                    effective_score *= 0.3
+                    logger.info(f"Opp theme penalty (heavy): '{opp_title[:40]}' overlaps {theme_overlap}")
+                elif len(theme_overlap) == 1:
+                    effective_score *= 0.7
 
             opp['effective_score'] = round(effective_score, 4)
             opp['appearances'] = appearances
@@ -3277,10 +3314,23 @@ def prepare_newsletter_data() -> dict:
             .execute()
         if latest_analysis.data:
             analysis = latest_analysis.data[0]
+            theses = (analysis.get('metadata') or {}).get('insights', [])
+
+            # Filter analyst theses that overlap with recently used themes
+            if avoided_theme_words and theses:
+                filtered_theses = []
+                for thesis in theses:
+                    thesis_words = set(thesis.lower().split()) - _theme_stopwords
+                    if len(thesis_words & avoided_theme_words) < 2:
+                        filtered_theses.append(thesis)
+                    else:
+                        logger.info(f"Filtered analyst thesis (theme overlap): '{thesis[:60]}'")
+                theses = filtered_theses or theses[:1]  # Keep at least 1 if all filtered
+
             input_data['analyst_insights'] = {
                 'key_findings': analysis.get('key_findings'),
                 'analyst_notes': analysis.get('analyst_notes'),
-                'theses': (analysis.get('metadata') or {}).get('insights', [])
+                'theses': theses
             }
 
         # Create agent_task for the Newsletter agent
