@@ -942,7 +942,9 @@ def assess_and_flag(prediction: dict, recent_items: list) -> int:
 
 
 def expire_stale_predictions():
-    """Auto-close predictions older than PREDICTION_STALE_DAYS as 'expired'."""
+    """Auto-close predictions older than PREDICTION_STALE_DAYS as 'expired',
+    and auto-expire predictions whose target_date has passed."""
+    # --- Age-based expiry (existing) ---
     cutoff = (datetime.now(timezone.utc) - timedelta(days=PREDICTION_STALE_DAYS)).isoformat()
 
     try:
@@ -963,6 +965,34 @@ def expire_stale_predictions():
             logger.info(f"Expired {len(stale.data)} stale predictions (>{PREDICTION_STALE_DAYS} days)")
     except Exception as e:
         logger.error(f"Failed to expire stale predictions: {e}")
+
+    # --- Target-date-based expiry (NEW) ---
+    today_str = datetime.now(timezone.utc).date().isoformat()
+    try:
+        overdue = supabase.table("predictions")\
+            .select("id, title, target_date")\
+            .in_("status", ["active", "open"])\
+            .not_.is_("target_date", "null")\
+            .lt("target_date", today_str)\
+            .execute()
+
+        for pred in (overdue.data or []):
+            supabase.table("predictions").update({
+                "status": "expired",
+                "resolution_notes": (
+                    f"Auto-expired: target_date {pred.get('target_date')} "
+                    f"has passed (today={today_str})"
+                ),
+                "resolved_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", pred["id"]).execute()
+
+        if overdue.data:
+            logger.info(
+                f"Expired {len(overdue.data)} overdue prediction(s) "
+                f"(target_date < {today_str})"
+            )
+    except Exception as e:
+        logger.error(f"Failed to expire overdue predictions: {e}")
 
 
 # ---------------------------------------------------------------------------

@@ -196,7 +196,8 @@ Your response must be valid JSON:
   "edition": <number>,
   "title": "<headline — not the thesis, but an intriguing 5-8 word title>",
   "content_markdown": "<full brief as markdown>",
-  "content_telegram": "<condensed version, under 500 chars>"
+  "content_telegram": "<condensed version, under 500 chars>",
+  "primary_theme": "<2-5 word label for this edition's dominant theme, e.g. 'agent memory management' or 'protocol governance fragmentation'>"
 }
 
 If you need enrichment from the Analyst, include a negotiation_request field.

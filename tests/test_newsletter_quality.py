@@ -1035,3 +1035,126 @@ def test_token_extraction_anthropic():
     output_tok = getattr(usage, 'output_tokens', 0) or getattr(usage, 'completion_tokens', 0) or 0
     assert input_tok == 1500
     assert output_tok == 300
+
+
+# =====================================================================
+# Prediction auto-expiry tests
+# =====================================================================
+
+def test_overdue_prediction_annotated_as_stale():
+    """Predictions with target_date < today should be annotated as stale."""
+    from datetime import date
+    today = date.today().isoformat()
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+
+    predictions = [
+        {"id": "p1", "status": "active", "target_date": yesterday, "title": "Old pred"},
+        {"id": "p2", "status": "active", "target_date": "2027-01-01", "title": "Future pred"},
+        {"id": "p3", "status": "active", "target_date": None, "title": "No date pred"},
+        {"id": "p4", "status": "confirmed", "target_date": yesterday, "title": "Resolved pred"},
+    ]
+
+    stale_ids = []
+    for pred in predictions:
+        target = pred.get('target_date')
+        if target and pred.get('status') in ('active', 'open'):
+            if str(target) < today:
+                pred['_is_stale'] = True
+                stale_ids.append(pred['id'])
+            else:
+                pred['_is_stale'] = False
+        else:
+            pred['_is_stale'] = False
+
+    assert stale_ids == ["p1"], f"Expected only p1 stale, got {stale_ids}"
+    assert predictions[0]['_is_stale'] is True
+    assert predictions[1]['_is_stale'] is False
+    assert predictions[2]['_is_stale'] is False
+    assert predictions[3]['_is_stale'] is False
+
+
+# =====================================================================
+# Theme diversity tests
+# =====================================================================
+
+def _compute_theme_penalty(topic_key: str, recent_themes: list[str]) -> float:
+    """Reproduce the spotlight theme penalty logic for testing."""
+    _stopwords = {'the', 'and', 'for', 'in', 'of', 'a', 'an', 'is', 'to', 'ai', 'agent', 'agents'}
+    recent_theme_words = set()
+    for theme in recent_themes:
+        recent_theme_words.update(w for w in theme.split() if w not in _stopwords)
+
+    topic_words = set(topic_key.lower().replace('-', '_').split('_')) - _stopwords
+    theme_overlap = topic_words & recent_theme_words
+
+    if len(theme_overlap) >= 2:
+        return 0.3
+    elif len(theme_overlap) == 1:
+        return 0.7
+    return 1.0
+
+
+def test_theme_penalty_strong_overlap():
+    """Topics overlapping 2+ words with recent themes get heavy penalty."""
+    penalty = _compute_theme_penalty(
+        "memory_management_failures",
+        ["agent memory management", "protocol governance"]
+    )
+    assert penalty == 0.3
+
+
+def test_theme_penalty_weak_overlap():
+    """Topics overlapping 1 word with recent themes get mild penalty."""
+    penalty = _compute_theme_penalty(
+        "governance_standards",
+        ["agent memory management", "protocol governance"]
+    )
+    assert penalty == 0.7
+
+
+def test_theme_penalty_no_overlap():
+    """Topics with no word overlap get no penalty."""
+    penalty = _compute_theme_penalty(
+        "bitcoin_lightning_fees",
+        ["agent memory management", "protocol governance"]
+    )
+    assert penalty == 1.0
+
+
+def test_theme_penalty_stopwords_excluded():
+    """Common stopwords and 'agent/agents' should not trigger penalties."""
+    penalty = _compute_theme_penalty(
+        "agent_payment_rails",
+        ["agent memory management"]
+    )
+    # 'agent' is in stopwords, so only word overlap is empty → no penalty
+    assert penalty == 1.0
+
+
+def test_newsletter_output_primary_theme():
+    """NewsletterOutput schema should accept primary_theme."""
+    _nl_dir = str(Path(__file__).resolve().parent.parent / "docker" / "newsletter")
+    if _nl_dir not in sys.path:
+        sys.path.insert(0, _nl_dir)
+    from schemas import NewsletterOutput
+    output = NewsletterOutput(
+        title="Test",
+        content_markdown="# Test",
+        content_telegram="Test",
+        primary_theme="agent memory management"
+    )
+    assert output.primary_theme == "agent memory management"
+
+
+def test_newsletter_output_primary_theme_optional():
+    """primary_theme should default to None."""
+    _nl_dir = str(Path(__file__).resolve().parent.parent / "docker" / "newsletter")
+    if _nl_dir not in sys.path:
+        sys.path.insert(0, _nl_dir)
+    from schemas import NewsletterOutput
+    output = NewsletterOutput(
+        title="Test",
+        content_markdown="# Test",
+        content_telegram="Test",
+    )
+    assert output.primary_theme is None

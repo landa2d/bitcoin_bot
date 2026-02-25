@@ -458,6 +458,16 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         "\n16. GATO'S CORNER STRUCTURE: (1) Reference the week's main theme,"
         " (2) draw a genuine parallel to Bitcoin/decentralization that feels earned,"
         " (3) deliver an actionable insight. End with 'Stay humble, stack sats.'"
+        "\n17. THEME DIVERSITY: Check input_data for `avoided_themes`. These are"
+        " the primary themes from the last 3 editions. Your Big Insight, Spotlight"
+        " framing, and cold open MUST explore a DIFFERENT macro-theme. If the"
+        " data naturally points to a recent theme, find a genuinely fresh angle:"
+        " second-order effects, a different stakeholder's perspective, or a"
+        " contrarian take. NEVER lead with the same thesis as a recent edition."
+        "\n18. PRIMARY THEME: You MUST include a `primary_theme` field in your"
+        " JSON response — a 2-5 word label for this edition's dominant theme"
+        " (e.g. 'agent memory management', 'protocol governance fragmentation')."
+        " This is stored for future diversity tracking."
     )
 
     # Inject quality feedback on retry
@@ -516,6 +526,14 @@ def save_newsletter(result: dict, input_data: dict):
     edition = result.get("edition", input_data.get("edition_number", 0))
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
+    # Extract primary_theme from LLM response, with fallback to title
+    primary_theme = result.get("primary_theme")
+    if not primary_theme:
+        title = result.get("title", "")
+        if title:
+            primary_theme = title.lower().strip()[:100]
+            logger.info(f"primary_theme not in LLM response; falling back to title: '{primary_theme}'")
+
     # Upsert into newsletters table
     row = {
         "edition_number": edition,
@@ -523,11 +541,12 @@ def save_newsletter(result: dict, input_data: dict):
         "content_markdown": result.get("content_markdown", ""),
         "content_telegram": result.get("content_telegram", ""),
         "data_snapshot": input_data,
+        "primary_theme": primary_theme,
         "status": "draft",
     }
     try:
         supabase.table("newsletters").insert(row).execute()
-        logger.info(f"Saved newsletter edition #{edition} to Supabase (status=draft)")
+        logger.info(f"Saved newsletter edition #{edition} to Supabase (status=draft, theme='{primary_theme}')")
     except Exception as e:
         logger.error(f"Failed to insert newsletter #{edition} into Supabase: {e}")
 

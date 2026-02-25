@@ -2812,6 +2812,28 @@ def get_previously_featured_titles(editions_back: int = 4) -> set:
         return set()
 
 
+def get_recent_newsletter_themes(editions_back: int = 3) -> list[str]:
+    """Get primary_theme values from recent newsletters for diversity enforcement."""
+    if not supabase:
+        return []
+    try:
+        recent = supabase.table('newsletters')\
+            .select('primary_theme, edition_number')\
+            .not_.is_('primary_theme', 'null')\
+            .order('edition_number', desc=True)\
+            .limit(editions_back)\
+            .execute()
+        themes = []
+        for row in (recent.data or []):
+            theme = row.get('primary_theme', '')
+            if theme and theme.strip():
+                themes.append(theme.strip().lower())
+        return themes
+    except Exception as e:
+        logger.warning(f"get_recent_newsletter_themes failed: {e}")
+        return []
+
+
 def _fetch_latest_spotlight_for_newsletter(edition_number: int) -> dict | None:
     """Fetch the latest completed spotlight for the newsletter, with a 90-minute timeout check.
 
@@ -3033,17 +3055,44 @@ def prepare_newsletter_data() -> dict:
         clusters_data = clusters.data or []
 
         # ── Section D: Prediction Tracker ──
+        # First, auto-expire any predictions whose target_date has passed
+        # (defense-in-depth: analyst does this too, but processor may run first)
+        today_str = datetime.now(timezone.utc).date().isoformat()
+        try:
+            overdue = supabase.table('predictions')\
+                .select('id, target_date')\
+                .in_('status', ['active', 'open'])\
+                .not_.is_('target_date', 'null')\
+                .lt('target_date', today_str)\
+                .execute()
+            for pred in (overdue.data or []):
+                supabase.table('predictions').update({
+                    'status': 'expired',
+                    'resolution_notes': (
+                        f"Auto-expired: target_date "
+                        f"{pred.get('target_date')} passed (today={today_str})"
+                    ),
+                    'resolved_at': datetime.now(timezone.utc).isoformat(),
+                }).eq('id', pred['id']).execute()
+            if overdue.data:
+                logger.info(
+                    f"Auto-expired {len(overdue.data)} overdue "
+                    f"prediction(s) before newsletter prep"
+                )
+        except Exception as e:
+            logger.warning(f"Inline prediction expiry failed: {e}")
+
+        # Now fetch predictions (overdue ones already expired above)
         predictions_result = supabase.table('predictions')\
             .select('*')\
-            .in_('status', ['active', 'open', 'confirmed', 'refuted', 'faded'])\
+            .in_('status', ['active', 'open', 'confirmed', 'refuted', 'faded', 'expired'])\
             .order('status', desc=False)\
             .order('created_at', desc=True)\
             .limit(10)\
             .execute()
         predictions_data = predictions_result.data or []
 
-        # Annotate stale predictions (target_date passed but still active/open)
-        today_str = datetime.now(timezone.utc).date().isoformat()
+        # Safety-net annotation (in case expiry missed any due to race)
         stale_prediction_ids = []
         for pred in predictions_data:
             target = pred.get('target_date')
@@ -3052,7 +3101,7 @@ def prepare_newsletter_data() -> dict:
                     pred['_is_stale'] = True
                     stale_prediction_ids.append(pred.get('id'))
                     logger.warning(
-                        f"Stale prediction: {pred.get('title', '?')[:50]} "
+                        f"Stale prediction (safety-net): {pred.get('title', '?')[:50]} "
                         f"(target_date={target}, overdue)"
                     )
                 else:
@@ -3061,7 +3110,7 @@ def prepare_newsletter_data() -> dict:
                 pred['_is_stale'] = False
 
         if stale_prediction_ids:
-            logger.warning(f"{len(stale_prediction_ids)} stale prediction(s) in newsletter data")
+            logger.warning(f"{len(stale_prediction_ids)} stale prediction(s) still in newsletter data")
 
         # ── Thought Leader Content ──
         tl_posts = supabase.table('source_posts')\
@@ -3215,7 +3264,8 @@ def prepare_newsletter_data() -> dict:
                 'section_b_new_only': True,
                 'section_c_new_only': True,
                 'returning_items_require_new_angle': True
-            }
+            },
+            'avoided_themes': get_recent_newsletter_themes(3),
         }
 
         # Analyst insights from latest completed analysis run
@@ -4631,6 +4681,13 @@ def select_spotlight_topic() -> dict:
     except Exception as e:
         logger.warning(f"Could not fetch cooldown: {e}")
 
+    # Theme diversity: penalize topics overlapping with recent newsletter themes
+    recent_themes = get_recent_newsletter_themes(3)
+    _stopwords = {'the', 'and', 'for', 'in', 'of', 'a', 'an', 'is', 'to', 'ai', 'agent', 'agents'}
+    recent_theme_words = set()
+    for theme in recent_themes:
+        recent_theme_words.update(w for w in theme.split() if w not in _stopwords)
+
     candidates = []
     for topic in topics.data:
         topic_key = topic.get('topic_key', '')
@@ -4652,6 +4709,23 @@ def select_spotlight_topic() -> dict:
         source_diversity = _compute_source_diversity(topic)
         lifecycle_bonus = LIFECYCLE_BONUS.get(phase, 1.0)
         spotlight_score = velocity * source_diversity * lifecycle_bonus
+
+        # Theme diversity penalty: penalize topics that overlap with recent editions
+        if recent_theme_words:
+            topic_words = set(topic_key.lower().replace('-', '_').split('_')) - _stopwords
+            theme_overlap = topic_words & recent_theme_words
+            if len(theme_overlap) >= 2:
+                spotlight_score *= 0.3
+                logger.info(
+                    f"Spotlight theme penalty (heavy) for '{topic_key}': "
+                    f"overlaps recent themes on {theme_overlap}"
+                )
+            elif len(theme_overlap) == 1:
+                spotlight_score *= 0.7
+                logger.info(
+                    f"Spotlight theme penalty (mild) for '{topic_key}': "
+                    f"overlaps recent themes on {theme_overlap}"
+                )
 
         related_keys = []
         for other in topics.data:

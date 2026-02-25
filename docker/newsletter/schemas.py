@@ -24,6 +24,7 @@ class NewsletterOutput(BaseModel):
     content_markdown: str
     content_telegram: str
     edition: int | None = None
+    primary_theme: str | None = None
     negotiation_request: NegotiationRequest | None = None
     budget_usage: BudgetUsage = Field(default_factory=BudgetUsage)
     quality_warnings: list[str] = Field(default_factory=list)
