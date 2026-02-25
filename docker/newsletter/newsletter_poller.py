@@ -779,12 +779,16 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
 def routed_llm_call(model, messages, **kwargs):
     """Route LLM call to correct provider. DeepSeek falls back to OpenAI."""
     provider = _load_pricing().get(model, {}).get("provider", "openai")
-    if provider == "deepseek" and deepseek_client:
-        try:
-            return deepseek_client.chat.completions.create(model=model, messages=messages, **kwargs)
-        except Exception as e:
-            logger.warning(f"DeepSeek failed: {e} — falling back to OpenAI")
-            return client.chat.completions.create(model="gpt-4o", messages=messages, **kwargs)
+    if provider == "deepseek":
+        if deepseek_client:
+            try:
+                return deepseek_client.chat.completions.create(model=model, messages=messages, **kwargs)
+            except Exception as e:
+                logger.warning(f"DeepSeek failed: {e} — falling back to gpt-4o-mini")
+                return client.chat.completions.create(model="gpt-4o-mini", messages=messages, **kwargs)
+        else:
+            logger.info(f"DeepSeek client not available — routing {model} → gpt-4o-mini")
+            return client.chat.completions.create(model="gpt-4o-mini", messages=messages, **kwargs)
     return client.chat.completions.create(model=model, messages=messages, **kwargs)
 
 
