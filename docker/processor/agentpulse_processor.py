@@ -3033,17 +3033,24 @@ def _fetch_latest_spotlight_for_newsletter(edition_number: int) -> dict | None:
                 except (ValueError, TypeError) as e:
                     logger.warning(f"Research queue start_at parse skipped: {e}")
 
-        logger.info(f"Spotlight found: '{spotlight.get('topic_name', '?')}' (mode={spotlight.get('mode', '?')})")
-        return {
+        prediction = (spotlight.get('prediction') or '').strip()
+        has_prediction = bool(prediction) and 'no prediction' not in prediction.lower()
+
+        logger.info(f"Spotlight found: '{spotlight.get('topic_name', '?')}' (mode={spotlight.get('mode', '?')}, prediction={'yes' if has_prediction else 'NONE'})")
+        result = {
             'topic_name': spotlight.get('topic_name', ''),
             'mode': spotlight.get('mode', 'spotlight'),
             'thesis': spotlight.get('thesis', ''),
             'evidence': spotlight.get('evidence', ''),
             'counter_argument': spotlight.get('counter_argument', ''),
-            'prediction': spotlight.get('prediction', ''),
             'builder_implications': spotlight.get('builder_implications', ''),
             'sources_used': spotlight.get('sources_used', []),
+            'has_prediction': has_prediction,
         }
+        if has_prediction:
+            result['prediction'] = prediction
+        # Omit 'prediction' key entirely when empty — prevents LLM from echoing placeholder text
+        return result
 
     except Exception as e:
         logger.warning(f"Failed to fetch spotlight for newsletter: {e}")
@@ -3175,6 +3182,21 @@ def prepare_newsletter_data() -> dict:
             desc = problem.get('description', '')
             if desc not in seen_themes:
                 seen_themes.add(desc)
+                meta = problem.get('metadata', {})
+                tier = meta.get('max_source_tier', 3)
+                tier_label = {1: 'AUTHORITY', 2: 'CURATED'}.get(tier, 'COMMUNITY')
+                # Look up source names from source_post_ids
+                source_names = []
+                post_ids = problem.get('source_post_ids') or []
+                if post_ids:
+                    try:
+                        src_rows = supabase.table('source_posts')\
+                            .select('source')\
+                            .in_('id', post_ids[:5])\
+                            .execute()
+                        source_names = list({r['source'] for r in (src_rows.data or [])})
+                    except Exception:
+                        pass
                 emerging_signals.append({
                     'type': 'problem',
                     'theme': desc,
@@ -3182,7 +3204,10 @@ def prepare_newsletter_data() -> dict:
                     'category': problem.get('category'),
                     'signal_phrases': problem.get('signal_phrases', []),
                     'frequency_count': problem.get('frequency_count', 1),
-                    'metadata': problem.get('metadata', {})
+                    'metadata': meta,
+                    'source_tier': tier,
+                    'source_tier_label': tier_label,
+                    'source_names': source_names,
                 })
         emerging_signals = emerging_signals[:10]
 
@@ -3236,8 +3261,8 @@ def prepare_newsletter_data() -> dict:
         today_str = datetime.now(timezone.utc).date().isoformat()
         try:
             overdue = supabase.table('predictions')\
-                .select('id, target_date')\
-                .in_('status', ['active', 'open'])\
+                .select('id, target_date, status')\
+                .in_('status', ['active', 'open', 'developing'])\
                 .not_.is_('target_date', 'null')\
                 .lt('target_date', today_str)\
                 .execute()
@@ -3402,6 +3427,46 @@ def prepare_newsletter_data() -> dict:
                 .execute()
             edition_number = (existing.count or 0) + 1
 
+        # ── Premium Source Posts (Tier 1 & 2 RSS for attribution) ──
+        premium_posts = supabase.table('source_posts')\
+            .select('source, source_tier, title, body, source_url, scraped_at')\
+            .in_('source_tier', [1, 2])\
+            .gte('scraped_at', week_ago)\
+            .order('scraped_at', desc=True)\
+            .limit(20)\
+            .execute()
+        _source_display_names = {
+            'a16z': 'a16z', 'hbr_tech': 'Harvard Business Review',
+            'mit_tech_review': 'MIT Technology Review', 'andrew_ng': 'Andrew Ng (The Batch)',
+            'simon_willison': 'Simon Willison', 'latent_space': 'Latent Space',
+            'swyx': 'swyx', 'langchain_blog': 'LangChain Blog',
+            'ethan_mollick': 'Ethan Mollick', 'bitcoin_magazine': 'Bitcoin Magazine',
+            'coindesk': 'CoinDesk', 'tldr_ai': 'TLDR AI', 'tldr_founders': 'TLDR Founders',
+            'bens_bites': "Ben's Bites",
+        }
+        premium_source_posts = []
+        for p in (premium_posts.data or []):
+            src = p.get('source', '')
+            # Resolve human-readable source name
+            display_name = src
+            if src.startswith('rss_'):
+                feed_key = src[4:]
+                display_name = _source_display_names.get(feed_key, feed_key.replace('_', ' ').title())
+            elif src.startswith('thought_leader_'):
+                display_name = src[15:].replace('_', ' ').title()
+            tier_label = {1: 'AUTHORITY', 2: 'CURATED'}.get(
+                p.get('source_tier', 3), 'COMMUNITY'
+            )
+            premium_source_posts.append({
+                'source': src,
+                'source_display': display_name,
+                'tier': p.get('source_tier'),
+                'tier_label': tier_label,
+                'title': p.get('title', ''),
+                'summary': (p.get('body') or '')[:300],
+                'url': p.get('source_url', ''),
+            })
+
         # Build input_data for the Newsletter agent
         input_data = {
             'edition_number': edition_number,
@@ -3429,6 +3494,7 @@ def prepare_newsletter_data() -> dict:
                 'topic_stages': topic_stages,
             },
             'thought_leader_content': thought_leader_data,
+            'premium_source_posts': premium_source_posts,
             'topic_evolution': topic_evolution_data,
             'radar_topics': radar_topics,
             'spotlight': _fetch_latest_spotlight_for_newsletter(edition_number),
@@ -4348,15 +4414,40 @@ def track_predictions() -> dict:
     if not supabase:
         return {'error': 'Supabase not configured'}
 
+    # First, auto-expire any predictions with past target dates
+    today_str = datetime.now(timezone.utc).date().isoformat()
+    expired_count = 0
+    try:
+        overdue = supabase.table('predictions')\
+            .select('id, target_date, title')\
+            .in_('status', ['active', 'open', 'developing'])\
+            .not_.is_('target_date', 'null')\
+            .lt('target_date', today_str)\
+            .execute()
+        for pred in (overdue.data or []):
+            supabase.table('predictions').update({
+                'status': 'expired',
+                'resolution_notes': (
+                    f"Auto-expired: target_date {pred.get('target_date')} "
+                    f"has passed (today={today_str})"
+                ),
+                'resolved_at': datetime.now(timezone.utc).isoformat(),
+            }).eq('id', pred['id']).execute()
+            expired_count += 1
+        if expired_count:
+            logger.info(f"track_predictions: auto-expired {expired_count} overdue prediction(s)")
+    except Exception as e:
+        logger.warning(f"track_predictions: auto-expire failed: {e}")
+
     active = supabase.table('predictions')\
         .select('*')\
         .eq('status', 'active')\
         .execute()
 
     if not active.data:
-        return {'tracked': 0, 'confirmed': 0, 'faded': 0, 'active': 0}
+        return {'tracked': 0, 'confirmed': 0, 'faded': 0, 'active': 0, 'expired': expired_count}
 
-    counts = {'tracked': 0, 'confirmed': 0, 'faded': 0, 'active': 0}
+    counts = {'tracked': 0, 'confirmed': 0, 'faded': 0, 'active': 0, 'expired': expired_count}
 
     for pred in active.data:
         try:

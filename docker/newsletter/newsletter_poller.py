@@ -491,6 +491,10 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         "\n1. SPOTLIGHT: If `spotlight` is null OR missing from input_data, OMIT the"
         " ENTIRE section — no header, no placeholder, no explanation. Go straight from"
         " Cold open / One Number to The Big Insight."
+        " If spotlight exists but `has_prediction` is false or `prediction` key is"
+        " absent, write the Spotlight section WITHOUT a prediction paragraph —"
+        " skip the 'We believe...' paragraph entirely. NEVER invent a prediction"
+        " or write phrases like 'this spotlight has no prediction'."
         "\n2. ON OUR RADAR: If `radar_topics` has fewer than 3 items, OMIT the ENTIRE"
         " section — no header, no 'nothing to report' note."
         "\n3. SECTION ORDER: Write every required section in order and complete it before"
@@ -549,6 +553,15 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         " JSON response — a 2-5 word label for this edition's dominant theme"
         " (e.g. 'agent memory management', 'protocol governance fragmentation')."
         " This is stored for future diversity tracking."
+        "\n19. SOURCE ATTRIBUTION: input_data includes `premium_source_posts`"
+        " (Tier 1 AUTHORITY + Tier 2 CURATED sources like a16z, MIT Tech Review,"
+        " Simon Willison, Latent Space, Andrew Ng, etc). Reference these by name"
+        " in your analysis: 'According to a16z...', 'As Simon Willison noted...',"
+        " 'MIT Technology Review reports...'. Prefer citing premium sources over"
+        " generic 'HN discussion' or 'GitHub repos'. The newsletter should feel"
+        " well-sourced from authoritative voices, not just community chatter."
+        " Also check `section_b_emerging` for `source_names` and `source_tier_label`"
+        " fields — cite the named sources when available."
     )
 
     # Inject quality feedback on retry
