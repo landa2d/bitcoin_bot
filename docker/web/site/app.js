@@ -144,7 +144,7 @@ async function loadList() {
     showView('list');
     var { data, error } = await sb
         .from('newsletters')
-        .select('edition_number, title, title_impact, content_markdown, content_markdown_impact, published_at')
+        .select('*')
         .eq('status', 'published')
         .order('edition_number', { ascending: false });
 
@@ -183,7 +183,7 @@ async function loadEdition(editionNumber) {
 
     var { data, error } = await sb
         .from('newsletters')
-        .select('edition_number, title, title_impact, content_markdown, content_markdown_impact, published_at')
+        .select('*')
         .eq('edition_number', editionNumber)
         .eq('status', 'published')
         .single();
