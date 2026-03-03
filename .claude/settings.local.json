@@ -3,7 +3,13 @@
     "allow": [
       "Bash(head:*)",
       "Bash(tail:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(cd:*)",
+      "Bash(cd /c/Users/landa/bitcoin_bot && git push origin main 2>&1)",
+      "Bash(cd /c/Users/landa/bitcoin_bot && python -m pytest tests/test_newsletter_quality.py -v -k \"test_overdue or test_theme_penalty or test_newsletter_output\" 2>&122)",
+      "Bash(cd /c/Users/landa/bitcoin_bot && python -m pytest tests/test_newsletter_quality.py -v -k \"test_opp_theme or test_analyst_thesis\" 2>&1)",
+      "mcp__claude_ai_Supabase__execute_sql",
+      "Bash(python:*)"
     ]
   }
 }

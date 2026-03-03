@@ -21,7 +21,9 @@ class NegotiationRequest(BaseModel):
 
 class NewsletterOutput(BaseModel):
     title: str
+    title_impact: str | None = None
     content_markdown: str
+    content_markdown_impact: str | None = None
     content_telegram: str
     edition: int | None = None
     primary_theme: str | None = None

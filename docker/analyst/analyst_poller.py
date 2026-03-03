@@ -134,6 +134,10 @@ def load_skill(skill_dir: Path) -> str:
 
 def init():
     global supabase, client, deepseek_client
+    logger.info(f"[INIT] ANALYST_MODEL={MODEL}")
+    logger.info(f"[INIT] DEEPSEEK_API_KEY={'set (' + DEEPSEEK_API_KEY[:8] + '...)' if DEEPSEEK_API_KEY else 'NOT SET'}")
+    logger.info(f"[INIT] DEEPSEEK_BASE_URL={DEEPSEEK_BASE_URL}")
+    logger.info(f"[INIT] OPENAI_API_KEY={'set' if OPENAI_API_KEY else 'NOT SET'}")
     if not SUPABASE_URL or not SUPABASE_KEY:
         logger.error("Supabase not configured (SUPABASE_URL / SUPABASE_KEY missing)")
         return False
@@ -144,7 +148,9 @@ def init():
     client = OpenAI(api_key=OPENAI_API_KEY)
     if DEEPSEEK_API_KEY:
         deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
-        logger.info("DeepSeek client initialized")
+        logger.info("[INIT] DeepSeek client initialized successfully")
+    else:
+        logger.warning("[INIT] DEEPSEEK_API_KEY missing — all DeepSeek calls will fall back to OpenAI")
     return True
 
 
@@ -215,16 +221,22 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
 
 def routed_llm_call(model, messages, **kwargs):
     """Route LLM call to correct provider. DeepSeek falls back to OpenAI."""
+    # Ensure config cache is loaded before checking pricing
+    if _budget_config_cache is None:
+        get_budget_config(AGENT_NAME, "default")
     provider = (_budget_config_cache or {}).get("pricing", {}).get(model, {}).get("provider", "openai")
+    logger.info(f"[ROUTING] model={model} provider={provider} deepseek_client={'yes' if deepseek_client else 'NO'}")
     if provider == "deepseek":
         if deepseek_client:
             try:
-                return deepseek_client.chat.completions.create(model=model, messages=messages, **kwargs)
+                resp = deepseek_client.chat.completions.create(model=model, messages=messages, **kwargs)
+                logger.info(f"[ROUTING] DeepSeek call succeeded — model used: {resp.model}")
+                return resp
             except Exception as e:
-                logger.warning(f"DeepSeek failed: {e} — falling back to gpt-4o-mini")
+                logger.warning(f"[ROUTING] DeepSeek call FAILED: {e} — falling back to gpt-4o-mini")
                 return client.chat.completions.create(model="gpt-4o-mini", messages=messages, **kwargs)
         else:
-            logger.info(f"DeepSeek client not available — routing {model} → gpt-4o-mini")
+            logger.warning(f"[ROUTING] DeepSeek client is None — falling back {model} → gpt-4o-mini")
             return client.chat.completions.create(model="gpt-4o-mini", messages=messages, **kwargs)
     return client.chat.completions.create(model=model, messages=messages, **kwargs)
 
@@ -945,9 +957,85 @@ def assess_and_flag(prediction: dict, recent_items: list) -> int:
         return 0
 
 
+def _parse_target_date_from_text(text: str):
+    """Extract a target date from prediction_text. Returns a date string (YYYY-MM-DD) or None."""
+    if not text:
+        return None
+
+    today = datetime.now(timezone.utc).date()
+
+    # Quarter patterns: "Q1 2025", "Q4 2025"
+    q_match = re.search(r'Q([1-4])\s+(\d{4})', text, re.IGNORECASE)
+    if q_match:
+        quarter, year = int(q_match.group(1)), int(q_match.group(2))
+        # End of quarter: Q1=Mar31, Q2=Jun30, Q3=Sep30, Q4=Dec31
+        month = quarter * 3
+        day = 31 if month in (3, 12) else 30
+        from datetime import date
+        return date(year, month, day).isoformat()
+
+    # Month + year: "June 2025", "December 2025"
+    month_names = {
+        'january': 1, 'february': 2, 'march': 3, 'april': 4,
+        'may': 5, 'june': 6, 'july': 7, 'august': 8,
+        'september': 9, 'october': 10, 'november': 11, 'december': 12,
+    }
+    m_match = re.search(
+        r'(?:by|before|within)\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})',
+        text, re.IGNORECASE
+    )
+    if m_match:
+        month_num = month_names[m_match.group(1).lower()]
+        year = int(m_match.group(2))
+        # Last day of month
+        import calendar
+        from datetime import date
+        day = calendar.monthrange(year, month_num)[1]
+        return date(year, month_num, day).isoformat()
+
+    # "year-end 2025" / "end of 2025"
+    ye_match = re.search(r'(?:year[- ]?end|end\s+of)\s+(\d{4})', text, re.IGNORECASE)
+    if ye_match:
+        from datetime import date
+        return date(int(ye_match.group(1)), 12, 31).isoformat()
+
+    return None
+
+
+def backfill_null_target_dates():
+    """One-shot: parse target_date from prediction_text for predictions with NULL target_date."""
+    if not supabase:
+        return
+
+    try:
+        null_dates = supabase.table("predictions")\
+            .select("id, prediction_text")\
+            .in_("status", ["active", "open"])\
+            .is_("target_date", "null")\
+            .execute()
+
+        updated = 0
+        for pred in (null_dates.data or []):
+            parsed = _parse_target_date_from_text(pred.get("prediction_text", ""))
+            if parsed:
+                supabase.table("predictions").update({
+                    "target_date": parsed,
+                }).eq("id", pred["id"]).execute()
+                updated += 1
+                logger.info(f"Backfilled target_date={parsed} for prediction {pred['id'][:8]}")
+
+        if updated:
+            logger.info(f"Backfilled target_date for {updated}/{len(null_dates.data or [])} predictions")
+    except Exception as e:
+        logger.warning(f"Failed to backfill target_dates: {e}")
+
+
 def expire_stale_predictions():
     """Auto-close predictions older than PREDICTION_STALE_DAYS as 'expired',
     and auto-expire predictions whose target_date has passed."""
+    # --- Backfill NULL target_dates first (makes target-date expiry work for old predictions) ---
+    backfill_null_target_dates()
+
     # --- Age-based expiry (existing) ---
     cutoff = (datetime.now(timezone.utc) - timedelta(days=PREDICTION_STALE_DAYS)).isoformat()
 

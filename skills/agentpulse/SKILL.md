@@ -37,6 +37,7 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/topics` | Show topic lifecycle stages and evolution |
 | `/thesis [topic]` | Show Analyst's thesis on a specific topic |
 | `/freshness` | Show what's excluded from the next newsletter |
+| `/subscribers` | Show subscriber count and mode preference breakdown |
 
 ---
 

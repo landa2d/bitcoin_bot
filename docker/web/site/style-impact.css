@@ -1,0 +1,209 @@
+/* === AgentPulse Impact Mode === */
+/* Editorial, magazine-like, warm, generous spacing */
+
+body.impact {
+    --color-bg: #faf8f4;
+    --color-text: #1a1a1a;
+    --color-muted: #6b6560;
+    --color-accent: #c44b2b;
+    --color-border: #e5e0d8;
+
+    font-family: 'Newsreader', Georgia, serif;
+    color: var(--color-text);
+    background: var(--color-bg);
+    line-height: 1.8;
+    font-size: 18px;
+}
+
+/* Header */
+body.impact header {
+    border-bottom: 1px solid var(--color-border);
+}
+
+body.impact .site-title {
+    font-family: 'Fraunces', Georgia, serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--color-text);
+    letter-spacing: -0.5px;
+}
+
+body.impact .site-tagline {
+    color: var(--color-muted);
+    font-size: 16px;
+    font-family: 'Newsreader', Georgia, serif;
+    font-style: italic;
+}
+
+/* Toggle labels */
+body.impact .toggle-label {
+    color: var(--color-muted);
+    font-family: 'Newsreader', Georgia, serif;
+}
+
+body.impact .toggle-label.active {
+    color: var(--color-accent);
+}
+
+/* Mode indicator */
+body.impact .mode-indicator {
+    background: var(--color-accent);
+    color: #faf8f4;
+}
+
+/* Edition list */
+body.impact .edition-card:hover {
+    background: rgba(196, 75, 43, 0.02);
+}
+
+body.impact .edition-meta {
+    font-family: 'Newsreader', Georgia, serif;
+    color: var(--color-muted);
+    font-size: 14px;
+    font-style: italic;
+}
+
+body.impact .edition-title {
+    font-family: 'Fraunces', Georgia, serif;
+    color: var(--color-text);
+    font-weight: 600;
+    font-size: 24px;
+}
+
+body.impact .edition-title:hover {
+    color: var(--color-accent);
+}
+
+body.impact .edition-excerpt {
+    color: var(--color-muted);
+    font-size: 17px;
+    line-height: 1.6;
+}
+
+/* Reader */
+body.impact .back-link {
+    font-family: 'Newsreader', Georgia, serif;
+    color: var(--color-accent);
+    font-size: 15px;
+}
+
+body.impact article h1 {
+    font-family: 'Fraunces', Georgia, serif;
+    color: var(--color-text);
+    font-weight: 700;
+    font-size: 36px;
+    line-height: 1.15;
+}
+
+body.impact article h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    color: var(--color-text);
+    font-size: 22px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: normal;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--color-border);
+    margin-top: 40px;
+}
+
+body.impact article h3 {
+    font-family: 'Fraunces', Georgia, serif;
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+body.impact article p {
+    color: var(--color-text);
+    margin-bottom: 18px;
+}
+
+body.impact article blockquote {
+    border-left-color: var(--color-accent);
+    padding: 14px 20px;
+    background: rgba(196, 75, 43, 0.04);
+    border-radius: 4px;
+    color: var(--color-muted);
+    font-style: italic;
+    font-size: 17px;
+}
+
+body.impact article a {
+    color: var(--color-accent);
+}
+
+body.impact article code {
+    background: rgba(196, 75, 43, 0.08);
+    color: var(--color-accent);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+body.impact article pre {
+    background: #f0ece6;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 16px;
+    overflow-x: auto;
+    margin: 16px 0;
+}
+
+body.impact article pre code {
+    background: transparent;
+    padding: 0;
+}
+
+body.impact .article-meta {
+    font-family: 'Newsreader', Georgia, serif;
+    color: var(--color-muted);
+    font-size: 15px;
+    font-style: italic;
+    border-bottom-color: var(--color-border);
+}
+
+/* Gato's Corner — subtle warm background, rounded */
+body.impact .gato-corner,
+body.impact article blockquote:last-of-type {
+    border-left-color: var(--color-accent);
+    background: rgba(196, 75, 43, 0.04);
+    border-radius: 8px;
+}
+
+/* Subscribe */
+body.impact #subscribe-section h2 {
+    font-family: 'Fraunces', Georgia, serif;
+    color: var(--color-text);
+}
+
+body.impact #subscribe-section p {
+    color: var(--color-muted);
+    font-style: italic;
+}
+
+body.impact .subscribe-form input[type="email"] {
+    border-color: var(--color-border);
+    background: white;
+    color: var(--color-text);
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 16px;
+}
+
+body.impact .subscribe-form button {
+    background: var(--color-accent);
+    color: white;
+    font-family: 'Fraunces', Georgia, serif;
+}
+
+body.impact .mode-preference {
+    color: var(--color-muted);
+    font-family: 'Newsreader', Georgia, serif;
+    font-size: 15px;
+}
+
+/* Footer */
+body.impact footer {
+    border-top-color: var(--color-border);
+    color: var(--color-muted);
+    font-family: 'Newsreader', Georgia, serif;
+}

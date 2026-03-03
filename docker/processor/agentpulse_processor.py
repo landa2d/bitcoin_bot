@@ -63,12 +63,17 @@ DEEPSEEK_BASE_URL = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
 # Hacker News
 HN_API_BASE = 'https://hacker-news.firebaseio.com/v0'
 HN_KEYWORDS = [
+    # AI / Agent keywords
     'agent', 'ai agent', 'llm', 'gpt', 'claude', 'anthropic', 'openai',
     'autonomous', 'multi-agent', 'agentic', 'tool use', 'function calling',
     'rag', 'retrieval', 'embedding', 'vector', 'langchain', 'langgraph',
     'autogen', 'crewai', 'openclaw', 'mcp', 'model context protocol',
     'ai startup', 'ai tool', 'ai framework', 'ai infrastructure',
-    'chatbot', 'copilot', 'assistant', 'automation'
+    'chatbot', 'copilot', 'assistant', 'automation',
+    # Bitcoin / Crypto keywords
+    'bitcoin', 'btc', 'lightning network', 'nostr', 'satoshi',
+    'blockchain', 'crypto', 'defi', 'web3', 'smart contract',
+    'layer 2', 'stablecoin', 'tokenization', 'ordinals',
 ]
 
 # GitHub
@@ -136,14 +141,121 @@ RSS_FEEDS = {
         'tier': 1,
         'category': 'thought_leader'
     },
+    # Bitcoin / Crypto authority sources
+    'bitcoin_magazine': {
+        'url': 'https://bitcoinmagazine.com/feed',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'coindesk': {
+        'url': 'https://www.coindesk.com/arc/outboundfeeds/rss/',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'blockworks': {
+        'url': 'https://blockworks.co/feed',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'decrypt': {
+        'url': 'https://decrypt.co/feed',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'cointelegraph': {
+        'url': 'https://cointelegraph.com/rss',
+        'tier': 2,
+        'category': 'curated_newsletter'
+    },
+    'unchained': {
+        'url': 'https://unchainedcrypto.com/feed/',
+        'tier': 1,
+        'category': 'authority'
+    },
+    # AI / Tech journalism authority sources
+    'techcrunch_ai': {
+        'url': 'https://techcrunch.com/category/artificial-intelligence/feed/',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'venturebeat_ai': {
+        'url': 'https://venturebeat.com/category/ai/feed/',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'the_verge_ai': {
+        'url': 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'wired_ai': {
+        'url': 'https://www.wired.com/feed/tag/ai/latest/rss',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'ars_technica': {
+        'url': 'https://feeds.arstechnica.com/arstechnica/technology-lab',
+        'tier': 1,
+        'category': 'authority'
+    },
+    # AI research lab sources
+    'openai_blog': {
+        'url': 'https://openai.com/blog/rss.xml',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'anthropic_news': {
+        'url': 'https://www.anthropic.com/rss.xml',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'deepmind_blog': {
+        'url': 'https://deepmind.google/blog/rss.xml',
+        'tier': 1,
+        'category': 'authority'
+    },
+    # Financial / Macro research sources
+    'citrini': {
+        'url': 'https://www.citriniresearch.com/feed',
+        'tier': 1,
+        'category': 'macro_research'
+    },
+    'byrne_hobart': {
+        'url': 'https://www.thediff.co/feed',
+        'tier': 1,
+        'category': 'financial_analysis'
+    },
+    'stratechery': {
+        'url': 'https://stratechery.com/feed/',
+        'tier': 1,
+        'category': 'business_analysis'
+    },
+    'cb_insights': {
+        'url': 'https://www.cbinsights.com/research/feed/',
+        'tier': 2,
+        'category': 'market_research'
+    },
 }
 
 RSS_RELEVANCE_KEYWORDS = [
+    # AI / Agent keywords
     'agent', 'agentic', 'llm', 'ai tool', 'autonomous',
     'multi-agent', 'function call', 'ai startup',
     'foundation model', 'gpt', 'claude', 'anthropic',
     'openai', 'copilot', 'automation', 'ai infrastructure',
-    'rag', 'vector', 'embedding', 'mcp', 'langchain'
+    'rag', 'vector', 'embedding', 'mcp', 'langchain',
+    # Bitcoin / Crypto keywords
+    'bitcoin', 'btc', 'lightning', 'nostr', 'blockchain',
+    'crypto', 'defi', 'web3', 'smart contract', 'tokenization',
+    'ordinals', 'layer 2', 'digital asset', 'on-chain',
+    # Financial / Macro keywords
+    'saas pricing', 'seat based', 'arr', 'net revenue retention',
+    'white collar', 'displacement', 'layoff', 'headcount reduction',
+    'interchange', 'stablecoin', 'payment rail', 'agent commerce',
+    'private credit', 'lbo', 'software default',
+    'mortgage', 'delinquency', 'consumer spending',
+    'ghost gdp', 'labor share', 'wage compression',
+    'compute tax', 'ai regulation', 'intermediation',
 ]
 
 THOUGHT_LEADER_FEEDS = {
@@ -598,7 +710,7 @@ def get_daily_usage(agent_name: str = None) -> dict:
 # ============================================================================
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def fetch_moltbook_posts(submolt: str = None, limit: int = 50, sort: str = 'new') -> list:
+def fetch_moltbook_posts(submolt: str = None, limit: int = 25, sort: str = 'new') -> list:
     """Fetch posts from Moltbook API."""
     if not MOLTBOOK_API_TOKEN:
         logger.error("MOLTBOOK_API_TOKEN not set")
@@ -623,7 +735,7 @@ def fetch_moltbook_posts(submolt: str = None, limit: int = 50, sort: str = 'new'
             return data['posts']
         return data if isinstance(data, list) else []
 
-def scrape_moltbook(submolts: list = None, posts_per_submolt: int = 50) -> dict:
+def scrape_moltbook(submolts: list = None, posts_per_submolt: int = 25) -> dict:
     """Scrape Moltbook and store in Supabase."""
     # Note: We fetch all posts and they include submolt info
     total_posts_to_fetch = posts_per_submolt * (len(submolts) if submolts else 5)
@@ -711,7 +823,7 @@ def store_post(post: dict, submolt_override: str = None) -> bool:
 # ============================================================================
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
-def scrape_hackernews(limit: int = 200) -> dict:
+def scrape_hackernews(limit: int = 100) -> dict:
     """Scrape top HN stories, filter for AI/agent relevance, store in source_posts."""
     if not supabase:
         return {'error': 'Supabase not configured'}
@@ -766,6 +878,7 @@ def scrape_hackernews(limit: int = 200) -> dict:
                     'source': 'hackernews',
                     'source_id': str(story_id),
                     'source_url': story.get('url') or f"https://news.ycombinator.com/item?id={story_id}",
+                    'source_tier': 3,
                     'title': story['title'],
                     'body': '\n\n'.join(c['text'] for c in comments),
                     'author': story.get('by', 'anon'),
@@ -815,12 +928,18 @@ def scrape_github(days_back: int = 7) -> dict:
         headers['Authorization'] = f'token {GITHUB_TOKEN}'
 
     queries = [
+        # AI / Agent queries
         f'ai agent created:>{cutoff} stars:>5',
         f'llm agent created:>{cutoff} stars:>5',
         f'autonomous agent created:>{cutoff} stars:>3',
         f'agentic created:>{cutoff} stars:>3',
         f'multi-agent created:>{cutoff} stars:>3',
         f'mcp server created:>{cutoff} stars:>3',
+        # Bitcoin + AI intersection queries
+        f'bitcoin ai created:>{cutoff} stars:>3',
+        f'bitcoin llm created:>{cutoff} stars:>3',
+        f'blockchain agent created:>{cutoff} stars:>3',
+        f'lightning network ai created:>{cutoff} stars:>2',
     ]
 
     seen_repos = set()
@@ -832,7 +951,7 @@ def scrape_github(days_back: int = 7) -> dict:
             try:
                 resp = client.get(
                     'https://api.github.com/search/repositories',
-                    params={'q': query, 'sort': 'stars', 'order': 'desc', 'per_page': 30},
+                    params={'q': query, 'sort': 'stars', 'order': 'desc', 'per_page': 20},
                     headers=headers,
                 )
                 if resp.status_code == 403:
@@ -856,6 +975,7 @@ def scrape_github(days_back: int = 7) -> dict:
                         'source': 'github',
                         'source_id': str(repo['id']),
                         'source_url': repo['html_url'],
+                        'source_tier': 3,
                         'title': repo['full_name'],
                         'body': f"{description}\n\nStars: {stars} | Forks: {forks} | Language: {language} | Created: {created_at}",
                         'author': repo['owner']['login'],
@@ -981,6 +1101,8 @@ def _detect_topics(text: str) -> list:
         'developer_experience': ['developer', 'dx', 'sdk', 'api', 'framework'],
         'open_source': ['open source', 'open-source', 'hugging face', 'ollama', 'llama'],
         'startups': ['startup', 'funding', 'yc', 'seed', 'series a', 'venture'],
+        'bitcoin': ['bitcoin', 'btc', 'satoshi', 'lightning network', 'nostr', 'ordinals'],
+        'crypto': ['blockchain', 'crypto', 'defi', 'web3', 'smart contract', 'tokenization'],
     }
     text_lower = text.lower()
     return [topic for topic, keywords in topic_map.items() if any(kw in text_lower for kw in keywords)]
@@ -1229,7 +1351,8 @@ def store_problem(problem: dict):
         'frequency_count': 1,
         'metadata': {
             'severity': problem.get('severity'),
-            'willingness_to_pay': problem.get('willingness_to_pay')
+            'willingness_to_pay': problem.get('willingness_to_pay'),
+            'max_source_tier': problem.get('max_source_tier', 3),
         }
     }
     
@@ -1399,7 +1522,15 @@ def cluster_problems(min_problems: int = 3) -> dict:
             gap = cluster.get('solution_gap', 'none')
             gap_weight = {'none': 1.0, 'inadequate': 0.5, 'solved': 0.0}.get(gap, 0.5)
 
-            opportunity_score = (freq_weight * 0.3) + (recency_weight * 0.2) + (wtp_weight * 0.3) + (gap_weight * 0.2)
+            # tier_weight: boost clusters sourced from authority sources
+            cluster_tiers = [
+                p.get('metadata', {}).get('max_source_tier', 3)
+                for p in cluster_problems_data
+            ]
+            best_tier = min(cluster_tiers) if cluster_tiers else 3
+            tier_weight = {1: 1.0, 2: 0.7}.get(best_tier, 0.4)
+
+            opportunity_score = (freq_weight * 0.25) + (recency_weight * 0.15) + (wtp_weight * 0.25) + (gap_weight * 0.15) + (tier_weight * 0.20)
 
             # Insert cluster into problem_clusters table
             cluster_record = {
@@ -1412,7 +1543,8 @@ def cluster_problems(min_problems: int = 3) -> dict:
                 'market_validation': {
                     'combined_severity': cluster.get('combined_severity', 'low'),
                     'willingness_to_pay': wtp,
-                    'solution_gap': gap
+                    'solution_gap': gap,
+                    'max_source_tier': best_tier,
                 }
             }
             insert_result = supabase.table('problem_clusters').insert(cluster_record).execute()
@@ -2280,9 +2412,16 @@ def _format_multisource_posts(posts: list) -> str:
     formatted = ""
     for source, source_posts in by_source.items():
         formatted += f"\n\n=== SOURCE: {source.upper()} ===\n"
-        formatted += SOURCE_CONTEXT.get(source, '') + "\n"
+        context = SOURCE_CONTEXT.get(source, '')
+        if not context and source.startswith('rss_'):
+            feed_config = RSS_FEEDS.get(source[4:], {})
+            tier = feed_config.get('tier', 3)
+            context = f'(Tier {tier} {feed_config.get("category", "unknown")} source)'
+        formatted += context + "\n"
         for post in source_posts:
-            formatted += f"\n[{post.get('source_id', 'unknown')}] {post.get('title', 'Untitled')}\n"
+            tier = post.get('source_tier', 3)
+            tier_label = {1: 'AUTHORITY', 2: 'CURATED'}.get(tier, 'COMMUNITY')
+            formatted += f"\n[{post.get('source_id', 'unknown')}] [{tier_label}] {post.get('title', 'Untitled')}\n"
             body = post.get('body') or ''
             if body:
                 formatted += f"{body[:500]}\n"
@@ -4598,29 +4737,62 @@ def _compute_velocity(topic: dict, days: int = 7) -> float:
 
 
 def _compute_source_diversity(topic: dict) -> float:
-    """Compute source tier diversity (0-1) from recent snapshot."""
+    """Compute source tier diversity (0-1) using actual source_tier values."""
     snapshots = topic.get('snapshots') or []
     if not snapshots:
         return 0.0
     recent = snapshots[-1]
     sources = recent.get('sources', [])
-    tier_set = set()
-    for src in sources:
-        src_lower = src.lower()
-        if 'rss' in src_lower:
-            tier_set.add('institutional')
-        elif src_lower in ('hackernews', 'moltbook'):
-            tier_set.add('community')
-        elif src_lower == 'github':
-            tier_set.add('community')
-        else:
-            tier_set.add('community')
-    if not supabase:
-        return len(tier_set) / 3.0
+    if not sources:
+        return 0.0
 
+    tier_set = set()
+
+    if supabase:
+        # Query actual source_tier values from the database
+        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        try:
+            for src in set(sources):
+                posts = supabase.table('source_posts')\
+                    .select('source_tier')\
+                    .eq('source', src)\
+                    .gte('scraped_at', week_ago)\
+                    .limit(1)\
+                    .execute()
+                if posts.data:
+                    tier_val = posts.data[0].get('source_tier', 3)
+                    if tier_val == 1:
+                        tier_set.add('authority')
+                    elif tier_val == 2:
+                        tier_set.add('curated')
+                    else:
+                        tier_set.add('community')
+                else:
+                    # Source not found in DB, infer from name
+                    if src.startswith('rss_') or src.startswith('thought_leader_'):
+                        tier_set.add('authority')
+                    else:
+                        tier_set.add('community')
+        except Exception as e:
+            logger.warning(f"Source diversity DB lookup failed: {e}")
+            # Fallback to name-based heuristic
+            for src in sources:
+                if src.startswith('rss_') or src.startswith('thought_leader_'):
+                    tier_set.add('authority')
+                else:
+                    tier_set.add('community')
+    else:
+        # No DB — fallback to name-based heuristic
+        for src in sources:
+            if src.startswith('rss_') or src.startswith('thought_leader_'):
+                tier_set.add('authority')
+            else:
+                tier_set.add('community')
+
+    # Also check thought leaders via keyword matching
     topic_key = topic.get('topic_key', '')
     keywords = [w for w in topic_key.split('_') if len(w) >= 3]
-    if keywords:
+    if keywords and supabase:
         week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         try:
             tl_posts = supabase.table('source_posts')\
@@ -4635,7 +4807,7 @@ def _compute_source_diversity(topic: dict) -> float:
                     tier_set.add('thought_leader')
                     break
         except Exception as e:
-            logger.warning(f"Source diversity calculation skipped: {e}")
+            logger.warning(f"Source diversity TL lookup skipped: {e}")
 
     return min(len(tier_set) / 3.0, 1.0)
 
@@ -4986,7 +5158,7 @@ def execute_task(task: dict) -> dict:
     if task_type == 'scrape':
         return scrape_moltbook(
             submolts=params.get('submolts'),
-            posts_per_submolt=params.get('posts_per_submolt', 50)
+            posts_per_submolt=params.get('posts_per_submolt', 25)
         )
     
     elif task_type == 'extract_problems':
@@ -5280,7 +5452,7 @@ def execute_task(task: dict) -> dict:
     
     elif task_type == 'targeted_scrape':
         submolts = params.get('submolts', [])[:3]
-        posts_per = min(params.get('posts_per_submolt', 50), 50)
+        posts_per = min(params.get('posts_per_submolt', 25), 25)
         reason = params.get('reason', 'agent_request')
 
         results = {}
@@ -5564,6 +5736,26 @@ def execute_task(task: dict) -> dict:
             resolution_notes=params.get('resolution_notes', ''),
             scorecard_issue=params.get('scorecard_issue'),
         )
+
+    elif task_type == 'get_subscriber_stats':
+        if not supabase:
+            return {'error': 'Supabase not configured'}
+        total = supabase.table('subscribers').select('id', count='exact').execute()
+        active = supabase.table('subscribers').select('id', count='exact').eq('status', 'active').execute()
+        pending = supabase.table('subscribers').select('id', count='exact').eq('status', 'pending').execute()
+        builder_pref = supabase.table('subscribers').select('id', count='exact').eq('mode_preference', 'builder').eq('status', 'active').execute()
+        impact_pref = supabase.table('subscribers').select('id', count='exact').eq('mode_preference', 'impact').eq('status', 'active').execute()
+        both_pref = supabase.table('subscribers').select('id', count='exact').eq('mode_preference', 'both').eq('status', 'active').execute()
+        return {
+            'total': total.count or 0,
+            'active': active.count or 0,
+            'pending': pending.count or 0,
+            'mode_breakdown': {
+                'builder': builder_pref.count or 0,
+                'impact': impact_pref.count or 0,
+                'both': both_pref.count or 0,
+            }
+        }
 
     else:
         return {'error': f'Unknown task: {task_type}'}
@@ -6240,7 +6432,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')

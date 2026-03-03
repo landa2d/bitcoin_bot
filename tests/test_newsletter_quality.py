@@ -697,6 +697,7 @@ from newsletter_poller import (  # noqa: E402
     validate_section_echo,
     validate_stale_predictions,
     validate_prediction_format,
+    validate_prediction_dates,
     run_quality_checks,
     _auto_fix_stat_repetition,
 )
@@ -812,7 +813,7 @@ def test_stale_prediction_detected():
         "stale_prediction_ids": ["pred-001"],
         "predictions": [
             {"id": "pred-001", "title": "MCP adoption will double",
-             "target_date": "2025-06-01", "status": "active"},
+             "target_date": "2026-01-01", "status": "active"},
         ],
     }
     issues = validate_stale_predictions(md, input_data)
@@ -1134,8 +1135,12 @@ def test_theme_penalty_stopwords_excluded():
 def test_newsletter_output_primary_theme():
     """NewsletterOutput schema should accept primary_theme."""
     _nl_dir = str(Path(__file__).resolve().parent.parent / "docker" / "newsletter")
-    if _nl_dir not in sys.path:
-        sys.path.insert(0, _nl_dir)
+    # Ensure newsletter schemas takes priority over analyst schemas
+    if _nl_dir in sys.path:
+        sys.path.remove(_nl_dir)
+    sys.path.insert(0, _nl_dir)
+    if 'schemas' in sys.modules:
+        del sys.modules['schemas']
     from schemas import NewsletterOutput
     output = NewsletterOutput(
         title="Test",
@@ -1149,8 +1154,11 @@ def test_newsletter_output_primary_theme():
 def test_newsletter_output_primary_theme_optional():
     """primary_theme should default to None."""
     _nl_dir = str(Path(__file__).resolve().parent.parent / "docker" / "newsletter")
-    if _nl_dir not in sys.path:
-        sys.path.insert(0, _nl_dir)
+    if _nl_dir in sys.path:
+        sys.path.remove(_nl_dir)
+    sys.path.insert(0, _nl_dir)
+    if 'schemas' in sys.modules:
+        del sys.modules['schemas']
     from schemas import NewsletterOutput
     output = NewsletterOutput(
         title="Test",
@@ -1257,3 +1265,148 @@ def test_analyst_thesis_keeps_one_if_all_filtered():
     ]
     result = _filter_theses(theses, ["navigating the assumption gap in ai agents"])
     assert len(result) == 1  # Keeps first one as fallback
+
+
+# =====================================================================
+# Past-date prediction validator tests
+# =====================================================================
+
+def test_past_date_prediction_quarter():
+    """Predictions with past quarter dates should be flagged as critical."""
+    # Q4 2025 ended Dec 31, 2025 — clearly past (no 2026 quarter has ended yet)
+    md = """\
+## Prediction Tracker
+
+🟢 **By Q4 2025, at least three major agent frameworks will implement native assumption-validation layers**
+🟢 **By Q3 2027, enterprise AI spending will double**
+"""
+    issues = validate_prediction_dates(md)
+    assert len(issues) == 1
+    assert issues[0]["severity"] == "critical"
+    assert issues[0]["issue"] == "past_date_prediction"
+    assert "2025-12-31" in issues[0]["detail"]
+
+
+def test_past_date_prediction_month():
+    """Predictions with past month dates should be flagged."""
+    md = """\
+## Prediction Tracker
+
+🟡 **By January 2026, OpenAI will ship agent-to-agent communication**
+"""
+    issues = validate_prediction_dates(md)
+    assert len(issues) == 1
+    assert issues[0]["severity"] == "critical"
+
+
+def test_past_date_prediction_year_end():
+    """Predictions with past year-end dates should be flagged."""
+    md = """\
+## Prediction Tracker
+
+🟢 **By end of 2025, the market will consolidate around 3 orchestration frameworks**
+"""
+    issues = validate_prediction_dates(md)
+    assert len(issues) == 1
+    assert issues[0]["severity"] == "critical"
+
+
+def test_future_date_prediction_clean():
+    """Predictions with future dates should pass cleanly."""
+    md = """\
+## Prediction Tracker
+
+🟢 **By Q3 2027, at least two major frameworks will ship native memory management**
+🟢 **By December 2027, enterprise agents will handle payments natively**
+"""
+    issues = validate_prediction_dates(md)
+    assert len(issues) == 0
+
+
+def test_resolved_predictions_not_flagged():
+    """Resolved predictions (checkmark/X) with past dates should still be flagged."""
+    md = """\
+## Prediction Tracker
+
+✅ **By January 2026, MCP adoption would double in enterprise** — Confirmed
+❌ **By February 2026, three frameworks would merge** — Wrong
+🟢 **By Q4 2027, agent memory will be standardized**
+"""
+    issues = validate_prediction_dates(md)
+    # January 2026 is past; February 2026 ends Feb 28 which is after today (Feb 26)
+    # so only January 2026 is past → 1 critical
+    assert len(issues) == 1
+    assert issues[0]["severity"] == "critical"
+
+
+def test_no_prediction_section():
+    """No prediction section should return no issues."""
+    md = """\
+## Spotlight
+
+Some content about a topic.
+
+## The Big Insight
+
+More content here.
+"""
+    issues = validate_prediction_dates(md)
+    assert len(issues) == 0
+
+
+def test_mixed_past_future_predictions():
+    """Mix of past and future dates should flag only past ones."""
+    md = """\
+## Prediction Tracker
+
+🟢 **By Q4 2025, assumption-validation layers will become standard** — Active
+🟡 **By January 2026, enterprise agent memory will consolidate** — Developing
+🟢 **By Q3 2027, multi-agent orchestration will be native in clouds**
+🟢 **By December 2027, Bitcoin-based agent payments will be mainstream**
+"""
+    issues = validate_prediction_dates(md)
+    # Q4 2025 (Dec 31, 2025) and January 2026 (Jan 31, 2026) are both past
+    assert len(issues) == 2
+    past_details = [i["detail"] for i in issues]
+    assert any("2025" in d or "2026-01" in d for d in past_details)
+
+
+# =====================================================================
+# Backfill target_date parser tests (analyst)
+# =====================================================================
+
+_ANALYST_DIR = Path(__file__).resolve().parent.parent / "docker" / "analyst"
+if str(_ANALYST_DIR) not in sys.path:
+    sys.path.insert(0, str(_ANALYST_DIR))
+
+from analyst_poller import _parse_target_date_from_text  # noqa: E402
+
+
+def test_parse_target_date_quarter():
+    result = _parse_target_date_from_text("By Q4 2026, frameworks will consolidate")
+    assert result == "2026-12-31"
+
+
+def test_parse_target_date_month():
+    result = _parse_target_date_from_text("by June 2026, OpenAI will ship comms")
+    assert result == "2026-06-30"
+
+
+def test_parse_target_date_year_end():
+    result = _parse_target_date_from_text("by end of 2027, the market will shift")
+    assert result == "2027-12-31"
+
+
+def test_parse_target_date_no_match():
+    result = _parse_target_date_from_text("The market will eventually consolidate")
+    assert result is None
+
+
+def test_parse_target_date_q1():
+    result = _parse_target_date_from_text("Q1 2027 will see massive adoption")
+    assert result == "2027-03-31"
+
+
+def test_parse_target_date_q2():
+    result = _parse_target_date_from_text("By Q2 2026, three vendors will merge")
+    assert result == "2026-06-30"

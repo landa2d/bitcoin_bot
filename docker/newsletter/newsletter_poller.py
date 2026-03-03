@@ -122,6 +122,10 @@ def load_skill(skill_dir: Path) -> str:
 
 def init():
     global supabase, client, deepseek_client
+    logger.info(f"[INIT] NEWSLETTER_MODEL={MODEL}")
+    logger.info(f"[INIT] DEEPSEEK_API_KEY={'set (' + DEEPSEEK_API_KEY[:8] + '...)' if DEEPSEEK_API_KEY else 'NOT SET'}")
+    logger.info(f"[INIT] DEEPSEEK_BASE_URL={DEEPSEEK_BASE_URL}")
+    logger.info(f"[INIT] OPENAI_API_KEY={'set' if OPENAI_API_KEY else 'NOT SET'}")
     if not SUPABASE_URL or not SUPABASE_KEY:
         logger.error("Supabase not configured (SUPABASE_URL / SUPABASE_KEY missing)")
         return False
@@ -132,7 +136,9 @@ def init():
     client = OpenAI(api_key=OPENAI_API_KEY)
     if DEEPSEEK_API_KEY:
         deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
-        logger.info("DeepSeek client initialized")
+        logger.info("[INIT] DeepSeek client initialized successfully")
+    else:
+        logger.warning("[INIT] DEEPSEEK_API_KEY missing — all DeepSeek calls will fall back to OpenAI")
     return True
 
 
@@ -349,6 +355,80 @@ def validate_prediction_format(content_md: str) -> list[dict]:
     return issues
 
 
+def validate_prediction_dates(content_md: str) -> list[dict]:
+    """Check that no prediction references a date in the past."""
+    issues = []
+    sections = _extract_sections(content_md)
+
+    pred_section = ""
+    for key, val in sections.items():
+        if "prediction" in key.lower() or "tracker" in key.lower():
+            pred_section = val
+            break
+
+    if not pred_section:
+        return issues
+
+    today = datetime.now(timezone.utc).date()
+
+    # Match prediction lines: emoji + bold text
+    pred_lines = re.findall(
+        r'[\U0001f7e2\U0001f7e1\U0001f534\u2705\u274c\U0001f504]\s*\*\*(.+?)\*\*',
+        pred_section)
+
+    month_to_num = {
+        'january': 1, 'february': 2, 'march': 3, 'april': 4,
+        'may': 5, 'june': 6, 'july': 7, 'august': 8,
+        'september': 9, 'october': 10, 'november': 11, 'december': 12,
+    }
+
+    for pred_text in pred_lines:
+        parsed_date = None
+
+        # Quarter pattern: "Q1 2025", "Q4 2025"
+        q_match = re.search(r'Q([1-4])\s+(\d{4})', pred_text, re.IGNORECASE)
+        if q_match:
+            quarter, year = int(q_match.group(1)), int(q_match.group(2))
+            month = quarter * 3
+            day = 31 if month in (3, 12) else 30
+            from datetime import date
+            parsed_date = date(year, month, day)
+
+        # Month + year: "June 2025", "December 2025"
+        if not parsed_date:
+            m_match = re.search(
+                r'(?:by|before|within)\s+(January|February|March|April|May|June|July|August|'
+                r'September|October|November|December)\s+(\d{4})',
+                pred_text, re.IGNORECASE
+            )
+            if m_match:
+                month_num = month_to_num[m_match.group(1).lower()]
+                year = int(m_match.group(2))
+                import calendar
+                from datetime import date
+                day = calendar.monthrange(year, month_num)[1]
+                parsed_date = date(year, month_num, day)
+
+        # "year-end 2025" / "end of 2025"
+        if not parsed_date:
+            ye_match = re.search(r'(?:year[- ]?end|end\s+of)\s+(\d{4})', pred_text, re.IGNORECASE)
+            if ye_match:
+                from datetime import date
+                parsed_date = date(int(ye_match.group(1)), 12, 31)
+
+        if parsed_date and parsed_date < today:
+            issues.append({
+                "severity": "critical",
+                "issue": "past_date_prediction",
+                "section": "Prediction Tracker",
+                "detail": (f"Prediction has a past date ({parsed_date.isoformat()}): "
+                           f"'{pred_text[:80]}'. Resolve it as Confirmed/Wrong/Revised "
+                           f"or replace with a future-dated prediction."),
+            })
+
+    return issues
+
+
 def run_quality_checks(result: dict, input_data: dict) -> list[dict]:
     """Run all post-generation quality checks. Returns list of issues."""
     content = result.get('content_markdown', '')
@@ -361,6 +441,7 @@ def run_quality_checks(result: dict, input_data: dict) -> list[dict]:
     all_issues.extend(validate_section_echo(content))
     all_issues.extend(validate_stale_predictions(content, input_data))
     all_issues.extend(validate_prediction_format(content))
+    all_issues.extend(validate_prediction_dates(content))
     return all_issues
 
 
@@ -534,11 +615,17 @@ def save_newsletter(result: dict, input_data: dict):
             primary_theme = title.lower().strip()[:100]
             logger.info(f"primary_theme not in LLM response; falling back to title: '{primary_theme}'")
 
+    # Dual-audience fields (gracefully handle older format without impact content)
+    title_impact = result.get("title_impact", result.get("title", ""))
+    content_markdown_impact = result.get("content_markdown_impact", "")
+
     # Upsert into newsletters table
     row = {
         "edition_number": edition,
         "title": result.get("title", f"Edition #{edition}"),
+        "title_impact": title_impact,
         "content_markdown": result.get("content_markdown", ""),
+        "content_markdown_impact": content_markdown_impact,
         "content_telegram": result.get("content_telegram", ""),
         "data_snapshot": input_data,
         "primary_theme": primary_theme,
@@ -550,13 +637,22 @@ def save_newsletter(result: dict, input_data: dict):
     except Exception as e:
         logger.error(f"Failed to insert newsletter #{edition} into Supabase: {e}")
 
-    # Save local markdown
+    # Save local markdown (builder version)
     md_file = NEWSLETTERS_DIR / f"brief_{edition}_{date_str}.md"
     try:
         md_file.write_text(result.get("content_markdown", ""))
         logger.info(f"Saved local file: {md_file.name}")
     except OSError as e:
         logger.error(f"Failed to write newsletter file {md_file}: {e}")
+
+    # Save local markdown (impact version)
+    if content_markdown_impact:
+        impact_file = NEWSLETTERS_DIR / f"brief_{edition}_{date_str}_impact.md"
+        try:
+            impact_file.write_text(content_markdown_impact)
+            logger.info(f"Saved impact file: {impact_file.name}")
+        except OSError as e:
+            logger.error(f"Failed to write impact file {impact_file}: {e}")
 
 
 # ---------------------------------------------------------------------------
@@ -746,9 +842,12 @@ def _load_pricing() -> dict:
     try:
         if config_path.exists():
             with open(config_path) as f:
-                return json.load(f).get("pricing", {})
-    except Exception:
-        pass
+                pricing = json.load(f).get("pricing", {})
+                return pricing
+        else:
+            logger.warning(f"[ROUTING] Config file not found at {config_path} — provider lookup will default to openai")
+    except Exception as e:
+        logger.warning(f"[ROUTING] Failed to load pricing config: {e}")
     return {}
 
 
@@ -778,16 +877,20 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
 
 def routed_llm_call(model, messages, **kwargs):
     """Route LLM call to correct provider. DeepSeek falls back to OpenAI."""
-    provider = _load_pricing().get(model, {}).get("provider", "openai")
+    pricing = _load_pricing()
+    provider = pricing.get(model, {}).get("provider", "openai")
+    logger.info(f"[ROUTING] model={model} provider={provider} deepseek_client={'yes' if deepseek_client else 'NO'}")
     if provider == "deepseek":
         if deepseek_client:
             try:
-                return deepseek_client.chat.completions.create(model=model, messages=messages, **kwargs)
+                resp = deepseek_client.chat.completions.create(model=model, messages=messages, **kwargs)
+                logger.info(f"[ROUTING] DeepSeek call succeeded — model used: {resp.model}")
+                return resp
             except Exception as e:
-                logger.warning(f"DeepSeek failed: {e} — falling back to gpt-4o-mini")
+                logger.warning(f"[ROUTING] DeepSeek call FAILED: {e} — falling back to gpt-4o-mini")
                 return client.chat.completions.create(model="gpt-4o-mini", messages=messages, **kwargs)
         else:
-            logger.info(f"DeepSeek client not available — routing {model} → gpt-4o-mini")
+            logger.warning(f"[ROUTING] DeepSeek client is None — falling back {model} → gpt-4o-mini")
             return client.chat.completions.create(model="gpt-4o-mini", messages=messages, **kwargs)
     return client.chat.completions.create(model=model, messages=messages, **kwargs)
 
@@ -799,7 +902,7 @@ def routed_llm_call(model, messages, **kwargs):
 def get_budget_config(agent_name: str, task_type: str) -> dict:
     """Read budget limits for a given agent + task type from agentpulse-config.json."""
     defaults = {
-        "max_llm_calls": 6,
+        "max_llm_calls": 8,
         "max_seconds": 300,
         "max_subtasks": 2,
         "max_retries": 2,
@@ -909,6 +1012,8 @@ def process_task(task: dict):
                 scorecard_md = format_scorecard_section(scorecard_blurbs)
                 if result.get("content_markdown"):
                     result["content_markdown"] += scorecard_md
+                if result.get("content_markdown_impact"):
+                    result["content_markdown_impact"] += scorecard_md
                 if result.get("content_telegram"):
                     result["content_telegram"] += scorecard_md
                 logger.info(f"Appended {len(scorecard_blurbs)} Looking Back blurb(s) to newsletter")

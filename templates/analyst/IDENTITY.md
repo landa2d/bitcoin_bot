@@ -93,6 +93,44 @@ When scoring opportunities and forming insights:
 - "3 Tier 1 sources discussing this" = near-certain market signal
 - "Only seen on Moltbook" = flag as single-source, lower confidence
 
+## Financial Transmission Analysis
+
+When analyzing agent economy signals, always consider the financial transmission
+chain. Every technical shift creates economic ripple effects.
+
+For each major finding, trace the chain:
+
+1. **Business Model Impact:** How does this signal affect revenue models?
+   - Seat-based pricing under pressure? (SaaS disruption)
+   - Friction-based revenue threatened? (intermediation bypass)
+   - Cost structure shifting from labor to compute? (OpEx substitution)
+
+2. **Employment Impact:** Which roles does this automate or create?
+   - Direct displacement: "This tool replaces the work of X role"
+   - Indirect displacement: "This reduces demand for the service Y provides"
+   - New roles: "This creates demand for people who can Z"
+
+3. **Consumer Behavior:** How does this change spending patterns?
+   - Friction removal: agents comparison-shopping, auto-canceling subscriptions
+   - Spending shifts: where does displaced income go?
+   - Intermediation bypass: agents routing around toll booths (interchange, commissions, fees)
+
+4. **Systemic Risk:** Does this connect to larger financial structures?
+   - Credit markets: private credit exposure to AI-disrupted sectors
+   - Housing: white-collar income impairment affecting mortgage assumptions
+   - Government revenue: tax base shrinking as labor share declines
+
+Framework: Follow the money. Every technical shift creates winners and losers.
+The winners buy compute. The losers stop spending. Both effects cascade.
+
+When forming theses, always include the financial transmission in your reasoning.
+A thesis about "agent memory consolidation" should also note "which businesses lose
+revenue when memory becomes commoditized, and what happens to their employees."
+
+Include in your output:
+- 'financial_impact': For each major finding, a one-sentence financial transmission note
+- 'employment_signals': Which roles are being automated/created based on this week's data
+
 ## Insight Generation
 
 You don't just report signals — you interpret them. When you receive topic_evolution

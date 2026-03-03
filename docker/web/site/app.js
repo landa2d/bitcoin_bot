@@ -1,17 +1,109 @@
+// NOTE: Requires RLS policy on subscribers: CREATE POLICY "Allow public subscribe" ON subscribers FOR INSERT WITH CHECK (true);
+
 // Config — placeholders replaced at container startup by entrypoint.sh
 const SUPABASE_URL = '__SUPABASE_URL__';
 const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Simple hash-based router
+// ─── Mode State ──────────────────────────────────────────────────────────────
+
+const MODES = {
+    builder: {
+        stylesheet: '/style-builder.css',
+        contentField: 'content_markdown',
+        titleField: 'title',
+        label: 'Builder',
+        icon: '\u26A1'
+    },
+    impact: {
+        stylesheet: '/style-impact.css',
+        contentField: 'content_markdown_impact',
+        titleField: 'title_impact',
+        label: 'Impact',
+        icon: '\uD83C\uDF0D'
+    }
+};
+
+// Resolve initial mode: URL param > localStorage > default 'impact'
+function getInitialMode() {
+    var urlMode = new URL(window.location).searchParams.get('mode');
+    if (urlMode && MODES[urlMode]) return urlMode;
+    var stored = localStorage.getItem('agentpulse_mode');
+    if (stored && MODES[stored]) return stored;
+    return 'impact';
+}
+
+var currentMode = getInitialMode();
+
+function setMode(mode) {
+    if (!MODES[mode]) return;
+    currentMode = mode;
+    localStorage.setItem('agentpulse_mode', mode);
+
+    // Update URL param without reload
+    var url = new URL(window.location);
+    url.searchParams.set('mode', mode);
+    history.replaceState({}, '', url);
+
+    // Swap stylesheet
+    document.getElementById('mode-stylesheet').href = MODES[mode].stylesheet;
+
+    // Update body class
+    document.body.classList.remove('builder', 'impact');
+    document.body.classList.add(mode);
+
+    // Update toggle UI
+    var track = document.querySelector('.toggle-track');
+    track.classList.remove('builder', 'impact');
+    track.classList.add(mode);
+
+    // Update toggle label highlights
+    var builderLbl = document.querySelector('.builder-lbl');
+    var impactLbl = document.querySelector('.impact-lbl');
+    if (builderLbl) builderLbl.classList.toggle('active', mode === 'builder');
+    if (impactLbl) impactLbl.classList.toggle('active', mode === 'impact');
+
+    // Add transition class
+    document.body.classList.add('mode-transitioning');
+    setTimeout(function() {
+        document.body.classList.remove('mode-transitioning');
+    }, 400);
+
+    // Flash mode indicator
+    flashIndicator(mode);
+
+    // Re-render current article if loaded (without refetching)
+    if (window.currentNewsletter) {
+        renderArticle(window.currentNewsletter);
+    }
+
+    // Re-render list if visible
+    if (window.currentNewsletterList && document.getElementById('list-view').style.display !== 'none') {
+        renderList(window.currentNewsletterList);
+    }
+}
+
+function toggleMode() {
+    setMode(currentMode === 'builder' ? 'impact' : 'builder');
+}
+
+function flashIndicator(mode) {
+    var el = document.getElementById('mode-indicator');
+    if (!el) return;
+    el.textContent = MODES[mode].icon + ' ' + MODES[mode].label + ' Mode';
+    el.classList.add('flash');
+    setTimeout(function() {
+        el.classList.remove('flash');
+    }, 1500);
+}
+
+// ─── Router ──────────────────────────────────────────────────────────────────
+
 function getRoute() {
-    const hash = window.location.hash || '#/';
+    var hash = window.location.hash || '#/';
     if (hash.startsWith('#/edition/')) {
         return { view: 'reader', edition: parseInt(hash.split('/')[2]) };
-    }
-    if (hash === '#/subscribe') {
-        return { view: 'subscribe' };
     }
     return { view: 'list' };
 }
@@ -19,15 +111,40 @@ function getRoute() {
 function showView(viewName) {
     document.getElementById('list-view').style.display = viewName === 'list' ? 'block' : 'none';
     document.getElementById('reader-view').style.display = viewName === 'reader' ? 'block' : 'none';
-    document.getElementById('subscribe-view').style.display = viewName === 'subscribe' ? 'block' : 'none';
 }
 
-// Load newsletter list
+// ─── List View ───────────────────────────────────────────────────────────────
+
+function renderList(data) {
+    var html = data.map(function(n) {
+        var date = new Date(n.published_at).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        });
+
+        // Use mode-appropriate title (fall back to default title)
+        var title = (currentMode === 'impact' && n.title_impact) ? n.title_impact : n.title;
+
+        // Use mode-appropriate content for excerpt
+        var content = (currentMode === 'impact' && n.content_markdown_impact)
+            ? n.content_markdown_impact
+            : (n.content_markdown || '');
+        var excerpt = content.replace(/[#*_\[\]]/g, '').substring(0, 150) + '...';
+
+        return '<div class="edition-card">' +
+            '<div class="edition-meta">Edition #' + n.edition_number + ' &middot; ' + date + '</div>' +
+            '<a href="#/edition/' + n.edition_number + '" class="edition-title">' + escapeHtml(title) + '</a>' +
+            '<p class="edition-excerpt">' + escapeHtml(excerpt) + '</p>' +
+            '</div>';
+    }).join('');
+
+    document.getElementById('newsletter-list').innerHTML = html;
+}
+
 async function loadList() {
     showView('list');
-    const { data, error } = await sb
+    var { data, error } = await sb
         .from('newsletters')
-        .select('edition_number, title, content_markdown, published_at')
+        .select('edition_number, title, title_impact, content_markdown, content_markdown_impact, published_at')
         .eq('status', 'published')
         .order('edition_number', { ascending: false });
 
@@ -36,28 +153,37 @@ async function loadList() {
         return;
     }
 
-    const html = data.map(function(n) {
-        var date = new Date(n.published_at).toLocaleDateString('en-US', {
-            year: 'numeric', month: 'long', day: 'numeric'
-        });
-        var excerpt = (n.content_markdown || '').replace(/[#*_\[\]]/g, '').substring(0, 150) + '...';
-
-        return '<div class="edition-card">' +
-            '<div class="edition-meta">Edition #' + n.edition_number + ' &middot; ' + date + '</div>' +
-            '<a href="#/edition/' + n.edition_number + '" class="edition-title">' + n.title + '</a>' +
-            '<p class="edition-excerpt">' + excerpt + '</p>' +
-            '</div>';
-    }).join('');
-
-    document.getElementById('newsletter-list').innerHTML = html;
+    window.currentNewsletterList = data;
+    renderList(data);
 }
 
-// Load single edition
+// ─── Reader View ─────────────────────────────────────────────────────────────
+
+function renderArticle(data) {
+    // Pick mode-appropriate content (fall back to builder version)
+    var title = (currentMode === 'impact' && data.title_impact) ? data.title_impact : data.title;
+    var content = (currentMode === 'impact' && data.content_markdown_impact)
+        ? data.content_markdown_impact
+        : (data.content_markdown || '');
+
+    var date = new Date(data.published_at).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    var rendered = marked.parse(content);
+
+    document.getElementById('newsletter-content').innerHTML =
+        '<h1>' + escapeHtml(title) + '</h1>' +
+        '<div class="article-meta">Edition #' + data.edition_number + ' &middot; Published ' + date + '</div>' +
+        rendered;
+}
+
 async function loadEdition(editionNumber) {
     showView('reader');
-    const { data, error } = await sb
+
+    var { data, error } = await sb
         .from('newsletters')
-        .select('*')
+        .select('edition_number, title, title_impact, content_markdown, content_markdown_impact, published_at')
         .eq('edition_number', editionNumber)
         .eq('status', 'published')
         .single();
@@ -67,40 +193,85 @@ async function loadEdition(editionNumber) {
         return;
     }
 
-    var date = new Date(data.published_at).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric'
-    });
-
-    var rendered = marked.parse(data.content_markdown || '');
-
-    document.getElementById('newsletter-content').innerHTML =
-        '<h1>' + data.title + '</h1>' +
-        '<div class="article-meta">Edition #' + data.edition_number + ' &middot; Published ' + date + '</div>' +
-        rendered;
-
+    // Store for mode-toggle re-render without refetching
+    window.currentNewsletter = data;
+    renderArticle(data);
     window.scrollTo(0, 0);
 }
 
-// Router
+// ─── Subscribe Handler ──────────────────────────────────────────────────────
+
+async function handleSubscribe() {
+    var email = document.getElementById('subscribe-email').value.trim();
+    var pref = document.querySelector('input[name="pref"]:checked');
+    var status = document.getElementById('subscribe-status');
+    var btn = document.getElementById('subscribe-btn');
+
+    if (!email || !email.includes('@')) {
+        status.textContent = 'Please enter a valid email.';
+        status.style.color = 'var(--color-accent)';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Subscribing...';
+
+    try {
+        var token = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+        var { data, error } = await sb
+            .from('subscribers')
+            .insert({
+                email: email,
+                mode_preference: pref ? pref.value : 'impact',
+                status: 'pending',
+                confirmation_token: token
+            });
+
+        if (error) {
+            if (error.code === '23505') { // unique violation
+                status.textContent = 'This email is already subscribed.';
+                status.style.color = 'var(--color-muted)';
+            } else {
+                throw error;
+            }
+        } else {
+            status.textContent = 'Subscribed! Check your email to confirm.';
+            status.style.color = 'var(--color-accent)';
+            document.getElementById('subscribe-email').value = '';
+        }
+    } catch (err) {
+        console.error('Subscribe error:', err);
+        status.textContent = 'Something went wrong. Try again.';
+        status.style.color = 'var(--color-accent)';
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Subscribe';
+}
+
+// ─── Utility ─────────────────────────────────────────────────────────────────
+
+function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+
 function route() {
+    window.currentNewsletter = null;
     var r = getRoute();
     switch (r.view) {
         case 'list': loadList(); break;
         case 'reader': loadEdition(r.edition); break;
-        case 'subscribe': showView('subscribe'); break;
     }
 }
 
-// Subscribe form placeholder
 document.addEventListener('DOMContentLoaded', function() {
-    var form = document.getElementById('subscribe-form');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            form.innerHTML = '<p>Coming soon! Check back later.</p>';
-        });
-    }
+    // Apply initial mode (sets body class, stylesheet, toggle UI, URL)
+    setMode(currentMode);
+    route();
 });
 
 window.addEventListener('hashchange', route);
-window.addEventListener('DOMContentLoaded', route);

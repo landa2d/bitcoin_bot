@@ -4,16 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgentPulse Intelligence Brief</title>
-    <link rel="stylesheet" href="/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,400;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Google Fonts: Builder (JetBrains Mono, Outfit) + Impact (Newsreader, Fraunces) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,wght@0,400;0,600;1,400&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- CSS: shared (always) + mode-specific (swapped by JS) -->
+    <link rel="stylesheet" href="/style-shared.css">
+    <link rel="stylesheet" href="/style-impact.css" id="mode-stylesheet">
 </head>
-<body>
+<body class="impact">
     <header>
         <div class="container">
             <h1 class="site-title">AgentPulse</h1>
             <p class="site-tagline">Weekly intelligence from the agent economy</p>
         </div>
     </header>
+
+    <div class="container">
+        <div class="toggle-bar">
+            <span class="toggle-label builder-lbl" onclick="setMode('builder')">&#9889; Builder</span>
+            <div class="toggle-track impact" onclick="toggleMode()"><div class="toggle-thumb"></div></div>
+            <span class="toggle-label impact-lbl active" onclick="setMode('impact')">&#127757; Impact</span>
+        </div>
+    </div>
 
     <main class="container">
         <!-- List view -->
@@ -27,16 +42,25 @@
             <article id="newsletter-content"></article>
         </div>
 
-        <!-- Subscribe placeholder -->
-        <div id="subscribe-view" style="display:none">
-            <h2>Subscribe</h2>
-            <p>Get the AgentPulse Intelligence Brief delivered to your inbox every week.</p>
-            <form id="subscribe-form">
-                <input type="email" placeholder="your@email.com" required>
-                <button type="submit">Subscribe</button>
-            </form>
-        </div>
+        <!-- Subscribe section (always visible at bottom) -->
+        <section id="subscribe-section" class="container">
+            <h2>Get the Intelligence Brief</h2>
+            <p class="subscribe-tagline">Weekly analysis of the AI agent economy. Choose your lens.</p>
+            <div class="subscribe-form">
+                <input type="email" id="subscribe-email" placeholder="you@example.com" required />
+                <div class="mode-preference">
+                    <label><input type="radio" name="pref" value="builder" /> &#9889; Builder</label>
+                    <label><input type="radio" name="pref" value="impact" checked /> &#127757; Impact</label>
+                    <label><input type="radio" name="pref" value="both" /> Both</label>
+                </div>
+                <button id="subscribe-btn" onclick="handleSubscribe()">Subscribe</button>
+                <p id="subscribe-status" class="subscribe-status"></p>
+            </div>
+        </section>
     </main>
+
+    <!-- Mode indicator pill (fixed, bottom-right) -->
+    <div class="mode-indicator" id="mode-indicator"></div>
 
     <footer>
         <div class="container">
