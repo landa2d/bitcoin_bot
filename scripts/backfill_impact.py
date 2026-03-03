@@ -146,7 +146,7 @@ def main():
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": content},
             ],
-            max_tokens=16000,
+            max_tokens=8192,
             temperature=0.7,
         )
         impact_content = content_resp.choices[0].message.content.strip()
