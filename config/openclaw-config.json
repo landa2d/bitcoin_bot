@@ -42,7 +42,7 @@
   },
   "heartbeat": {
     "enabled": true,
-    "intervalMinutes": 60
+    "intervalMinutes": 25
   },
   "logging": {
     "level": "${LOG_LEVEL}",
