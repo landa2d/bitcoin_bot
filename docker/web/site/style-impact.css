@@ -8,7 +8,7 @@ body.impact {
     --color-accent: #c44b2b;
     --color-border: #e5e0d8;
 
-    font-family: 'Newsreader', Georgia, serif;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
     color: var(--color-text);
     background: var(--color-bg);
     line-height: 1.8;
@@ -21,7 +21,7 @@ body.impact header {
 }
 
 body.impact .site-title {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Outfit', 'Inter', sans-serif;
     font-size: 32px;
     font-weight: 700;
     color: var(--color-text);
@@ -31,14 +31,14 @@ body.impact .site-title {
 body.impact .site-tagline {
     color: var(--color-muted);
     font-size: 16px;
-    font-family: 'Newsreader', Georgia, serif;
+    font-family: 'JetBrains Mono', monospace;
     font-style: italic;
 }
 
 /* Toggle labels */
 body.impact .toggle-label {
     color: var(--color-muted);
-    font-family: 'Newsreader', Georgia, serif;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 body.impact .toggle-label.active {
@@ -57,14 +57,14 @@ body.impact .edition-card:hover {
 }
 
 body.impact .edition-meta {
-    font-family: 'Newsreader', Georgia, serif;
+    font-family: 'JetBrains Mono', monospace;
     color: var(--color-muted);
     font-size: 14px;
     font-style: italic;
 }
 
 body.impact .edition-title {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Outfit', sans-serif;
     color: var(--color-text);
     font-weight: 600;
     font-size: 24px;
@@ -82,13 +82,13 @@ body.impact .edition-excerpt {
 
 /* Reader */
 body.impact .back-link {
-    font-family: 'Newsreader', Georgia, serif;
+    font-family: 'JetBrains Mono', monospace;
     color: var(--color-accent);
     font-size: 15px;
 }
 
 body.impact article h1 {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Outfit', sans-serif;
     color: var(--color-text);
     font-weight: 700;
     font-size: 36px;
@@ -96,7 +96,7 @@ body.impact article h1 {
 }
 
 body.impact article h2 {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Outfit', sans-serif;
     color: var(--color-text);
     font-size: 22px;
     font-weight: 600;
@@ -108,7 +108,7 @@ body.impact article h2 {
 }
 
 body.impact article h3 {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Outfit', sans-serif;
     color: var(--color-text);
     font-weight: 600;
 }
@@ -155,7 +155,7 @@ body.impact article pre code {
 }
 
 body.impact .article-meta {
-    font-family: 'Newsreader', Georgia, serif;
+    font-family: 'JetBrains Mono', monospace;
     color: var(--color-muted);
     font-size: 15px;
     font-style: italic;
@@ -172,7 +172,7 @@ body.impact article blockquote:last-of-type {
 
 /* Subscribe */
 body.impact #subscribe-section h2 {
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Outfit', sans-serif;
     color: var(--color-text);
 }
 
@@ -185,19 +185,19 @@ body.impact .subscribe-form input[type="email"] {
     border-color: var(--color-border);
     background: white;
     color: var(--color-text);
-    font-family: 'Newsreader', Georgia, serif;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 16px;
 }
 
 body.impact .subscribe-form button {
     background: var(--color-accent);
     color: white;
-    font-family: 'Fraunces', Georgia, serif;
+    font-family: 'Outfit', sans-serif;
 }
 
 body.impact .mode-preference {
     color: var(--color-muted);
-    font-family: 'Newsreader', Georgia, serif;
+    font-family: 'JetBrains Mono', monospace;
     font-size: 15px;
 }
 
@@ -205,5 +205,5 @@ body.impact .mode-preference {
 body.impact footer {
     border-top-color: var(--color-border);
     color: var(--color-muted);
-    font-family: 'Newsreader', Georgia, serif;
+    font-family: 'JetBrains Mono', monospace;
 }

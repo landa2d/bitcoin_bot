@@ -105,6 +105,9 @@ function getRoute() {
     if (hash.startsWith('#/edition/')) {
         return { view: 'reader', edition: parseInt(hash.split('/')[2]) };
     }
+    if (hash.startsWith('#/unsubscribe')) {
+        return { view: 'unsubscribe' };
+    }
     return { view: 'list' };
 }
 
@@ -217,14 +220,12 @@ async function handleSubscribe() {
     btn.textContent = 'Subscribing...';
 
     try {
-        var token = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
         var { data, error } = await sb
             .from('subscribers')
             .insert({
                 email: email,
                 mode_preference: pref ? pref.value : 'impact',
-                status: 'pending',
-                confirmation_token: token
+                status: 'active'
             });
 
         if (error) {
@@ -235,7 +236,7 @@ async function handleSubscribe() {
                 throw error;
             }
         } else {
-            status.textContent = 'Subscribed! Check your email to confirm.';
+            status.textContent = "You're in! You'll receive the next edition.";
             status.style.color = 'var(--color-accent)';
             document.getElementById('subscribe-email').value = '';
         }
@@ -259,12 +260,44 @@ function escapeHtml(str) {
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 
+// ─── Unsubscribe Handler ────────────────────────────────────────────────────
+
+async function handleUnsubscribe() {
+    showView('reader');
+    var container = document.getElementById('newsletter-content');
+
+    // Parse subscriber ID from hash: #/unsubscribe?id=xxx
+    var id = null;
+    var hashParts = (window.location.hash || '').split('?');
+    if (hashParts[1]) {
+        var hashParams = new URLSearchParams(hashParts[1]);
+        id = hashParams.get('id');
+    }
+
+    if (!id) {
+        container.innerHTML = '<h2>Invalid unsubscribe link</h2><p>No subscriber ID found.</p>';
+        return;
+    }
+
+    try {
+        var { error } = await sb.rpc('unsubscribe', { subscriber_id: id });
+        if (error) throw error;
+        container.innerHTML = '<h2>Unsubscribed</h2>' +
+            '<p>You have been removed from the AgentPulse mailing list.</p>' +
+            '<p>You can re-subscribe anytime from the <a href="#/">homepage</a>.</p>';
+    } catch (err) {
+        console.error('Unsubscribe error:', err);
+        container.innerHTML = '<h2>Unsubscribe failed</h2><p>Something went wrong. Please try again.</p>';
+    }
+}
+
 function route() {
     window.currentNewsletter = null;
     var r = getRoute();
     switch (r.view) {
         case 'list': loadList(); break;
         case 'reader': loadEdition(r.edition); break;
+        case 'unsubscribe': handleUnsubscribe(); break;
     }
 }
 

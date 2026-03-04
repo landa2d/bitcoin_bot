@@ -1,5 +1,5 @@
 :root {
-    --font-body: 'Newsreader', Georgia, serif;
+    --font-body: 'JetBrains Mono', 'Fira Code', monospace;
     --font-ui: 'Inter', -apple-system, sans-serif;
     --color-bg: #fafaf8;
     --color-text: #1a1a1a;

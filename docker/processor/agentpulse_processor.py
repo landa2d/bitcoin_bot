@@ -30,6 +30,8 @@ from openai import OpenAI
 from supabase import create_client, Client
 from tenacity import retry, stop_after_attempt, wait_exponential
 from dotenv import load_dotenv
+import resend
+import markdown as md_lib
 
 # ============================================================================
 # Configuration
@@ -296,6 +298,11 @@ THOUGHT_LEADER_TIER = 1.5
 # Telegram (for notifications)
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_OWNER_ID = os.getenv('TELEGRAM_OWNER_ID')
+
+# Resend (for email newsletters)
+RESEND_API_KEY = os.getenv('RESEND_API_KEY')
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 # Logging
 logging.basicConfig(
@@ -3650,7 +3657,7 @@ def create_predictions_from_newsletter(newsletter_id: str) -> dict:
 
 
 def publish_newsletter() -> dict:
-    """Publish the latest draft newsletter via Telegram."""
+    """Publish the latest draft newsletter via Telegram and email."""
     if not supabase:
         return {'error': 'Supabase not configured'}
 
@@ -3671,6 +3678,13 @@ def publish_newsletter() -> dict:
 
         if telegram_content:
             send_telegram(telegram_content)
+
+        # Send email to all active subscribers
+        try:
+            email_result = send_email_newsletter(newsletter)
+            logger.info("Email delivery result: %s", email_result)
+        except Exception as e:
+            logger.error("Email delivery failed (non-blocking): %s", e)
 
         # Update status to published
         supabase.table('newsletters').update({
@@ -5979,6 +5993,132 @@ def send_telegram(message: str):
             )
     except Exception as e:
         logger.error(f"Telegram send failed: {e}")
+
+# ============================================================================
+# Email Newsletter Delivery (Resend)
+# ============================================================================
+
+def render_newsletter_html(title: str, content_markdown: str, unsubscribe_url: str, edition_number: int = None) -> str:
+    """Convert newsletter markdown to a styled HTML email."""
+    body_html = md_lib.markdown(content_markdown, extensions=['tables', 'fenced_code'])
+    edition_label = f"Edition #{edition_number}" if edition_number else "AgentPulse Intelligence Brief"
+
+    return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+  <div style="max-width:640px;margin:0 auto;padding:32px 24px;background:#111;color:#e0e0e0;">
+    <div style="border-bottom:1px solid #333;padding-bottom:16px;margin-bottom:24px;">
+      <h1 style="color:#00d4aa;font-size:14px;letter-spacing:2px;margin:0;">AGENTPULSE</h1>
+      <p style="color:#888;font-size:12px;margin:4px 0 0;">{edition_label}</p>
+    </div>
+    <h2 style="color:#fff;font-size:22px;margin:0 0 24px;">{title}</h2>
+    <div style="line-height:1.7;font-size:15px;color:#ccc;">
+      {body_html}
+    </div>
+    <div style="border-top:1px solid #333;margin-top:32px;padding-top:16px;text-align:center;">
+      <p style="color:#666;font-size:12px;">
+        You received this because you subscribed to AgentPulse Intelligence Brief.
+        <br><a href="{unsubscribe_url}" style="color:#888;text-decoration:underline;">Unsubscribe</a>
+        &nbsp;&middot;&nbsp;
+        <a href="https://aiagentspulse.com" style="color:#888;text-decoration:underline;">Web Archive</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>"""
+
+
+def _build_email_params(from_addr, to_email, subject, html, unsub_url, edition, mode):
+    """Build Resend email params dict."""
+    return {
+        "from": from_addr,
+        "to": [to_email],
+        "subject": subject,
+        "html": html,
+        "headers": {
+            "List-Unsubscribe": "<" + unsub_url + ">",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+        },
+        "tags": [
+            {"name": "edition", "value": str(edition)},
+            {"name": "mode", "value": mode}
+        ]
+    }
+
+
+def send_email_newsletter(newsletter: dict) -> dict:
+    """Send newsletter via email to all active subscribers using Resend."""
+    if not RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY not set — skipping email delivery")
+        return {'skipped': 'no_api_key'}
+
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    try:
+        result = supabase.table('subscribers')\
+            .select('id, email, mode_preference')\
+            .eq('status', 'active')\
+            .execute()
+
+        subscribers = result.data or []
+        if not subscribers:
+            logger.info("No active subscribers — skipping email delivery")
+            return {'sent': 0}
+
+        edition = newsletter.get('edition_number', '?')
+        builder_title = newsletter.get('title', 'AgentPulse Intelligence Brief')
+        builder_md = newsletter.get('content_markdown', '')
+        impact_title = newsletter.get('title_impact') or builder_title
+        impact_md = newsletter.get('content_markdown_impact') or builder_md
+        from_addr = "AgentPulse <newsletter@aiagentspulse.com>"
+
+        sent = 0
+        errors = 0
+
+        for sub in subscribers:
+            pref = sub.get('mode_preference', 'impact')
+            email = sub['email']
+            sub_id = sub['id']
+            unsub_url = "https://aiagentspulse.com/#/unsubscribe?id=" + str(sub_id)
+
+            try:
+                if pref == 'both':
+                    # Send builder version
+                    subject_b = "AgentPulse #" + str(edition) + " [Builder]: " + builder_title
+                    html_b = render_newsletter_html(builder_title, builder_md, unsub_url, edition)
+                    resend.Emails.send(_build_email_params(from_addr, email, subject_b, html_b, unsub_url, edition, "builder"))
+                    # Send impact version
+                    subject_i = "AgentPulse #" + str(edition) + " [Impact]: " + impact_title
+                    html_i = render_newsletter_html(impact_title, impact_md, unsub_url, edition)
+                    resend.Emails.send(_build_email_params(from_addr, email, subject_i, html_i, unsub_url, edition, "impact"))
+                    sent += 2
+                else:
+                    if pref == 'builder':
+                        title, content = builder_title, builder_md
+                    else:
+                        title, content = impact_title, impact_md
+
+                    subject = "AgentPulse #" + str(edition) + ": " + title
+                    html = render_newsletter_html(title, content, unsub_url, edition)
+                    resend.Emails.send(_build_email_params(from_addr, email, subject, html, unsub_url, edition, pref))
+                    sent += 1
+
+            except Exception as e:
+                logger.error("Failed to send email to %s: %s", email, e)
+                errors += 1
+
+        logger.info("Email delivery: %d sent, %d errors, %d subscribers", sent, errors, len(subscribers))
+        return {'sent': sent, 'errors': errors, 'total_subscribers': len(subscribers)}
+
+    except Exception as e:
+        logger.error("Email newsletter delivery failed: %s", e)
+        return {'error': str(e)}
+
 
 # ============================================================================
 # Full Newsletter Pipeline (manual / cron backup)
