@@ -1,5 +1,4 @@
-/* === AgentPulse Builder Mode === */
-/* Terminal-like, dark, monospace, sharp edges */
+/* === AgentPulse Builder Mode — Colors Only === */
 
 body.builder {
     --color-bg: #0a0a0f;
@@ -8,37 +7,26 @@ body.builder {
     --color-accent: #00d4aa;
     --color-border: #1e1e2e;
 
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
     color: var(--color-text);
     background: var(--color-bg);
-    line-height: 1.7;
-    font-size: 14.5px;
 }
 
 /* Header */
 body.builder header {
-    border-bottom: 1px solid var(--color-border);
+    border-bottom-color: var(--color-border);
 }
 
 body.builder .site-title {
-    font-family: 'Outfit', 'Inter', sans-serif;
-    font-size: 28px;
-    font-weight: 700;
     color: var(--color-accent);
-    letter-spacing: -0.5px;
 }
 
 body.builder .site-tagline {
     color: var(--color-muted);
-    font-size: 13px;
-    font-family: 'JetBrains Mono', monospace;
-    letter-spacing: 0.02em;
 }
 
 /* Toggle labels */
 body.builder .toggle-label {
     color: var(--color-muted);
-    font-family: 'JetBrains Mono', monospace;
 }
 
 body.builder .toggle-label.active {
@@ -57,14 +45,10 @@ body.builder .edition-card:hover {
 }
 
 body.builder .edition-meta {
-    font-family: 'JetBrains Mono', monospace;
     color: var(--color-accent);
-    font-size: 12px;
-    letter-spacing: 0.03em;
 }
 
 body.builder .edition-title {
-    font-family: 'Outfit', sans-serif;
     color: var(--color-text);
 }
 
@@ -74,42 +58,28 @@ body.builder .edition-title:hover {
 
 body.builder .edition-excerpt {
     color: var(--color-muted);
-    font-size: 14px;
 }
 
 /* Reader */
 body.builder .back-link {
-    font-family: 'JetBrains Mono', monospace;
     color: var(--color-accent);
-    font-size: 13px;
 }
 
 body.builder article h1 {
-    font-family: 'Outfit', sans-serif;
     color: var(--color-text);
-    font-weight: 700;
 }
 
 body.builder article h2 {
-    font-family: 'Outfit', sans-serif;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
     color: var(--color-accent);
-    font-size: 16px;
-    font-weight: 600;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom-color: var(--color-border);
 }
 
 body.builder article h2::before {
-    content: '// ';
     color: var(--color-muted);
 }
 
 body.builder article h3 {
-    font-family: 'Outfit', sans-serif;
     color: var(--color-text);
-    letter-spacing: 0.02em;
 }
 
 body.builder article p {
@@ -119,8 +89,6 @@ body.builder article p {
 body.builder article blockquote {
     border-left-color: #f7931a;
     background: rgba(247, 147, 26, 0.05);
-    padding: 12px 16px;
-    border-radius: 0;
     color: var(--color-muted);
 }
 
@@ -131,43 +99,31 @@ body.builder article a {
 body.builder article code {
     background: rgba(0, 212, 170, 0.1);
     color: var(--color-accent);
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.9em;
 }
 
 body.builder article pre {
     background: #0e0e18;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 16px;
-    overflow-x: auto;
-    margin: 16px 0;
+    border-color: var(--color-border);
 }
 
 body.builder article pre code {
     background: transparent;
-    padding: 0;
 }
 
 body.builder .article-meta {
-    font-family: 'JetBrains Mono', monospace;
     color: var(--color-accent);
-    font-size: 12px;
     border-bottom-color: var(--color-border);
-    letter-spacing: 0.02em;
 }
 
-/* Gato's Corner — bitcoin-orange left border */
+/* Gato's Corner */
 body.builder .gato-corner,
 body.builder article blockquote:last-of-type {
-    border-left: 3px solid #f7931a;
+    border-left-color: #f7931a;
     background: rgba(247, 147, 26, 0.06);
 }
 
 /* Subscribe */
 body.builder #subscribe-section h2 {
-    font-family: 'Outfit', sans-serif;
     color: var(--color-text);
 }
 
@@ -179,25 +135,19 @@ body.builder .subscribe-form input[type="email"] {
     border-color: var(--color-border);
     background: #0e0e18;
     color: var(--color-text);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
 }
 
 body.builder .subscribe-form button {
     background: var(--color-accent);
     color: #0a0a0f;
-    font-family: 'Outfit', sans-serif;
 }
 
 body.builder .mode-preference {
     color: var(--color-muted);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
 }
 
 /* Footer */
 body.builder footer {
     border-top-color: var(--color-border);
     color: var(--color-muted);
-    font-family: 'JetBrains Mono', monospace;
 }
