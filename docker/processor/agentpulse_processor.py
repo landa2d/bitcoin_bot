@@ -6075,7 +6075,7 @@ def send_email_newsletter(newsletter: dict) -> dict:
         builder_md = newsletter.get('content_markdown', '')
         impact_title = newsletter.get('title_impact') or builder_title
         impact_md = newsletter.get('content_markdown_impact') or builder_md
-        from_addr = "AgentPulse <newsletter@aiagentspulse.com>"
+        from_addr = "AgentPulse <newsletter@contact.aiagentspulse.com>"
 
         sent = 0
         errors = 0
