@@ -6141,6 +6141,238 @@ def send_email_newsletter(newsletter: dict) -> dict:
 
 
 # ============================================================================
+# Welcome Email (sent once to new subscribers)
+# ============================================================================
+
+def _render_welcome_email_html(unsubscribe_url: str) -> str:
+    """Render the welcome email as email-client-safe HTML (table layout, inline styles)."""
+    return f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to AgentPulse</title>
+</head>
+<body style="margin:0;padding:0;background-color:#0a0a0f;color:#c8c8d0;font-family:Georgia,'Times New Roman',serif;line-height:1.7;-webkit-font-smoothing:antialiased;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#0a0a0f;">
+<tr><td align="center">
+<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;padding:40px 24px;">
+
+  <!-- Header -->
+  <tr><td style="border-bottom:1px solid #1a1a2e;padding-bottom:32px;">
+    <div style="font-family:'Courier New',Courier,monospace;font-size:13px;letter-spacing:4px;text-transform:uppercase;color:#00e5a0;margin-bottom:6px;">AGENTPULSE</div>
+    <div style="font-family:'Courier New',Courier,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#555568;">Weekly Intelligence Brief</div>
+  </td></tr>
+
+  <!-- Hero -->
+  <tr><td style="padding:36px 0 0;">
+    <h1 style="font-family:Georgia,serif;font-size:28px;font-weight:400;color:#efefef;line-height:1.3;margin:0 0 16px 0;">You're in. Here's what <em style="color:#00e5a0;font-style:italic;">this actually is.</em></h1>
+    <p style="font-size:17px;color:#9999aa;margin:0;line-height:1.7;">AgentPulse isn't another AI newsletter that summarizes what happened last week. It's a conviction-driven intelligence brief on the emerging agent economy &mdash; the infrastructure, capital flows, and builder decisions shaping a world where software agents do real work.</p>
+  </td></tr>
+
+  <!-- Divider -->
+  <tr><td style="padding:36px 0 0;border-top:1px solid #1a1a2e;"></td></tr>
+
+  <!-- What you're getting -->
+  <tr><td>
+    <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#00e5a0;margin-bottom:14px;">WHAT YOU'RE GETTING</div>
+    <p style="font-size:16px;color:#b0b0be;margin:0 0 14px 0;">Every week, a single brief. Not a link dump. Not a hype recap. Each edition takes a position &mdash; a thesis about where the agent economy is headed &mdash; and commits to it publicly. We track our predictions over time and publish the scorecard. <strong style="color:#e0e0e8;font-weight:600;">Being wrong is a feature, not a bug.</strong></p>
+    <p style="font-size:16px;color:#b0b0be;margin:0 0 14px 0;">The brief is structured to give you signal without the noise, with each section serving a distinct purpose:</p>
+  </td></tr>
+
+  <!-- Section Map -->
+  <tr><td style="padding:24px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;border:1px solid #1a1a2e;border-radius:4px;">
+      <tr><td style="padding:28px 24px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="width:28px;vertical-align:top;padding-top:2px;font-family:'Courier New',monospace;font-size:12px;color:#00e5a0;">01</td>
+            <td style="padding-bottom:20px;">
+              <div style="font-family:'Courier New',monospace;font-size:14px;color:#e0e0e8;margin-bottom:4px;letter-spacing:0.5px;">The Big Insight</div>
+              <p style="font-size:14px;color:#7a7a8e;line-height:1.6;margin:0;">The macro thesis of the week. One argument, fully committed. Not "on one hand / on the other" &mdash; a stake in the ground.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:28px;vertical-align:top;padding-top:2px;font-family:'Courier New',monospace;font-size:12px;color:#00e5a0;">02</td>
+            <td style="padding-bottom:20px;">
+              <div style="font-family:'Courier New',monospace;font-size:14px;color:#e0e0e8;margin-bottom:4px;letter-spacing:0.5px;">Spotlight</div>
+              <p style="font-size:14px;color:#7a7a8e;line-height:1.6;margin:0;">A deep-dive research piece on a single inflection point. Original analysis, not regurgitated press releases.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:28px;vertical-align:top;padding-top:2px;font-family:'Courier New',monospace;font-size:12px;color:#00e5a0;">03</td>
+            <td style="padding-bottom:20px;">
+              <div style="font-family:'Courier New',monospace;font-size:14px;color:#e0e0e8;margin-bottom:4px;letter-spacing:0.5px;">Signal vs. Noise</div>
+              <p style="font-size:14px;color:#7a7a8e;line-height:1.6;margin:0;">Quick-hit classification of the week's developments. What actually matters, what's just marketing.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="width:28px;vertical-align:top;padding-top:2px;font-family:'Courier New',monospace;font-size:12px;color:#00e5a0;">04</td>
+            <td>
+              <div style="font-family:'Courier New',monospace;font-size:14px;color:#e0e0e8;margin-bottom:4px;letter-spacing:0.5px;">Prediction Tracker</div>
+              <p style="font-size:14px;color:#7a7a8e;line-height:1.6;margin:0;">Our open ledger of past calls. New predictions posted, old ones scored. Full accountability.</p>
+            </td>
+          </tr>
+        </table>
+      </td></tr>
+    </table>
+  </td></tr>
+
+  <!-- Divider -->
+  <tr><td style="border-top:1px solid #1a1a2e;padding-top:36px;"></td></tr>
+
+  <!-- Where the intelligence comes from -->
+  <tr><td>
+    <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#00e5a0;margin-bottom:14px;">WHERE THE INTELLIGENCE COMES FROM</div>
+    <p style="font-size:16px;color:#b0b0be;margin:0 0 14px 0;">AgentPulse is built on a multi-agent system that continuously monitors the agent ecosystem. Not a human scanning Twitter &mdash; a pipeline of specialized AI agents that scrape, classify, extract signals, and synthesize across sources that matter:</p>
+  </td></tr>
+
+  <!-- Source Tags -->
+  <tr><td style="padding:14px 0 18px;">
+    <table role="presentation" cellpadding="0" cellspacing="0"><tr>
+      <td style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:1px;color:#7a7a8e;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:3px;padding:5px 10px;margin-right:8px;">a16z</td>
+      <td width="8"></td>
+      <td style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:1px;color:#7a7a8e;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:3px;padding:5px 10px;">GitHub</td>
+      <td width="8"></td>
+      <td style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:1px;color:#7a7a8e;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:3px;padding:5px 10px;">Hacker News</td>
+      <td width="8"></td>
+      <td style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:1px;color:#7a7a8e;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:3px;padding:5px 10px;">arXiv</td>
+    </tr></table>
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:8px;"><tr>
+      <td style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:1px;color:#7a7a8e;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:3px;padding:5px 10px;">Infrastructure blogs</td>
+      <td width="8"></td>
+      <td style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:1px;color:#7a7a8e;background:#0f0f1a;border:1px solid #1a1a2e;border-radius:3px;padding:5px 10px;">Developer ecosystems</td>
+    </tr></table>
+  </td></tr>
+
+  <tr><td>
+    <p style="font-size:16px;color:#b0b0be;margin:0 0 14px 0;">Raw signal gets routed through editorial analysis before it reaches you. The agents find the data. <strong style="color:#e0e0e8;font-weight:600;">The editorial layer decides what it means.</strong></p>
+  </td></tr>
+
+  <!-- Divider -->
+  <tr><td style="border-top:1px solid #1a1a2e;padding-top:36px;"></td></tr>
+
+  <!-- Why this exists -->
+  <tr><td>
+    <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#00e5a0;margin-bottom:14px;">WHY THIS EXISTS</div>
+    <p style="font-size:16px;color:#b0b0be;margin:0 0 14px 0;">The agent economy is moving faster than any single person can track. Capital is flowing. Infrastructure is shifting. New primitives &mdash; agent-to-agent commerce, tool-use protocols, autonomous workflows &mdash; are emerging weekly.</p>
+    <p style="font-size:16px;color:#b0b0be;margin:0 0 14px 0;">Most coverage oscillates between hype and dismissal. AgentPulse exists in the gap: <strong style="color:#e0e0e8;font-weight:600;">rigorous analysis with the conviction to actually say something.</strong> If you're building in this space, investing in it, or making career decisions around it &mdash; this is the brief that treats you like you can handle a real argument.</p>
+  </td></tr>
+
+  <!-- Divider -->
+  <tr><td style="border-top:1px solid #1a1a2e;padding-top:36px;"></td></tr>
+
+  <!-- Two reading modes -->
+  <tr><td>
+    <div style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#00e5a0;margin-bottom:14px;">TWO WAYS TO READ IT</div>
+    <p style="font-size:16px;color:#b0b0be;margin:0 0 14px 0;">Not everyone needs the same level of depth. Each edition ships in two versions &mdash; same intelligence, different lens. Pick the one that fits how you think:</p>
+  </td></tr>
+
+  <!-- Dual View Box -->
+  <tr><td style="padding:24px 0;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0f0f1a;border:1px solid #1a1a2e;border-radius:4px;">
+      <tr>
+        <td width="50%" style="padding:24px 16px;vertical-align:top;">
+          <div style="background:#0a0a12;border:1px solid #1a1a2e;border-radius:4px;padding:16px;">
+            <span style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#00e5a0;border:1px solid rgba(0,229,160,0.2);padding:3px 8px;border-radius:2px;display:inline-block;margin-bottom:10px;">BUILDER MODE</span>
+            <p style="font-size:13px;color:#7a7a8e;line-height:1.6;margin:0;">Technical framing. Architecture decisions, protocol-level shifts, infrastructure bets, code-adjacent analysis. Written for people who ship agents, not just read about them.</p>
+          </div>
+        </td>
+        <td width="50%" style="padding:24px 16px;vertical-align:top;">
+          <div style="background:#0a0a12;border:1px solid #1a1a2e;border-radius:4px;padding:16px;">
+            <span style="font-family:'Courier New',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#e5a000;border:1px solid rgba(229,160,0,0.2);padding:3px 8px;border-radius:2px;display:inline-block;margin-bottom:10px;">IMPACT MODE</span>
+            <p style="font-size:13px;color:#7a7a8e;line-height:1.6;margin:0;">Strategic framing. Market dynamics, workforce implications, capital flows, adoption patterns. Written for decision-makers who need to understand what's changing and why it matters.</p>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </td></tr>
+
+  <tr><td>
+    <p style="font-size:16px;color:#b0b0be;margin:0 0 14px 0;">Same underlying research. Same convictions. Just tuned for <strong style="color:#e0e0e8;font-weight:600;">how you'll use the information.</strong></p>
+  </td></tr>
+
+  <!-- CTA -->
+  <tr><td style="text-align:center;padding:36px 0;border-top:1px solid #1a1a2e;border-bottom:1px solid #1a1a2e;">
+    <p style="font-size:16px;color:#9999aa;margin:0 0 8px 0;">Your first edition arrives next week.</p>
+    <span style="font-family:'Courier New',monospace;font-size:13px;color:#00e5a0;letter-spacing:1px;">No action needed &mdash; you're already on the list.</span>
+  </td></tr>
+
+  <!-- Footer -->
+  <tr><td style="padding-top:24px;text-align:center;">
+    <p style="font-family:'Courier New',monospace;font-size:11px;color:#444458;letter-spacing:1px;margin:0 0 6px 0;">AgentPulse &middot; Weekly Intelligence Brief</p>
+    <p style="font-family:'Courier New',monospace;font-size:11px;color:#444458;letter-spacing:1px;margin:0;">
+      <a href="{unsubscribe_url}" style="color:#555568;text-decoration:none;">Unsubscribe</a>
+      &middot;
+      <a href="https://aiagentspulse.com" style="color:#555568;text-decoration:none;">View in browser</a>
+    </p>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>"""
+
+
+def send_welcome_email(subscriber: dict) -> bool:
+    """Send a one-time welcome email to a new subscriber. Returns True on success."""
+    if not RESEND_API_KEY:
+        logger.warning("RESEND_API_KEY not set — skipping welcome email")
+        return False
+
+    email = subscriber['email']
+    sub_id = subscriber['id']
+    unsub_url = "https://aiagentspulse.com/#/unsubscribe?id=" + str(sub_id)
+
+    try:
+        html = _render_welcome_email_html(unsub_url)
+        resend.Emails.send({
+            "from": "AgentPulse <newsletter@contact.aiagentspulse.com>",
+            "to": [email],
+            "subject": "You're in. Here's what this actually is.",
+            "html": html,
+            "headers": {
+                "List-Unsubscribe": "<" + unsub_url + ">",
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+            },
+            "tags": [{"name": "type", "value": "welcome"}]
+        })
+        logger.info("Welcome email sent to %s", email)
+        return True
+    except Exception as e:
+        logger.error("Failed to send welcome email to %s: %s", email, e)
+        return False
+
+
+def process_pending_welcome_emails():
+    """Check for new subscribers who haven't received a welcome email and send one."""
+    if not supabase or not RESEND_API_KEY:
+        return
+
+    try:
+        result = supabase.table('subscribers')\
+            .select('id, email, mode_preference')\
+            .eq('status', 'active')\
+            .is_('welcome_email_sent_at', 'null')\
+            .limit(10)\
+            .execute()
+
+        pending = result.data or []
+        if not pending:
+            return
+
+        logger.info("Sending welcome emails to %d new subscriber(s)", len(pending))
+        for sub in pending:
+            if send_welcome_email(sub):
+                supabase.table('subscribers').update({
+                    'welcome_email_sent_at': datetime.now(timezone.utc).isoformat()
+                }).eq('id', sub['id']).execute()
+    except Exception as e:
+        logger.warning("Welcome email check failed: %s", e)
+
+
+# ============================================================================
 # Full Newsletter Pipeline (manual / cron backup)
 # ============================================================================
 
@@ -6829,12 +7061,20 @@ def main():
         
         # Main loop: file queue + DB tasks + scheduled tasks
         logger.info("Starting queue watcher (multi-agent mode)...")
+        welcome_check_counter = 0
         while True:
             process_queue()                   # legacy file-based queue
             process_db_tasks('processor')     # processor-specific tasks
             # NOTE: analyst tasks are handled by the analyst container's poller.
             # NOTE: newsletter tasks are handled by the newsletter container's poller.
             schedule.run_pending()            # scheduled scrape/analyze/digest/cleanup
+
+            # Check for pending welcome emails every ~60s (12 iterations * 5s)
+            welcome_check_counter += 1
+            if welcome_check_counter >= 12:
+                welcome_check_counter = 0
+                process_pending_welcome_emails()
+
             time.sleep(5)
     
     else:
