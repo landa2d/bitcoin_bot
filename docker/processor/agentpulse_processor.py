@@ -5863,6 +5863,18 @@ def execute_task(task: dict) -> dict:
             }
         }
 
+    elif task_type == 'personal_briefing':
+        return generate_personal_briefing()
+
+    elif task_type == 'get_operator_context':
+        return get_operator_context()
+
+    elif task_type == 'add_watch_topic':
+        topic = params.get('topic', '')
+        if not topic:
+            return {'error': 'No topic provided'}
+        return add_watch_topic(topic)
+
     else:
         return {'error': f'Unknown task: {task_type}'}
 
@@ -6370,6 +6382,196 @@ def process_pending_welcome_emails():
                 }).eq('id', sub['id']).execute()
     except Exception as e:
         logger.warning("Welcome email check failed: %s", e)
+
+
+# ============================================================================
+# Personal Intelligence Briefing (Phase 7A)
+# ============================================================================
+
+def generate_personal_briefing() -> dict:
+    """Generate a personal intelligence briefing for the operator."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    # Load operator context
+    context_path = Path('/home/openclaw/.openclaw/config/operator-context.md')
+    if not context_path.exists():
+        logger.warning("No operator-context.md found at %s", context_path)
+        return {'error': 'No operator context configured'}
+    operator_context = context_path.read_text()
+
+    # Load extra watch topics from workspace (added via /watch command)
+    watch_path = Path('/home/openclaw/.openclaw/workspace/agentpulse/watch_topics.json')
+    extra_signals = []
+    if watch_path.exists():
+        try:
+            extra_signals = json.loads(watch_path.read_text())
+        except Exception:
+            pass
+    if extra_signals:
+        operator_context += "\n\n## Dynamic Watch List (added via /watch)\n"
+        for topic in extra_signals:
+            operator_context += f"- {topic}\n"
+
+    # Gather recent data (last 12 hours)
+    twelve_hours_ago = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
+
+    try:
+        recent_posts = supabase.table('source_posts')\
+            .select('source, title, body, source_tier, score, tags')\
+            .gte('scraped_at', twelve_hours_ago)\
+            .order('source_tier', desc=False)\
+            .limit(100)\
+            .execute()
+    except Exception as e:
+        logger.warning("Briefing: failed to fetch source_posts: %s", e)
+        recent_posts = type('R', (), {'data': []})()
+
+    try:
+        recent_tools = supabase.table('tool_mentions')\
+            .select('tool_name, context, sentiment_score, source')\
+            .gte('created_at', twelve_hours_ago)\
+            .limit(50)\
+            .execute()
+    except Exception as e:
+        logger.warning("Briefing: failed to fetch tool_mentions: %s", e)
+        recent_tools = type('R', (), {'data': []})()
+
+    try:
+        latest_analysis = supabase.table('analysis_runs')\
+            .select('key_findings, analyst_notes, metadata')\
+            .eq('status', 'completed')\
+            .order('completed_at', desc=True)\
+            .limit(1)\
+            .execute()
+    except Exception as e:
+        logger.warning("Briefing: failed to fetch analysis_runs: %s", e)
+        latest_analysis = type('R', (), {'data': []})()
+
+    try:
+        predictions = supabase.table('predictions')\
+            .select('topic, status, current_score, notes')\
+            .in_('status', ['active', 'open'])\
+            .execute()
+    except Exception as e:
+        logger.warning("Briefing: failed to fetch predictions: %s", e)
+        predictions = type('R', (), {'data': []})()
+
+    try:
+        topics = supabase.table('topic_evolution')\
+            .select('topic_key, current_stage, stage_changed_at, thesis')\
+            .order('last_updated', desc=True)\
+            .limit(15)\
+            .execute()
+    except Exception as e:
+        logger.warning("Briefing: failed to fetch topic_evolution: %s", e)
+        topics = type('R', (), {'data': []})()
+
+    data_package = {
+        'recent_posts': recent_posts.data or [],
+        'recent_tools': recent_tools.data or [],
+        'latest_analysis': latest_analysis.data[0] if latest_analysis.data else None,
+        'active_predictions': predictions.data or [],
+        'topic_evolution': topics.data or [],
+        'timestamp': datetime.now(timezone.utc).isoformat()
+    }
+
+    system_prompt = f"""You are an intelligence briefing system for a specific operator.
+Your job is to scan the latest data and surface what matters to THIS person based on
+their context.
+
+OPERATOR CONTEXT:
+{operator_context}
+
+RULES:
+- Maximum 5 items. Each item is 1-3 sentences.
+- Lead with the most actionable item.
+- Flag anything that directly affects the operator's active projects.
+- Flag any signals matching the operator's investment thesis.
+- Flag any answers to the operator's open questions.
+- If a prediction's status changed, mention it.
+- If a topic changed lifecycle stage, mention it.
+- If nothing significant happened, say "Quiet 12 hours. Nothing actionable." Don't pad.
+- Be direct. No greetings, no filler. This is a private briefing, not a newsletter.
+- End with a one-line "Action items:" if any exist (things the operator should do).
+
+FORMAT:
+Return plain text, not JSON. This goes straight to Telegram.
+Use numbered items. Keep it under 500 words total."""
+
+    model = get_model('personal_briefing')
+    try:
+        response = routed_llm_call(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": json.dumps(data_package, default=str)}
+            ],
+            max_tokens=1000,
+            temperature=0.3
+        )
+        briefing_text = response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error("Personal briefing LLM call failed: %s", e)
+        return {'error': f'LLM call failed: {e}'}
+
+    # Send to Telegram via existing send_telegram()
+    header = "AGENTPULSE BRIEFING\n\n"
+    send_telegram(header + briefing_text)
+
+    logger.info("Personal briefing sent (%d chars)", len(briefing_text))
+    return {'briefing_sent': True, 'length': len(briefing_text)}
+
+
+def get_operator_context() -> dict:
+    """Return the current operator context for display."""
+    context_path = Path('/home/openclaw/.openclaw/config/operator-context.md')
+    if not context_path.exists():
+        return {'error': 'No operator-context.md found'}
+    content = context_path.read_text()
+
+    # Include dynamic watch topics
+    watch_path = Path('/home/openclaw/.openclaw/workspace/agentpulse/watch_topics.json')
+    extra = []
+    if watch_path.exists():
+        try:
+            extra = json.loads(watch_path.read_text())
+        except Exception:
+            pass
+
+    return {'context': content, 'dynamic_watch_topics': extra}
+
+
+def add_watch_topic(topic: str) -> dict:
+    """Add a topic to the dynamic watch list."""
+    watch_path = Path('/home/openclaw/.openclaw/workspace/agentpulse/watch_topics.json')
+    watch_path.parent.mkdir(parents=True, exist_ok=True)
+
+    existing = []
+    if watch_path.exists():
+        try:
+            existing = json.loads(watch_path.read_text())
+        except Exception:
+            pass
+
+    topic = topic.strip()
+    if topic in existing:
+        return {'already_watching': topic, 'total': len(existing)}
+
+    existing.append(topic)
+    watch_path.write_text(json.dumps(existing, indent=2))
+    logger.info("Added watch topic: %s", topic)
+    return {'added': topic, 'total': len(existing)}
+
+
+def scheduled_personal_briefing():
+    """Scheduled wrapper for personal briefing (runs at 8am and 8pm UTC)."""
+    try:
+        result = generate_personal_briefing()
+        if result.get('error'):
+            logger.warning("Scheduled briefing failed: %s", result['error'])
+    except Exception as e:
+        logger.error("Scheduled briefing exception: %s", e)
 
 
 # ============================================================================
@@ -6934,6 +7136,10 @@ def setup_scheduler():
     # Daily & periodic
     schedule.every().day.at("09:00").do(scheduled_digest)
     schedule.every().day.at("03:00").do(scheduled_cleanup)
+
+    # Personal intelligence briefing (Phase 7A) — twice daily
+    schedule.every().day.at("08:00").do(scheduled_personal_briefing)
+    schedule.every().day.at("20:00").do(scheduled_personal_briefing)
     schedule.every(1).hours.do(scheduled_refresh_cache)
     schedule.every(60).minutes.do(scheduled_proactive_scan)
     schedule.every(10).minutes.do(scheduled_check_negotiation_timeouts)
@@ -6944,6 +7150,7 @@ def setup_scheduler():
     logger.info("Monday pipeline: evolution 06:00, spotlight+predictions 06:30, newsletter 09:00, notify 10:00, auto-publish 13:00 UTC")
     logger.info("Hourly: workspace cache refresh, proactive anomaly scan")
     logger.info("Every 10min: negotiation timeout check")
+    logger.info("Personal briefing: 08:00 and 20:00 UTC daily")
 
 def run_scheduler():
     """Run the scheduler in a background thread."""
@@ -6957,7 +7164,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats', 'personal_briefing'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -7076,7 +7283,11 @@ def main():
 
     elif args.task == 'run_full_pipeline':
         run_full_newsletter_pipeline()
-    
+
+    elif args.task == 'personal_briefing':
+        result = generate_personal_briefing()
+        print(json.dumps(result, indent=2))
+
     elif args.task == 'queue':
         process_queue()
     

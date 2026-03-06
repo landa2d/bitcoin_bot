@@ -6,6 +6,7 @@
     "trending_topics": "deepseek-chat",
     "opportunity_generation": "deepseek-chat",
     "digest": "deepseek-chat",
+    "personal_briefing": "deepseek-chat",
     "default": "deepseek-chat"
   },
   "budgets": {
