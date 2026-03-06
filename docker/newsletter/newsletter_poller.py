@@ -473,6 +473,27 @@ def _auto_fix_stat_repetition(result: dict) -> dict:
     return result
 
 
+def _auto_fix_empty_sections(result: dict) -> dict:
+    """Remove sections whose body is just 'N/A', empty, or has no real content."""
+    na_pattern = re.compile(
+        r'(^## .+\n)'           # section header
+        r'(\s*N/?A\.?\s*\n?)',  # body is just "N/A" or "N/A." with optional whitespace
+        re.MULTILINE
+    )
+    count = 0
+    for field in ('content_markdown', 'content_markdown_impact'):
+        content = result.get(field, '')
+        if not content:
+            continue
+        fixed = na_pattern.sub('', content)
+        if fixed != content:
+            result[field] = fixed.strip() + '\n'
+            count += 1
+    if count:
+        logger.info("Auto-fixed: removed empty N/A section(s) from newsletter")
+    return result
+
+
 def mark_task_status(task_id: str, status: str, **fields):
     payload = {"status": status, **fields}
     supabase.table("agent_tasks").update(payload).eq("id", task_id).execute()
@@ -516,7 +537,8 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         "\n8. WHO'S MOVING: Include `## Who's Moving` only if at least 1 real entry can"
         " be sourced from analyst_insights, clusters, or trending_tools. Skip if not."
         "\n9. NO PLACEHOLDER TEXT: Never write 'Watch for...', 'investigation underway',"
-        " or any trailing incomplete sentence. Complete every entry or cut the section."
+        " 'N/A', or any trailing incomplete sentence. If a section has no content,"
+        " OMIT THE ENTIRE SECTION — no header, no 'N/A', no placeholder."
         "\n10. FILLER PHRASES BANNED: 'navigating without a map', 'wake-up call',"
         " 'smart businesses are already', 'sifting through the narrative', 'elevated"
         " urgency', 'in today's rapidly evolving', 'it remains to be seen'."
@@ -1011,6 +1033,9 @@ def process_task(task: dict):
 
         # Auto-fix: strip duplicate stats where possible
         result = _auto_fix_stat_repetition(result)
+
+        # Auto-fix: strip sections that only contain "N/A" or are empty
+        result = _auto_fix_empty_sections(result)
 
         # Store quality warnings in result
         all_warnings = [i["detail"] for i in quality_issues]

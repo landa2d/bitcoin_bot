@@ -3291,31 +3291,32 @@ def prepare_newsletter_data() -> dict:
             logger.warning(f"Inline prediction expiry failed: {e}")
 
         # Now fetch predictions (overdue ones already expired above)
+        # Only send active (future) + recently resolved (confirmed/refuted) to the LLM.
+        # Exclude expired — they have past dates and confuse the writer.
         predictions_result = supabase.table('predictions')\
             .select('*')\
-            .in_('status', ['active', 'open', 'confirmed', 'refuted', 'faded', 'expired'])\
+            .in_('status', ['active', 'open', 'confirmed', 'refuted', 'faded'])\
             .order('status', desc=False)\
             .order('created_at', desc=True)\
             .limit(10)\
             .execute()
         predictions_data = predictions_result.data or []
 
-        # Safety-net annotation (in case expiry missed any due to race)
+        # Safety-net: drop any prediction whose target_date is in the past
+        # and status is still active/open (race condition with expiry above)
         stale_prediction_ids = []
+        filtered_predictions = []
         for pred in predictions_data:
             target = pred.get('target_date')
-            if target and pred.get('status') in ('active', 'open'):
-                if str(target) < today_str:
-                    pred['_is_stale'] = True
-                    stale_prediction_ids.append(pred.get('id'))
-                    logger.warning(
-                        f"Stale prediction (safety-net): {pred.get('title', '?')[:50]} "
-                        f"(target_date={target}, overdue)"
-                    )
-                else:
-                    pred['_is_stale'] = False
-            else:
-                pred['_is_stale'] = False
+            if target and pred.get('status') in ('active', 'open') and str(target) < today_str:
+                stale_prediction_ids.append(pred.get('id'))
+                logger.warning(
+                    f"Dropping stale prediction from newsletter data: "
+                    f"{pred.get('title', '?')[:50]} (target_date={target})"
+                )
+                continue
+            filtered_predictions.append(pred)
+        predictions_data = filtered_predictions
 
         if stale_prediction_ids:
             logger.warning(f"{len(stale_prediction_ids)} stale prediction(s) still in newsletter data")
