@@ -5998,10 +5998,29 @@ def send_telegram(message: str):
 # Email Newsletter Delivery (Resend)
 # ============================================================================
 
-def render_newsletter_html(title: str, content_markdown: str, unsubscribe_url: str, edition_number: int = None) -> str:
+def render_newsletter_html(title: str, content_markdown: str, unsubscribe_url: str, edition_number: int = None, mode: str = "builder") -> str:
     """Convert newsletter markdown to a styled HTML email."""
     body_html = md_lib.markdown(content_markdown, extensions=['tables', 'fenced_code'])
     edition_label = f"Edition #{edition_number}" if edition_number else "AgentPulse Intelligence Brief"
+
+    if mode == "impact":
+        bg_outer = "#e8e4de"
+        bg_inner = "#faf8f4"
+        color_text = "#1a1a1a"
+        color_accent = "#c44b2b"
+        color_muted = "#6b6560"
+        color_border = "#e5e0d8"
+        color_title = "#1a1a1a"
+        color_link = "#c44b2b"
+    else:
+        bg_outer = "#0a0a0a"
+        bg_inner = "#111"
+        color_text = "#e0e0e0"
+        color_accent = "#00d4aa"
+        color_muted = "#888"
+        color_border = "#333"
+        color_title = "#fff"
+        color_link = "#00d4aa"
 
     return f"""<!DOCTYPE html>
 <html>
@@ -6009,22 +6028,22 @@ def render_newsletter_html(title: str, content_markdown: str, unsubscribe_url: s
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin:0;padding:0;background:#0a0a0a;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
-  <div style="max-width:640px;margin:0 auto;padding:32px 24px;background:#111;color:#e0e0e0;">
-    <div style="border-bottom:1px solid #333;padding-bottom:16px;margin-bottom:24px;">
-      <h1 style="color:#00d4aa;font-size:14px;letter-spacing:2px;margin:0;">AGENTPULSE</h1>
-      <p style="color:#888;font-size:12px;margin:4px 0 0;">{edition_label}</p>
+<body style="margin:0;padding:0;background:{bg_outer};font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+  <div style="max-width:640px;margin:0 auto;padding:32px 24px;background:{bg_inner};color:{color_text};">
+    <div style="border-bottom:1px solid {color_border};padding-bottom:16px;margin-bottom:24px;">
+      <h1 style="color:{color_accent};font-size:14px;letter-spacing:2px;margin:0;">AGENTPULSE</h1>
+      <p style="color:{color_muted};font-size:12px;margin:4px 0 0;">{edition_label}</p>
     </div>
-    <h2 style="color:#fff;font-size:22px;margin:0 0 24px;">{title}</h2>
-    <div style="line-height:1.7;font-size:15px;color:#ccc;">
+    <h2 style="color:{color_title};font-size:22px;margin:0 0 24px;">{title}</h2>
+    <div style="line-height:1.7;font-size:15px;color:{color_text};">
       {body_html}
     </div>
-    <div style="border-top:1px solid #333;margin-top:32px;padding-top:16px;text-align:center;">
-      <p style="color:#666;font-size:12px;">
+    <div style="border-top:1px solid {color_border};margin-top:32px;padding-top:16px;text-align:center;">
+      <p style="color:{color_muted};font-size:12px;">
         You received this because you subscribed to AgentPulse Intelligence Brief.
-        <br><a href="{unsubscribe_url}" style="color:#888;text-decoration:underline;">Unsubscribe</a>
+        <br><a href="{unsubscribe_url}" style="color:{color_link};text-decoration:underline;">Unsubscribe</a>
         &nbsp;&middot;&nbsp;
-        <a href="https://aiagentspulse.com" style="color:#888;text-decoration:underline;">Web Archive</a>
+        <a href="https://aiagentspulse.com" style="color:{color_link};text-decoration:underline;">Web Archive</a>
       </p>
     </div>
   </div>
@@ -6090,11 +6109,11 @@ def send_email_newsletter(newsletter: dict) -> dict:
                 if pref == 'both':
                     # Send builder version
                     subject_b = "AgentPulse #" + str(edition) + " [Builder]: " + builder_title
-                    html_b = render_newsletter_html(builder_title, builder_md, unsub_url, edition)
+                    html_b = render_newsletter_html(builder_title, builder_md, unsub_url, edition, mode="builder")
                     resend.Emails.send(_build_email_params(from_addr, email, subject_b, html_b, unsub_url, edition, "builder"))
                     # Send impact version
                     subject_i = "AgentPulse #" + str(edition) + " [Impact]: " + impact_title
-                    html_i = render_newsletter_html(impact_title, impact_md, unsub_url, edition)
+                    html_i = render_newsletter_html(impact_title, impact_md, unsub_url, edition, mode="impact")
                     resend.Emails.send(_build_email_params(from_addr, email, subject_i, html_i, unsub_url, edition, "impact"))
                     sent += 2
                 else:
@@ -6104,7 +6123,7 @@ def send_email_newsletter(newsletter: dict) -> dict:
                         title, content = impact_title, impact_md
 
                     subject = "AgentPulse #" + str(edition) + ": " + title
-                    html = render_newsletter_html(title, content, unsub_url, edition)
+                    html = render_newsletter_html(title, content, unsub_url, edition, mode=pref)
                     resend.Emails.send(_build_email_params(from_addr, email, subject, html, unsub_url, edition, pref))
                     sent += 1
 
