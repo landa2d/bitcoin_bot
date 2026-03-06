@@ -6632,7 +6632,48 @@ def scheduled_prepare_newsletter():
 def scheduled_notify_newsletter():
     """Notify owner that a new newsletter may be ready for review."""
     logger.info("[PIPELINE] Newsletter notification sent")
-    send_telegram("📰 New AgentPulse Brief is ready for review. Send /newsletter to see it.")
+    send_telegram(
+        "📰 New AgentPulse Brief is ready for review. "
+        "Send /newsletter_publish to publish, or it will auto-publish at 13:00 UTC."
+    )
+
+
+def scheduled_auto_publish_newsletter():
+    """Auto-publish the latest draft if it wasn't manually published within the review window."""
+    logger.info("[PIPELINE] Auto-publish check...")
+    if not supabase:
+        return
+    try:
+        draft = supabase.table('newsletters')\
+            .select('id, edition_number, created_at')\
+            .eq('status', 'draft')\
+            .order('created_at', desc=True)\
+            .limit(1)\
+            .execute()
+
+        if not draft.data:
+            logger.info("[PIPELINE] No draft to auto-publish")
+            return
+
+        newsletter = draft.data[0]
+        created = datetime.fromisoformat(newsletter['created_at'].replace('Z', '+00:00'))
+        age_hours = (datetime.now(timezone.utc) - created).total_seconds() / 3600
+
+        if age_hours < 1:
+            logger.info("[PIPELINE] Draft too fresh (%.1fh old), skipping auto-publish", age_hours)
+            return
+
+        result = publish_newsletter()
+        if result.get('published'):
+            logger.info("[PIPELINE] Auto-published newsletter #%s", newsletter.get('edition_number'))
+            send_telegram(
+                f"📰 Newsletter #{newsletter.get('edition_number')} was auto-published "
+                f"(no manual publish within review window)."
+            )
+        else:
+            logger.warning("[PIPELINE] Auto-publish failed: %s", result)
+    except Exception as e:
+        logger.error("[PIPELINE] Auto-publish failed: %s", e)
 
 def scheduled_digest():
     """Send daily digest via Telegram."""
@@ -6881,6 +6922,7 @@ def setup_scheduler():
     schedule.every().monday.at("06:30").do(scheduled_track_predictions)
     schedule.every().monday.at("09:00").do(scheduled_prepare_newsletter)
     schedule.every().monday.at("10:00").do(scheduled_notify_newsletter)
+    schedule.every().monday.at("13:00").do(scheduled_auto_publish_newsletter)
 
     # Recurring analysis & extraction
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
@@ -6899,7 +6941,7 @@ def setup_scheduler():
     logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h, trending every 12h")
     logger.info("Multi-source: HN scrape every 6h, GitHub scrape every 12h, RSS scrape every 6h, thought leaders every 6h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
-    logger.info("Monday pipeline: evolution 06:00, spotlight+predictions 06:30, newsletter 09:00, notify 10:00 UTC")
+    logger.info("Monday pipeline: evolution 06:00, spotlight+predictions 06:30, newsletter 09:00, notify 10:00, auto-publish 13:00 UTC")
     logger.info("Hourly: workspace cache refresh, proactive anomaly scan")
     logger.info("Every 10min: negotiation timeout check")
 
