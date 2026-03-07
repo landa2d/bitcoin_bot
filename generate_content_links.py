@@ -44,7 +44,7 @@ def keyword_overlap(text_a: str, text_b: str, min_overlap: int = 3) -> float:
     return overlap / len(tokens_a | tokens_b)
 
 
-def upsert_link(sb, source_table, source_id, target_table, target_id, link_type, confidence=1.0, metadata=None):
+def upsert_link(sb, source_table, source_id, target_table, target_id, link_type, **_kwargs):
     """Insert a content link, skipping duplicates."""
     try:
         sb.table("content_links").upsert({
@@ -53,8 +53,6 @@ def upsert_link(sb, source_table, source_id, target_table, target_id, link_type,
             "target_table": target_table,
             "target_id": str(target_id),
             "link_type": link_type,
-            "confidence": confidence,
-            "metadata": metadata or {},
         }, on_conflict="source_table,source_id,target_table,target_id,link_type").execute()
         return True
     except Exception as e:
