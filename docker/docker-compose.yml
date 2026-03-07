@@ -1,5 +1,5 @@
 # OpenClaw AgentPulse — Multi-Service Docker Compose
-# 6 services: gato (Telegram), analyst, processor, research, newsletter, web
+# 7 services: gato (Telegram), gato_brain (intelligence API), analyst, processor, research, newsletter, web
 #
 # Monday pipeline: scrapers → analyst → spotlight selection → research agent → newsletter
 # Secrets (SUPABASE_URL, OPENAI_API_KEY, etc.) come from env_file: ../config/.env
@@ -51,6 +51,42 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  # ═══════════════════════════════════════════════════════
+  # GATO BRAIN — Conversational intelligence middleware
+  # ═══════════════════════════════════════════════════════
+  gato_brain:
+    build:
+      context: ./gato_brain
+      dockerfile: Dockerfile
+    container_name: agentpulse-gato-brain
+    restart: unless-stopped
+    env_file:
+      - ../config/.env
+    environment:
+      <<: *common-env
+      AGENT_NAME: gato_brain
+      GATO_BRAIN_PORT: "8100"
+      OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
+      LOG_LEVEL: info
+    volumes:
+      - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace:ro
+      - ../config:/home/openclaw/.openclaw/config:ro
+      - ../config/persona.md:/home/openclaw/persona.md:ro
+    mem_limit: 512m
+    networks:
+      - agentpulse-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ═══════════════════════════════════════════════════════
   # ANALYST — Direct OpenAI intelligence agent

@@ -32,6 +32,10 @@ USER openclaw
 # Install dependencies
 RUN pnpm install
 
+# Inject gato-brain routing middleware (patches bot.ts before compile)
+COPY --chown=openclaw:openclaw gato/inject-gato-brain.mjs /tmp/inject-gato-brain.mjs
+RUN node /tmp/inject-gato-brain.mjs
+
 # Build the application
 RUN pnpm run build
 
