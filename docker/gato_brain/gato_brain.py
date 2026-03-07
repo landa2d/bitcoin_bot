@@ -339,8 +339,11 @@ def generate_session_summary(messages: list[dict]) -> str:
 
 
 def generate_response(system_prompt: str, history: list[dict], user_message: str,
-                      context_blocks: list[str] | None = None) -> str:
-    """Generate a response using Claude, with optional retrieval context injected."""
+                      context_blocks: list[str] | None = None) -> tuple[str, int, int]:
+    """Generate a response using Claude, with optional retrieval context injected.
+
+    Returns: (response_text, latency_ms, output_tokens)
+    """
     messages = []
     for msg in history:
         messages.append({"role": msg["role"], "content": msg["content"]})
@@ -365,8 +368,9 @@ def generate_response(system_prompt: str, history: list[dict], user_message: str
         )
         elapsed = int((time.time() - start) * 1000)
         text = response.content[0].text
-        logger.info(f"Claude response in {elapsed}ms, {response.usage.input_tokens}+{response.usage.output_tokens} tokens")
-        return text
+        out_tokens = response.usage.output_tokens
+        logger.info(f"Claude response in {elapsed}ms, {response.usage.input_tokens}+{out_tokens} tokens")
+        return text, elapsed, out_tokens
     except Exception as e:
         logger.error(f"Claude generation failed: {e}")
         raise HTTPException(status_code=502, detail="LLM generation failed")
@@ -408,6 +412,9 @@ def execute_corpus_path(route_result: dict, probe_results: dict) -> tuple[list[d
 
     filters = route_result.get("corpus_filters", {})
     source_filter = filters.get("source_table")
+    # Coerce to list — router may return a string instead of list
+    if isinstance(source_filter, str):
+        source_filter = [source_filter]
     date_from = filters.get("date_from")
 
     results = corpus_probe.deep_corpus_retrieval(
@@ -505,16 +512,28 @@ def resolve_session(user_id: str) -> dict:
 
 # ─── Query logging ───────────────────────────────────────────────────
 
-def log_query(user_id: str, session_id: str, query: str, intent: str, response_ms: int) -> None:
-    """Log query to query_log table."""
+def log_query(user_id: str, session_id: str, query: str, intent: str,
+              total_latency_ms: int, **kwargs) -> None:
+    """Log query to query_log table with full observability fields."""
     try:
-        supabase.table("query_log").insert({
+        row = {
             "user_id": user_id,
             "session_id": session_id,
             "user_query": query,
             "detected_intent": intent,
-            "total_latency_ms": response_ms,
-        }).execute()
+            "total_latency_ms": total_latency_ms,
+        }
+        # Optional observability fields
+        for field in (
+            "corpus_probe_top_score", "retrieval_source", "top_similarity_score",
+            "chunks_retrieved", "chunks_expanded", "web_results_used",
+            "template_name", "response_tokens",
+            "probe_latency_ms", "router_latency_ms",
+            "retrieval_latency_ms", "generation_latency_ms",
+        ):
+            if field in kwargs and kwargs[field] is not None:
+                row[field] = kwargs[field]
+        supabase.table("query_log").insert(row).execute()
     except Exception as e:
         logger.warning(f"Failed to log query: {e}")
 
@@ -758,6 +777,7 @@ async def chat(req: ChatRequest):
     expanded_chunks = []
     structured_result = None
     web_results = []
+    retrieval_start = time.time()
 
     if intent == "CORPUS_QUERY":
         results, ctx = execute_corpus_path(route_result, probe_results)
@@ -842,20 +862,23 @@ async def chat(req: ChatRequest):
     if context_blocks:
         context_blocks.append(CITATION_INSTRUCTION)
 
+    retrieval_ms = int((time.time() - retrieval_start) * 1000)
+
     # 10. Context assembly + generate response
     system_prompt = load_system_prompt()
-    response_text = generate_response(
+    response_text, generation_ms, output_tokens = generate_response(
         system_prompt, history[:-1], req.message,
         context_blocks=context_blocks if context_blocks else None,
     )
 
     # 11. Save assistant response with full retrieval context
+    template_name = structured_result.get("template_name") if structured_result else None
     retrieval_context = {
         "intent": intent,
         "retrieved_chunks": retrieved_chunks,
         "expanded_chunks": expanded_chunks,
         "web_results": web_results,
-        "structured_query": structured_result.get("template_name") if structured_result else None,
+        "structured_query": template_name,
         "similarity_scores": [r.get("similarity", 0) for r in probe_results.get("results", [])],
         "probe_top_score": probe_results["top_score"],
         "probe_latency_ms": probe_results["latency_ms"],
@@ -868,9 +891,26 @@ async def chat(req: ChatRequest):
     # 12. Increment usage
     increment_usage(req.user_id)
 
-    # 13. Log query with full details
+    # 13. Log query with full observability
     elapsed_ms = int((time.time() - start) * 1000)
-    log_query(req.user_id, session_id, req.message, intent, elapsed_ms)
+    # Best similarity from probe results
+    sim_scores = [r.get("similarity", 0) for r in probe_results.get("results", [])]
+    top_sim = max(sim_scores) if sim_scores else None
+    log_query(
+        req.user_id, session_id, req.message, intent, elapsed_ms,
+        corpus_probe_top_score=probe_results["top_score"],
+        retrieval_source=intent,
+        top_similarity_score=top_sim,
+        chunks_retrieved=len(retrieved_chunks),
+        chunks_expanded=len(expanded_chunks),
+        web_results_used=len(web_results),
+        template_name=template_name,
+        response_tokens=output_tokens,
+        probe_latency_ms=probe_results["latency_ms"],
+        router_latency_ms=route_result["latency_ms"],
+        retrieval_latency_ms=retrieval_ms,
+        generation_latency_ms=generation_ms,
+    )
 
     return ChatResponse(
         response=response_text,
@@ -886,6 +926,8 @@ async def chat(req: ChatRequest):
             "chunks_retrieved": len(retrieved_chunks),
             "chunks_expanded": len(expanded_chunks),
             "web_results_count": len(web_results),
+            "retrieval_latency_ms": retrieval_ms,
+            "generation_latency_ms": generation_ms,
         },
     )
 
