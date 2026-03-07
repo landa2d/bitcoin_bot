@@ -34,7 +34,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 EMBEDDING_MODEL = "text-embedding-3-large"
-EMBEDDING_DIMENSIONS = 3072
+EMBEDDING_DIMENSIONS = 1536  # pgvector HNSW/ivfflat index max is 2000; 1536 is the sweet spot
 BATCH_SIZE = 100  # max texts per OpenAI embeddings call
 
 logging.basicConfig(
@@ -358,20 +358,13 @@ def get_existing_ids(supabase: Client, table_name: str) -> set[tuple[str, int]]:
     page_size = 1000
     offset = 0
     while True:
-        print(f"[DEBUG] get_existing_ids({table_name}): querying embeddings offset={offset}")
-        try:
-            resp = (
-                supabase.table("embeddings")
-                .select("source_id, chunk_index")
-                .eq("source_table", table_name)
-                .range(offset, offset + page_size - 1)
-                .execute()
-            )
-            print(f"[DEBUG] get_existing_ids({table_name}): resp.data type={type(resp.data)}, len={len(resp.data) if resp.data else 'None'}")
-        except Exception as e:
-            print(f"[ERROR] get_existing_ids({table_name}) EXCEPTION: {e}")
-            traceback.print_exc()
-            break
+        resp = (
+            supabase.table("embeddings")
+            .select("source_id, chunk_index")
+            .eq("source_table", table_name)
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
         rows = resp.data or []
         for r in rows:
             existing.add((r["source_id"], r["chunk_index"]))
@@ -409,69 +402,41 @@ def fetch_rows(supabase: Client, config: dict, backfill: bool) -> list[dict]:
     table_name = config["table"]
     select_cols = config["select"]
 
-    print(f"[DEBUG] fetch_rows({table_name}): select={select_cols!r}, backfill={backfill}")
-
     query = supabase.table(table_name).select(select_cols)
 
     # Apply table-specific filter (e.g., source_tier >= 2)
     if "filter" in config:
-        print(f"[DEBUG] fetch_rows({table_name}): applying filter")
         query = config["filter"](query)
 
     if not backfill:
         # Get source_ids already embedded and exclude them
-        print(f"[DEBUG] fetch_rows({table_name}): getting embedded_ids for incremental mode")
         embedded_ids = get_embedded_source_ids(supabase, table_name)
-        print(f"[DEBUG] fetch_rows({table_name}): {len(embedded_ids)} already embedded source_ids")
         if embedded_ids:
+            # Supabase-py: fetch all and filter client-side for NOT IN
+            # (supabase-py doesn't support .not_.in_() well on uuid arrays)
             all_rows = []
             page_size = 1000
             offset = 0
             while True:
-                print(f"[DEBUG] fetch_rows({table_name}): querying offset={offset}")
-                try:
-                    resp = query.range(offset, offset + page_size - 1).execute()
-                    print(f"[DEBUG] fetch_rows({table_name}): resp.data type={type(resp.data)}, len={len(resp.data) if resp.data else 'None'}")
-                except Exception as e:
-                    print(f"[ERROR] fetch_rows({table_name}) EXCEPTION at offset={offset}: {e}")
-                    traceback.print_exc()
-                    break
+                resp = query.range(offset, offset + page_size - 1).execute()
                 rows = resp.data or []
                 all_rows.extend(rows)
                 if len(rows) < page_size:
                     break
                 offset += page_size
-            filtered = [r for r in all_rows if r["id"] not in embedded_ids]
-            print(f"[DEBUG] fetch_rows({table_name}): {len(all_rows)} total rows, {len(filtered)} after filtering embedded")
-            return filtered
+            return [r for r in all_rows if r["id"] not in embedded_ids]
 
     # Fetch all (backfill or no existing embeddings)
     all_rows = []
     page_size = 1000
     offset = 0
     while True:
-        print(f"[DEBUG] fetch_rows({table_name}): backfill query offset={offset}")
-        try:
-            resp = query.range(offset, offset + page_size - 1).execute()
-            print(f"[DEBUG] fetch_rows({table_name}): resp.data type={type(resp.data)}, len={len(resp.data) if resp.data else 'None'}, count={getattr(resp, 'count', 'N/A')}")
-            if resp.data and len(resp.data) > 0:
-                print(f"[DEBUG] fetch_rows({table_name}): first row keys={list(resp.data[0].keys())}")
-                sample_items = {k: repr(v)[:80] for k, v in list(resp.data[0].items())[:3]}
-                print(f"[DEBUG] fetch_rows({table_name}): first row sample={sample_items}")
-            elif resp.data is not None and len(resp.data) == 0:
-                print(f"[DEBUG] fetch_rows({table_name}): resp.data is EMPTY LIST []")
-            else:
-                print(f"[DEBUG] fetch_rows({table_name}): resp.data is {resp.data!r}")
-        except Exception as e:
-            print(f"[ERROR] fetch_rows({table_name}) EXCEPTION at offset={offset}: {e}")
-            traceback.print_exc()
-            break
+        resp = query.range(offset, offset + page_size - 1).execute()
         rows = resp.data or []
         all_rows.extend(rows)
         if len(rows) < page_size:
             break
         offset += page_size
-    print(f"[DEBUG] fetch_rows({table_name}): returning {len(all_rows)} rows total")
     return all_rows
 
 
@@ -479,28 +444,19 @@ def embed_texts(openai_client: OpenAI, texts: list[str]) -> list[list[float]]:
     """Call OpenAI embeddings API in batches of BATCH_SIZE."""
     all_embeddings = []
     total_batches = (len(texts) + BATCH_SIZE - 1) // BATCH_SIZE
-    print(f"[DEBUG] embed_texts: {len(texts)} texts, {total_batches} batches")
     for i in range(0, len(texts), BATCH_SIZE):
         batch = texts[i : i + BATCH_SIZE]
         batch_num = i // BATCH_SIZE + 1
-        print(f"[DEBUG] embed_texts: batch {batch_num}/{total_batches}, {len(batch)} texts, first text len={len(batch[0])}")
         logger.info(f"  OpenAI batch {batch_num}/{total_batches}: {len(batch)} texts")
         t0 = time.time()
-        try:
-            resp = openai_client.embeddings.create(
-                model=EMBEDDING_MODEL,
-                input=batch,
-                dimensions=EMBEDDING_DIMENSIONS,
-            )
-            elapsed = time.time() - t0
-            print(f"[DEBUG] embed_texts: batch {batch_num} returned {len(resp.data)} embeddings in {elapsed:.1f}s")
-            logger.info(f"  OpenAI batch {batch_num} done in {elapsed:.1f}s, got {len(resp.data)} embeddings (dim={len(resp.data[0].embedding)})")
-            all_embeddings.extend([d.embedding for d in resp.data])
-        except Exception as e:
-            print(f"[ERROR] embed_texts: batch {batch_num} FAILED: {e}")
-            traceback.print_exc()
-            raise
-    print(f"[DEBUG] embed_texts: returning {len(all_embeddings)} embeddings total")
+        resp = openai_client.embeddings.create(
+            model=EMBEDDING_MODEL,
+            input=batch,
+            dimensions=EMBEDDING_DIMENSIONS,
+        )
+        elapsed = time.time() - t0
+        logger.info(f"  OpenAI batch {batch_num} done in {elapsed:.1f}s, got {len(resp.data)} embeddings (dim={len(resp.data[0].embedding)})")
+        all_embeddings.extend([d.embedding for d in resp.data])
     return all_embeddings
 
 
@@ -533,26 +489,19 @@ def insert_embeddings(supabase: Client, records: list[dict]) -> int:
             rows.append(row)
 
         logger.info(f"  Inserting batch {batch_num}/{total_batches}: {len(rows)} rows")
-        # Debug: print sample row structure (without embedding)
-        sample_debug = {k: (f"[{len(v)} floats]" if k == "embedding" else repr(v)[:100]) for k, v in rows[0].items()}
-        print(f"[DEBUG] insert_embeddings: batch {batch_num} sample row: {sample_debug}")
         t0 = time.time()
         try:
             resp = supabase.table("embeddings").upsert(
                 rows, on_conflict="source_table,source_id,chunk_index"
             ).execute()
             elapsed = time.time() - t0
-            print(f"[DEBUG] insert_embeddings: batch {batch_num} resp type={type(resp)}, resp.data type={type(resp.data)}, len={len(resp.data) if resp.data else 'None'}, count={getattr(resp, 'count', 'N/A')}")
             batch_inserted = len(resp.data) if resp.data else 0
             logger.info(f"  Insert batch {batch_num} done in {elapsed:.1f}s: {batch_inserted} rows returned")
             if batch_inserted == 0:
                 logger.warning(f"  Insert returned 0 rows! resp.data={resp.data!r}")
-                print(f"[ERROR] Insert returned 0 rows! Full resp: {resp!r}")
             inserted += batch_inserted
         except Exception as e:
             elapsed = time.time() - t0
-            print(f"[ERROR] insert_embeddings: batch {batch_num} EXCEPTION after {elapsed:.1f}s: {e}")
-            traceback.print_exc()
             logger.error(f"  Insert batch {batch_num} FAILED after {elapsed:.1f}s: {e}")
             logger.error(traceback.format_exc())
             # Log a sample row (without the full embedding vector)
@@ -602,26 +551,14 @@ def process_table(
 
     chunk_errors = 0
     skipped_existing = 0
-    empty_chunk_rows = 0
-    for row_idx, row in enumerate(rows):
+    for row in rows:
         try:
             chunks = chunker(row)
         except Exception as e:
             chunk_errors += 1
-            print(f"[ERROR] Chunking EXCEPTION for {table_name} row {row.get('id')}: {e}")
-            traceback.print_exc()
             logger.warning(f"Chunking failed for {table_name} row {row.get('id')}: {e}")
             logger.warning(traceback.format_exc())
             continue
-
-        if not chunks:
-            empty_chunk_rows += 1
-            if row_idx < 3:  # Print first 3 empty rows for debugging
-                row_summary = {k: repr(v)[:60] for k, v in row.items()}
-                print(f"[DEBUG] chunker returned 0 chunks for {table_name} row {row.get('id')}, row data: {row_summary}")
-
-        if row_idx < 3:
-            print(f"[DEBUG] {table_name} row[{row_idx}] id={row.get('id')}: chunker returned {len(chunks)} chunks")
 
         for chunk in chunks:
             key = (chunk["source_id"], chunk["chunk_index"])
@@ -630,9 +567,6 @@ def process_table(
                 continue
             chunk["source_table"] = table_name
             all_chunks.append(chunk)
-
-    if empty_chunk_rows > 0:
-        print(f"[DEBUG] {table_name}: {empty_chunk_rows}/{len(rows)} rows produced 0 chunks")
 
     logger.info(f"  Chunking done: {len(all_chunks)} new chunks, {skipped_existing} skipped (existing), {chunk_errors} errors")
 
