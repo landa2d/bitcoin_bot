@@ -19,6 +19,7 @@ from pydantic import BaseModel
 from supabase import create_client, Client
 
 import corpus_probe
+import intent_router
 
 # ─── Configuration ───────────────────────────────────────────────────
 
@@ -401,9 +402,10 @@ def init_clients():
             },
             timeout=30.0,
         )
+        intent_router.init(deepseek_client)
         logger.info("DeepSeek client initialized")
     else:
-        logger.warning("DEEPSEEK_API_KEY not set — session summaries will be basic")
+        logger.warning("DEEPSEEK_API_KEY not set — session summaries will be basic, intent router will use heuristic")
 
 
 @asynccontextmanager
@@ -465,23 +467,53 @@ async def chat(req: ChatRequest):
     # 6. Corpus probe — fast pgvector search before routing
     probe_results = corpus_probe.probe(supabase, req.message)
 
-    # 7. Generate response (intent routing will be added in D2/D3)
-    intent = "DIRECT"
+    # 7. Get previous retrieval context (for follow-up detection)
+    previous_retrieval_context = None
+    if history:
+        last_assistant = [m for m in reversed(history) if m["role"] == "assistant"]
+        if last_assistant:
+            # Load full message with retrieval_context
+            prev_msg = (
+                supabase.table("conversation_messages")
+                .select("retrieval_context")
+                .eq("session_id", session_id)
+                .eq("role", "assistant")
+                .order("created_at", desc=True)
+                .limit(1)
+                .execute()
+            )
+            if prev_msg.data and prev_msg.data[0].get("retrieval_context"):
+                previous_retrieval_context = prev_msg.data[0]["retrieval_context"]
+
+    # 8. Intent routing via DeepSeek + heuristic fallback
+    route_result = intent_router.route(
+        message=req.message,
+        conversation_history=history,
+        corpus_probe_results=probe_results,
+        previous_retrieval_context=previous_retrieval_context,
+    )
+    intent = route_result["intent"]
+
+    # 9. Generate response (retrieval paths will be wired in D3)
     system_prompt = load_system_prompt()
     response_text = generate_response(system_prompt, history[:-1], req.message)
 
-    # 8. Save assistant response with probe context
+    # 10. Save assistant response with probe + routing context
     retrieval_context = {
         "probe_top_score": probe_results["top_score"],
         "probe_results": probe_results["results"],
         "probe_latency_ms": probe_results["latency_ms"],
+        "intent": intent,
+        "route_reasoning": route_result["reasoning"],
+        "route_latency_ms": route_result["latency_ms"],
+        "route_used_fallback": route_result["used_fallback"],
     }
     save_message(session_id, "assistant", response_text, retrieval_context=retrieval_context)
 
-    # 9. Increment usage
+    # 11. Increment usage
     increment_usage(req.user_id)
 
-    # 10. Log query
+    # 12. Log query
     elapsed_ms = int((time.time() - start) * 1000)
     log_query(req.user_id, session_id, req.message, intent, elapsed_ms)
 
@@ -493,6 +525,9 @@ async def chat(req: ChatRequest):
             "access_tier": access_tier,
             "probe_top_score": probe_results["top_score"],
             "probe_latency_ms": probe_results["latency_ms"],
+            "route_latency_ms": route_result["latency_ms"],
+            "route_reasoning": route_result["reasoning"],
+            "route_used_fallback": route_result["used_fallback"],
         },
     )
 
