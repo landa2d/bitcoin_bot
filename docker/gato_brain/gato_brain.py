@@ -305,12 +305,21 @@ def generate_session_summary(messages: list[dict]) -> str:
         return f"Session with {len(messages)} messages"
 
 
-def generate_response(system_prompt: str, history: list[dict], user_message: str) -> str:
-    """Generate a response using Claude."""
+def generate_response(system_prompt: str, history: list[dict], user_message: str,
+                      context_blocks: list[str] | None = None) -> str:
+    """Generate a response using Claude, with optional retrieval context injected."""
     messages = []
     for msg in history:
         messages.append({"role": msg["role"], "content": msg["content"]})
-    messages.append({"role": "user", "content": user_message})
+
+    # Build user message with context blocks prepended
+    if context_blocks:
+        context_text = "\n\n".join(context_blocks)
+        full_user_msg = f"{context_text}\n\n---\nUSER MESSAGE: {user_message}"
+    else:
+        full_user_msg = user_message
+
+    messages.append({"role": "user", "content": full_user_msg})
 
     try:
         start = time.time()
@@ -328,6 +337,112 @@ def generate_response(system_prompt: str, history: list[dict], user_message: str
     except Exception as e:
         logger.error(f"Claude generation failed: {e}")
         raise HTTPException(status_code=502, detail="LLM generation failed")
+
+
+# ─── Retrieval path helpers ──────────────────────────────────────────
+
+CITATION_INSTRUCTION = (
+    "When the user asks for sources, cite the source table, edition number, date, "
+    "and original source URL if available. Otherwise respond naturally without citations."
+)
+
+
+def format_corpus_context(results: list[dict]) -> str:
+    """Format corpus retrieval results into a context block for Claude."""
+    if not results:
+        return ""
+    lines = ["--- CORPUS INTELLIGENCE ---"]
+    for i, r in enumerate(results, 1):
+        source = r.get("source_table", "unknown")
+        sim = r.get("similarity", 0)
+        edition = r.get("edition_number")
+        content = (r.get("content_text") or "")[:500]
+        expanded = r.get("expanded", False)
+        link_type = r.get("link_type", "")
+
+        tag = f" [expanded via {link_type}]" if expanded else ""
+        ed_tag = f" (edition #{edition})" if edition else ""
+        lines.append(f"{i}. [{source}{ed_tag}] (similarity: {sim:.2f}){tag}")
+        lines.append(f"   {content}")
+    return "\n".join(lines)
+
+
+def execute_corpus_path(route_result: dict, probe_results: dict) -> tuple[list[dict], str]:
+    """CORPUS_QUERY / HYBRID: deep retrieval with graph expansion."""
+    query_embedding = probe_results.get("query_embedding", [])
+    if not query_embedding:
+        return [], ""
+
+    filters = route_result.get("corpus_filters", {})
+    source_filter = filters.get("source_table")
+    date_from = filters.get("date_from")
+
+    results = corpus_probe.deep_corpus_retrieval(
+        supabase,
+        query_embedding=query_embedding,
+        match_count=10,
+        source_filter=source_filter,
+        date_from=date_from,
+    )
+    context_block = format_corpus_context(results)
+    return results, context_block
+
+
+def execute_structured_path(route_result: dict) -> tuple[dict, str]:
+    """STRUCTURED_QUERY: execute a query template and format results."""
+    template_name = route_result.get("template_name")
+    template_params = route_result.get("template_params", {})
+
+    if not template_name:
+        return {}, ""
+
+    result = query_templates.execute_template(supabase, template_name, template_params)
+    context_block = f"--- STRUCTURED QUERY: {result['description']} ---\n{result['markdown']}"
+    return result, context_block
+
+
+def execute_followup_path(previous_retrieval_context: dict | None,
+                          probe_results: dict) -> tuple[list[dict], str]:
+    """FOLLOW_UP: re-hydrate previous retrieval chunks, optionally supplement."""
+    rehydrated = []
+
+    if previous_retrieval_context:
+        # Get chunk IDs from previous response
+        prev_chunks = previous_retrieval_context.get("retrieved_chunks", [])
+        prev_expanded = previous_retrieval_context.get("expanded_chunks", [])
+        all_ids = prev_chunks + prev_expanded
+
+        # Re-fetch by ID (exact lookup, not vector search)
+        for chunk_id in all_ids[:10]:
+            try:
+                resp = (
+                    supabase.table("embeddings")
+                    .select("id, source_table, source_id, content_text, metadata, edition_number")
+                    .eq("id", chunk_id)
+                    .limit(1)
+                    .execute()
+                )
+                if resp.data:
+                    row = resp.data[0]
+                    row["similarity"] = 1.0  # Exact match
+                    rehydrated.append(row)
+            except Exception as e:
+                logger.warning(f"Failed to re-hydrate chunk {chunk_id}: {e}")
+
+    # Supplement with probe results if they had decent scores
+    if probe_results.get("top_score", 0) >= 0.55 and probe_results.get("query_embedding"):
+        supplement = corpus_probe.deep_corpus_retrieval(
+            supabase,
+            query_embedding=probe_results["query_embedding"],
+            match_count=5,
+        )
+        seen_ids = {r.get("id") for r in rehydrated}
+        for r in supplement:
+            if str(r.get("id")) not in seen_ids:
+                rehydrated.append(r)
+
+    context_block = format_corpus_context(rehydrated)
+    return rehydrated, context_block
 
 
 # ─── Session resolution ─────────────────────────────────────────────
@@ -495,26 +610,85 @@ async def chat(req: ChatRequest):
     )
     intent = route_result["intent"]
 
-    # 9. Generate response (retrieval paths will be wired in D3)
-    system_prompt = load_system_prompt()
-    response_text = generate_response(system_prompt, history[:-1], req.message)
+    # 9. Execute the routed retrieval path
+    context_blocks = []
+    retrieved_chunks = []
+    expanded_chunks = []
+    structured_result = None
+    web_results = []
 
-    # 10. Save assistant response with probe + routing context
+    if intent == "CORPUS_QUERY":
+        results, ctx = execute_corpus_path(route_result, probe_results)
+        if ctx:
+            context_blocks.append(ctx)
+        retrieved_chunks = [str(r.get("id", "")) for r in results if not r.get("expanded")]
+        expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
+
+    elif intent == "WEB_SEARCH":
+        # Stub: fall back to corpus retrieval
+        logger.info("WEB_SEARCH requested but not yet available — falling back to corpus")
+        results, ctx = execute_corpus_path(route_result, probe_results)
+        if ctx:
+            context_blocks.append(ctx)
+        context_blocks.append("Note: Web search is not yet available. Results are from our intelligence corpus only.")
+        retrieved_chunks = [str(r.get("id", "")) for r in results if not r.get("expanded")]
+        expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
+
+    elif intent == "HYBRID":
+        # Corpus retrieval (web search stubbed)
+        results, ctx = execute_corpus_path(route_result, probe_results)
+        if ctx:
+            context_blocks.append(ctx)
+        retrieved_chunks = [str(r.get("id", "")) for r in results if not r.get("expanded")]
+        expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
+        # TODO: add Tavily web search in parallel (Phase E)
+
+    elif intent == "STRUCTURED_QUERY":
+        sq_result, ctx = execute_structured_path(route_result)
+        structured_result = sq_result
+        if ctx:
+            context_blocks.append(ctx)
+
+    elif intent == "FOLLOW_UP":
+        results, ctx = execute_followup_path(previous_retrieval_context, probe_results)
+        if ctx:
+            context_blocks.append(ctx)
+        retrieved_chunks = [str(r.get("id", "")) for r in results if not r.get("expanded")]
+        expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
+
+    # DIRECT: no retrieval, context_blocks stays empty
+
+    # Add citation instruction when we have retrieval context
+    if context_blocks:
+        context_blocks.append(CITATION_INSTRUCTION)
+
+    # 10. Context assembly + generate response
+    system_prompt = load_system_prompt()
+    response_text = generate_response(
+        system_prompt, history[:-1], req.message,
+        context_blocks=context_blocks if context_blocks else None,
+    )
+
+    # 11. Save assistant response with full retrieval context
     retrieval_context = {
-        "probe_top_score": probe_results["top_score"],
-        "probe_results": probe_results["results"],
-        "probe_latency_ms": probe_results["latency_ms"],
         "intent": intent,
+        "retrieved_chunks": retrieved_chunks,
+        "expanded_chunks": expanded_chunks,
+        "web_results": web_results,
+        "structured_query": structured_result.get("template_name") if structured_result else None,
+        "similarity_scores": [r.get("similarity", 0) for r in probe_results.get("results", [])],
+        "probe_top_score": probe_results["top_score"],
+        "probe_latency_ms": probe_results["latency_ms"],
         "route_reasoning": route_result["reasoning"],
         "route_latency_ms": route_result["latency_ms"],
         "route_used_fallback": route_result["used_fallback"],
     }
     save_message(session_id, "assistant", response_text, retrieval_context=retrieval_context)
 
-    # 11. Increment usage
+    # 12. Increment usage
     increment_usage(req.user_id)
 
-    # 12. Log query
+    # 13. Log query with full details
     elapsed_ms = int((time.time() - start) * 1000)
     log_query(req.user_id, session_id, req.message, intent, elapsed_ms)
 
@@ -529,6 +703,8 @@ async def chat(req: ChatRequest):
             "route_latency_ms": route_result["latency_ms"],
             "route_reasoning": route_result["reasoning"],
             "route_used_fallback": route_result["used_fallback"],
+            "chunks_retrieved": len(retrieved_chunks),
+            "chunks_expanded": len(expanded_chunks),
         },
     )
 
