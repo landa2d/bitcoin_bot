@@ -18,9 +18,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from supabase import create_client, Client
 
+import asyncio
+
 import corpus_probe
 import intent_router
 import query_templates
+import web_search
 
 # ─── Configuration ───────────────────────────────────────────────────
 
@@ -29,6 +32,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 PORT = int(os.getenv("GATO_BRAIN_PORT", "8100"))
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
@@ -239,6 +243,33 @@ def check_rate_limit(user_id: str, access_tier: str) -> str | None:
             f"You've reached your daily limit of {limits['messages']} messages. "
             f"Limits reset at midnight UTC. "
             f"Upgrade to subscriber for higher limits!"
+        )
+    return None
+
+
+def check_web_search_limit(user_id: str, access_tier: str) -> str | None:
+    """Check if user has exceeded daily web search limits. Returns message if limited."""
+    limits = TIER_LIMITS.get(access_tier, TIER_LIMITS["free"])
+    if limits["web_searches"] is None:
+        return None  # owner — unlimited
+
+    today = date.today().isoformat()
+    result = (
+        supabase.table("user_usage")
+        .select("web_search_count")
+        .eq("user_id", user_id)
+        .eq("usage_date", today)
+        .execute()
+    )
+
+    if not result.data:
+        return None
+
+    ws_count = result.data[0].get("web_search_count") or 0
+    if ws_count >= limits["web_searches"]:
+        return (
+            f"Daily web search limit reached ({limits['web_searches']}). "
+            f"Using corpus results instead."
         )
     return None
 
@@ -509,6 +540,11 @@ def init_clients():
     else:
         logger.warning("OPENAI_API_KEY not set — corpus probe disabled")
 
+    if TAVILY_API_KEY:
+        web_search.init(TAVILY_API_KEY)
+    else:
+        logger.warning("TAVILY_API_KEY not set — web search disabled")
+
     if DEEPSEEK_API_KEY:
         deepseek_client = httpx.Client(
             base_url=DEEPSEEK_BASE_URL,
@@ -625,23 +661,61 @@ async def chat(req: ChatRequest):
         expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
 
     elif intent == "WEB_SEARCH":
-        # Stub: fall back to corpus retrieval
-        logger.info("WEB_SEARCH requested but not yet available — falling back to corpus")
-        results, ctx = execute_corpus_path(route_result, probe_results)
-        if ctx:
-            context_blocks.append(ctx)
-        context_blocks.append("Note: Web search is not yet available. Results are from our intelligence corpus only.")
-        retrieved_chunks = [str(r.get("id", "")) for r in results if not r.get("expanded")]
-        expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
+        # Check web search rate limit
+        ws_limited = check_web_search_limit(req.user_id, access_tier)
+        if ws_limited or not web_search.is_available():
+            logger.info(f"WEB_SEARCH: {'rate limited' if ws_limited else 'Tavily not available'} — falling back to corpus")
+            results, ctx = execute_corpus_path(route_result, probe_results)
+            if ctx:
+                context_blocks.append(ctx)
+            note = ws_limited or "Web search is not available. Results are from our intelligence corpus only."
+            context_blocks.append(f"Note: {note}")
+            retrieved_chunks = [str(r.get("id", "")) for r in results if not r.get("expanded")]
+            expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
+        else:
+            search_query = route_result.get("search_query", req.message)
+            ws_result = web_search.search(search_query)
+            web_results = [{"url": r["url"], "title": r["title"]} for r in ws_result.get("results", [])]
+            ws_ctx = web_search.format_web_results(ws_result)
+            if ws_ctx:
+                context_blocks.append(ws_ctx)
+            # Include corpus context as bonus if probe had decent results
+            if probe_results.get("top_score", 0) >= 0.55:
+                results, ctx = execute_corpus_path(route_result, probe_results)
+                if ctx:
+                    context_blocks.append(ctx)
+                retrieved_chunks = [str(r.get("id", "")) for r in results if not r.get("expanded")]
+                expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
+            increment_usage(req.user_id, messages=0, web_searches=1)
 
     elif intent == "HYBRID":
-        # Corpus retrieval (web search stubbed)
-        results, ctx = execute_corpus_path(route_result, probe_results)
-        if ctx:
-            context_blocks.append(ctx)
-        retrieved_chunks = [str(r.get("id", "")) for r in results if not r.get("expanded")]
-        expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
-        # TODO: add Tavily web search in parallel (Phase E)
+        # Check web search rate limit
+        ws_limited = check_web_search_limit(req.user_id, access_tier)
+        search_query = route_result.get("search_query", req.message)
+
+        if ws_limited or not web_search.is_available():
+            # Corpus only
+            results, ctx = execute_corpus_path(route_result, probe_results)
+            if ctx:
+                context_blocks.append(ctx)
+            retrieved_chunks = [str(r.get("id", "")) for r in results if not r.get("expanded")]
+            expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
+        else:
+            # Run corpus + web in parallel
+            corpus_future = asyncio.to_thread(execute_corpus_path, route_result, probe_results)
+            web_future = asyncio.to_thread(web_search.search, search_query)
+            (results, corpus_ctx), ws_result = await asyncio.gather(corpus_future, web_future)
+
+            if corpus_ctx:
+                context_blocks.append(corpus_ctx)
+            ws_ctx = web_search.format_web_results(ws_result)
+            if ws_ctx:
+                context_blocks.append(ws_ctx)
+
+            web_results = [{"url": r["url"], "title": r["title"]} for r in ws_result.get("results", [])]
+            retrieved_chunks = [str(r.get("id", "")) for r in results if not r.get("expanded")]
+            expanded_chunks = [str(r.get("id", "")) for r in results if r.get("expanded")]
+            increment_usage(req.user_id, messages=0, web_searches=1)
 
     elif intent == "STRUCTURED_QUERY":
         sq_result, ctx = execute_structured_path(route_result)
@@ -705,6 +779,7 @@ async def chat(req: ChatRequest):
             "route_used_fallback": route_result["used_fallback"],
             "chunks_retrieved": len(retrieved_chunks),
             "chunks_expanded": len(expanded_chunks),
+            "web_results_count": len(web_results),
         },
     )
 
