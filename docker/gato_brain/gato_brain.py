@@ -19,6 +19,8 @@ from pydantic import BaseModel
 from supabase import create_client, Client
 
 import asyncio
+import subprocess
+import threading
 
 import corpus_probe
 import intent_router
@@ -559,6 +561,10 @@ def init_clients():
     else:
         logger.warning("DEEPSEEK_API_KEY not set — session summaries will be basic, intent router will use heuristic")
 
+    # Start daily embedding scheduler
+    threading.Thread(target=_start_daily_embed_scheduler, daemon=True).start()
+    logger.info("Daily embedding scheduler started (14:00 UTC)")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -585,6 +591,106 @@ async def health():
     except Exception:
         active = -1
     return {"status": "ok", "active_sessions": active}
+
+
+# ─── Embedding pipeline trigger ─────────────────────────────────────
+
+_embed_lock = threading.Lock()
+_last_embed_run: dict = {}
+
+
+def _run_embed_pipeline(mode: str = "--incremental") -> dict:
+    """Run embed_pipeline.py as a subprocess. Returns result dict."""
+    if not _embed_lock.acquire(blocking=False):
+        return {"status": "already_running"}
+
+    try:
+        t0 = time.time()
+        result = subprocess.run(
+            ["python3", "/home/openclaw/embed_pipeline.py", mode],
+            capture_output=True,
+            text=True,
+            timeout=600,
+            cwd="/home/openclaw",
+        )
+        elapsed = int(time.time() - t0)
+        _last_embed_run.update({
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "mode": mode,
+            "exit_code": result.returncode,
+            "elapsed_s": elapsed,
+            "stdout_tail": result.stdout[-500:] if result.stdout else "",
+            "stderr_tail": result.stderr[-500:] if result.stderr else "",
+        })
+
+        if result.returncode == 0:
+            logger.info(f"Embed pipeline ({mode}) completed in {elapsed}s")
+        else:
+            logger.warning(f"Embed pipeline ({mode}) failed (exit {result.returncode}) in {elapsed}s")
+
+        return _last_embed_run
+    except subprocess.TimeoutExpired:
+        logger.error("Embed pipeline timed out (600s)")
+        return {"status": "timeout", "mode": mode}
+    except Exception as e:
+        logger.error(f"Embed pipeline failed: {e}")
+        return {"status": "error", "error": str(e)}
+    finally:
+        _embed_lock.release()
+
+
+@app.post("/embed/incremental")
+async def embed_incremental():
+    """Trigger incremental embedding pipeline (non-blocking)."""
+    def run():
+        _run_embed_pipeline("--incremental")
+    threading.Thread(target=run, daemon=True).start()
+    return {"status": "triggered", "mode": "incremental"}
+
+
+@app.post("/embed/backfill")
+async def embed_backfill():
+    """Trigger full backfill embedding pipeline (non-blocking)."""
+    def run():
+        _run_embed_pipeline("--backfill")
+    threading.Thread(target=run, daemon=True).start()
+    return {"status": "triggered", "mode": "backfill"}
+
+
+@app.get("/embed/status")
+async def embed_status():
+    """Get last embedding pipeline run status."""
+    return _last_embed_run or {"status": "never_run"}
+
+
+def _start_daily_embed_scheduler():
+    """Start a background thread that runs incremental embedding daily at 14:00 UTC."""
+    import sched
+    import calendar
+
+    scheduler = sched.scheduler(time.time, time.sleep)
+
+    def schedule_next():
+        now = datetime.now(timezone.utc)
+        # Next 14:00 UTC
+        target = now.replace(hour=14, minute=0, second=0, microsecond=0)
+        if target <= now:
+            target = target + timedelta(days=1)
+        delay = (target - now).total_seconds()
+        logger.info(f"Next scheduled embedding run in {delay/3600:.1f}h at {target.isoformat()}")
+        scheduler.enter(delay, 1, run_and_reschedule)
+
+    def run_and_reschedule():
+        logger.info("[SCHEDULED] Running daily incremental embedding pipeline")
+        result = _run_embed_pipeline("--incremental")
+        # Warn if 0 new rows
+        stdout = result.get("stdout_tail", "")
+        if "Total: 0 chunks" in stdout:
+            logger.warning("[SCHEDULED] Embedding pipeline processed 0 new chunks — pipeline may not be producing content")
+        schedule_next()
+
+    schedule_next()
+    scheduler.run()
 
 
 @app.post("/chat", response_model=ChatResponse)
