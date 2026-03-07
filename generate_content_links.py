@@ -44,19 +44,37 @@ def keyword_overlap(text_a: str, text_b: str, min_overlap: int = 3) -> float:
     return overlap / len(tokens_a | tokens_b)
 
 
+_existing_links: set[tuple] = set()
+
+
+def load_existing_links(sb):
+    """Pre-load all existing links to avoid duplicates."""
+    global _existing_links
+    rows = fetch_all(sb, "content_links", "source_table, source_id, target_table, target_id, link_type")
+    _existing_links = {
+        (r["source_table"], str(r["source_id"]), r["target_table"], str(r["target_id"]), r["link_type"])
+        for r in rows
+    }
+    logger.info(f"Loaded {len(_existing_links)} existing content links")
+
+
 def upsert_link(sb, source_table, source_id, target_table, target_id, link_type, **_kwargs):
-    """Insert a content link, skipping duplicates."""
+    """Insert a content link, skipping duplicates via in-memory set."""
+    key = (source_table, str(source_id), target_table, str(target_id), link_type)
+    if key in _existing_links:
+        return False
     try:
-        sb.table("content_links").upsert({
+        sb.table("content_links").insert({
             "source_table": source_table,
             "source_id": str(source_id),
             "target_table": target_table,
             "target_id": str(target_id),
             "link_type": link_type,
-        }, on_conflict="source_table,source_id,target_table,target_id,link_type").execute()
+        }).execute()
+        _existing_links.add(key)
         return True
     except Exception as e:
-        logger.warning(f"Failed to upsert link {source_table}/{source_id} -> {target_table}/{target_id}: {e}")
+        logger.warning(f"Failed to insert link {source_table}/{source_id} -> {target_table}/{target_id}: {e}")
         return False
 
 
@@ -201,6 +219,9 @@ def main():
     logger.info(f"Loaded: {len(spotlights)} spotlights, {len(predictions)} predictions, "
                 f"{len(topics)} topics, {len(clusters)} clusters, "
                 f"{len(opportunities)} opportunities, {len(newsletters)} newsletters")
+
+    # Load existing links for deduplication
+    load_existing_links(sb)
 
     # Generate links
     totals = Counter()
