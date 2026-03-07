@@ -19,6 +19,7 @@ RUN pip install --no-cache-dir -r /home/openclaw/requirements.txt
 COPY --chown=openclaw:openclaw gato_brain.py /home/openclaw/gato_brain.py
 COPY --chown=openclaw:openclaw corpus_probe.py /home/openclaw/corpus_probe.py
 COPY --chown=openclaw:openclaw intent_router.py /home/openclaw/intent_router.py
+COPY --chown=openclaw:openclaw query_templates.py /home/openclaw/query_templates.py
 
 # Copy entrypoint
 COPY --chown=openclaw:openclaw entrypoint.sh /home/openclaw/entrypoint.sh

@@ -20,6 +20,7 @@ from supabase import create_client, Client
 
 import corpus_probe
 import intent_router
+import query_templates
 
 # ─── Configuration ───────────────────────────────────────────────────
 
