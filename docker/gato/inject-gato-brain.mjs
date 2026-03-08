@@ -31,8 +31,8 @@ const middleware = `
           signal: AbortSignal.timeout(30000),
         });
         if (res.ok) {
-          const data = await res.json() as Record<string, unknown>;
-          const reply = (data.response ?? data.message ?? "") as string;
+          const data = await res.json();
+          const reply = String((data as any).response || "");
           if (reply) {
             await ctx.reply(reply);
             return; // handled — skip OpenClaw's default path
