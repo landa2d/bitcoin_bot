@@ -37,7 +37,7 @@ services:
       - ../skills:/home/openclaw/skills:ro
       - ../config:/home/openclaw/.openclaw/config:ro
       - ../config/persona.md:/home/openclaw/persona.md:ro
-    mem_limit: 2g
+    mem_limit: 4g
     networks:
       - agentpulse-net
     logging:
