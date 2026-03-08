@@ -220,21 +220,19 @@ async function handleSubscribe() {
     btn.textContent = 'Subscribing...';
 
     try {
+        var newPref = pref ? pref.value : 'impact';
         var { data, error } = await sb
             .from('subscribers')
-            .insert({
+            .upsert({
                 email: email,
-                mode_preference: pref ? pref.value : 'impact',
-                status: 'active'
-            });
+                mode_preference: newPref,
+                status: 'active',
+                unsubscribed_at: null
+            }, { onConflict: 'email' })
+            .select('mode_preference');
 
         if (error) {
-            if (error.code === '23505') { // unique violation
-                status.textContent = 'This email is already subscribed.';
-                status.style.color = 'var(--color-muted)';
-            } else {
-                throw error;
-            }
+            throw error;
         } else {
             status.textContent = "You're in! You'll receive the next edition.";
             status.style.color = 'var(--color-accent)';

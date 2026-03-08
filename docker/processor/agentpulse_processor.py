@@ -660,6 +660,20 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
             "estimated_cost": round(cost, 6),
             "duration_ms": duration_ms,
         }).execute()
+
+        # Wallet deduction (fire-and-forget)
+        try:
+            wp = get_full_config().get("wallet_pricing", {})
+            sats_cost = wp.get(model, wp.get("default", 10))
+            supabase.rpc("record_agent_spend", {
+                "p_agent_name": agent_name,
+                "p_amount_sats": sats_cost,
+                "p_counterparty": f"api:{model}",
+                "p_description": f"{model} [{task_type}]",
+            }).execute()
+        except Exception:
+            pass  # wallet failures are non-critical
+
     except Exception as e:
         logger.warning(f"Failed to log LLM call: {e}")
 
@@ -5256,6 +5270,50 @@ def process_queue():
         finally:
             task_file.unlink()  # Remove processed task
 
+def get_agent_wallets() -> dict:
+    """Return all agent wallet balances."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+    try:
+        result = supabase.table('agent_wallets').select('*').order('agent_name').execute()
+        return {'wallets': result.data or []}
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def get_agent_ledger(agent_name: str, limit: int = 10) -> dict:
+    """Return recent transactions for an agent."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+    try:
+        result = supabase.table('agent_transactions') \
+            .select('*') \
+            .eq('agent_name', agent_name) \
+            .order('created_at', desc=True) \
+            .limit(limit) \
+            .execute()
+        return {'agent': agent_name, 'transactions': result.data or []}
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def topup_agent(agent_name: str, amount_sats: int) -> dict:
+    """Top up an agent's wallet."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+    try:
+        supabase.rpc('topup_agent_wallet', {
+            'p_agent_name': agent_name,
+            'p_amount_sats': amount_sats,
+        }).execute()
+        # Return updated balance
+        result = supabase.table('agent_wallets').select('*').eq('agent_name', agent_name).execute()
+        wallet = (result.data or [None])[0]
+        return {'agent': agent_name, 'topped_up': amount_sats, 'wallet': wallet}
+    except Exception as e:
+        return {'error': str(e)}
+
+
 def execute_task(task: dict) -> dict:
     """Execute a queued task."""
     task_type = task.get('task')
@@ -5875,6 +5933,22 @@ def execute_task(task: dict) -> dict:
             return {'error': 'No topic provided'}
         return add_watch_topic(topic)
 
+    elif task_type == 'get_agent_wallets':
+        return get_agent_wallets()
+
+    elif task_type == 'get_agent_ledger':
+        return get_agent_ledger(
+            agent_name=params.get('agent_name', 'processor'),
+            limit=params.get('limit', 10),
+        )
+
+    elif task_type == 'topup_agent':
+        agent = params.get('agent_name', '')
+        amount = params.get('amount_sats', 0)
+        if not agent or not amount:
+            return {'error': 'agent_name and amount_sats required'}
+        return topup_agent(agent, int(amount))
+
     else:
         return {'error': f'Unknown task: {task_type}'}
 
@@ -6123,11 +6197,15 @@ def send_email_newsletter(newsletter: dict) -> dict:
                     # Send builder version
                     subject_b = "AgentPulse #" + str(edition) + " [Builder]: " + builder_title
                     html_b = render_newsletter_html(builder_title, builder_md, unsub_url, edition, mode="builder")
-                    resend.Emails.send(_build_email_params(from_addr, email, subject_b, html_b, unsub_url, edition, "builder"))
+                    resp_b = resend.Emails.send(_build_email_params(from_addr, email, subject_b, html_b, unsub_url, edition, "builder"))
+                    rid_b = resp_b.get('id') if isinstance(resp_b, dict) else getattr(resp_b, 'id', None)
+                    _log_email(sub_id, email, 'newsletter', subject_b, mode='builder', edition=edition, resend_id=rid_b)
                     # Send impact version
                     subject_i = "AgentPulse #" + str(edition) + " [Impact]: " + impact_title
                     html_i = render_newsletter_html(impact_title, impact_md, unsub_url, edition, mode="impact")
-                    resend.Emails.send(_build_email_params(from_addr, email, subject_i, html_i, unsub_url, edition, "impact"))
+                    resp_i = resend.Emails.send(_build_email_params(from_addr, email, subject_i, html_i, unsub_url, edition, "impact"))
+                    rid_i = resp_i.get('id') if isinstance(resp_i, dict) else getattr(resp_i, 'id', None)
+                    _log_email(sub_id, email, 'newsletter', subject_i, mode='impact', edition=edition, resend_id=rid_i)
                     sent += 2
                 else:
                     if pref == 'builder':
@@ -6137,10 +6215,13 @@ def send_email_newsletter(newsletter: dict) -> dict:
 
                     subject = "AgentPulse #" + str(edition) + ": " + title
                     html = render_newsletter_html(title, content, unsub_url, edition, mode=pref)
-                    resend.Emails.send(_build_email_params(from_addr, email, subject, html, unsub_url, edition, pref))
+                    resp = resend.Emails.send(_build_email_params(from_addr, email, subject, html, unsub_url, edition, pref))
+                    rid = resp.get('id') if isinstance(resp, dict) else getattr(resp, 'id', None)
+                    _log_email(sub_id, email, 'newsletter', subject, mode=pref, edition=edition, resend_id=rid)
                     sent += 1
 
             except Exception as e:
+                _log_email(sub_id, email, 'newsletter', f"AgentPulse #{edition}", mode=pref, edition=edition, status='failed', error_message=str(e))
                 logger.error("Failed to send email to %s: %s", email, e)
                 errors += 1
 
@@ -6327,6 +6408,27 @@ def _render_welcome_email_html(unsubscribe_url: str) -> str:
 </html>"""
 
 
+def _log_email(subscriber_id, email, email_type, subject, mode=None, edition=None, resend_id=None, status='sent', error_message=None):
+    """Log an email send attempt to the email_log table."""
+    if not supabase:
+        return
+    try:
+        row = {
+            'subscriber_id': subscriber_id,
+            'email': email,
+            'email_type': email_type,
+            'subject': subject,
+            'mode': mode,
+            'edition_number': edition,
+            'resend_id': resend_id,
+            'status': status,
+            'error_message': error_message,
+        }
+        supabase.table('email_log').insert(row).execute()
+    except Exception as e:
+        logger.warning("Failed to log email to email_log: %s", e)
+
+
 def send_welcome_email(subscriber: dict) -> bool:
     """Send a one-time welcome email to a new subscriber. Returns True on success."""
     if not RESEND_API_KEY:
@@ -6336,13 +6438,14 @@ def send_welcome_email(subscriber: dict) -> bool:
     email = subscriber['email']
     sub_id = subscriber['id']
     unsub_url = "https://aiagentspulse.com/#/unsubscribe?id=" + str(sub_id)
+    subject = "You're in. Here's what this actually is."
 
     try:
         html = _render_welcome_email_html(unsub_url)
-        resend.Emails.send({
+        resp = resend.Emails.send({
             "from": "AgentPulse <newsletter@contact.aiagentspulse.com>",
             "to": [email],
-            "subject": "You're in. Here's what this actually is.",
+            "subject": subject,
             "html": html,
             "headers": {
                 "List-Unsubscribe": "<" + unsub_url + ">",
@@ -6350,9 +6453,12 @@ def send_welcome_email(subscriber: dict) -> bool:
             },
             "tags": [{"name": "type", "value": "welcome"}]
         })
-        logger.info("Welcome email sent to %s", email)
+        resend_id = resp.get('id') if isinstance(resp, dict) else getattr(resp, 'id', None)
+        _log_email(sub_id, email, 'welcome', subject, resend_id=resend_id)
+        logger.info("Welcome email sent to %s (resend_id=%s)", email, resend_id)
         return True
     except Exception as e:
+        _log_email(sub_id, email, 'welcome', subject, status='failed', error_message=str(e))
         logger.error("Failed to send welcome email to %s: %s", email, e)
         return False
 
@@ -7164,7 +7270,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats', 'personal_briefing'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats', 'personal_briefing', 'get_agent_wallets', 'get_agent_ledger', 'topup_agent'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -7287,6 +7393,18 @@ def main():
     elif args.task == 'personal_briefing':
         result = generate_personal_briefing()
         print(json.dumps(result, indent=2))
+
+    elif args.task == 'get_agent_wallets':
+        result = get_agent_wallets()
+        print(json.dumps(result, default=str, indent=2))
+
+    elif args.task == 'get_agent_ledger':
+        result = get_agent_ledger('processor')
+        print(json.dumps(result, default=str, indent=2))
+
+    elif args.task == 'topup_agent':
+        result = topup_agent('processor', 10000)
+        print(json.dumps(result, default=str, indent=2))
 
     elif args.task == 'queue':
         process_queue()
