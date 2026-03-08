@@ -379,6 +379,18 @@ def _load_pricing() -> dict:
     return {}
 
 
+def _load_wallet_pricing() -> dict:
+    """Load wallet pricing config from agentpulse-config.json."""
+    config_path = Path(OPENCLAW_DATA_DIR) / "config" / "agentpulse-config.json"
+    try:
+        if config_path.exists():
+            with open(config_path) as f:
+                return json.load(f).get("wallet_pricing", {})
+    except Exception:
+        pass
+    return {}
+
+
 def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
     """Log an LLM call with token counts and estimated cost."""
     try:
@@ -399,6 +411,20 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
             "estimated_cost": round(cost, 6),
             "duration_ms": duration_ms,
         }).execute()
+
+        # Wallet deduction (fire-and-forget)
+        try:
+            wp = _load_wallet_pricing()
+            sats_cost = wp.get(model, wp.get("default", 10))
+            supabase.rpc("record_agent_spend", {
+                "p_agent_name": agent_name,
+                "p_amount_sats": sats_cost,
+                "p_counterparty": f"api:{model}",
+                "p_description": f"{model} [{task_type}]",
+            }).execute()
+        except Exception:
+            pass  # wallet failures are non-critical
+
     except Exception as e:
         logger.warning(f"Failed to log LLM call: {e}")
 

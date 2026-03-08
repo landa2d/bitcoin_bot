@@ -109,5 +109,13 @@
     "deepseek-chat": {"input": 0.27, "output": 1.10, "provider": "deepseek"},
     "deepseek-reasoner": {"input": 0.55, "output": 2.19, "provider": "deepseek"},
     "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00, "provider": "anthropic"}
+  },
+  "wallet_pricing": {
+    "deepseek-chat": 2,
+    "deepseek-reasoner": 5,
+    "gpt-4o-mini": 5,
+    "gpt-4o": 50,
+    "claude-sonnet-4-20250514": 80,
+    "default": 10
   }
 }

@@ -215,6 +215,20 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
             "estimated_cost": round(cost, 6),
             "duration_ms": duration_ms,
         }).execute()
+
+        # Wallet deduction (fire-and-forget)
+        try:
+            wp = (_budget_config_cache or {}).get("wallet_pricing", {})
+            sats_cost = wp.get(model, wp.get("default", 10))
+            supabase.rpc("record_agent_spend", {
+                "p_agent_name": agent_name,
+                "p_amount_sats": sats_cost,
+                "p_counterparty": f"api:{model}",
+                "p_description": f"{model} [{task_type}]",
+            }).execute()
+        except Exception:
+            pass  # wallet failures are non-critical
+
     except Exception as e:
         logger.warning(f"Failed to log LLM call: {e}")
 
