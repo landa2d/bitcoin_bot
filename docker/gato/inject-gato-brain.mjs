@@ -38,8 +38,8 @@ const middleware = `
             return; // handled — skip OpenClaw's default path
           }
         }
-      } catch (err) {
-        console.error("[gato-brain] middleware error, falling through to OpenClaw:", err?.message ?? err);
+      } catch (err: any) {
+        console.error("[gato-brain] middleware error, falling through to OpenClaw:", String(err));
       }
     }
     await next();
