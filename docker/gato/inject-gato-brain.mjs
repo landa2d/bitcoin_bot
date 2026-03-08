@@ -28,7 +28,7 @@ const middleware = `
             message: text,
             message_type: "text",
           }),
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(30000),
         });
         if (res.ok) {
           const data = await res.json() as Record<string, unknown>;
@@ -38,8 +38,8 @@ const middleware = `
             return; // handled — skip OpenClaw's default path
           }
         }
-      } catch {
-        // gato-brain unreachable or timed out — fall through to OpenClaw
+      } catch (err) {
+        console.error("[gato-brain] middleware error, falling through to OpenClaw:", err?.message ?? err);
       }
     }
     await next();
