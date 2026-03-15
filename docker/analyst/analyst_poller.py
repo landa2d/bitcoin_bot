@@ -15,6 +15,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import httpx
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from supabase import create_client, Client
@@ -126,6 +127,73 @@ def load_skill(skill_dir: Path) -> str:
         _skill_cache = ""
 
     return _skill_cache
+
+
+# ---------------------------------------------------------------------------
+# Economics context (self-awareness)
+# ---------------------------------------------------------------------------
+
+LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://gato_brain:8100")
+_agent_api_key: str | None = os.getenv("AGENT_API_KEY") or None
+
+_economics_cache: str | None = None
+_economics_fetched_at: float = 0
+_ECONOMICS_TTL = 300  # refresh every 5 minutes
+
+
+def _get_agent_api_key() -> str:
+    """Return cached API key, or look it up from Supabase on first call."""
+    global _agent_api_key
+    if _agent_api_key:
+        return _agent_api_key
+    try:
+        result = supabase.table("agent_api_keys").select("api_key").eq("agent_name", AGENT_NAME).limit(1).execute()
+        if result.data:
+            _agent_api_key = result.data[0]["api_key"]
+            return _agent_api_key
+    except Exception:
+        pass
+    return ""
+
+
+def fetch_economics_block() -> str:
+    """Fetch spending summary from the proxy and format as a system prompt block.
+    Non-blocking: returns empty string on any failure."""
+    global _economics_cache, _economics_fetched_at
+
+    now = time.time()
+    if _economics_cache is not None and (now - _economics_fetched_at) < _ECONOMICS_TTL:
+        return _economics_cache
+
+    api_key = _get_agent_api_key()
+    if not api_key:
+        return ""
+
+    try:
+        resp = httpx.get(
+            f"{LLM_PROXY_URL}/v1/proxy/wallet/{AGENT_NAME}/summary?period=7d",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=5,
+        )
+        if resp.status_code != 200:
+            logger.debug(f"Economics fetch returned {resp.status_code}")
+            return _economics_cache or ""
+        d = resp.json()
+        trend_str = d.get("trend_vs_previous_period", "flat").replace("_", " ").replace("pct", "%")
+        _economics_cache = (
+            "\n\n---\n"
+            "YOUR ECONOMICS (last 7 days):\n"
+            f"Balance: {d['balance_sats']:,} sats | Spent: {d['spent_sats']:,} sats | Calls: {d['calls']:,}\n"
+            f"Budget utilization: {d['budget_utilization_pct']}% of {d['spending_cap_sats']:,} sats {d['spending_cap_window']} cap\n"
+            f"Cap hits: {d['cap_hits_in_period']} | Trend: {trend_str}\n"
+            "---"
+        )
+        _economics_fetched_at = now
+        logger.info(f"Economics context refreshed: {d['spent_sats']} sats spent, {d['calls']} calls")
+    except Exception as e:
+        logger.debug(f"Economics fetch failed (non-critical): {e}")
+
+    return _economics_cache or ""
 
 
 # ---------------------------------------------------------------------------
@@ -427,6 +495,7 @@ def run_analysis(task_type: str, input_data: dict, budget_config: dict) -> dict:
 
     system_prompt = f"{identity}\n\n---\n\nSKILL REFERENCE:\n{skill}"
     system_prompt += "\n\nYou MUST respond with valid JSON only — no markdown fences, no extra text."
+    system_prompt += fetch_economics_block()
 
     user_msg = (
         f"TASK TYPE: {task_type}\n\n"

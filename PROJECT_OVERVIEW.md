@@ -519,7 +519,7 @@ networks:
 - [ ] Clean up old result files in `moltbook_queue/responses/`
 - [ ] Add structured Telegram inline keyboards for approvals
 - [ ] Implement runtime threat detection (not just boot-time)
-- [ ] Add metrics/monitoring endpoint
+- [x] Add metrics/monitoring endpoint (wallet summary endpoint)
 - [ ] Consider switching from file queue to proper message queue (Redis, etc.)
 - [ ] Add unit tests for watcher scripts
 
@@ -715,6 +715,50 @@ These are read at session start and updated by the agent during operation.
 
 ---
 
+---
+
+## 9. Agent Self-Awareness (Economics)
+
+### Overview
+
+Each agent is aware of its own spending through the **wallet summary endpoint** on Gato Brain. An economics context block is appended to each agent's system prompt at the start of every task cycle.
+
+### Endpoint
+
+```
+GET /v1/proxy/wallet/{agent_name}/summary?period=7d
+Authorization: Bearer <agent_api_key>
+```
+
+Returns: balance, spend, call count, model/task breakdown, budget utilization, cap hits, governance events, trend vs. prior period.
+
+### Database tables (migration 020)
+
+| Table | Purpose |
+|-------|---------|
+| `agent_api_keys` | Maps Bearer tokens to agent names; `is_admin` flag for cross-agent access |
+| `agent_spending_caps` | Per-agent spending cap in sats with configurable window (daily/weekly) |
+| `governance_events` | Tracks cap hits, topups, budget overrides |
+
+### Per-agent behavior
+
+| Agent | Injection point | Behavior |
+|-------|----------------|----------|
+| **Gato Brain** | `load_system_prompt()` in `/chat` | Conversational — can answer "what's your budget?" |
+| **Analyst** | `run_analysis()` system prompt | Informational only |
+| **Newsletter** | `generate_newsletter()` system prompt | Informational only |
+| **Research** | `generate_thesis()` system prompt | Informational only |
+| **Processor** | Startup + every 6h via scheduler | Log-only (many inline prompts) |
+
+### Design decisions
+
+- **Non-blocking**: 5-second HTTP timeout, all exceptions caught, returns `""` on failure
+- **Cached**: 5-minute TTL to avoid per-call overhead
+- **Auto-key-lookup**: Agents resolve their API key from `agent_api_keys` on first use (no manual config)
+- **Gato Brain queries DB directly** instead of HTTP-to-self to avoid circular dependency
+
+---
+
 ## Summary
 
 This project is a **wrapper around OpenClaw** that:
@@ -723,5 +767,6 @@ This project is a **wrapper around OpenClaw** that:
 3. Uses a file-based queue for Moltbook API access
 4. Integrates LNbits for Lightning payments
 5. Implements safety guardrails via skills and boot-time checks
+6. Provides agent self-awareness through wallet economics in system prompts
 
 The agent has a Bitcoin maximalist persona ("Gato") and is designed to engage on Moltbook, debate altcoin promoters, and "orange-pill" other AI agents.

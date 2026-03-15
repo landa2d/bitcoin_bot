@@ -61,6 +61,8 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('AGENTPULSE_OPENAI_MODEL', 'gpt-4o')
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 DEEPSEEK_BASE_URL = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
+LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://gato_brain:8100")
+_agent_api_key: str | None = os.getenv("AGENT_API_KEY") or None
 
 # Hacker News
 HN_API_BASE = 'https://hacker-news.firebaseio.com/v0'
@@ -5419,6 +5421,45 @@ def process_queue():
         finally:
             task_file.unlink()  # Remove processed task
 
+def _get_agent_api_key() -> str:
+    """Return cached API key, or look it up from Supabase on first call."""
+    global _agent_api_key
+    if _agent_api_key:
+        return _agent_api_key
+    try:
+        result = supabase.table("agent_api_keys").select("api_key").eq("agent_name", "processor").limit(1).execute()
+        if result.data:
+            _agent_api_key = result.data[0]["api_key"]
+            return _agent_api_key
+    except Exception:
+        pass
+    return ""
+
+
+def log_economics_context():
+    """Fetch and log processor economics from the proxy. Non-blocking."""
+    api_key = _get_agent_api_key()
+    if not api_key:
+        return
+    try:
+        resp = httpx.get(
+            f"{LLM_PROXY_URL}/v1/proxy/wallet/processor/summary?period=7d",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=5,
+        )
+        if resp.status_code != 200:
+            return
+        d = resp.json()
+        trend_str = d.get("trend_vs_previous_period", "flat").replace("_", " ").replace("pct", "%")
+        logger.info(
+            f"[ECONOMICS] Balance: {d['balance_sats']:,} sats | "
+            f"Spent: {d['spent_sats']:,} sats | Calls: {d['calls']:,} | "
+            f"Utilization: {d['budget_utilization_pct']}% | Trend: {trend_str}"
+        )
+    except Exception as e:
+        logger.debug(f"Economics fetch failed (non-critical): {e}")
+
+
 def get_agent_wallets() -> dict:
     """Return all agent wallet balances."""
     if not supabase:
@@ -8670,6 +8711,8 @@ def setup_scheduler():
     # Health checks — every 30 min
     schedule.every(30).minutes.do(scheduled_health_check)
 
+    schedule.every(6).hours.do(log_economics_context)
+
     logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h, trending every 12h")
     logger.info("Multi-source: HN scrape every 6h, GitHub scrape every 12h, RSS scrape every 6h, thought leaders every 6h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
@@ -8880,6 +8923,9 @@ def main():
             except Exception as e:
                 logger.error(f"Initial cache refresh failed: {e}")
         
+        # Log economics at startup
+        log_economics_context()
+
         # Main loop: file queue + DB tasks + scheduled tasks
         logger.info("Starting queue watcher (multi-agent mode)...")
         welcome_check_counter = 0

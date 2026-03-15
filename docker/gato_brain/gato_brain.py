@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 
 import anthropic
 import httpx
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Query, Request
 from pydantic import BaseModel
 from supabase import create_client, Client
 
@@ -38,6 +38,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 PORT = int(os.getenv("GATO_BRAIN_PORT", "8100"))
+WALLET_AGENT_NAME = os.getenv("WALLET_AGENT_NAME", "gato")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 
 SESSION_TIMEOUT_MINUTES = 60
@@ -118,6 +119,74 @@ def load_system_prompt() -> str:
         "Back up claims with facts. Be witty but substantive."
     )
     return _system_prompt_cache
+
+
+# ─── Economics context (self-awareness) ──────────────────────────────
+
+_economics_cache: str | None = None
+_economics_fetched_at: float = 0
+_ECONOMICS_TTL = 300
+
+
+def fetch_economics_block() -> str:
+    """Fetch Gato's spending summary from our own endpoint and format for the system prompt.
+    Non-blocking: returns empty string on any failure.
+    Gato gets conversational framing so it can answer user questions about its budget."""
+    global _economics_cache, _economics_fetched_at
+
+    now = time.time()
+    if _economics_cache is not None and (now - _economics_fetched_at) < _ECONOMICS_TTL:
+        return _economics_cache
+
+    try:
+        # Query Supabase directly rather than HTTP to self to avoid circular dependency.
+        wallet_res = supabase.table("agent_wallets").select("*").eq("agent_name", WALLET_AGENT_NAME).limit(1).execute()
+        if not wallet_res.data:
+            return ""
+        wallet = wallet_res.data[0]
+
+        seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+
+        txns = (
+            supabase.table("agent_transactions")
+            .select("amount_sats")
+            .eq("agent_name", WALLET_AGENT_NAME)
+            .eq("transaction_type", "spend")
+            .gte("created_at", seven_days_ago)
+            .execute()
+        )
+        spent_sats = sum(t["amount_sats"] for t in (txns.data or []))
+
+        calls_data = (
+            supabase.table("llm_call_log")
+            .select("model, estimated_cost")
+            .eq("agent_name", WALLET_AGENT_NAME)
+            .gte("created_at", seven_days_ago)
+            .execute()
+        )
+        rows = calls_data.data or []
+        total_calls = len(rows)
+
+        cap_res = supabase.table("agent_spending_caps").select("cap_sats, window").eq("agent_name", WALLET_AGENT_NAME).limit(1).execute()
+        cap_row = (cap_res.data or [None])[0]
+        cap_sats = cap_row["cap_sats"] if cap_row else 0
+        cap_window = cap_row["window"] if cap_row else "daily"
+        util = round((spent_sats / cap_sats) * 100, 1) if cap_sats > 0 else 0.0
+
+        _economics_cache = (
+            "\n\n---\n"
+            "YOUR ECONOMICS (last 7 days) — you may share this when users ask about your costs, "
+            "budget, spending, or how much you cost to run:\n"
+            f"Balance: {wallet['balance_sats']:,} sats | Spent: {spent_sats:,} sats | Calls: {total_calls:,}\n"
+            f"Budget utilization: {util}% of {cap_sats:,} sats {cap_window} cap\n"
+            "---"
+        )
+        _economics_fetched_at = now
+        logger.info(f"Economics context refreshed: {spent_sats} sats spent, {total_calls} calls")
+    except Exception as e:
+        logger.debug(f"Economics fetch failed (non-critical): {e}")
+
+    return _economics_cache or ""
 
 
 # ─── Supabase helpers ────────────────────────────────────────────────
@@ -1033,6 +1102,194 @@ def handle_x_command(message: str) -> str:
         return f"Command failed: {e}"
 
 
+# ─── Agent Wallet Summary ─────────────────────────────────────────
+
+def _resolve_api_key(authorization: str | None) -> dict | None:
+    """Look up agent_api_keys row from Bearer token. Returns None on miss."""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    token = authorization[7:].strip()
+    if not token:
+        return None
+    try:
+        result = supabase.table("agent_api_keys").select("*").eq("api_key", token).limit(1).execute()
+        return result.data[0] if result.data else None
+    except Exception:
+        return None
+
+
+def _parse_period(period: str | None, from_date: str | None, to_date: str | None):
+    """Return (start_dt, end_dt, label) or raise HTTPException(400)."""
+    now = datetime.now(timezone.utc)
+    if from_date and to_date:
+        try:
+            start = datetime.fromisoformat(from_date).replace(tzinfo=timezone.utc)
+            end = datetime.fromisoformat(to_date).replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(400, "Invalid date format. Use YYYY-MM-DD.")
+        return start, end, f"{from_date}_to_{to_date}"
+
+    mapping = {"1d": 1, "7d": 7, "30d": 30}
+    if period not in mapping:
+        raise HTTPException(400, f"Invalid period '{period}'. Use 1d, 7d, 30d, or from/to date params.")
+    days = mapping[period]
+    start = now - timedelta(days=days)
+    return start, now, period
+
+
+@app.get("/v1/proxy/wallet/{agent_name}/summary")
+async def wallet_summary(
+    agent_name: str,
+    period: str = Query("7d"),
+    from_date: str | None = Query(None, alias="from"),
+    to_date: str | None = Query(None, alias="to"),
+    authorization: str | None = Header(None),
+):
+    """Agent self-awareness: spending summary for a given period."""
+    # ── Auth ──
+    key_row = _resolve_api_key(authorization)
+    if not key_row:
+        raise HTTPException(401, "Missing or invalid API key")
+
+    if not key_row["is_admin"] and key_row["agent_name"] != agent_name:
+        raise HTTPException(403, "Agents can only view their own wallet")
+
+    # ── Agent exists? ──
+    wallet_res = supabase.table("agent_wallets").select("*").eq("agent_name", agent_name).limit(1).execute()
+    if not wallet_res.data:
+        raise HTTPException(404, f"Agent '{agent_name}' not found")
+    wallet = wallet_res.data[0]
+
+    # ── Period ──
+    start_dt, end_dt, period_label = _parse_period(period, from_date, to_date)
+    iso_start = start_dt.isoformat()
+    iso_end = end_dt.isoformat()
+
+    # ── Spend in period (from agent_transactions) ──
+    txns = (
+        supabase.table("agent_transactions")
+        .select("amount_sats")
+        .eq("agent_name", agent_name)
+        .eq("transaction_type", "spend")
+        .gte("created_at", iso_start)
+        .lte("created_at", iso_end)
+        .execute()
+    )
+    spent_sats = sum(t["amount_sats"] for t in (txns.data or []))
+
+    # ── LLM call log stats in period ──
+    calls_data = (
+        supabase.table("llm_call_log")
+        .select("model, task_type, estimated_cost")
+        .eq("agent_name", agent_name)
+        .gte("created_at", iso_start)
+        .lte("created_at", iso_end)
+        .execute()
+    )
+    rows = calls_data.data or []
+    total_calls = len(rows)
+    total_cost_usd = sum(r.get("estimated_cost", 0) or 0 for r in rows)
+    spent_usd_cents = round(total_cost_usd * 100)
+
+    # Models breakdown
+    models_used: dict[str, int] = {}
+    for r in rows:
+        m = r.get("model", "unknown")
+        models_used[m] = models_used.get(m, 0) + 1
+
+    # Task type breakdown
+    top_task_types: dict[str, int] = {}
+    for r in rows:
+        tt = r.get("task_type")
+        if tt:
+            top_task_types[tt] = top_task_types.get(tt, 0) + 1
+
+    avg_cost = spent_sats // total_calls if total_calls > 0 else 0
+
+    # ── Balance USD (approximate: use total_cost_usd ratio) ──
+    # Approximate balance in USD cents from the sats/usd ratio in this period
+    if spent_sats > 0 and spent_usd_cents > 0:
+        sats_per_cent = spent_sats / spent_usd_cents
+        balance_usd_cents = round(wallet["balance_sats"] / sats_per_cent) if sats_per_cent > 0 else 0
+    else:
+        balance_usd_cents = 0
+
+    # ── Spending cap ──
+    cap_res = supabase.table("agent_spending_caps").select("*").eq("agent_name", agent_name).limit(1).execute()
+    cap_row = (cap_res.data or [None])[0]
+    spending_cap_sats = cap_row["cap_sats"] if cap_row else 0
+    spending_cap_window = cap_row["window"] if cap_row else "daily"
+
+    budget_util = round((spent_sats / spending_cap_sats) * 100, 1) if spending_cap_sats > 0 else 0.0
+
+    # ── Governance events in period ──
+    gov_res = (
+        supabase.table("governance_events")
+        .select("id", count="exact")
+        .eq("agent_name", agent_name)
+        .gte("created_at", iso_start)
+        .lte("created_at", iso_end)
+        .execute()
+    )
+    governance_count = gov_res.count if gov_res.count is not None else 0
+
+    # Cap hits in period
+    cap_res2 = (
+        supabase.table("governance_events")
+        .select("id", count="exact")
+        .eq("agent_name", agent_name)
+        .eq("event_type", "cap_hit")
+        .gte("created_at", iso_start)
+        .lte("created_at", iso_end)
+        .execute()
+    )
+    cap_hits = cap_res2.count if cap_res2.count is not None else 0
+
+    # ── Trend vs previous period ──
+    period_length = end_dt - start_dt
+    prev_start = start_dt - period_length
+    prev_end = start_dt
+    prev_txns = (
+        supabase.table("agent_transactions")
+        .select("amount_sats")
+        .eq("agent_name", agent_name)
+        .eq("transaction_type", "spend")
+        .gte("created_at", prev_start.isoformat())
+        .lt("created_at", prev_end.isoformat())
+        .execute()
+    )
+    prev_spent = sum(t["amount_sats"] for t in (prev_txns.data or []))
+    if prev_spent > 0:
+        pct_change = round(((spent_sats - prev_spent) / prev_spent) * 100)
+        if pct_change >= 0:
+            trend = f"up_{pct_change}pct"
+        else:
+            trend = f"down_{abs(pct_change)}pct"
+    elif spent_sats > 0:
+        trend = "new_activity"
+    else:
+        trend = "flat"
+
+    return {
+        "agent": agent_name,
+        "period": period_label,
+        "balance_sats": wallet["balance_sats"],
+        "balance_usd_cents": balance_usd_cents,
+        "spent_sats": spent_sats,
+        "spent_usd_cents": spent_usd_cents,
+        "calls": total_calls,
+        "avg_cost_per_call_sats": avg_cost,
+        "models_used": models_used,
+        "budget_utilization_pct": budget_util,
+        "spending_cap_sats": spending_cap_sats,
+        "spending_cap_window": spending_cap_window,
+        "cap_hits_in_period": cap_hits,
+        "governance_events_in_period": governance_count,
+        "trend_vs_previous_period": trend,
+        "top_task_types": top_task_types if top_task_types else None,
+    }
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     """Main chat endpoint — session management, rate limiting, response generation."""
@@ -1260,6 +1517,7 @@ async def chat(req: ChatRequest):
     # 10. Context assembly + generate response
     system_prompt = load_system_prompt()
     system_prompt += f"\n\nToday's date is {date.today().isoformat()}."
+    system_prompt += fetch_economics_block()
     response_text, generation_ms, output_tokens = generate_response(
         system_prompt, history[:-1], req.message,
         context_blocks=context_blocks if context_blocks else None,

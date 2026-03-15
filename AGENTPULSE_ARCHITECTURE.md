@@ -1825,6 +1825,81 @@ Send `/pulse-status` to Gato via Telegram and verify response.
 
 ---
 
+## 10. Agent Self-Awareness (Economics Layer)
+
+### Architecture
+
+Each agent is aware of its own spending via a wallet summary endpoint on Gato Brain (`GET /v1/proxy/wallet/{agent_name}/summary`). An economics context block is fetched and appended to system prompts at the start of each task cycle.
+
+### Authentication
+
+Agents authenticate with Bearer tokens stored in `agent_api_keys`. Each agent auto-resolves its key from Supabase on first call. Admin keys can view any agent; regular keys can only view their own wallet.
+
+### Database Schema (migration 020)
+
+```sql
+-- API key → agent name mapping
+agent_api_keys (id, agent_name, api_key UNIQUE, is_admin, created_at)
+
+-- Per-agent spending caps
+agent_spending_caps (id, agent_name UNIQUE, cap_sats, window, created_at, updated_at)
+
+-- Cap hits, topups, budget changes
+governance_events (id, agent_name, event_type, detail JSONB, created_at)
+```
+
+### Summary Endpoint Response
+
+```json
+{
+    "agent": "analyst",
+    "period": "7d",
+    "balance_sats": 24000,
+    "balance_usd_cents": 1880,
+    "spent_sats": 4000,
+    "spent_usd_cents": 312,
+    "calls": 2000,
+    "avg_cost_per_call_sats": 2,
+    "models_used": {"deepseek-chat": 2000},
+    "budget_utilization_pct": 14.3,
+    "spending_cap_sats": 28000,
+    "spending_cap_window": "daily",
+    "cap_hits_in_period": 2,
+    "governance_events_in_period": 3,
+    "trend_vs_previous_period": "down_12pct",
+    "top_task_types": {"prediction_monitoring": 1800, "full_analysis": 200}
+}
+```
+
+### System Prompt Block (injected into agents)
+
+```
+---
+YOUR ECONOMICS (last 7 days):
+Balance: 24,000 sats | Spent: 4,000 sats | Calls: 2,000
+Budget utilization: 14.3% of 28,000 sats daily cap
+Cap hits: 2 | Trend: down 12% vs prior week
+---
+```
+
+### Per-Agent Integration
+
+| Agent | File | Injection Point | Style |
+|-------|------|----------------|-------|
+| Gato Brain | `gato_brain.py` | `load_system_prompt()` in chat endpoint | Conversational (can answer budget questions) |
+| Analyst | `analyst_poller.py` | `run_analysis()` | Informational |
+| Newsletter | `newsletter_poller.py` | `generate_newsletter()` | Informational |
+| Research | `research_agent.py` | `generate_thesis()` | Informational |
+| Processor | `agentpulse_processor.py` | Startup + 6h scheduler | Log-only |
+
+### Design: Non-Blocking + Cached
+
+- 5-second HTTP timeout; all exceptions caught; returns `""` on failure
+- 5-minute TTL cache prevents per-call overhead
+- Gato Brain queries Supabase directly (no HTTP to self)
+
+---
+
 ## Next Steps After MVP
 
 1. **Pipeline 2: Investment Scanner** - Track tool mentions and sentiment

@@ -24,6 +24,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import anthropic
+import httpx
 from dotenv import load_dotenv
 from pydantic import ValidationError
 from supabase import create_client, Client
@@ -69,6 +70,10 @@ claude_client: anthropic.Anthropic | None = None
 SYSTEM_PROMPT_PATH = Path(__file__).resolve().parent / "IDENTITY.md"
 _system_prompt_cache: str | None = None
 _system_prompt_mtime: float = 0
+
+AGENT_NAME = os.getenv("AGENT_NAME", "research")
+LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://gato_brain:8100")
+_agent_api_key: str | None = os.getenv("AGENT_API_KEY") or None
 
 REQUIRED_OUTPUT_FIELDS = ["thesis", "evidence", "counter_argument", "prediction", "builder_implications"]
 
@@ -126,6 +131,70 @@ def load_system_prompt() -> str:
     _system_prompt_mtime = mtime
     logger.info("System prompt loaded/reloaded")
     return _system_prompt_cache
+
+
+# ============================================================================
+# Economics context (self-awareness)
+# ============================================================================
+
+_economics_cache: str | None = None
+_economics_fetched_at: float = 0
+_ECONOMICS_TTL = 300
+
+
+def _get_agent_api_key() -> str:
+    """Return cached API key, or look it up from Supabase on first call."""
+    global _agent_api_key
+    if _agent_api_key:
+        return _agent_api_key
+    try:
+        result = supabase.table("agent_api_keys").select("api_key").eq("agent_name", AGENT_NAME).limit(1).execute()
+        if result.data:
+            _agent_api_key = result.data[0]["api_key"]
+            return _agent_api_key
+    except Exception:
+        pass
+    return ""
+
+
+def fetch_economics_block() -> str:
+    """Fetch spending summary from the proxy and format as a system prompt block.
+    Non-blocking: returns empty string on any failure."""
+    global _economics_cache, _economics_fetched_at
+
+    now = time.time()
+    if _economics_cache is not None and (now - _economics_fetched_at) < _ECONOMICS_TTL:
+        return _economics_cache
+
+    api_key = _get_agent_api_key()
+    if not api_key:
+        return ""
+
+    try:
+        resp = httpx.get(
+            f"{LLM_PROXY_URL}/v1/proxy/wallet/{AGENT_NAME}/summary?period=7d",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=5,
+        )
+        if resp.status_code != 200:
+            logger.debug(f"Economics fetch returned {resp.status_code}")
+            return _economics_cache or ""
+        d = resp.json()
+        trend_str = d.get("trend_vs_previous_period", "flat").replace("_", " ").replace("pct", "%")
+        _economics_cache = (
+            "\n\n---\n"
+            "YOUR ECONOMICS (last 7 days):\n"
+            f"Balance: {d['balance_sats']:,} sats | Spent: {d['spent_sats']:,} sats | Calls: {d['calls']:,}\n"
+            f"Budget utilization: {d['budget_utilization_pct']}% of {d['spending_cap_sats']:,} sats {d['spending_cap_window']} cap\n"
+            f"Cap hits: {d['cap_hits_in_period']} | Trend: {trend_str}\n"
+            "---"
+        )
+        _economics_fetched_at = now
+        logger.info(f"Economics context refreshed: {d['spent_sats']} sats spent, {d['calls']} calls")
+    except Exception as e:
+        logger.debug(f"Economics fetch failed (non-critical): {e}")
+
+    return _economics_cache or ""
 
 
 # ============================================================================
@@ -435,7 +504,7 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
 
 def generate_thesis(context: str, mode: str = "spotlight") -> tuple[dict | None, dict]:
     """Call Claude with the Research Agent prompt. Returns (parsed_data, usage_stats)."""
-    system_prompt = load_system_prompt()
+    system_prompt = load_system_prompt() + fetch_economics_block()
 
     if mode == "synthesis":
         extra_instruction = "\n\nThis is a SYNTHESIS mode request. Connect the topics into a bigger picture thesis. Set mode='synthesis' in your output."

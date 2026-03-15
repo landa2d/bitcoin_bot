@@ -317,3 +317,32 @@ External services (OpenAI, LNbits, Moltbook)
 Persistent memory/logs live on your PC:
 `data/openclaw/`  ↔  mounted into container as  `/home/openclaw/.openclaw/`
 
+---
+
+## 13) Agent Economics / Self-Awareness
+
+Each agent knows how much it costs to run. When an agent starts a task cycle, it fetches its own spending summary from the LLM proxy (Gato Brain) and includes it in its system prompt:
+
+```
+---
+YOUR ECONOMICS (last 7 days):
+Balance: 24,000 sats | Spent: 4,000 sats | Calls: 2,000
+Budget utilization: 14.3% of 28,000 sats daily cap
+Cap hits: 2 | Trend: down 12% vs prior week
+---
+```
+
+- **Gato** can answer user questions like "how much have you spent this week?" naturally in conversation.
+- **Analyst, Newsletter, Research** see the block in their system prompts as informational context.
+- **Processor** logs economics to stdout at startup and every 6 hours but doesn't inject into prompts (it uses many one-line inline prompts).
+
+If the economics endpoint is unreachable, agents skip it and proceed normally — it's completely non-blocking.
+
+### How it works under the hood
+
+1. Each agent has an API key stored in the `agent_api_keys` table (auto-looked-up from Supabase on first call).
+2. The agent calls `GET /v1/proxy/wallet/{agent_name}/summary?period=7d` on the Gato Brain service.
+3. The response includes balance, spend, call counts, budget utilization, cap hits, trend vs. prior period, model breakdown, and task type breakdown.
+4. The agent formats this into a short text block and appends it to its system prompt.
+5. Results are cached for 5 minutes to avoid hammering the proxy on every LLM call.
+

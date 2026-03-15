@@ -102,3 +102,28 @@ The `environment:` block takes precedence over `env_file:`. The `${DEEPSEEK_API_
 - Added `backfill_null_target_dates()` that runs before expiry. It parses `target_date` from `prediction_text` for predictions with NULL dates, using the same regex patterns (Q-format, month-year, year-end). Once backfilled, the existing target-date expiry handles them.
 
 **Rule of thumb:** When an LLM must never produce X, add a validator that detects X in the output and triggers a retry. Two lines of regex are more reliable than two paragraphs of prompt instructions. For tracking columns added after launch, always include a backfill step that parses existing data.
+
+---
+
+## 8. Agent self-awareness must be non-blocking and cached
+
+**Problem:** We wanted each agent to include a spending summary in its system prompt so agents are aware of their own economics. The naive approach — call an HTTP endpoint before every LLM call — would add latency to every task and break agents if the proxy was down.
+
+**Design decisions:**
+1. **Non-blocking fetch with 5-second timeout.** All exceptions caught; returns empty string on failure. An agent should never fail because of missing economics data.
+2. **5-minute TTL cache.** The economics block doesn't change meaningfully between consecutive LLM calls within a task. Caching avoids hammering the proxy.
+3. **Gato Brain queries Supabase directly** instead of calling its own HTTP endpoint, avoiding a circular dependency at startup.
+4. **Auto-key-lookup from Supabase.** Instead of requiring operators to configure `AGENT_API_KEY` in every service's environment, each agent resolves its key from the `agent_api_keys` table on first use. One less thing to forget during deployment.
+5. **Processor uses log-only approach.** The processor has 10+ inline system prompts for different tasks (extraction, clustering, opportunity generation, etc.). Injecting economics into all of them would be invasive. Logging to stdout at startup and every 6 hours via the scheduler gives visibility without touching prompt construction.
+
+**Rule of thumb:** Self-awareness features must be strictly additive — they should enhance behavior when available but have zero impact when unavailable. Cache aggressively, fail silently, and prefer log-only for agents with many prompt paths.
+
+---
+
+## 9. HTTP-to-self creates circular startup dependencies
+
+**Problem:** Gato Brain hosts the `/v1/proxy/wallet/{agent_name}/summary` endpoint. If Gato Brain also calls that endpoint to get its own economics, it would need to HTTP-request itself — which fails during startup (server not yet listening) and adds unnecessary network hops.
+
+**Fix:** Gato Brain's `fetch_economics_block()` queries Supabase directly for the same data the endpoint would return. The HTTP endpoint exists for other agents on the Docker network; the host agent bypasses it.
+
+**Rule of thumb:** When a service needs data that it also serves, query the underlying data source directly rather than calling your own HTTP endpoint. This avoids startup ordering issues and eliminates a network round-trip.
