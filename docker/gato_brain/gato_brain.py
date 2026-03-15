@@ -7,6 +7,7 @@ Handles: session management, conversation memory, rate limiting, response genera
 
 import logging
 import os
+import re
 import time
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -712,6 +713,326 @@ def _start_daily_embed_scheduler():
     scheduler.run()
 
 
+# ─── X Distribution command handlers ─────────────────────────────────
+
+def _parse_nums(text: str) -> list[int]:
+    """Parse comma/space-separated integers from command arguments.
+    E.g. '/x-approve 108, 109 110' → [108, 109, 110]
+    """
+    return [int(n) for n in re.findall(r"\d+", text)]
+
+
+def _candidates_by_daily_index(daily_indexes: list[int]) -> list[dict]:
+    """Look up x_content_candidates rows by daily_index values."""
+    results = []
+    for idx in daily_indexes:
+        resp = (
+            supabase.table("x_content_candidates")
+            .select("id, daily_index, content_type, status, draft_content, suggested_angle, source_summary")
+            .eq("daily_index", idx)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if resp.data:
+            results.append(resp.data[0])
+    return results
+
+
+def _handle_x_approve(args: str) -> str:
+    nums = _parse_nums(args)
+    if not nums:
+        return "Usage: /x-approve [numbers]\nExample: /x-approve 108 109"
+
+    candidates = _candidates_by_daily_index(nums)
+    if not candidates:
+        return f"No candidates found with daily index {', '.join(str(n) for n in nums)}."
+
+    approved = []
+    already = []
+    for c in candidates:
+        if c["status"] == "approved":
+            already.append(c["daily_index"])
+            continue
+        supabase.table("x_content_candidates").update(
+            {"status": "approved"}
+        ).eq("id", c["id"]).execute()
+        approved.append(c["daily_index"])
+
+    parts = []
+    if approved:
+        parts.append(f"Approved: {', '.join(str(n) for n in approved)}")
+    if already:
+        parts.append(f"Already approved: {', '.join(str(n) for n in already)}")
+
+    missing = set(nums) - {c["daily_index"] for c in candidates}
+    if missing:
+        parts.append(f"Not found: {', '.join(str(n) for n in sorted(missing))}")
+
+    return "\n".join(parts)
+
+
+def _handle_x_reject(args: str) -> str:
+    nums = _parse_nums(args)
+    if not nums:
+        return "Usage: /x-reject [numbers]\nExample: /x-reject 108 109"
+
+    candidates = _candidates_by_daily_index(nums)
+    if not candidates:
+        return f"No candidates found with daily index {', '.join(str(n) for n in nums)}."
+
+    rejected = []
+    for c in candidates:
+        supabase.table("x_content_candidates").update(
+            {"status": "rejected"}
+        ).eq("id", c["id"]).execute()
+        rejected.append(c["daily_index"])
+
+    parts = [f"Rejected: {', '.join(str(n) for n in rejected)}"]
+    missing = set(nums) - {c["daily_index"] for c in candidates}
+    if missing:
+        parts.append(f"Not found: {', '.join(str(n) for n in sorted(missing))}")
+
+    return "\n".join(parts)
+
+
+def _handle_x_edit(args: str) -> str:
+    nums = _parse_nums(args)
+    if not nums:
+        return "Usage: /x-edit [number]\nExample: /x-edit 108"
+
+    candidates = _candidates_by_daily_index(nums[:1])
+    if not candidates:
+        return f"No candidate found with daily index {nums[0]}."
+
+    c = candidates[0]
+    draft = c.get("draft_content") or "(no draft yet)"
+    angle = c.get("suggested_angle") or ""
+    header = f"#{c['daily_index']} [{c['content_type']}] — {c['status']}"
+    parts = [header]
+    if angle:
+        parts.append(f"Angle: {angle}")
+    parts.append(f"\n{draft}")
+    parts.append(f"\nTo replace: /x-draft {c['daily_index']} [new text]")
+    return "\n".join(parts)
+
+
+def _handle_x_draft(args: str) -> str:
+    """Replace draft_content for a candidate. Format: /x-draft [num] [new text]"""
+    m = re.match(r"(\d+)\s+(.+)", args.strip(), re.DOTALL)
+    if not m:
+        return "Usage: /x-draft [number] [new text]\nExample: /x-draft 108 New tweet content here"
+
+    idx = int(m.group(1))
+    new_text = m.group(2).strip()
+    candidates = _candidates_by_daily_index([idx])
+    if not candidates:
+        return f"No candidate found with daily index {idx}."
+
+    c = candidates[0]
+    supabase.table("x_content_candidates").update(
+        {"draft_content": new_text}
+    ).eq("id", c["id"]).execute()
+    return f"Draft updated for #{idx}.\n\n{new_text}"
+
+
+def _handle_x_plan() -> str:
+    """Show today's content candidates."""
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    resp = (
+        supabase.table("x_content_candidates")
+        .select("daily_index, content_type, status, suggested_angle, draft_content, verification_status")
+        .gte("created_at", today_start.isoformat())
+        .order("daily_index")
+        .execute()
+    )
+    if not resp.data:
+        return "No X content candidates today."
+
+    lines = ["Today's X Content Plan\n"]
+    for c in resp.data:
+        idx = c.get("daily_index") or "?"
+        status_icon = {"candidate": "⏳", "approved": "✅", "rejected": "❌",
+                       "posted": "📤", "expired": "💤", "failed": "⚠️"}.get(c["status"], "•")
+        verif = ""
+        if c.get("verification_status") == "flagged":
+            verif = " ⚠️FLAGGED"
+        angle = c.get("suggested_angle") or ""
+        draft_preview = (c.get("draft_content") or "")[:80]
+        if len(c.get("draft_content") or "") > 80:
+            draft_preview += "…"
+
+        lines.append(f"{status_icon} #{idx} [{c['content_type']}] {angle}{verif}")
+        if draft_preview:
+            lines.append(f"   {draft_preview}")
+
+    # Summary counts
+    statuses = [c["status"] for c in resp.data]
+    lines.append(f"\n{len(resp.data)} candidates — "
+                 f"{statuses.count('candidate')} pending, "
+                 f"{statuses.count('approved')} approved, "
+                 f"{statuses.count('posted')} posted")
+    return "\n".join(lines)
+
+
+def _handle_x_posted() -> str:
+    """Show posts posted today."""
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    resp = (
+        supabase.table("x_content_candidates")
+        .select("daily_index, content_type, draft_content, posted_at, x_post_id")
+        .eq("status", "posted")
+        .gte("posted_at", today_start.isoformat())
+        .order("posted_at")
+        .execute()
+    )
+    if not resp.data:
+        return "No posts published today."
+
+    lines = ["Posted Today\n"]
+    for c in resp.data:
+        idx = c.get("daily_index") or "?"
+        preview = (c.get("draft_content") or "")[:100]
+        post_id = c.get("x_post_id") or ""
+        lines.append(f"📤 #{idx} [{c['content_type']}]")
+        if preview:
+            lines.append(f"   {preview}")
+        if post_id:
+            lines.append(f"   https://x.com/i/status/{post_id}")
+    return "\n".join(lines)
+
+
+def _handle_x_budget() -> str:
+    """Show X API spend for current week."""
+    today = date.today()
+    # Monday of current week
+    week_start = today - timedelta(days=today.weekday())
+    resp = (
+        supabase.table("x_api_budget")
+        .select("operation_type, estimated_cost, request_count")
+        .eq("week_start", week_start.isoformat())
+        .execute()
+    )
+    if not resp.data:
+        return f"No X API spend this week (week of {week_start.isoformat()})."
+
+    total_cost = sum(float(r.get("estimated_cost") or 0) for r in resp.data)
+    total_requests = sum(r.get("request_count") or 0 for r in resp.data)
+
+    lines = [f"X API Budget — Week of {week_start.isoformat()}\n"]
+    by_op: dict[str, dict] = {}
+    for r in resp.data:
+        op = r["operation_type"]
+        if op not in by_op:
+            by_op[op] = {"cost": 0.0, "requests": 0}
+        by_op[op]["cost"] += float(r.get("estimated_cost") or 0)
+        by_op[op]["requests"] += r.get("request_count") or 0
+
+    for op, data in sorted(by_op.items()):
+        lines.append(f"  {op}: ${data['cost']:.4f} ({data['requests']} requests)")
+
+    lines.append(f"\nTotal: ${total_cost:.4f} / $5.00 ({total_requests} requests)")
+    remaining = max(0, 5.0 - total_cost)
+    lines.append(f"Remaining: ${remaining:.4f}")
+    return "\n".join(lines)
+
+
+def _handle_x_watch(args: str) -> str:
+    """Add an X handle to the watchlist. Format: /x-watch handle [category]"""
+    parts = args.strip().split(None, 1)
+    if not parts:
+        return "Usage: /x-watch [handle] [category]\nExample: /x-watch @elonmusk tech"
+
+    handle = parts[0].lstrip("@")
+    category = parts[1] if len(parts) > 1 else None
+
+    row = {"x_handle": handle, "active": True}
+    if category:
+        row["category"] = category
+
+    try:
+        supabase.table("x_watchlist").upsert(row, on_conflict="x_handle").execute()
+        cat_msg = f" (category: {category})" if category else ""
+        return f"Added @{handle} to watchlist{cat_msg}."
+    except Exception as e:
+        logger.warning(f"x-watch failed: {e}")
+        return f"Failed to add @{handle}: {e}"
+
+
+def _handle_x_unwatch(args: str) -> str:
+    """Remove an X handle from the watchlist."""
+    handle = args.strip().lstrip("@")
+    if not handle:
+        return "Usage: /x-unwatch [handle]\nExample: /x-unwatch @elonmusk"
+
+    supabase.table("x_watchlist").update(
+        {"active": False}
+    ).eq("x_handle", handle).execute()
+    return f"Removed @{handle} from watchlist."
+
+
+def _handle_x_watchlist() -> str:
+    """Show active watchlist entries."""
+    resp = (
+        supabase.table("x_watchlist")
+        .select("x_handle, display_name, category, priority")
+        .eq("active", True)
+        .order("priority", desc=True)
+        .execute()
+    )
+    if not resp.data:
+        return "Watchlist is empty."
+
+    lines = ["X Watchlist\n"]
+    for w in resp.data:
+        name = w.get("display_name") or ""
+        cat = f" [{w['category']}]" if w.get("category") else ""
+        pri = f" (priority: {w['priority']})" if w.get("priority") else ""
+        display = f"@{w['x_handle']}"
+        if name:
+            display += f" ({name})"
+        lines.append(f"  {display}{cat}{pri}")
+
+    lines.append(f"\n{len(resp.data)} accounts watched")
+    return "\n".join(lines)
+
+
+def handle_x_command(message: str) -> str:
+    """Dispatch /x-* commands to their handlers."""
+    msg = message.strip()
+    # Split into command and args
+    parts = msg.split(None, 1)
+    cmd = parts[0].lower()
+    args = parts[1] if len(parts) > 1 else ""
+
+    try:
+        if cmd == "/x-approve":
+            return _handle_x_approve(args)
+        elif cmd == "/x-reject":
+            return _handle_x_reject(args)
+        elif cmd == "/x-edit":
+            return _handle_x_edit(args)
+        elif cmd == "/x-draft":
+            return _handle_x_draft(args)
+        elif cmd == "/x-plan":
+            return _handle_x_plan()
+        elif cmd == "/x-posted":
+            return _handle_x_posted()
+        elif cmd == "/x-budget":
+            return _handle_x_budget()
+        elif cmd == "/x-watch":
+            return _handle_x_watch(args)
+        elif cmd == "/x-unwatch":
+            return _handle_x_unwatch(args)
+        elif cmd == "/x-watchlist":
+            return _handle_x_watchlist()
+        else:
+            return f"Unknown X command: {cmd}\nAvailable: /x-plan, /x-approve, /x-reject, /x-edit, /x-draft, /x-posted, /x-budget, /x-watch, /x-unwatch, /x-watchlist"
+    except Exception as e:
+        logger.error(f"X command failed: {cmd} — {e}")
+        return f"Command failed: {e}"
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     """Main chat endpoint — session management, rate limiting, response generation."""
@@ -729,6 +1050,78 @@ async def chat(req: ChatRequest):
             session_id="",
             intent="RATE_LIMITED",
             metadata={"access_tier": access_tier},
+        )
+
+    # 2b. Quick command-list trigger
+    _msg_lower = req.message.strip().lower()
+    if _msg_lower in ("commands", "help", "menu", "what can you do", "que puedes hacer"):
+        return ChatResponse(
+            response=(
+                "📡 AgentPulse Commands\n\n"
+                "📊 INTEL\n"
+                "/toolradar — Trending tools with sentiment\n"
+                "/toolcheck [name] — Stats for a specific tool\n"
+                "/opps — Business opportunities\n"
+                "/analysis — Analyst findings & confidence\n"
+                "/signals — Market signals\n"
+                "/curious — Fun trending topics\n"
+                "/topics — Topic lifecycle & evolution\n"
+                "/thesis [topic] — Analyst thesis on a topic\n\n"
+                "📰 NEWSLETTER\n"
+                "/brief — Latest newsletter (Telegram)\n"
+                "/newsletter_full — Generate new edition\n"
+                "/newsletter_publish — Publish draft\n"
+                "/newsletter_revise [text] — Send revision notes\n"
+                "/freshness — Excluded from next edition\n"
+                "/subscribers — Subscriber count & modes\n\n"
+                "🔍 RESEARCH\n"
+                "/scan — Run full data pipeline\n"
+                "/invest_scan — Investment scanner (7d)\n"
+                "/deep_dive [topic] — Deep research\n"
+                "/review [opp] — Review an opportunity\n"
+                "/predictions — Prediction scorecard\n"
+                "/predict [text] — Add a prediction\n"
+                "/sources — Scraping status\n\n"
+                "🧠 INTELLIGENCE\n"
+                "/briefing — Personal intelligence briefing\n"
+                "/context — Operator context & watch topics\n"
+                "/watch [topic] — Add to watch list\n"
+                "/alerts — Recent proactive alerts\n"
+                "/budget — Agent usage vs limits\n\n"
+                "🐦 X DISTRIBUTION\n"
+                "/x-plan — Today's X candidates\n"
+                "/x-approve [nums] — Approve (e.g. 1,3)\n"
+                "/x-reject [nums] — Reject candidates\n"
+                "/x-edit [num] — View draft to edit\n"
+                "/x-draft [num] [text] — Replace draft\n"
+                "/x-posted — Posted today\n"
+                "/x-budget — X API spend\n"
+                "/x-watch [handle] [cat] — Add to watchlist\n"
+                "/x-unwatch [handle] — Remove from watchlist\n"
+                "/x-watchlist — Show watchlist\n\n"
+                "💰 AGENT ECONOMY\n"
+                "/wallet — Agent wallet balances\n"
+                "/ledger [agent] — Last 10 transactions\n"
+                "/topup [agent] [amt] — Top up wallet (sats)\n"
+                "/negotiations — Active negotiations\n\n"
+                "⚙️ CORE\n"
+                "/status — Agent status\n"
+                "/publish — Publish newsletter\n"
+                "/help — Basic help"
+            ),
+            session_id="",
+            intent="COMMANDS",
+            metadata={},
+        )
+
+    # 2c. X Distribution commands — handle directly, skip intent router
+    if _msg_lower.startswith("/x-"):
+        x_response = handle_x_command(req.message)
+        return ChatResponse(
+            response=x_response,
+            session_id="",
+            intent="X_COMMAND",
+            metadata={},
         )
 
     # 3. Resolve session (close stale, create new if needed)
@@ -866,6 +1259,7 @@ async def chat(req: ChatRequest):
 
     # 10. Context assembly + generate response
     system_prompt = load_system_prompt()
+    system_prompt += f"\n\nToday's date is {date.today().isoformat()}."
     response_text, generation_ms, output_tokens = generate_response(
         system_prompt, history[:-1], req.message,
         context_blocks=context_blocks if context_blocks else None,
