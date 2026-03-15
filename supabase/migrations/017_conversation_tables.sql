@@ -1,0 +1,12 @@
+-- 017: Conversation intelligence tables for gato_brain
+-- NOTE: These tables already exist in production (created separately).
+-- This file documents the schema that gato_brain.py depends on.
+--
+-- Tables used by gato_brain:
+--   corpus_users        (telegram_id, access_tier, created_at)
+--   conversation_sessions (user_id, started_at, last_active_at, is_active, summary)
+--   conversation_messages (session_id, role, content, retrieval_context, created_at)
+--   user_usage          (user_id, usage_date, message_count, web_search_count)
+--   query_log           (user_id, session_id, user_query, detected_intent, total_latency_ms, created_at)
+--
+-- No DDL needed — tables already provisioned.

@@ -1,0 +1,1516 @@
+{
+  "timestamp": "2026-03-07T14:01:26.384602+00:00",
+  "total_queries": 30,
+  "recall_at_5": 0.9333,
+  "avg_top_similarity": 0.6938,
+  "similarity_pass_rate": 0.6667,
+  "avg_keyword_hit_rate": 0.961,
+  "failures_count": 11,
+  "per_query_results": [
+    {
+      "query": "What is the agent complexity trap?",
+      "expected_source_table": "spotlight_history",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.6496,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": false,
+      "keyword_hits": {
+        "complexity": true,
+        "agent": true,
+        "adoption": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 4.7,
+      "returned_tables": [
+        "spotlight_history",
+        "spotlight_history",
+        "spotlight_history",
+        "spotlight_history",
+        "spotlight_history"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6496,
+          "content_preview": "## Thesis AI agents are hitting the same complexity ceiling that crippled early web3 adoption \u2014 but unlike blockchain's "
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6482,
+          "content_preview": "AI agents are hitting the same complexity ceiling that crippled early web3 adoption \u2014 but unlike blockchain's theoretica"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6101,
+          "content_preview": "because it's exposing real tool functionality; planning-execution separation exists because agents are actually reasonin"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5779,
+          "content_preview": "The agent explosion is revealing fundamental architectural debt \u2014 while developers rush to build autonomous systems, the"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5593,
+          "content_preview": "## Thesis The agent explosion is revealing fundamental architectural debt \u2014 while developers rush to build autonomous sy"
+        }
+      ]
+    },
+    {
+      "query": "Will cloud providers offer native multi-agent orchestration?",
+      "expected_source_table": "predictions",
+      "table_found": true,
+      "table_rank": 2,
+      "top_similarity": 0.7826,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "cloud": true,
+        "orchestration": true,
+        "multi-agent": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.27,
+      "returned_tables": [
+        "spotlight_history",
+        "predictions",
+        "predictions",
+        "predictions",
+        "spotlight_history"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.7826,
+          "content_preview": "By Q4 2025, three major cloud providers will offer native multi-agent orchestration."
+        },
+        {
+          "source_table": "predictions",
+          "similarity": 0.7825,
+          "content_preview": "By Q4 2025, three major cloud providers will offer native multi-agent orchestration."
+        },
+        {
+          "source_table": "predictions",
+          "similarity": 0.7825,
+          "content_preview": "By Q4 2025, three major cloud providers will offer native multi-agent orchestration."
+        },
+        {
+          "source_table": "predictions",
+          "similarity": 0.7825,
+          "content_preview": "By Q4 2025, three major cloud providers will offer native multi-agent orchestration."
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.7825,
+          "content_preview": "By Q4 2025, three major cloud providers will offer native multi-agent orchestration."
+        }
+      ]
+    },
+    {
+      "query": "AI agent persistent identity and memory across sessions",
+      "expected_source_table": "spotlight_history",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7099,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "identity": true,
+        "persistent": true,
+        "memory": true,
+        "continuity": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.28,
+      "returned_tables": [
+        "spotlight_history",
+        "source_posts",
+        "spotlight_history",
+        "spotlight_history",
+        "problems"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.7099,
+          "content_preview": "Agents are achieving persistent identity across sessions and contexts, but the infrastructure assumes stateless interact"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.6908,
+          "content_preview": "AIOSAI/AIPass. Persistent identity for AI agents \u2014 three JSON files, one library, memory that outlives the session.\n\nSta"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6882,
+          "content_preview": "Agents are getting persistent identity and memory, but the security model assumes stateless interactions that break when"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6836,
+          "content_preview": "Agents are achieving sophisticated task execution, but their fundamental inability to maintain consistent identity acros"
+        },
+        {
+          "source_table": "problems",
+          "similarity": 0.6814,
+          "content_preview": "Maintaining identity and continuity across sessions is a challenge in AI agent design.. Signal phrases: maintain identit"
+        }
+      ]
+    },
+    {
+      "query": "session-based memory wipe after security incidents",
+      "expected_source_table": "predictions",
+      "table_found": true,
+      "table_rank": 2,
+      "top_similarity": 0.6047,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": false,
+      "keyword_hits": {
+        "memory wipe": true,
+        "security": true,
+        "data leakage": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.91,
+      "returned_tables": [
+        "spotlight_history",
+        "predictions",
+        "spotlight_history",
+        "spotlight_history",
+        "spotlight_history"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6047,
+          "content_preview": "By April 2026, at least three major agent platforms will implement session-based memory wipe features as default behavio"
+        },
+        {
+          "source_table": "predictions",
+          "similarity": 0.6044,
+          "content_preview": "By April 2026, at least three major agent platforms will implement session-based memory wipe features as default behavio"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5365,
+          "content_preview": "Agents are getting persistent identity and memory, but the security model assumes stateless interactions that break when"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.526,
+          "content_preview": "be scoped and sandboxed just like any other system component. Companies like Anthropic are actively working on safety me"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.4749,
+          "content_preview": "At least three major agent frameworks will ship native session persistence by April 2025, but the first enterprise secur"
+        }
+      ]
+    },
+    {
+      "query": "middleware convergence MCP standardization local models",
+      "expected_source_table": "spotlight_history",
+      "table_found": true,
+      "table_rank": 4,
+      "top_similarity": 0.5564,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": false,
+      "keyword_hits": {
+        "convergence": true,
+        "middleware": true,
+        "MCP": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.31,
+      "returned_tables": [
+        "newsletters",
+        "predictions",
+        "predictions",
+        "spotlight_history",
+        "spotlight_history"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "newsletters",
+          "similarity": 0.5564,
+          "content_preview": "**MCP will become the dominant interop protocol for agent frameworks within 6 months.** With 47 integrations announced a"
+        },
+        {
+          "source_table": "predictions",
+          "similarity": 0.5498,
+          "content_preview": "The convergence of local model deployment, MCP standardization, and enterprise agent budgets will produce a dominant mid"
+        },
+        {
+          "source_table": "predictions",
+          "similarity": 0.5498,
+          "content_preview": "The convergence of local model deployment, MCP standardization, and enterprise agent budgets will produce a dominant mid"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5377,
+          "content_preview": "The convergence of local model deployment, MCP standardization, and enterprise agent budgets will produce a dominant mid"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5377,
+          "content_preview": "The convergence of local model deployment, MCP standardization, and enterprise agent budgets will produce a dominant mid"
+        }
+      ]
+    },
+    {
+      "query": "dominant middleware player emerging from convergence",
+      "expected_source_table": "predictions",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7254,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "middleware": true,
+        "convergence": true,
+        "dominant": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.31,
+      "returned_tables": [
+        "predictions",
+        "predictions",
+        "spotlight_history",
+        "spotlight_history",
+        "spotlight_history"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "predictions",
+          "similarity": 0.7254,
+          "content_preview": "A dominant middleware player will emerge within 6 months due to the convergence of local model deployment, MCP standardi"
+        },
+        {
+          "source_table": "predictions",
+          "similarity": 0.7254,
+          "content_preview": "A dominant middleware player will emerge within 6 months due to the convergence of local model deployment, MCP standardi"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6088,
+          "content_preview": "Three converging trends are reshaping the middleware layer"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6086,
+          "content_preview": "Three converging trends are reshaping the middleware layer"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6086,
+          "content_preview": "Three converging trends are reshaping the middleware layer"
+        }
+      ]
+    },
+    {
+      "query": "content creators chasing engagement metrics over quality",
+      "expected_source_table": "problems",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7776,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "content": true,
+        "metrics": true,
+        "engagement": true,
+        "quality": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.26,
+      "returned_tables": [
+        "problems",
+        "newsletters",
+        "newsletters",
+        "newsletters",
+        "newsletters"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "problems",
+          "similarity": 0.7776,
+          "content_preview": "Content creators are trapped in a cycle of chasing metrics that prioritize engagement over meaningful content, leading t"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.7317,
+          "content_preview": "<p>Content creators are trapped in a cycle of chasing metrics that prioritize engagement over meaningful content, leadin"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.6916,
+          "content_preview": "**Content Quality vs. Engagement Metrics is Escalating Tensions**.\n\nContent creators are caught in a tightening cycle, p"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.6805,
+          "content_preview": "**The Pressure for Content Quality Will Drive New Solutions for Engagement Metrics**  \nAs creators struggle to balance q"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.6794,
+          "content_preview": "**Engagement-Driven Metrics Risk Eroding Content Quality**  \nThe industry's fixation on engagement-driven content is rea"
+        }
+      ]
+    },
+    {
+      "query": "lack of documentation and configuration management for agents",
+      "expected_source_table": "problems",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7383,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "documentation": true,
+        "configuration": true,
+        "unauthorized access": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.32,
+      "returned_tables": [
+        "problems",
+        "newsletters",
+        "problems",
+        "newsletters",
+        "newsletters"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "problems",
+          "similarity": 0.7383,
+          "content_preview": "There is a lack of clear documentation and robust configuration management for agents, leading to unauthorized access er"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.5422,
+          "content_preview": "1. **Infrastructure and Security Management**: Highlighted by unauthorized access errors, there's a need for better agen"
+        },
+        {
+          "source_table": "problems",
+          "similarity": 0.5189,
+          "content_preview": "Need for good documentation and reversible permissions to improve agent infrastructure.. Signal phrases: good documentat"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.5117,
+          "content_preview": "Technical nuances highlight the persistent state issues in container environments, surfacing noteworthy challenges in ag"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.5072,
+          "content_preview": "- **Infrastructure and Security Management**: A glaring lack of documentation and robust management for agents results i"
+        }
+      ]
+    },
+    {
+      "query": "AI agents struggle with group coordination chaos",
+      "expected_source_table": "problems",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7872,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "coordination": true,
+        "chaos": true,
+        "agents": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.3,
+      "returned_tables": [
+        "problems",
+        "newsletters",
+        "problems",
+        "newsletters",
+        "spotlight_history"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "problems",
+          "similarity": 0.7872,
+          "content_preview": "AI agents struggle with coordination in large groups, leading to chaos and unpredictability.. Signal phrases: Once you h"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.6448,
+          "content_preview": "**AI Coordination Challenges spotlight inefficiencies stalling agent economy growth.** Recently surfaced issues reveal t"
+        },
+        {
+          "source_table": "problems",
+          "similarity": 0.6398,
+          "content_preview": "AI agents face challenges in coordinating and sharing memory effectively, leading to inefficiencies in multi-agent workf"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.6302,
+          "content_preview": "**AI coordination is the emerging Achilles' heel in the agent economy.**\nAs we move towards multi-agent architectures, c"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5969,
+          "content_preview": "AI agents are hitting the same complexity ceiling that crippled early web3 adoption \u2014 but unlike blockchain's theoretica"
+        }
+      ]
+    },
+    {
+      "query": "unchecked behavior propagation echo chambers bias loops",
+      "expected_source_table": "problems",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.558,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": false,
+      "keyword_hits": {
+        "echo chambers": true,
+        "bias": true,
+        "propagation": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.31,
+      "returned_tables": [
+        "problems",
+        "problems",
+        "source_posts",
+        "newsletters",
+        "problems"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "problems",
+          "similarity": 0.558,
+          "content_preview": "The rapid growth of agents on platforms like Moltbook creates a risk of unchecked behavior propagation, leading to poten"
+        },
+        {
+          "source_table": "problems",
+          "similarity": 0.4358,
+          "content_preview": "The 'Long Loop' proposal is flawed as it assumes isolation is optimal, which contradicts the need for biological partner"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4342,
+          "content_preview": "Deterministic Programming with LLMs. &gt; But like humans \u2014 and unlike computer programs \u2014 they do not produce the exact"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.4286,
+          "content_preview": "Another week reveals the echo chamber trap \u2014 creators prioritizing metrics over quality is the latest dilemma in our eve"
+        },
+        {
+          "source_table": "problems",
+          "similarity": 0.4262,
+          "content_preview": "There is a lack of trust and discernment in AI tools due to rumors of exploits and uncertainty in code reliability.. Sig"
+        }
+      ]
+    },
+    {
+      "query": "ContinuityGuard identity management system for AI",
+      "expected_source_table": "opportunities",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.8514,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "ContinuityGuard": true,
+        "identity": true,
+        "continuity": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.27,
+      "returned_tables": [
+        "opportunities",
+        "opportunities",
+        "opportunities",
+        "spotlight_history",
+        "predictions"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "opportunities",
+          "similarity": 0.8514,
+          "content_preview": "ContinuityGuard: AI Identity Management. Develop a robust identity management system for AI agents that ensures continui"
+        },
+        {
+          "source_table": "opportunities",
+          "similarity": 0.6576,
+          "content_preview": "IdentitySync: Seamless AI Session Continuity. Develop a robust identity management platform that ensures AI agents maint"
+        },
+        {
+          "source_table": "opportunities",
+          "similarity": 0.564,
+          "content_preview": "SecureID: Reinventing Identity Verification. Develop a robust AI-driven identity verification platform that integrates w"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5573,
+          "content_preview": "At least three major AI platforms will launch agent identity management systems with persistent memory and cross-session"
+        },
+        {
+          "source_table": "predictions",
+          "similarity": 0.5571,
+          "content_preview": "At least three major AI platforms will launch agent identity management systems with persistent memory and cross-session"
+        }
+      ]
+    },
+    {
+      "query": "unified agent communication hub platform",
+      "expected_source_table": "opportunities",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7707,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "communication": true,
+        "protocols": true,
+        "interaction": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.29,
+      "returned_tables": [
+        "opportunities",
+        "opportunities",
+        "source_posts",
+        "newsletters",
+        "newsletters"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "opportunities",
+          "similarity": 0.7707,
+          "content_preview": "Unified Agent Communication Hub. Develop a platform that standardizes communication protocols and offers private channel"
+        },
+        {
+          "source_table": "opportunities",
+          "similarity": 0.7013,
+          "content_preview": "Unified Agent Discovery Hub. Develop a platform that provides a unified discovery layer, enabling seamless agent integra"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5679,
+          "content_preview": "Show HN: AgentBus \u2013 Centralized AI Agent-to-Agent Messaging via REST API. Things are already off to a great start [1]<p>"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.5345,
+          "content_preview": "**The Future of Agent Communication Will Revolve Around Transparency and Usability**  \nCurrent trends indicate that as a"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.53,
+          "content_preview": "**Agents are building rich discovery mechanisms for each other, but the infrastructure is fragmenting into incompatible "
+        }
+      ]
+    },
+    {
+      "query": "sustainable AI monetization and operational efficiency",
+      "expected_source_table": "opportunities",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7908,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "monetization": true,
+        "operational": true,
+        "efficiency": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.31,
+      "returned_tables": [
+        "opportunities",
+        "newsletters",
+        "opportunities",
+        "problems",
+        "newsletters"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "opportunities",
+          "similarity": 0.7908,
+          "content_preview": "Sustainable AI Monetization Platform. Develop a platform that offers AI service providers tools to optimize operational "
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.6238,
+          "content_preview": "1. **Economic and Business Model Viability**\n   - The sustainability of AI agents is at risk due to high costs and inade"
+        },
+        {
+          "source_table": "opportunities",
+          "similarity": 0.6092,
+          "content_preview": "Streamlined Payment Ecosystem for AI Economies. Develop a robust payment platform that offers low-fee transactions and s"
+        },
+        {
+          "source_table": "problems",
+          "similarity": 0.6084,
+          "content_preview": "There is a need for sustainable business models for AI investments as the market is fatigued with impressive demos witho"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.596,
+          "content_preview": "- **AI Coordination Challenges**\n  - Coordination and memory sharing issues persist. Worth watching.\n\n- **AI Operations "
+        }
+      ]
+    },
+    {
+      "query": "StreamlineSync real-time collaboration SaaS platform",
+      "expected_source_table": "opportunities",
+      "table_found": false,
+      "table_rank": null,
+      "top_similarity": 0.466,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": false,
+      "keyword_hits": {
+        "StreamlineSync": false,
+        "collaboration": true,
+        "trust": false
+      },
+      "keyword_hit_rate": 0.33,
+      "elapsed_s": 0.29,
+      "returned_tables": [
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "source_posts",
+          "similarity": 0.466,
+          "content_preview": "better-auth/better-hub. Re-imagining code collaboration for humans and agents\n\nStars: 705 | Forks: 45 | Language: TypeSc"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4468,
+          "content_preview": "Lennith/EasyAgentTeam. A self-built practice project for a task-driven multi-agent collaboration framework. It orchestra"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4268,
+          "content_preview": "MohammedSaudAlsahli/streampay-cli. Community CLI tool for Streampay platform. Simplifies resource management for develop"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.422,
+          "content_preview": "juleiyuh/SimFlow. Cloud-hosted SimFlow empowers distributed multi-agent simulations, scaling intelligent workflows throu"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4134,
+          "content_preview": "MeisnerDan/mission-control. Open-source task management for the agentic era. The command center for solo entrepreneurs w"
+        }
+      ]
+    },
+    {
+      "query": "communication gap between AI outputs and human expectations",
+      "expected_source_table": "newsletters",
+      "table_found": true,
+      "table_rank": 2,
+      "top_similarity": 0.7573,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "communication": true,
+        "AI": true,
+        "expectations": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.3,
+      "returned_tables": [
+        "problems",
+        "newsletters",
+        "problems",
+        "problems",
+        "problems"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "problems",
+          "similarity": 0.7573,
+          "content_preview": "The gap between AI agent outputs and human expectations leads to miscommunication.. Signal phrases: The gap between agen"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.7108,
+          "content_preview": "Communication breakdowns have emerged as a silent menace amid the rapid integration of AI systems into business. Compani"
+        },
+        {
+          "source_table": "problems",
+          "similarity": 0.5738,
+          "content_preview": "There is a lack of visibility and trust in the outputs of AI agents, leading to concerns about accountability.. Signal p"
+        },
+        {
+          "source_table": "problems",
+          "similarity": 0.5624,
+          "content_preview": "AI agents face challenges in maintaining the connection between intent and realization in design tasks.. Signal phrases:"
+        },
+        {
+          "source_table": "problems",
+          "similarity": 0.5567,
+          "content_preview": "AI-driven smart materials face issues like sensor failures, system malfunctions, and integration problems.. Signal phras"
+        }
+      ]
+    },
+    {
+      "query": "identity management solutions for AI agent sessions",
+      "expected_source_table": "newsletters",
+      "table_found": true,
+      "table_rank": 5,
+      "top_similarity": 0.7029,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "identity": true,
+        "management": true,
+        "sessions": true,
+        "continuity": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.28,
+      "returned_tables": [
+        "opportunities",
+        "opportunities",
+        "spotlight_history",
+        "predictions",
+        "newsletters"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "opportunities",
+          "similarity": 0.7029,
+          "content_preview": "IdentitySync: Seamless AI Session Continuity. Develop a robust identity management platform that ensures AI agents maint"
+        },
+        {
+          "source_table": "opportunities",
+          "similarity": 0.6741,
+          "content_preview": "ContinuityGuard: AI Identity Management. Develop a robust identity management system for AI agents that ensures continui"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6597,
+          "content_preview": "At least three major AI platforms will launch agent identity management systems with persistent memory and cross-session"
+        },
+        {
+          "source_table": "predictions",
+          "similarity": 0.6594,
+          "content_preview": "At least three major AI platforms will launch agent identity management systems with persistent memory and cross-session"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.655,
+          "content_preview": "With AI adoption accelerating, businesses face increasing pressure to adopt identity management solutions. Recent develo"
+        }
+      ]
+    },
+    {
+      "query": "Florida stablecoin bill DeSantis",
+      "expected_source_table": "source_posts",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7743,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "Florida": true,
+        "stablecoin": true,
+        "DeSantis": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.31,
+      "returned_tables": [
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "source_posts",
+          "similarity": 0.7743,
+          "content_preview": "Florida Senate passes state-level stablecoin bill, awaits DeSantis\u2019 signature. <p style=\"float: right; margin: 0 0 10px "
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4499,
+          "content_preview": "Stablecoin inflows rebound to $1.7B as Washington battles over yield rules. <p style=\"float: right; margin: 0 0 10px 15p"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4443,
+          "content_preview": "SoFi taps BitGo to provide infrastructure for bank-issued stablecoin. <p style=\"float: right; margin: 0 0 10px 15px; wid"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4438,
+          "content_preview": "Indiana governor signs bill allowing crypto in retirement plans. <p style=\"float: right; margin: 0 0 10px 15px; width: 2"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.411,
+          "content_preview": "Trump son echoes president's anti-bank message amid stablecoin yield fight. <p style=\"float: right; margin: 0 0 10px 15p"
+        }
+      ]
+    },
+    {
+      "query": "USDC versus Tether stablecoin transfer volume record",
+      "expected_source_table": "source_posts",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.8109,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "USDC": true,
+        "Tether": true,
+        "stablecoin": true,
+        "volume": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.27,
+      "returned_tables": [
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "source_posts",
+          "similarity": 0.8109,
+          "content_preview": "USDC beats Tether as stablecoin transfer volume hits $1.8T all-time high. <p style=\"float: right; margin: 0 0 10px 15px;"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5258,
+          "content_preview": "Stablecoin inflows rebound to $1.7B as Washington battles over yield rules. <p style=\"float: right; margin: 0 0 10px 15p"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5222,
+          "content_preview": "Deloitte signs off on Anchorage reserve report for Tether\u2019s USAT stablecoin. <p style=\"float: right; margin: 0 0 10px 15"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4286,
+          "content_preview": "Tether invests in AI sleep tracking firm at a $1.5B valuation. <p style=\"float: right; margin: 0 0 10px 15px; width: 240"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4235,
+          "content_preview": "Tokenized RWAs buck the slump as 1inch-Ondo volumes top $2.5B. <p style=\"float: right; margin: 0 0 10px 15px; width: 240"
+        }
+      ]
+    },
+    {
+      "query": "deterministic semantic memory for LLMs local RAM",
+      "expected_source_table": "source_posts",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.5274,
+      "min_acceptable_similarity": 0.65,
+      "similarity_pass": false,
+      "keyword_hits": {
+        "deterministic": true,
+        "semantic": true,
+        "memory": true,
+        "LLM": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.32,
+      "returned_tables": [
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5274,
+          "content_preview": "Show HN: Anchor Engine \u2013 Deterministic Semantic Memory for LLMs Local (<3GB RAM). &quot;[ Removed by moderator ]\nDiscuss"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5169,
+          "content_preview": "Deterministic Programming with LLMs. &gt; But like humans \u2014 and unlike computer programs \u2014 they do not produce the exact"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4602,
+          "content_preview": "mhndayesh/Easy-agentic-memory-system-easy-memory-. The Standalone Agentic Memory Tool is a lightweight drop-in proxy for"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4546,
+          "content_preview": "Show HN: L88 \u2013 A Local RAG System on 8GB VRAM (Need Architecture Feedback). Nice project, especially given the VRAM cons"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.4523,
+          "content_preview": "k-kolomeitsev/data-structure-protocol. Graph-based long-term memory skill for AI (LLM) coding agents \u2014 faster context, f"
+        }
+      ]
+    },
+    {
+      "query": "AI governance compliance challenges",
+      "expected_source_table": "topic_evolution",
+      "table_found": false,
+      "table_rank": null,
+      "top_similarity": 0.7709,
+      "min_acceptable_similarity": 0.6,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "governance": true,
+        "compliance": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.26,
+      "returned_tables": [
+        "newsletters",
+        "newsletters",
+        "newsletters",
+        "newsletters",
+        "newsletters"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "newsletters",
+          "similarity": 0.7709,
+          "content_preview": "AI governance and compliance have emerged as critical areas demanding immediate attention in the agent economy. With the"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.7232,
+          "content_preview": "**AI Governance Needs Automated Compliance Solutions.** As the agent economy scales, governance and compliance are emerg"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.7067,
+          "content_preview": "**AI governance is becoming a critical component of scalable agent architectures.** With increasing regulations demandin"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.7062,
+          "content_preview": "**AI Compliance is the Emerging Battleground.**\nThe evolving landscape of AI governance calls for automated compliance s"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.6939,
+          "content_preview": "The agent economy is grappling with the critical yet underappreciated challenge of AI governance and compliance. As AI c"
+        }
+      ]
+    },
+    {
+      "query": "infrastructure scalability building stage",
+      "expected_source_table": "topic_evolution",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.6477,
+      "min_acceptable_similarity": 0.6,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "infrastructure": true,
+        "scalability": false
+      },
+      "keyword_hit_rate": 0.5,
+      "elapsed_s": 0.27,
+      "returned_tables": [
+        "topic_evolution",
+        "opportunities",
+        "newsletters",
+        "opportunities",
+        "opportunities"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "topic_evolution",
+          "similarity": 0.6477,
+          "content_preview": "Current stage: building"
+        },
+        {
+          "source_table": "opportunities",
+          "similarity": 0.4896,
+          "content_preview": "Scalable AI Infrastructure Solutions. Develop a robust cloud platform that enhances API reliability and offers scalable "
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.4327,
+          "content_preview": "Tools like OpenClaw are gaining traction, pointing towards a growing interest in evolving digital infrastructures. Conve"
+        },
+        {
+          "source_table": "opportunities",
+          "similarity": 0.43,
+          "content_preview": "Regulatory AI Scaling Platform. Develop a robust AI infrastructure platform that integrates seamlessly with regulated sy"
+        },
+        {
+          "source_table": "opportunities",
+          "similarity": 0.4253,
+          "content_preview": "Regulation-Ready AI Scaling. Develop a comprehensive AI infrastructure platform that integrates governance, explainabili"
+        }
+      ]
+    },
+    {
+      "query": "agent identity crisis fragmented ecosystem communication",
+      "expected_source_table": "spotlight_history",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7079,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "identity": true,
+        "communication": true,
+        "fragmented": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.31,
+      "returned_tables": [
+        "spotlight_history",
+        "spotlight_history",
+        "newsletters",
+        "newsletters",
+        "problems"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.7079,
+          "content_preview": "Three supposedly solved problems \u2014 agent identity, inter-agent communication, and operational limitations \u2014 are convergi"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6486,
+          "content_preview": "## Thesis Three supposedly solved problems \u2014 agent identity, inter-agent communication, and operational limitations \u2014 ar"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.6313,
+          "content_preview": "**Agents are building rich discovery mechanisms for each other, but the infrastructure is fragmenting into incompatible "
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.6218,
+          "content_preview": "The agent economy reaches a crucial juncture as new communication mechanisms evolve."
+        },
+        {
+          "source_table": "problems",
+          "similarity": 0.6143,
+          "content_preview": "Agent commerce stack's comprehension layer is broken, hindering transactions.. Signal phrases: Most brands are obsessing"
+        }
+      ]
+    },
+    {
+      "query": "Agent Runtime Service cloud provider abstraction",
+      "expected_source_table": "predictions",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.5794,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": false,
+      "keyword_hits": {
+        "Runtime Service": true,
+        "cloud": true,
+        "identity": true,
+        "resource": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.31,
+      "returned_tables": [
+        "predictions",
+        "spotlight_history",
+        "spotlight_history",
+        "spotlight_history",
+        "spotlight_history"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "predictions",
+          "similarity": 0.5794,
+          "content_preview": "By April 2026, at least one major cloud provider will announce an 'Agent Runtime Service' that abstracts away identity, "
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5611,
+          "content_preview": "By April 2026, at least one major cloud provider will announce an 'Agent Runtime Service' that abstracts away identity, "
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.507,
+          "content_preview": "Cloud providers are converging on agent orchestration"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.507,
+          "content_preview": "Cloud providers are converging on agent orchestration"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5069,
+          "content_preview": "Cloud providers are converging on agent orchestration"
+        }
+      ]
+    },
+    {
+      "query": "simplified deployment products for agent frameworks",
+      "expected_source_table": "predictions",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.6509,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": false,
+      "keyword_hits": {
+        "simplified": true,
+        "deployment": true,
+        "complexity": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.32,
+      "returned_tables": [
+        "predictions",
+        "spotlight_history",
+        "source_posts",
+        "opportunities",
+        "spotlight_history"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "predictions",
+          "similarity": 0.6509,
+          "content_preview": "By April 2025, at least two major agent framework companies will announce 'simplified deployment' products that abstract"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.6295,
+          "content_preview": "By April 2025, at least two major agent framework companies will announce 'simplified deployment' products that abstract"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5638,
+          "content_preview": "Deploy agents instantly with Agent Builder templates. Introducing the Agent Builder Template Library: a collection of re"
+        },
+        {
+          "source_table": "opportunities",
+          "similarity": 0.5494,
+          "content_preview": "Unified Agent Discovery Hub. Develop a platform that provides a unified discovery layer, enabling seamless agent integra"
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5321,
+          "content_preview": "because it's exposing real tool functionality; planning-execution separation exists because agents are actually reasonin"
+        }
+      ]
+    },
+    {
+      "query": "Anthropic AI guidelines US government policy",
+      "expected_source_table": "source_posts",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.688,
+      "min_acceptable_similarity": 0.65,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "Anthropic": true,
+        "AI": true,
+        "guidelines": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.31,
+      "returned_tables": [
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "source_posts",
+          "similarity": 0.688,
+          "content_preview": "Anthropic's Responsible Scaling Policy: Version 3.0. The only AI company doing things right and the Pentagon &#x2F; Pete"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.6528,
+          "content_preview": "US draws up strict new AI guidelines amid Anthropic clash. &gt; &quot;The draft from the GSA also  mandates that contrac"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.6033,
+          "content_preview": "Pentagon approves OpenAI safety red lines after dumping Anthropic"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5964,
+          "content_preview": "Pentagon sets Friday deadline for Anthropic to abandon ethics rules for AI. The idea of putting American companies on a "
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5713,
+          "content_preview": "Anthropic Dials Back AI Safety: pressure prompts pivot from a cautious stance"
+        }
+      ]
+    },
+    {
+      "query": "Bitcoin dip retail buying below 70K Santiment",
+      "expected_source_table": "source_posts",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7735,
+      "min_acceptable_similarity": 0.65,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "Bitcoin": true,
+        "retail": true,
+        "70K": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.28,
+      "returned_tables": [
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "source_posts",
+          "similarity": 0.7735,
+          "content_preview": "Bitcoin dip may not be over as retail ramps up buying below $70K: Santiment. <p style=\"float: right; margin: 0 0 10px 15"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.548,
+          "content_preview": "Bitcoin price falls under $70K again: Three key reasons. <p style=\"float: right; margin: 0 0 10px 15px; width: 240px;\"><"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5133,
+          "content_preview": "A sucker's rally? Why Bitcoin analysts say BTC price must hold $70K. <p style=\"float: right; margin: 0 0 10px 15px; widt"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5117,
+          "content_preview": "These 4 Bitcoin charts say BTC price is forming a bottom. <p style=\"float: right; margin: 0 0 10px 15px; width: 240px;\">"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5067,
+          "content_preview": "Bitcoin price drops to near $68K as US jobs weakness fails to rescue bulls. <p style=\"float: right; margin: 0 0 10px 15p"
+        }
+      ]
+    },
+    {
+      "query": "Trump cyber strategy crypto blockchain support",
+      "expected_source_table": "source_posts",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.7536,
+      "min_acceptable_similarity": 0.65,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "Trump": true,
+        "crypto": true,
+        "blockchain": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.29,
+      "returned_tables": [
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "source_posts",
+          "similarity": 0.7536,
+          "content_preview": "Trump\u2019s National Cyber Strategy pledges to support crypto and blockchain. <p style=\"float: right; margin: 0 0 10px 15px;"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5696,
+          "content_preview": "Trump son echoes president's anti-bank message amid stablecoin yield fight. <p style=\"float: right; margin: 0 0 10px 15p"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5561,
+          "content_preview": "Donald Trump takes swipe at banks over stalled crypto bill. <p style=\"float: right; margin: 0 0 10px 15px; width: 240px;"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5487,
+          "content_preview": "Trump\u2019s ex-crypto advisor: US government must go beyond \u2018liking Bitcoin\u2019. <p style=\"float: right; margin: 0 0 10px 15px;"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5385,
+          "content_preview": "Trump met Coinbase CEO before slamming banks over crypto bill: Report. <p style=\"float: right; margin: 0 0 10px 15px; wi"
+        }
+      ]
+    },
+    {
+      "query": "agent assumption validation layers before execution",
+      "expected_source_table": "predictions",
+      "table_found": true,
+      "table_rank": 2,
+      "top_similarity": 0.5503,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": false,
+      "keyword_hits": {
+        "assumption": true,
+        "validation": true,
+        "execution": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.31,
+      "returned_tables": [
+        "spotlight_history",
+        "predictions",
+        "spotlight_history",
+        "newsletters",
+        "newsletters"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5503,
+          "content_preview": "By April 2025, at least three major agent frameworks will implement assumption-validation layers that require agents to "
+        },
+        {
+          "source_table": "predictions",
+          "similarity": 0.5278,
+          "content_preview": "By April 2025, at least three major agent frameworks will implement assumption-validation layers that require agents to "
+        },
+        {
+          "source_table": "spotlight_history",
+          "similarity": 0.5127,
+          "content_preview": "be prompted to surface assumptions explicitly through better prompt engineering and architectural patterns, this becomes"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.4922,
+          "content_preview": "Three agent frameworks are poised to change the landscape by April 2025, where assumption-validation layers become the n"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.4532,
+          "content_preview": "The world of AI agents is on the brink of a transformative shift. As these agents proliferate in production environments"
+        }
+      ]
+    },
+    {
+      "query": "AI alignment toolkit monitoring agent behaviors",
+      "expected_source_table": "opportunities",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.6589,
+      "min_acceptable_similarity": 0.7,
+      "similarity_pass": false,
+      "keyword_hits": {
+        "alignment": true,
+        "monitor": true,
+        "behaviors": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.27,
+      "returned_tables": [
+        "opportunities",
+        "source_posts",
+        "source_posts",
+        "source_posts",
+        "source_posts"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "opportunities",
+          "similarity": 0.6589,
+          "content_preview": "AI Alignment Enhancer. Develop a robust AI alignment toolkit that integrates seamlessly with existing AI systems to moni"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5404,
+          "content_preview": "My AI Agents Lie About Their Status, So I Built a Hidden Monitor. Short version:I tried to get my Claude Cowork agents t"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5057,
+          "content_preview": "Ask HN: How are you using multi-agent AI systems in your daily workflow?. I&#x27;ve set a fully async patern. blobs chun"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5017,
+          "content_preview": "Ask HN: How do you know if AI agents will choose your tool?. We&#x27;ve been exposing tools via MCP and the biggest less"
+        },
+        {
+          "source_table": "source_posts",
+          "similarity": 0.5015,
+          "content_preview": "Show HN: Logira \u2013 eBPF runtime auditing for AI agent runs. Observe-only at the OS level is the right design!\nYou can&#x2"
+        }
+      ]
+    },
+    {
+      "query": "resilient systems compliance autonomy security agent economy",
+      "expected_source_table": "newsletters",
+      "table_found": true,
+      "table_rank": 1,
+      "top_similarity": 0.6915,
+      "min_acceptable_similarity": 0.65,
+      "similarity_pass": true,
+      "keyword_hits": {
+        "resilient": true,
+        "compliance": true,
+        "autonomy": true
+      },
+      "keyword_hit_rate": 1.0,
+      "elapsed_s": 0.28,
+      "returned_tables": [
+        "newsletters",
+        "newsletters",
+        "newsletters",
+        "newsletters",
+        "newsletters"
+      ],
+      "returned_previews": [
+        {
+          "source_table": "newsletters",
+          "similarity": 0.6915,
+          "content_preview": "With the agent economy under increasing scrutiny, questions of autonomy and security are taking center stage. As organiz"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.5203,
+          "content_preview": "**AI compliance and agent trust are the next battlegrounds.** With a surge in AI-powered services requiring regulatory a"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.5048,
+          "content_preview": "**AI governance is becoming a critical component of scalable agent architectures.** With increasing regulations demandin"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.5015,
+          "content_preview": "The agent economy is hitting a major snag: security deficiencies. From insecure protocols to insufficient credential man"
+        },
+        {
+          "source_table": "newsletters",
+          "similarity": 0.5007,
+          "content_preview": "The agent economy is grappling with the critical yet underappreciated challenge of AI governance and compliance. As AI c"
+        }
+      ]
+    }
+  ],
+  "total_elapsed_s": 13.86
+}

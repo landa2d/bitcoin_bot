@@ -1,7 +1,7 @@
 # AgentPulse — System Architecture Reference
 
-> **Last updated:** February 2026
-> **Status:** Live on Hetzner. All 6 services running, all 7 migrations applied.
+> **Last updated:** March 2026
+> **Status:** Live on Hetzner. All 7 services running, all 19 migrations applied.
 
 ---
 
@@ -13,15 +13,16 @@ AgentPulse is a multi-agent intelligence pipeline that monitors the agent econom
 
 ## 2. Services & Agents
 
-**6 Docker services total. 4 are LLM agents. 2 are infrastructure.**
+**7 Docker services total. 4 are LLM agents. 3 are infrastructure.**
 
 | Service | Container | Role | LLM | Model |
 |---|---|---|---|---|
 | `gato` | `openclaw-gato` | User-facing Telegram bot | Anthropic (via OpenClaw) | Claude (configured in auth-profiles.json) |
-| `analyst` | `agentpulse-analyst` | Intelligence analyst — theses, analysis runs | OpenAI | gpt-4o |
-| `newsletter` | `agentpulse-newsletter` | Weekly brief writer | OpenAI | gpt-4o |
+| `gato_brain` | `agentpulse-gato-brain` | Conversational intelligence middleware (FastAPI, port 8100) | — | — |
+| `analyst` | `agentpulse-analyst` | Intelligence analyst — theses, analysis runs | DeepSeek | deepseek-chat |
+| `newsletter` | `agentpulse-newsletter` | Weekly brief writer | DeepSeek | deepseek-chat |
 | `research` | `agentpulse-research` | Deep-dive thesis builder | Anthropic | claude-sonnet-4-20250514 |
-| `processor` | `agentpulse-processor` | Scraper + task orchestrator | — | none |
+| `processor` | `agentpulse-processor` | Scraper + task orchestrator + email delivery | — | none |
 | `web` | `agentpulse-web` | Newsletter archive (Caddy + static SPA) | — | none |
 
 All services share `agentpulse-net` (bridge network). Only `web` exposes external ports (80/443).
@@ -87,7 +88,7 @@ Max 2 negotiations per newsletter.
 
 ## 5. Database Schema
 
-**7 migrations applied.** Supabase (PostgreSQL) with RLS enabled (agents use service_role key).
+**19 migrations applied.** Supabase (PostgreSQL) with RLS enabled (agents use service_role key).
 
 ### Migration Map
 
@@ -100,6 +101,18 @@ Max 2 negotiations per newsletter.
 | 005 | Performance indexes on all major tables |
 | 006 | Row Level Security (RLS) policies |
 | 007 | Staleness columns on newsletter-related tables (`appearances`, `last_featured_at`, `effective_score`) |
+| 008 | `predictions.target_date` column |
+| 009 | `llm_call_log` table for LLM usage tracking |
+| 010 | Newsletter theme tracking columns |
+| 011 | Dual-audience columns (`title_impact`, `content_markdown_impact`), `subscribers` table with mode preference (builder/impact/both) |
+| 012 | Default subscribers to `active` (no double opt-in) |
+| 013 | `unsubscribe()` RPC function |
+| 014 | `welcome_email_sent_at` column on subscribers |
+| 015 | `agent_wallets` table |
+| 016 | `embeddings` table for vector search |
+| 017 | `conversation_sessions`, `conversation_messages`, `corpus_users`, `user_usage`, `query_log` (conversational intelligence) |
+| 018 | `content_links` table |
+| 019 | `email_log` table (tracks every email sent with Resend ID), subscriber upsert RLS policy |
 
 ### Core Tables Quick Reference
 
@@ -111,13 +124,20 @@ agent_daily_usage    — Per-agent budget tracking
 analysis_runs        — Analyst output: theses, key findings, analyst notes
 spotlight_history    — Research agent's conviction theses
 research_queue       — Queue for research tasks (claimed via claim_research_task)
-newsletters          — Newsletter drafts and published editions
+newsletters          — Newsletter drafts and published editions (dual-audience: builder + impact)
 predictions          — Tracked predictions with status (active/confirmed/faded)
 topic_evolution      — Topic lifecycle tracking (emerging → growing → mature → fading)
 trending_topics      — Current trending topics with scores
 problem_clusters     — Grouped problem signals with opportunity scores
 opportunities        — Business opportunities derived from clusters
 tool_mentions        — Individual tool/product mentions with sentiment
+subscribers          — Email subscribers with mode_preference (builder/impact/both)
+email_log            — Every email sent (welcome + newsletter) with Resend ID and status
+conversation_sessions — User conversation sessions (gato_brain)
+conversation_messages — Individual messages within sessions
+corpus_users         — User profiles for conversational intelligence
+embeddings           — Vector embeddings for semantic search
+content_links        — Cross-linked content references
 ```
 
 ### Staleness / Freshness System
@@ -138,10 +158,11 @@ Opportunities that have appeared too many times get excluded via `freshness_rule
 
 | File | Service | Purpose |
 |---|---|---|
-| `docker/processor/agentpulse_processor.py` | processor | Main 5500+ line orchestrator and scraper |
-| `docker/analyst/analyst_poller.py` | analyst | Polls agent_tasks, calls OpenAI, produces analysis_runs |
-| `docker/newsletter/newsletter_poller.py` | newsletter | Polls agent_tasks, calls OpenAI, saves newsletters |
+| `docker/processor/agentpulse_processor.py` | processor | Main 6000+ line orchestrator, scraper, and email delivery |
+| `docker/analyst/analyst_poller.py` | analyst | Polls agent_tasks, calls DeepSeek, produces analysis_runs |
+| `docker/newsletter/newsletter_poller.py` | newsletter | Polls agent_tasks, calls DeepSeek, saves newsletters |
 | `docker/research/research_agent.py` | research | Polls research_queue, calls Anthropic, saves spotlight_history |
+| `docker/gato_brain/gato_brain.py` | gato_brain | FastAPI conversational intelligence middleware (port 8100) |
 
 ### Identity & Skills
 
@@ -168,8 +189,8 @@ Opportunities that have appeared too many times get excluded via `freshness_rule
 The `get_model(task_name)` function in `agentpulse_processor.py` reads from `config.models` in `agentpulse-config.json`. This allows per-task model overrides without redeploying.
 
 Default models:
-- Analyst: `gpt-4o` (env: `ANALYST_MODEL`)
-- Newsletter: `gpt-4o` (env: `NEWSLETTER_MODEL`)
+- Analyst: `deepseek-chat` (env: `ANALYST_MODEL`)
+- Newsletter: `deepseek-chat` (env: `NEWSLETTER_MODEL`)
 - Research: `claude-sonnet-4-20250514` (env: `RESEARCH_MODEL`)
 
 ---
@@ -219,7 +240,59 @@ newsletter_poller.process_task()
 
 ---
 
-## 10. Health Checks & Dependencies
+## 10. Email Subscription & Delivery
+
+### Subscription Flow
+
+```
+Web form (aiagentspulse.com) → Supabase upsert into subscribers table
+  - mode_preference: 'builder', 'impact', or 'both'
+  - status: 'active' (no double opt-in)
+  - Re-subscribing updates mode_preference (upsert, not duplicate error)
+```
+
+### Welcome Emails
+
+The processor polls every ~60 seconds for active subscribers where `welcome_email_sent_at IS NULL`, sends a welcome email via Resend, and marks them as sent.
+
+### Newsletter Email Delivery
+
+When an operator sends `/publish`, the processor calls `send_email_newsletter()`:
+- **Builder** subscribers get the builder-themed email (dark theme, tech green accent)
+- **Impact** subscribers get the impact-themed email (light theme, warm orange accent)
+- **Both** subscribers receive two separate emails
+
+### Email Tracking
+
+All emails (welcome + newsletter) are logged to the `email_log` table with:
+- `resend_id` — cross-reference with Resend dashboard for delivery status
+- `status` — 'sent' or 'failed'
+- `error_message` — populated on failure
+- `email_type` — 'welcome' or 'newsletter'
+- `mode`, `edition_number` — for newsletter emails
+
+**Provider:** Resend (env: `RESEND_API_KEY`). From address: `AgentPulse <newsletter@contact.aiagentspulse.com>`.
+
+### Unsubscribe
+
+`unsubscribe()` RPC function (migration 013) sets `status = 'unsubscribed'`. Frontend route: `#/unsubscribe?id=[uuid]`. One-click `List-Unsubscribe` header included in all emails.
+
+---
+
+## 11. Gato Brain — Conversational Intelligence
+
+`gato_brain` is a FastAPI middleware (port 8100) that provides conversational intelligence to the Telegram bot. It manages:
+
+- **Conversation sessions** — tracked in `conversation_sessions` and `conversation_messages` tables
+- **User profiles** — `corpus_users` table
+- **Usage tracking** — `user_usage` and `query_log` tables
+- **Semantic search** — via `embeddings` table for context-aware responses
+
+Health check: `GET /health` endpoint. Timeout: 30 seconds. Memory limit: 512MB.
+
+---
+
+## 12. Health Checks & Dependencies
 
 All Python services use `pgrep -f <script_name>` for health checks. Gato uses `pgrep -f node`.
 
@@ -235,7 +308,7 @@ web (no dependencies)
 
 ---
 
-## 11. Deployment
+## 13. Deployment
 
 **Host:** Hetzner VPS
 **Deploy:** `git pull && docker compose -f docker/docker-compose.yml up -d --build <service>`
@@ -259,7 +332,7 @@ git pull && docker compose -f docker/docker-compose.yml restart newsletter
 
 ---
 
-## 12. Tests
+## 14. Tests
 
 ```bash
 pytest tests/ -v    # from project root
@@ -275,7 +348,7 @@ pytest tests/ -v    # from project root
 
 ---
 
-## 13. Existing Architecture Docs (Historical)
+## 15. Existing Architecture Docs (Historical)
 
 Two older planning documents exist in the project root — they document design decisions from earlier phases and are useful as historical context but do not reflect the current system:
 

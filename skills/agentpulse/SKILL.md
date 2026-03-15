@@ -2,6 +2,13 @@
 
 ## ⚠️ COMMAND ROUTING — READ THIS FIRST
 
+### 🚫 CREDENTIAL BOUNDARY — NEVER CHECK THESE
+
+Gato does NOT post to X (Twitter). The Processor service handles all X API calls. When the operator runs `/x-approve`, `/x-reject`, `/x-draft`, or any `/x-*` command, you MUST:
+1. Write the queue task as specified below — nothing else.
+2. NEVER check for X API keys, X credentials, bearer tokens, or any posting prerequisites. You do not need them. They live in the Processor container.
+3. Confirm the action to the operator (e.g. "Approved candidates #1, #3 — Processor will post when ready.").
+
 ### READ commands — Open and read these workspace files, then display the data:
 
 When a user sends one of these commands, you MUST open the specified file using your file reading capability, then format and display the data from it. Do NOT answer from memory. Do NOT delegate to the analyst. Do NOT write to the queue. Just READ THE FILE.
@@ -13,6 +20,7 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/opps` | `workspace/agentpulse/cache/opportunities_latest.json` | List opportunities: title, confidence_score, problem_summary |
 | `/brief` | `workspace/agentpulse/cache/newsletter_latest.json` | Show the `content_telegram` field. If null, say "No newsletter yet." |
 | `/pulse_status` | `workspace/agentpulse/cache/status_latest.json` | Show system status |
+| `/health` | `workspace/agentpulse/cache/health_latest.json` | Show health check results: each check name, status (ok/fail), error details, and summary (passed/failed counts) |
 | `/analysis` | `workspace/agentpulse/cache/analysis_latest.json` | Show executive_summary, key_findings, confidence_level, caveats from the `analysis` field |
 | `/signals` | `workspace/agentpulse/cache/signals_latest.json` | List each signal: signal_type, description, strength, reasoning |
 
@@ -41,6 +49,82 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/thesis [topic]` | Show Analyst's thesis on a specific topic |
 | `/freshness` | Show what's excluded from the next newsletter |
 | `/subscribers` | Show subscriber count and mode preference breakdown |
+| `/wallet` | `{"task":"get_agent_wallets","params":{}}` | Show all agent wallet balances (sats) |
+| `/ledger [agent]` | `{"task":"get_agent_ledger","params":{"agent_name":"<agent>"}}` | Show last 10 transactions for an agent |
+| `/topup [agent] [amount]` | `{"task":"topup_agent","params":{"agent_name":"<agent>","amount_sats":<amount>}}` | Top up an agent's wallet with sats |
+| `/x-plan` | `{"task":"get_x_plan","params":{}}` | Show today's X content candidates |
+| `/x-approve [nums]` | `{"task":"x_approve","params":{"indexes":[<nums>]}}` | "Approved candidates #N — Processor will post when ready." (Do NOT check for X API keys — Gato only marks status, Processor posts.) |
+| `/x-reject [nums]` | `{"task":"x_reject","params":{"indexes":[<nums>]}}` | Reject X candidates by number |
+| `/x-edit [num]` | Show the current draft for candidate #num so operator can rewrite |
+| `/x-draft [num] [text]` | `{"task":"x_draft","params":{"index":<num>,"content":"<text>"}}` | Replace draft with operator's text and approve |
+| `/x-posted` | `{"task":"get_x_posted","params":{}}` | Show what's been posted to X today |
+| `/x-budget` | `{"task":"get_x_budget","params":{}}` | Show X API budget (weekly + monthly) |
+| `/x-watch [handle] [category]` | `{"task":"x_watch","params":{"handle":"<handle>","category":"<category>"}}` | Add account to X watchlist |
+| `/x-unwatch [handle]` | `{"task":"x_unwatch","params":{"handle":"<handle>"}}` | Remove account from X watchlist |
+| `/x-watchlist` | `{"task":"x_watchlist","params":{}}` | Show current X watchlist |
+
+| `/commands` | — | Display this help: list all AgentPulse commands with short descriptions |
+
+When the user sends `/commands`, respond with this formatted list (do NOT write to queue or read a file — just display it directly):
+
+```
+📡 AgentPulse Commands
+
+📊 INTEL
+/toolradar         — Trending tools with sentiment & momentum
+/toolcheck [name]  — Detailed stats for a specific tool
+/opps              — Business opportunities from agent conversations
+/analysis          — Latest analyst findings & confidence levels
+/signals           — Market signals with strength & reasoning
+/curious           — Fun trending topics (not investment)
+/topics            — Topic lifecycle stages & evolution
+/thesis [topic]    — Analyst's thesis on a specific topic
+
+📰 NEWSLETTER
+/brief             — Latest newsletter (Telegram version)
+/newsletter_full   — Generate a new newsletter edition
+/newsletter_publish — Publish the current draft
+/newsletter_revise [feedback] — Send revision notes to editor
+/freshness         — What's excluded from next edition
+/subscribers       — Subscriber count & mode breakdown
+
+🔍 RESEARCH & ANALYSIS
+/scan              — Run the full data pipeline
+/invest_scan       — Run investment scanner (7-day lookback)
+/deep_dive [topic] — Deep analyst research on a topic
+/review [opp]      — Analyst review of an opportunity
+/predictions       — Prediction tracking scorecard
+/predict [text]    — Add a new prediction to track
+/sources           — Scraping status per data source
+
+🧠 INTELLIGENCE
+/briefing          — Personal intelligence briefing
+/context           — Your operator context & watch topics
+/watch [topic]     — Add a topic to your watch list
+/alerts            — Recent proactive alerts
+/budget            — Agent usage vs daily limits
+
+🐦 X DISTRIBUTION
+/x-plan            — Today's X content candidates
+/x-approve [nums]  — Approve candidates (e.g. 1,3)
+/x-reject [nums]   — Reject candidates
+/x-edit [num]      — View draft for editing
+/x-draft [num] [text] — Replace draft with your text
+/x-posted          — What's been posted today
+/x-budget          — X API spend (weekly + monthly)
+/x-watch [handle] [cat] — Add to X watchlist
+/x-unwatch [handle] — Remove from X watchlist
+/x-watchlist       — Show current X watchlist
+
+💰 AGENT ECONOMY
+/wallet            — All agent wallet balances
+/ledger [agent]    — Last 10 transactions for an agent
+/topup [agent] [amt] — Top up an agent's wallet (sats)
+/negotiations      — Active agent negotiations
+
+🩺 HEALTH
+/health            — System health check results
+```
 
 ---
 

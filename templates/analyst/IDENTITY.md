@@ -187,6 +187,27 @@ For each major insight, provide in your output:
 - If data is too thin, say so explicitly.
 - When you downgrade an opportunity, explain what evidence would upgrade it.
 
+## Source Attribution Standards
+
+Every specific tool, repository, product, or project you reference must trace back to a
+concrete ingested source. If you cannot point to a specific data point in your input for
+a claim, do not include it — no matter how plausible it sounds.
+
+**The composite fabrication rule:** Never synthesize a claim by combining attributes from
+different sources into a single entity. If Source A mentions "spideystreet" and Source B
+mentions "clix MCP server," those are two separate signals — do not merge them into
+"spideystreet/clix." Each entity you reference must exist as a single, coherent mention
+in your input data.
+
+**Specific metrics are sacred:** Repository names, GitHub star counts, funding amounts,
+user numbers, and download statistics must come directly from the data. Fabricating or
+interpolating specific numbers — even when the ballpark seems obvious — is a hard failure.
+Round numbers that aren't in the data are a red flag in your own output.
+
+**When evidence is thin, say so:** Use hedging language ("reports suggest," "appears to be,"
+"early signal with limited corroboration") rather than asserting false specificity. A
+clearly hedged claim is useful intelligence. A confidently wrong claim destroys trust.
+
 ---
 
 ## Budget Awareness

@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to AgentPulse</title>
+  <style>
+    /* Reset */
+    body, html { margin: 0; padding: 0; }
+    body {
+      background-color: #0a0a0f;
+      color: #c8c8d0;
+      font-family: 'Georgia', 'Times New Roman', serif;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Email wrapper */
+    .email-wrapper {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* Header */
+    .header {
+      border-bottom: 1px solid #1a1a2e;
+      padding-bottom: 32px;
+      margin-bottom: 36px;
+    }
+
+    .logo-mark {
+      font-family: 'Courier New', 'Courier', monospace;
+      font-size: 13px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: #00875a;
+      margin-bottom: 6px;
+    }
+
+    .logo-sub {
+      font-family: 'Courier New', 'Courier', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #555568;
+    }
+
+    /* Hero */
+    .hero {
+      margin-bottom: 40px;
+    }
+
+    .hero h1 {
+      font-family: 'Georgia', serif;
+      font-size: 28px;
+      font-weight: 400;
+      color: #efefef;
+      line-height: 1.3;
+      margin: 0 0 16px 0;
+    }
+
+    .hero h1 em {
+      color: #00875a;
+      font-style: italic;
+    }
+
+    .hero-lead {
+      font-size: 17px;
+      color: #9999aa;
+      margin: 0;
+      line-height: 1.7;
+    }
+
+    /* Divider */
+    .divider {
+      border: none;
+      border-top: 1px solid #1a1a2e;
+      margin: 36px 0;
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 36px;
+    }
+
+    .section-label {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #00875a;
+      margin-bottom: 14px;
+      display: block;
+    }
+
+    .section p {
+      font-size: 16px;
+      color: #b0b0be;
+      margin: 0 0 14px 0;
+    }
+
+    .section p strong {
+      color: #e0e0e8;
+      font-weight: 600;
+    }
+
+    /* Section map — the newsletter anatomy */
+    .section-map {
+      background: #0f0f1a;
+      border: 1px solid #1a1a2e;
+      border-radius: 4px;
+      padding: 28px 24px;
+      margin: 24px 0;
+    }
+
+    .map-item {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .map-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .map-icon {
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: #00875a;
+      min-width: 28px;
+      padding-top: 2px;
+    }
+
+    .map-content {
+      flex: 1;
+    }
+
+    .map-title {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      color: #e0e0e8;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .map-desc {
+      font-size: 14px;
+      color: #7a7a8e;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    /* Sources block */
+    .sources-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .source-tag {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: #7a7a8e;
+      background: #0f0f1a;
+      border: 1px solid #1a1a2e;
+      border-radius: 3px;
+      padding: 5px 10px;
+    }
+
+    /* Dual view */
+    .dual-view-box {
+      background: #0f0f1a;
+      border: 1px solid #1a1a2e;
+      border-radius: 4px;
+      padding: 28px 24px;
+      margin: 24px 0;
+      display: flex;
+      gap: 20px;
+    }
+
+    .view-option {
+      flex: 1;
+      padding: 16px;
+      border-radius: 4px;
+    }
+
+    .view-option.builder {
+      border: 1px solid #1a1a2e;
+      background: #0a0a12;
+    }
+
+    .view-option.impact {
+      border: 1px solid #1a1a2e;
+      background: #0a0a12;
+    }
+
+    .view-tag {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 2px;
+      margin-bottom: 10px;
+    }
+
+    .view-tag.builder-tag {
+      color: #00875a;
+      border: 1px solid #00875a33;
+    }
+
+    .view-tag.impact-tag {
+      color: #e5a000;
+      border: 1px solid #e5a00033;
+    }
+
+    .view-option p {
+      font-size: 13px;
+      color: #7a7a8e;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    @media (max-width: 480px) {
+      .dual-view-box { flex-direction: column; gap: 12px; }
+    }
+
+    /* CTA */
+    .cta-block {
+      text-align: center;
+      padding: 36px 0;
+      border-top: 1px solid #1a1a2e;
+      border-bottom: 1px solid #1a1a2e;
+      margin: 36px 0;
+    }
+
+    .cta-block p {
+      font-size: 16px;
+      color: #9999aa;
+      margin: 0 0 8px 0;
+    }
+
+    .cta-block .cta-highlight {
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #00875a;
+      letter-spacing: 1px;
+    }
+
+    /* Footer */
+    .footer {
+      padding-top: 24px;
+      text-align: center;
+    }
+
+    .footer p {
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: #444458;
+      letter-spacing: 1px;
+      margin: 0 0 6px 0;
+    }
+
+    .footer a {
+      color: #555568;
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      color: #00875a;
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      .email-wrapper { padding: 28px 16px; }
+      .hero h1 { font-size: 24px; }
+      .section-map { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="email-wrapper">
+
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-mark">AgentPulse</div>
+      <div class="logo-sub">Weekly Intelligence Brief</div>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero">
+      <h1>You're in. Here's what <em>this actually is.</em></h1>
+      <p class="hero-lead">
+        AgentPulse isn't another AI newsletter that summarizes what happened last week. 
+        It's a conviction-driven intelligence brief on the emerging agent economy &mdash; 
+        the infrastructure, capital flows, and builder decisions shaping a world where 
+        software agents do real work.
+      </p>
+    </div>
+
+    <hr class="divider">
+
+    <!-- What you're getting -->
+    <div class="section">
+      <span class="section-label">What you're getting</span>
+      <p>
+        Every week, a single brief. Not a link dump. Not a hype recap. 
+        Each edition takes a position &mdash; a thesis about where the agent economy 
+        is headed &mdash; and commits to it publicly. We track our predictions over time 
+        and publish the scorecard. <strong>Being wrong is a feature, not a bug.</strong>
+      </p>
+      <p>
+        The brief is structured to give you signal without the noise, 
+        with each section serving a distinct purpose:
+      </p>
+
+      <div class="section-map">
+        <div class="map-item">
+          <span class="map-icon">01</span>
+          <div class="map-content">
+            <div class="map-title">The Big Insight</div>
+            <p class="map-desc">The macro thesis of the week. One argument, fully committed. Not "on one hand / on the other" &mdash; a stake in the ground.</p>
+          </div>
+        </div>
+        <div class="map-item">
+          <span class="map-icon">02</span>
+          <div class="map-content">
+            <div class="map-title">Spotlight</div>
+            <p class="map-desc">A deep-dive research piece on a single inflection point. Original analysis, not regurgitated press releases.</p>
+          </div>
+        </div>
+        <div class="map-item">
+          <span class="map-icon">03</span>
+          <div class="map-content">
+            <div class="map-title">Signal vs. Noise</div>
+            <p class="map-desc">Quick-hit classification of the week's developments. What actually matters, what's just marketing.</p>
+          </div>
+        </div>
+        <div class="map-item">
+          <span class="map-icon">04</span>
+          <div class="map-content">
+            <div class="map-title">Prediction Tracker</div>
+            <p class="map-desc">Our open ledger of past calls. New predictions posted, old ones scored. Full accountability.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Where the intelligence comes from -->
+    <div class="section">
+      <span class="section-label">Where the intelligence comes from</span>
+      <p>
+        AgentPulse is built on a multi-agent system that continuously monitors the 
+        agent ecosystem. Not a human scanning Twitter &mdash; a pipeline of specialized 
+        AI agents that scrape, classify, extract signals, and synthesize across sources 
+        that matter:
+      </p>
+      <div class="sources-grid">
+        <span class="source-tag">a16z</span>
+        <span class="source-tag">Sequoia</span>
+        <span class="source-tag">arXiv</span>
+        <span class="source-tag">GitHub</span>
+        <span class="source-tag">Hacker News</span>
+        <span class="source-tag">SEC filings</span>
+        <span class="source-tag">Infrastructure blogs</span>
+        <span class="source-tag">Developer ecosystems</span>
+      </div>
+      <p style="margin-top: 18px;">
+        Raw signal gets routed through editorial analysis before it reaches you. 
+        The agents find the data. <strong>The editorial layer decides what it means.</strong>
+      </p>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Why this exists -->
+    <div class="section">
+      <span class="section-label">Why this exists</span>
+      <p>
+        The agent economy is moving faster than any single person can track. Capital 
+        is flowing. Infrastructure is shifting. New primitives &mdash; agent-to-agent 
+        commerce, tool-use protocols, autonomous workflows &mdash; are emerging weekly.
+      </p>
+      <p>
+        Most coverage oscillates between hype and dismissal. AgentPulse exists in 
+        the gap: <strong>rigorous analysis with the conviction to actually say something.</strong> 
+        If you're building in this space, investing in it, or making career decisions 
+        around it &mdash; this is the brief that treats you like you can handle a real argument.
+      </p>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Two reading modes -->
+    <div class="section">
+      <span class="section-label">Two ways to read it</span>
+      <p>
+        Not everyone needs the same level of depth. Each edition ships in 
+        two versions &mdash; same intelligence, different lens. Pick the one 
+        that fits how you think:
+      </p>
+
+      <div class="dual-view-box">
+        <div class="view-option builder">
+          <span class="view-tag builder-tag">Builder Mode</span>
+          <p>
+            Technical framing. Architecture decisions, protocol-level shifts, 
+            infrastructure bets, code-adjacent analysis. Written for people 
+            who ship agents, not just read about them.
+          </p>
+        </div>
+        <div class="view-option impact">
+          <span class="view-tag impact-tag">Impact Mode</span>
+          <p>
+            Strategic framing. Market dynamics, workforce implications, 
+            capital flows, adoption patterns. Written for decision-makers 
+            who need to understand what's changing and why it matters.
+          </p>
+        </div>
+      </div>
+
+      <p>
+        Same underlying research. Same convictions. Just tuned for 
+        <strong>how you'll use the information.</strong>
+      </p>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-block">
+      <p>Your first edition arrives next week.</p>
+      <span class="cta-highlight">No action needed &mdash; you're already on the list.</span>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>AgentPulse &middot; Weekly Intelligence Brief</p>
+      <p><a href="#">Unsubscribe</a> &middot; <a href="#">View in browser</a></p>
+    </div>
+
+  </div>
+</body>
+</html>

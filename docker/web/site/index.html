@@ -4,68 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AgentPulse Intelligence Brief</title>
-
-    <!-- Google Fonts: JetBrains Mono + Outfit (shared by both modes) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- CSS: shared (always) + mode-specific (swapped by JS) -->
     <link rel="stylesheet" href="/style-shared.css">
-    <link rel="stylesheet" href="/style-impact.css" id="mode-stylesheet">
 </head>
-<body class="impact">
-    <header>
-        <div class="container">
-            <h1 class="site-title">AgentPulse</h1>
-            <p class="site-tagline">Weekly intelligence from the agent economy</p>
+<body class="technical">
+    <!-- Top navigation bar -->
+    <nav class="top-nav">
+        <div class="nav-left">
+            <span class="nav-dot"></span>
+            <span class="nav-logo">AGENTPULSE</span>
         </div>
-    </header>
+        <button class="btn-subscribe-primary" onclick="scrollToSubscribe()">SUBSCRIBE</button>
+    </nav>
 
-    <div class="container">
-        <div class="toggle-bar">
-            <span class="toggle-label builder-lbl" onclick="setMode('builder')">&#9889; Builder</span>
-            <div class="toggle-track impact" onclick="toggleMode()"><div class="toggle-thumb"></div></div>
-            <span class="toggle-label impact-lbl active" onclick="setMode('impact')">&#127757; Impact</span>
+    <!-- Hero area -->
+    <div class="hero">
+        <p class="hero-tagline">WEEKLY INTELLIGENCE BRIEFING</p>
+        <h1 class="hero-headline" id="hero-headline"></h1>
+        <p class="hero-date" id="hero-date"></p>
+        <div class="mode-toggle">
+            <button class="toggle-btn active" id="btn-technical" onclick="setMode('technical')">Technical</button>
+            <button class="toggle-btn" id="btn-strategic" onclick="setMode('strategic')">Strategic</button>
         </div>
+        <p class="mode-subtitle" id="mode-subtitle">Architecture, code, implementation</p>
     </div>
 
-    <main class="container">
+    <main>
         <!-- List view -->
         <div id="list-view">
-            <div id="newsletter-list"></div>
+            <div class="content-area" id="newsletter-list"></div>
         </div>
 
         <!-- Reader view -->
         <div id="reader-view" style="display:none">
-            <a href="#/" class="back-link">&larr; All editions</a>
-            <article id="newsletter-content"></article>
+            <div class="content-area">
+                <a href="#/" class="back-link">&larr; All editions</a>
+                <article id="newsletter-content"></article>
+            </div>
         </div>
+    </main>
 
-        <!-- Subscribe section (always visible at bottom) -->
-        <section id="subscribe-section" class="container">
-            <h2>Get the Intelligence Brief</h2>
-            <p class="subscribe-tagline">Weekly analysis of the AI agent economy. Choose your lens.</p>
+    <!-- Subscribe section -->
+    <section id="subscribe-section">
+        <div class="subscribe-inner">
+            <h2 class="subscribe-heading">Get the Intelligence Brief</h2>
+            <p class="subscribe-tagline">Weekly analysis delivered to your inbox. Choose your lens.</p>
             <div class="subscribe-form">
                 <input type="email" id="subscribe-email" placeholder="you@example.com" required />
                 <div class="mode-preference">
-                    <label><input type="radio" name="pref" value="builder" /> &#9889; Builder</label>
-                    <label><input type="radio" name="pref" value="impact" checked /> &#127757; Impact</label>
+                    <label><input type="radio" name="pref" value="technical" checked /> Technical</label>
+                    <label><input type="radio" name="pref" value="strategic" /> Strategic</label>
                     <label><input type="radio" name="pref" value="both" /> Both</label>
                 </div>
                 <button id="subscribe-btn" onclick="handleSubscribe()">Subscribe</button>
                 <p id="subscribe-status" class="subscribe-status"></p>
             </div>
-        </section>
-    </main>
-
-    <!-- Mode indicator pill (fixed, bottom-right) -->
-    <div class="mode-indicator" id="mode-indicator"></div>
-
-    <footer>
-        <div class="container">
-            <p>AgentPulse &mdash; Signal from noise in the agent economy</p>
         </div>
+    </section>
+
+    <!-- Bottom subscribe bar -->
+    <footer class="bottom-bar">
+        <span class="bottom-bar-text">Weekly conviction-driven analysis on the agent economy</span>
+        <button class="btn-subscribe-secondary" onclick="scrollToSubscribe()">Subscribe</button>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

@@ -9,29 +9,32 @@ const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ─── Mode State ──────────────────────────────────────────────────────────────
 
 const MODES = {
-    builder: {
-        stylesheet: '/style-builder.css',
+    technical: {
         contentField: 'content_markdown',
         titleField: 'title',
-        label: 'Builder',
-        icon: '\u26A1'
+        label: 'Technical',
+        subtitle: 'Architecture, code, implementation',
+        dbPref: 'builder'
     },
-    impact: {
-        stylesheet: '/style-impact.css',
+    strategic: {
         contentField: 'content_markdown_impact',
         titleField: 'title_impact',
-        label: 'Impact',
-        icon: '\uD83C\uDF0D'
+        label: 'Strategic',
+        subtitle: 'Markets, strategy, implications',
+        dbPref: 'impact'
     }
 };
 
-// Resolve initial mode: URL param > localStorage > default 'impact'
+// Resolve initial mode: URL param > localStorage > default 'technical'
 function getInitialMode() {
     var urlMode = new URL(window.location).searchParams.get('mode');
     if (urlMode && MODES[urlMode]) return urlMode;
+    // Migrate old localStorage values
     var stored = localStorage.getItem('agentpulse_mode');
+    if (stored === 'builder') return 'technical';
+    if (stored === 'impact') return 'strategic';
     if (stored && MODES[stored]) return stored;
-    return 'impact';
+    return 'technical';
 }
 
 var currentMode = getInitialMode();
@@ -46,32 +49,22 @@ function setMode(mode) {
     url.searchParams.set('mode', mode);
     history.replaceState({}, '', url);
 
-    // Swap stylesheet
-    document.getElementById('mode-stylesheet').href = MODES[mode].stylesheet;
-
-    // Update body class
-    document.body.classList.remove('builder', 'impact');
+    // Body class (drives CSS variables)
+    document.body.classList.remove('technical', 'strategic');
     document.body.classList.add(mode);
 
-    // Update toggle UI
-    var track = document.querySelector('.toggle-track');
-    track.classList.remove('builder', 'impact');
-    track.classList.add(mode);
+    // Toggle buttons
+    document.getElementById('btn-technical').classList.toggle('active', mode === 'technical');
+    document.getElementById('btn-strategic').classList.toggle('active', mode === 'strategic');
 
-    // Update toggle label highlights
-    var builderLbl = document.querySelector('.builder-lbl');
-    var impactLbl = document.querySelector('.impact-lbl');
-    if (builderLbl) builderLbl.classList.toggle('active', mode === 'builder');
-    if (impactLbl) impactLbl.classList.toggle('active', mode === 'impact');
+    // Mode subtitle
+    document.getElementById('mode-subtitle').textContent = MODES[mode].subtitle;
 
-    // Add transition class
+    // Transition
     document.body.classList.add('mode-transitioning');
     setTimeout(function() {
         document.body.classList.remove('mode-transitioning');
     }, 400);
-
-    // Flash mode indicator
-    flashIndicator(mode);
 
     // Re-render current article if loaded (without refetching)
     if (window.currentNewsletter) {
@@ -84,18 +77,11 @@ function setMode(mode) {
     }
 }
 
-function toggleMode() {
-    setMode(currentMode === 'builder' ? 'impact' : 'builder');
-}
+// ─── Hero ────────────────────────────────────────────────────────────────────
 
-function flashIndicator(mode) {
-    var el = document.getElementById('mode-indicator');
-    if (!el) return;
-    el.textContent = MODES[mode].icon + ' ' + MODES[mode].label + ' Mode';
-    el.classList.add('flash');
-    setTimeout(function() {
-        el.classList.remove('flash');
-    }, 1500);
+function updateHero(title, dateText) {
+    document.getElementById('hero-headline').textContent = title || '';
+    document.getElementById('hero-date').textContent = dateText || '';
 }
 
 // ─── Router ──────────────────────────────────────────────────────────────────
@@ -119,24 +105,28 @@ function showView(viewName) {
 // ─── List View ───────────────────────────────────────────────────────────────
 
 function renderList(data) {
+    if (!data || data.length === 0) {
+        document.getElementById('newsletter-list').innerHTML =
+            '<div class="content-area"><p style="color:var(--text-secondary);font-size:13px;">No newsletters published yet.</p></div>';
+        updateHero('Intelligence Archive', '');
+        return;
+    }
+
+    // Update hero with latest edition info
+    var latest = data[0];
+    var latestTitle = getModeTitle(latest);
+    var latestDate = formatDate(latest.published_at);
+    updateHero(latestTitle, latestDate);
+
     var html = data.map(function(n) {
-        var date = new Date(n.published_at).toLocaleDateString('en-US', {
-            year: 'numeric', month: 'long', day: 'numeric'
-        });
+        var title = getModeTitle(n);
+        var content = getModeContent(n);
+        var excerpt = content.replace(/[#*_\[\]`>]/g, '').substring(0, 150) + '...';
 
-        // Use mode-appropriate title (fall back to default title)
-        var title = (currentMode === 'impact' && n.title_impact) ? n.title_impact : n.title;
-
-        // Use mode-appropriate content for excerpt
-        var content = (currentMode === 'impact' && n.content_markdown_impact)
-            ? n.content_markdown_impact
-            : (n.content_markdown || '');
-        var excerpt = content.replace(/[#*_\[\]]/g, '').substring(0, 150) + '...';
-
-        return '<div class="edition-card">' +
-            '<div class="edition-meta">Edition #' + n.edition_number + ' &middot; ' + date + '</div>' +
-            '<a href="#/edition/' + n.edition_number + '" class="edition-title">' + escapeHtml(title) + '</a>' +
-            '<p class="edition-excerpt">' + escapeHtml(excerpt) + '</p>' +
+        return '<div class="article-entry">' +
+            '<div class="section-label">EDITION #' + n.edition_number + '</div>' +
+            '<a href="#/edition/' + n.edition_number + '" class="entry-title">' + escapeHtml(title) + '</a>' +
+            '<p class="entry-preview">' + escapeHtml(excerpt) + '</p>' +
             '</div>';
     }).join('');
 
@@ -152,7 +142,9 @@ async function loadList() {
         .order('edition_number', { ascending: false });
 
     if (error || !data || data.length === 0) {
-        document.getElementById('newsletter-list').innerHTML = '<p>No newsletters published yet.</p>';
+        document.getElementById('newsletter-list').innerHTML =
+            '<p style="color:var(--text-secondary);font-size:13px;padding:20px 24px;">No newsletters published yet.</p>';
+        updateHero('Intelligence Archive', '');
         return;
     }
 
@@ -163,22 +155,15 @@ async function loadList() {
 // ─── Reader View ─────────────────────────────────────────────────────────────
 
 function renderArticle(data) {
-    // Pick mode-appropriate content (fall back to builder version)
-    var title = (currentMode === 'impact' && data.title_impact) ? data.title_impact : data.title;
-    var content = (currentMode === 'impact' && data.content_markdown_impact)
-        ? data.content_markdown_impact
-        : (data.content_markdown || '');
+    var title = getModeTitle(data);
+    var content = getModeContent(data);
+    var date = formatDate(data.published_at);
 
-    var date = new Date(data.published_at).toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric'
-    });
+    // Update hero with edition info
+    updateHero(title, 'Edition #' + data.edition_number + ' \u00b7 ' + date);
 
     var rendered = marked.parse(content);
-
-    document.getElementById('newsletter-content').innerHTML =
-        '<h1>' + escapeHtml(title) + '</h1>' +
-        '<div class="article-meta">Edition #' + data.edition_number + ' &middot; Published ' + date + '</div>' +
-        rendered;
+    document.getElementById('newsletter-content').innerHTML = rendered;
 }
 
 async function loadEdition(editionNumber) {
@@ -192,11 +177,12 @@ async function loadEdition(editionNumber) {
         .single();
 
     if (error || !data) {
-        document.getElementById('newsletter-content').innerHTML = '<p>Edition not found.</p>';
+        document.getElementById('newsletter-content').innerHTML =
+            '<p style="color:var(--text-secondary);">Edition not found.</p>';
+        updateHero('Edition Not Found', '');
         return;
     }
 
-    // Store for mode-toggle re-render without refetching
     window.currentNewsletter = data;
     renderArticle(data);
     window.scrollTo(0, 0);
@@ -212,7 +198,6 @@ async function handleSubscribe() {
 
     if (!email || !email.includes('@')) {
         status.textContent = 'Please enter a valid email.';
-        status.style.color = 'var(--color-accent)';
         return;
     }
 
@@ -220,49 +205,40 @@ async function handleSubscribe() {
     btn.textContent = 'Subscribing...';
 
     try {
-        var newPref = pref ? pref.value : 'impact';
-        var { data, error } = await sb
-            .from('subscribers')
-            .upsert({
-                email: email,
-                mode_preference: newPref,
-                status: 'active',
-                unsubscribed_at: null
-            }, { onConflict: 'email' })
-            .select('mode_preference');
+        // Map frontend mode names to backend values for backward compat
+        var prefValue = pref ? pref.value : 'technical';
+        var dbMode = prefValue === 'technical' ? 'builder'
+                   : prefValue === 'strategic' ? 'impact'
+                   : 'both';
 
-        if (error) {
-            throw error;
-        } else {
-            status.textContent = "You're in! You'll receive the next edition.";
-            status.style.color = 'var(--color-accent)';
-            document.getElementById('subscribe-email').value = '';
-        }
+        var { error } = await sb.rpc('subscribe', {
+            p_email: email,
+            p_mode: dbMode
+        });
+
+        if (error) throw error;
+
+        status.textContent = "You're in! You'll receive the next edition.";
+        document.getElementById('subscribe-email').value = '';
     } catch (err) {
         console.error('Subscribe error:', err);
         status.textContent = 'Something went wrong. Try again.';
-        status.style.color = 'var(--color-accent)';
     }
 
     btn.disabled = false;
     btn.textContent = 'Subscribe';
 }
 
-// ─── Utility ─────────────────────────────────────────────────────────────────
-
-function escapeHtml(str) {
-    var div = document.createElement('div');
-    div.appendChild(document.createTextNode(str));
-    return div.innerHTML;
+function scrollToSubscribe() {
+    document.getElementById('subscribe-section').scrollIntoView({ behavior: 'smooth' });
 }
-
-// ─── Init ────────────────────────────────────────────────────────────────────
 
 // ─── Unsubscribe Handler ────────────────────────────────────────────────────
 
 async function handleUnsubscribe() {
     showView('reader');
     var container = document.getElementById('newsletter-content');
+    updateHero('Unsubscribe', '');
 
     // Parse subscriber ID from hash: #/unsubscribe?id=xxx
     var id = null;
@@ -289,6 +265,33 @@ async function handleUnsubscribe() {
     }
 }
 
+// ─── Utility ─────────────────────────────────────────────────────────────────
+
+function escapeHtml(str) {
+    var div = document.createElement('div');
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+}
+
+function formatDate(isoStr) {
+    if (!isoStr) return '';
+    return new Date(isoStr).toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
+    });
+}
+
+function getModeTitle(data) {
+    if (currentMode === 'strategic' && data.title_impact) return data.title_impact;
+    return data.title;
+}
+
+function getModeContent(data) {
+    if (currentMode === 'strategic' && data.content_markdown_impact) return data.content_markdown_impact;
+    return data.content_markdown || '';
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+
 function route() {
     window.currentNewsletter = null;
     var r = getRoute();
@@ -300,7 +303,6 @@ function route() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Apply initial mode (sets body class, stylesheet, toggle UI, URL)
     setMode(currentMode);
     route();
 });

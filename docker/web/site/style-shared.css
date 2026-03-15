@@ -1,213 +1,288 @@
-/* === AgentPulse Shared Layout, Typography & Toggle === */
-/* All typographic/layout properties live here (Builder's monospace base).  */
-/* Mode-specific files override ONLY color properties.                      */
+/* === AgentPulse — Unified Styles === */
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
+/* ── Color Variables ─────────────────────────────────────────── */
+
+body.technical {
+    --accent: #00e5a0;
+    --bg: #0a0a0f;
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.45);
+    --text-body: rgba(255, 255, 255, 0.4);
+    --text-hint: rgba(255, 255, 255, 0.35);
+    --border: rgba(255, 255, 255, 0.08);
+    --btn-bg: #00e5a0;
+    --btn-text: #0a0a0f;
+    --bar-bg: rgba(0, 229, 160, 0.06);
+    --bar-border: rgba(0, 229, 160, 0.15);
+    --btn-secondary-border: rgba(0, 229, 160, 0.3);
+}
+
+body.strategic {
+    --accent: #c4a0ff;
+    --bg: #0d0a14;
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.45);
+    --text-body: rgba(255, 255, 255, 0.4);
+    --text-hint: rgba(255, 255, 255, 0.35);
+    --border: rgba(255, 255, 255, 0.08);
+    --btn-bg: #c4a0ff;
+    --btn-text: #0d0a14;
+    --bar-bg: rgba(196, 160, 255, 0.06);
+    --bar-border: rgba(196, 160, 255, 0.15);
+    --btn-secondary-border: rgba(196, 160, 255, 0.3);
+}
+
 body {
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    line-height: 1.7;
-    font-size: 14.5px;
+    font-family: 'Courier New', monospace;
+    background: var(--bg);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
 }
 
-.container {
-    max-width: 680px;
-    margin: 0 auto;
-    padding: 0 20px;
-}
+/* ── Mode Transitions ────────────────────────────────────────── */
 
-/* Header */
-header {
-    padding: 40px 0 20px;
-    margin-bottom: 0;
-}
-
-.site-title {
-    font-family: 'Outfit', 'Inter', sans-serif;
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-}
-
-.site-tagline {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 0.02em;
-}
-
-/* Toggle Bar */
-.toggle-bar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    padding: 18px 0;
-    user-select: none;
-    border-bottom: 1px solid var(--color-border);
-    margin-bottom: 40px;
-}
-
-.toggle-label {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    opacity: 0.45;
-    cursor: pointer;
-    transition: opacity 0.3s ease, color 0.3s ease;
-}
-
-.toggle-label:hover { opacity: 0.7; }
-
-.toggle-label.active { opacity: 1; }
-
-.toggle-track {
-    width: 56px;
-    height: 28px;
-    border-radius: 14px;
-    cursor: pointer;
-    position: relative;
-    background-color: #00d4aa;
-    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.toggle-track.impact {
-    background-color: #c44b2b;
-}
-
-.toggle-thumb {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: white;
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    transition: left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-
-.toggle-track.impact .toggle-thumb {
-    left: 30px;
-}
-
-/* Mode Transition */
 .mode-transitioning,
 .mode-transitioning *,
 .mode-transitioning *::before,
 .mode-transitioning *::after {
-    transition: color 0.4s ease, background-color 0.4s ease, border-color 0.4s ease !important;
+    transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease !important;
 }
 
-/* Mode Indicator (fixed pill, bottom-right) */
-.mode-indicator {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
+/* ── Top Navigation Bar ──────────────────────────────────────── */
+
+.top-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-bottom: 0.5px solid var(--border);
+}
+
+.nav-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.nav-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    flex-shrink: 0;
+}
+
+.nav-logo {
+    font-family: 'Courier New', monospace;
+    font-size: 15px;
+    font-weight: 500;
+    color: #ffffff;
+    letter-spacing: 1px;
     text-transform: uppercase;
-    opacity: 0;
-    transform: translateY(8px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    pointer-events: none;
-    z-index: 100;
 }
 
-.mode-indicator.flash {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-/* Newsletter List */
-.edition-card {
-    padding: 24px 0;
-    border-bottom: 1px solid var(--color-border);
+.btn-subscribe-primary {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 8px 20px;
+    border-radius: 6px;
+    border: none;
+    background: var(--btn-bg);
+    color: var(--btn-text);
     cursor: pointer;
 }
 
-.edition-card:last-child { border-bottom: none; }
+.btn-subscribe-primary:hover { opacity: 0.9; }
 
-.edition-meta {
-    font-family: 'JetBrains Mono', monospace;
+/* ── Hero Area ───────────────────────────────────────────────── */
+
+.hero {
+    padding: 40px 24px 24px;
+    text-align: center;
+}
+
+.hero-tagline {
+    font-family: 'Courier New', monospace;
     font-size: 12px;
-    letter-spacing: 0.03em;
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+
+.hero-headline {
+    font-family: Georgia, serif;
+    font-size: 26px;
+    font-weight: 400;
+    color: #ffffff;
+    margin-bottom: 8px;
+}
+
+.hero-date {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-secondary);
+    margin-bottom: 28px;
+}
+
+/* ── Mode Toggle ─────────────────────────────────────────────── */
+
+.mode-toggle {
+    display: inline-flex;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+}
+
+.toggle-btn {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    padding: 8px 20px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.toggle-btn.active {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 700;
+}
+
+.mode-subtitle {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-hint);
+    letter-spacing: 0.5px;
+    margin-top: 10px;
+}
+
+/* ── Content Area ────────────────────────────────────────────── */
+
+.content-area {
+    padding: 0 24px 32px;
+    border-top: 0.5px solid var(--border);
+    padding-top: 20px;
+}
+
+/* Article entries in list view */
+
+.article-entry {
+    margin-bottom: 20px;
+}
+
+.section-label {
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
     margin-bottom: 6px;
 }
 
-.edition-title {
-    font-family: 'Outfit', sans-serif;
-    font-size: 22px;
-    font-weight: 600;
+.entry-title {
+    font-family: Georgia, serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: #ffffff;
     text-decoration: none;
-    line-height: 1.3;
     display: block;
+    margin-bottom: 6px;
 }
 
-.edition-excerpt {
-    font-size: 14px;
-    margin-top: 8px;
+.entry-title:hover {
+    color: var(--accent);
+}
+
+.entry-preview {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-body);
     line-height: 1.5;
 }
 
-/* Reader */
+/* Back link */
+
 .back-link {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: 'Courier New', monospace;
     font-size: 13px;
+    color: var(--accent);
     text-decoration: none;
     display: inline-block;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
 }
 
-article h1 {
-    font-family: 'Outfit', sans-serif;
-    font-size: 32px;
-    font-weight: 700;
-    line-height: 1.2;
-    margin-bottom: 8px;
-}
+.back-link:hover { opacity: 0.8; }
+
+/* ── Reader Article Styles ───────────────────────────────────── */
 
 article h2 {
-    font-family: 'Outfit', sans-serif;
-    font-size: 16px;
-    font-weight: 600;
+    font-family: 'Courier New', monospace;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: 1.5px;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-top: 36px;
+    margin-top: 28px;
     margin-bottom: 12px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--color-border);
-}
-
-article h2::before {
-    content: '// ';
-    color: var(--color-muted);
 }
 
 article h3 {
-    font-family: 'Outfit', sans-serif;
-    font-size: 18px;
-    letter-spacing: 0.02em;
-    margin-top: 24px;
+    font-family: Georgia, serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: #ffffff;
+    margin-top: 20px;
     margin-bottom: 8px;
 }
 
-article p { margin-bottom: 16px; }
-article ul, article ol { margin-bottom: 16px; padding-left: 24px; }
+article p {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--text-body);
+    line-height: 1.5;
+    margin-bottom: 16px;
+}
+
+article ul, article ol {
+    margin-bottom: 16px;
+    padding-left: 24px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--text-body);
+    line-height: 1.5;
+}
+
 article li { margin-bottom: 8px; }
 
+article strong { color: var(--text-primary); }
+
 article blockquote {
-    border-left: 3px solid var(--color-accent);
+    border-left: 3px solid var(--accent);
     padding: 12px 16px;
-    border-radius: 0;
     margin: 20px 0;
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-body);
 }
 
 article a {
+    color: var(--accent);
     text-decoration: underline;
     text-underline-offset: 2px;
 }
@@ -216,6 +291,8 @@ article code {
     padding: 2px 6px;
     border-radius: 3px;
     font-size: 0.9em;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--accent);
 }
 
 article pre {
@@ -223,6 +300,7 @@ article pre {
     padding: 16px;
     overflow-x: auto;
     margin: 16px 0;
+    background: rgba(255, 255, 255, 0.04);
 }
 
 article pre code {
@@ -230,30 +308,26 @@ article pre code {
     padding: 0;
 }
 
-.article-meta {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px;
-    letter-spacing: 0.02em;
-    margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--color-border);
-}
+/* ── Subscribe Section ───────────────────────────────────────── */
 
-/* Subscribe Section */
 #subscribe-section {
-    margin: 60px auto;
     padding: 40px 24px;
     text-align: center;
-    border-top: 1px solid var(--color-border);
+    border-top: 0.5px solid var(--border);
 }
 
-#subscribe-section h2 {
-    font-family: 'Outfit', sans-serif;
+.subscribe-heading {
+    font-family: Georgia, serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: #ffffff;
     margin-bottom: 8px;
 }
 
 .subscribe-tagline {
-    color: var(--color-muted);
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--text-secondary);
     margin-bottom: 24px;
 }
 
@@ -264,16 +338,23 @@ article pre code {
 
 #subscribe-email {
     width: 100%;
-    padding: 12px 16px;
-    font-size: 14px;
-    border: 1px solid var(--color-border);
+    padding: 10px 14px;
+    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    border: 0.5px solid var(--border);
     border-radius: 6px;
-    font-family: 'JetBrains Mono', monospace;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary);
     margin-bottom: 12px;
 }
 
+#subscribe-email:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
 #subscribe-email::placeholder {
-    color: var(--color-muted);
+    color: var(--text-hint);
 }
 
 .mode-preference {
@@ -281,70 +362,93 @@ article pre code {
     justify-content: center;
     gap: 16px;
     margin-bottom: 16px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    color: var(--text-secondary);
 }
 
 .mode-preference label {
     cursor: pointer;
-    color: var(--color-muted);
     display: flex;
     align-items: center;
     gap: 6px;
 }
 
 .mode-preference input[type="radio"] {
-    accent-color: var(--color-accent);
+    accent-color: var(--accent);
 }
 
 #subscribe-btn {
-    padding: 12px 32px;
-    border: none;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 8px 24px;
     border-radius: 6px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 14px;
-    font-weight: 600;
+    border: none;
+    background: var(--btn-bg);
+    color: var(--btn-text);
     cursor: pointer;
-    letter-spacing: 0.03em;
 }
 
 #subscribe-btn:hover { opacity: 0.9; }
 #subscribe-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .subscribe-status {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
     margin-top: 12px;
-    font-size: 14px;
-    min-height: 20px;
+    min-height: 16px;
+    color: var(--accent);
 }
 
-/* Footer */
-footer {
-    margin-top: 20px;
-    padding: 20px 0;
-    border-top: 1px solid var(--color-border);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    text-align: center;
+/* ── Bottom Subscribe Bar ────────────────────────────────────── */
+
+.bottom-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    border-top: 0.5px solid var(--bar-border);
+    background: var(--bar-bg);
 }
 
-/* Responsive */
+.bottom-bar-text {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.btn-subscribe-secondary {
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--accent);
+    background: transparent;
+    border: 1px solid var(--btn-secondary-border);
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-subscribe-secondary:hover { opacity: 0.8; }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+
 @media (max-width: 600px) {
-    .toggle-bar {
-        gap: 10px;
-        padding: 14px 0;
-    }
+    .hero { padding: 30px 16px 20px; }
+    .hero-headline { font-size: 22px; }
 
-    .toggle-label { font-size: 12px; }
+    .content-area { padding: 0 16px 24px; padding-top: 16px; }
 
-    .edition-title { font-size: 19px; }
+    .toggle-btn { font-size: 12px; padding: 7px 16px; }
 
-    article h1 { font-size: 26px; }
-
-    .mode-indicator {
-        bottom: 12px;
-        right: 12px;
-        font-size: 11px;
-        padding: 6px 12px;
+    .bottom-bar {
+        flex-direction: column;
+        gap: 12px;
+        text-align: center;
     }
 
     .mode-preference {
@@ -353,5 +457,5 @@ footer {
         align-items: center;
     }
 
-    #subscribe-section { padding: 30px 0; }
+    #subscribe-section { padding: 30px 16px; }
 }

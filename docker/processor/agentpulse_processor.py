@@ -81,6 +81,16 @@ HN_KEYWORDS = [
 # GitHub
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
 
+# X (Twitter) API
+X_BEARER_TOKEN = os.getenv('X_BEARER_TOKEN')
+X_API_KEY = os.getenv('X_API_KEY')
+X_API_SECRET = os.getenv('X_API_SECRET')
+X_ACCESS_TOKEN = os.getenv('X_ACCESS_TOKEN')
+X_ACCESS_TOKEN_SECRET = os.getenv('X_ACCESS_TOKEN_SECRET')
+X_WEEKLY_BUDGET = float(os.getenv('X_WEEKLY_BUDGET', '5.0'))
+X_SEARCH_COST_ESTIMATE = float(os.getenv('X_SEARCH_COST_ESTIMATE', '0.01'))  # $/request
+X_SUBSCRIBE_URL = os.getenv('X_SUBSCRIBE_URL', 'https://aiagentspulse.com/#/subscribe')
+
 # RSS Feeds
 RSS_FEEDS = {
     'tldr_ai': {
@@ -3671,6 +3681,120 @@ def create_predictions_from_newsletter(newsletter_id: str) -> dict:
         return {'error': str(e)}
 
 
+def verify_briefing_references(newsletter: dict) -> dict:
+    """Cross-check newsletter content against its source data_snapshot.
+
+    Extracts named entities (GitHub repos, tool names, specific numbers) from
+    the newsletter text and verifies each one traces back to the input data.
+    Returns a dict with 'ok' bool, 'warnings' list, and 'unverified' list.
+    """
+    content = (newsletter.get('content_markdown') or '') + ' ' + (
+        newsletter.get('content_markdown_impact') or '')
+    snapshot = newsletter.get('data_snapshot') or newsletter.get('input_data') or {}
+
+    if not content.strip() or not snapshot:
+        return {'ok': True, 'warnings': [], 'unverified': [],
+                'reason': 'No content or snapshot to verify'}
+
+    # ── Build a corpus of known names from the snapshot ──
+    known_names: set[str] = set()
+
+    def _collect_names(obj, depth=0):
+        """Recursively harvest string values likely to be entity names."""
+        if depth > 6:
+            return
+        if isinstance(obj, str):
+            cleaned = obj.strip().lower()
+            if 3 <= len(cleaned) <= 120:
+                known_names.add(cleaned)
+                # Also add last path segment for URLs / repo paths
+                if '/' in cleaned:
+                    known_names.add(cleaned.rsplit('/', 1)[-1])
+        elif isinstance(obj, dict):
+            for key in ('title', 'name', 'tool_name', 'theme', 'description',
+                        'repo', 'url', 'source', 'signal_phrases', 'topic',
+                        'category', 'author', 'key_findings', 'analyst_notes'):
+                val = obj.get(key)
+                if val:
+                    if isinstance(val, list):
+                        for item in val:
+                            _collect_names(item, depth + 1)
+                    else:
+                        _collect_names(val, depth + 1)
+            for v in obj.values():
+                if isinstance(v, (dict, list)):
+                    _collect_names(v, depth + 1)
+        elif isinstance(obj, list):
+            for item in obj:
+                _collect_names(item, depth + 1)
+
+    _collect_names(snapshot)
+
+    warnings = []
+    unverified = []
+
+    # ── Check 1: GitHub-style repo references (org/repo) ──
+    gh_refs = set(re.findall(r'(?:github\.com/)?([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)', content))
+    for ref in gh_refs:
+        ref_lower = ref.lower()
+        # Skip common false positives
+        if ref_lower in ('e.g./', 'i.e./') or ref_lower.startswith('section_'):
+            continue
+        if (ref_lower not in known_names
+                and ref_lower.split('/')[-1] not in known_names
+                and ref_lower.split('/')[0] not in known_names):
+            unverified.append(f"GitHub ref: {ref}")
+
+    # ── Check 2: Specific numbers that look like metrics ──
+    # Match patterns like "58-star", "1,234 downloads", "$2.5M", "10k users"
+    metric_patterns = re.findall(
+        r'(\d[\d,]*(?:\.\d+)?)\s*(?:[-\s]?(?:star|fork|download|user|subscriber|'
+        r'install|mention|repo|project|contributor|commit)s?)',
+        content, re.IGNORECASE
+    )
+    dollar_patterns = re.findall(r'\$(\d[\d,]*(?:\.\d+)?[MmBbKk]?)', content)
+    all_metrics = metric_patterns + dollar_patterns
+
+    # Build a set of numbers that appear in the snapshot
+    snapshot_text = json.dumps(snapshot, default=str)
+    snapshot_numbers = set(re.findall(r'\b(\d[\d,]*(?:\.\d+)?)\b', snapshot_text))
+
+    for metric in all_metrics:
+        cleaned = metric.replace(',', '')
+        if cleaned not in snapshot_numbers and metric not in snapshot_numbers:
+            # Check if the raw number appears anywhere in the snapshot text
+            if cleaned not in snapshot_text and metric not in snapshot_text:
+                unverified.append(f"Metric: {metric}")
+
+    # ── Check 3: Bold entity names (likely tool/project names) ──
+    bold_names = set(re.findall(r'\*\*([A-Za-z][A-Za-z0-9_ .-]{2,40})\*\*', content))
+    generic_bold = {'section', 'warning', 'note', 'update', 'new', 'top', 'key',
+                    'edition', 'builder', 'impact', 'emerging', 'prediction',
+                    'signal', 'curious', 'spotlight', 'tracker', 'weekly',
+                    'trend', 'takeaway', 'bottom line', 'the bottom line',
+                    'what changed', 'why it matters', 'action', 'watch'}
+    for name in bold_names:
+        name_lower = name.lower().strip()
+        if name_lower in generic_bold or len(name_lower) < 3:
+            continue
+        if name_lower not in known_names:
+            # Fuzzy: check if any known name contains this or vice versa
+            found = any(name_lower in kn or kn in name_lower for kn in known_names)
+            if not found:
+                unverified.append(f"Bold entity: {name}")
+
+    ok = len(unverified) == 0
+    if unverified:
+        warnings.append(
+            f"{len(unverified)} reference(s) in newsletter content could not be "
+            f"traced to source data — possible hallucination"
+        )
+        for item in unverified[:10]:
+            logger.warning(f"Unverified reference in newsletter: {item}")
+
+    return {'ok': ok, 'warnings': warnings, 'unverified': unverified}
+
+
 def publish_newsletter() -> dict:
     """Publish the latest draft newsletter via Telegram and email."""
     if not supabase:
@@ -3689,6 +3813,24 @@ def publish_newsletter() -> dict:
             return {'error': 'No draft newsletter found'}
 
         newsletter = draft.data[0]
+
+        # Verify references before publishing
+        verification = verify_briefing_references(newsletter)
+        if not verification['ok']:
+            logger.warning(
+                "Newsletter #%s has %d unverified reference(s): %s",
+                newsletter.get('edition_number', '?'),
+                len(verification['unverified']),
+                '; '.join(verification['unverified'][:5])
+            )
+            # Store verification warnings on the record for audit trail
+            try:
+                supabase.table('newsletters').update({
+                    'verification_warnings': verification['unverified']
+                }).eq('id', newsletter['id']).execute()
+            except Exception as e:
+                logger.warning(f"Could not save verification warnings: {e}")
+
         telegram_content = newsletter.get('content_telegram') or newsletter.get('content_markdown', '')[:4000]
 
         if telegram_content:
@@ -3715,6 +3857,13 @@ def publish_newsletter() -> dict:
             logger.info(f"Predictions created: {pred_result}")
         except Exception as e:
             logger.error(f"Prediction creation failed: {e}")
+
+        # Generate X thread draft from the spotlight
+        try:
+            thread_result = generate_newsletter_thread(newsletter)
+            logger.info(f"Newsletter thread draft: {thread_result}")
+        except Exception as e:
+            logger.error(f"Newsletter thread generation failed: {e}")
 
         logger.info(f"Newsletter #{newsletter.get('edition_number', '?')} published")
         return {
@@ -5455,7 +5604,10 @@ def execute_task(task: dict) -> dict:
     
     elif task_type == 'publish_newsletter':
         return publish_newsletter()
-    
+
+    elif task_type == 'retry_failed_emails':
+        return retry_failed_emails(edition=params.get('edition'))
+
     elif task_type == 'create_predictions':
         return create_predictions_from_newsletter(params.get('newsletter_id'))
     
@@ -5949,8 +6101,937 @@ def execute_task(task: dict) -> dict:
             return {'error': 'agent_name and amount_sats required'}
         return topup_agent(agent, int(amount))
 
+    # ── X Distribution Pipeline ──
+    elif task_type == 'surface_x_candidates':
+        return surface_x_content_candidates()
+
+    elif task_type == 'x_approve':
+        indexes = params.get('indexes', [])
+        content = params.get('final_content')
+        return approve_x_candidate(indexes, content)
+
+    elif task_type == 'x_reject':
+        indexes = params.get('indexes', [])
+        notes = params.get('notes', '')
+        return reject_x_candidate(indexes, notes)
+
+    elif task_type == 'x_edit':
+        idx = params.get('index', 0)
+        content = params.get('content', '')
+        return edit_x_candidate(int(idx), content)
+
+    elif task_type == 'x_draft':
+        idx = params.get('index', 0)
+        content = params.get('content', '')
+        result = edit_x_candidate(int(idx), content)
+        if 'error' not in result:
+            result.update(approve_x_candidate([int(idx)]))
+        return result
+
+    elif task_type == 'post_approved_x':
+        return post_approved_x_content()
+
+    elif task_type == 'get_x_plan':
+        send_x_morning_briefing()
+        return {'sent': True}
+
+    elif task_type == 'get_x_posted':
+        return get_x_posted_today()
+
+    elif task_type == 'get_x_budget':
+        return get_x_budget_status()
+
+    elif task_type == 'x_watch':
+        return manage_x_watchlist(
+            action='add',
+            handle=params.get('handle', ''),
+            category=params.get('category', ''),
+        )
+
+    elif task_type == 'x_unwatch':
+        return manage_x_watchlist(
+            action='remove',
+            handle=params.get('handle', ''),
+        )
+
+    elif task_type == 'x_watchlist':
+        return manage_x_watchlist(action='list')
+
     else:
         return {'error': f'Unknown task: {task_type}'}
+
+# ============================================================================
+# X Content Distribution Pipeline
+# ============================================================================
+
+def _get_x_week_start() -> str:
+    """Return the Monday date string for the current tracking week."""
+    today = datetime.now(timezone.utc).date()
+    monday = today - timedelta(days=today.weekday())
+    return monday.isoformat()
+
+
+def get_x_budget_status() -> dict:
+    """Get current X API budget usage for the week and month."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+    week_start = _get_x_week_start()
+    try:
+        week_rows = supabase.table('x_api_budget')\
+            .select('estimated_cost, request_count')\
+            .eq('week_start', week_start)\
+            .execute()
+        week_spent = sum(float(r.get('estimated_cost', 0)) for r in (week_rows.data or []))
+        week_calls = sum(int(r.get('request_count', 0)) for r in (week_rows.data or []))
+
+        # Monthly total (last 4 weeks)
+        month_ago = (datetime.now(timezone.utc).date() - timedelta(days=28)).isoformat()
+        month_rows = supabase.table('x_api_budget')\
+            .select('estimated_cost')\
+            .gte('week_start', month_ago)\
+            .execute()
+        month_spent = sum(float(r.get('estimated_cost', 0)) for r in (month_rows.data or []))
+
+        return {
+            'week_start': week_start,
+            'week_spent': round(week_spent, 4),
+            'week_limit': X_WEEKLY_BUDGET,
+            'week_calls': week_calls,
+            'week_remaining': round(X_WEEKLY_BUDGET - week_spent, 4),
+            'month_spent': round(month_spent, 4),
+            'month_limit': 20.0,
+            'budget_ok': week_spent < X_WEEKLY_BUDGET,
+        }
+    except Exception as e:
+        logger.error(f"X budget check failed: {e}")
+        return {'error': str(e)}
+
+
+def _check_x_budget() -> bool:
+    """Return True if we still have X API budget this week."""
+    status = get_x_budget_status()
+    return status.get('budget_ok', False)
+
+
+def _log_x_api_cost(operation_type: str, endpoint: str, cost: float, notes: str = ''):
+    """Log a single X API call cost to x_api_budget."""
+    if not supabase:
+        return
+    try:
+        supabase.table('x_api_budget').insert({
+            'week_start': _get_x_week_start(),
+            'operation_type': operation_type,
+            'endpoint': endpoint,
+            'estimated_cost': cost,
+            'request_count': 1,
+            'notes': notes,
+        }).execute()
+    except Exception as e:
+        logger.warning(f"Failed to log X API cost: {e}")
+
+
+def _x_api_search(query: str, max_results: int = 10) -> list:
+    """Search X API v2 for recent tweets. Returns list of tweet dicts or empty list."""
+    if not X_BEARER_TOKEN:
+        logger.warning("X_BEARER_TOKEN not set — skipping X search")
+        return []
+
+    if not _check_x_budget():
+        logger.info("X API weekly budget exhausted — skipping search")
+        return []
+
+    try:
+        with httpx.Client(timeout=30) as client:
+            resp = client.get(
+                'https://api.x.com/2/tweets/search/recent',
+                headers={'Authorization': f'Bearer {X_BEARER_TOKEN}'},
+                params={
+                    'query': query,
+                    'max_results': min(max_results, 100),
+                    'tweet.fields': 'created_at,public_metrics,author_id,text',
+                    'expansions': 'author_id',
+                    'user.fields': 'username,name',
+                },
+            )
+            _log_x_api_cost('search', '/2/tweets/search/recent', X_SEARCH_COST_ESTIMATE,
+                            f"query: {query[:80]}")
+
+            if resp.status_code != 200:
+                logger.error(f"X search failed ({resp.status_code}): {resp.text[:200]}")
+                return []
+
+            data = resp.json()
+            tweets = data.get('data', [])
+            # Attach author usernames from includes
+            users_by_id = {}
+            for u in (data.get('includes', {}).get('users', [])):
+                users_by_id[u['id']] = u
+            for tw in tweets:
+                author = users_by_id.get(tw.get('author_id'), {})
+                tw['author_username'] = author.get('username', '')
+                tw['author_name'] = author.get('name', '')
+            return tweets
+    except Exception as e:
+        logger.error(f"X API search error: {e}")
+        return []
+
+
+def _post_tweet(text: str, reply_to: str = None) -> dict:
+    """Post a tweet via X API v2. Returns {'id': ..., 'text': ...} or {'error': ...}."""
+    if not X_BEARER_TOKEN or not X_ACCESS_TOKEN:
+        return {'error': 'X API credentials not configured'}
+
+    try:
+        # Use OAuth 1.0a for posting (requires user context)
+        import hashlib
+        import hmac
+        import base64
+        import urllib.parse
+
+        url = 'https://api.x.com/2/tweets'
+        body = {'text': text}
+        if reply_to:
+            body['reply'] = {'in_reply_to_tweet_id': reply_to}
+
+        # Build OAuth 1.0a signature
+        timestamp = str(int(time.time()))
+        nonce = hashlib.md5(f"{timestamp}{text[:20]}".encode()).hexdigest()
+
+        oauth_params = {
+            'oauth_consumer_key': X_API_KEY,
+            'oauth_nonce': nonce,
+            'oauth_signature_method': 'HMAC-SHA1',
+            'oauth_timestamp': timestamp,
+            'oauth_token': X_ACCESS_TOKEN,
+            'oauth_version': '1.0',
+        }
+
+        # Create signature base string
+        param_string = '&'.join(
+            f"{urllib.parse.quote(k, safe='')}={urllib.parse.quote(str(v), safe='')}"
+            for k, v in sorted(oauth_params.items())
+        )
+        base_string = f"POST&{urllib.parse.quote(url, safe='')}&{urllib.parse.quote(param_string, safe='')}"
+        signing_key = f"{urllib.parse.quote(X_API_SECRET or '', safe='')}&{urllib.parse.quote(X_ACCESS_TOKEN_SECRET or '', safe='')}"
+        signature = base64.b64encode(
+            hmac.new(signing_key.encode(), base_string.encode(), hashlib.sha1).digest()
+        ).decode()
+
+        oauth_params['oauth_signature'] = signature
+        auth_header = 'OAuth ' + ', '.join(
+            f'{k}="{urllib.parse.quote(str(v), safe="")}"'
+            for k, v in sorted(oauth_params.items())
+        )
+
+        with httpx.Client(timeout=30) as client:
+            resp = client.post(
+                url,
+                headers={
+                    'Authorization': auth_header,
+                    'Content-Type': 'application/json',
+                },
+                json=body,
+            )
+
+        _log_x_api_cost('post', '/2/tweets', 0.0, f"post: {text[:50]}")
+
+        if resp.status_code in (200, 201):
+            tweet_data = resp.json().get('data', {})
+            logger.info(f"Tweet posted: {tweet_data.get('id')}")
+            return tweet_data
+        else:
+            error_msg = resp.text[:300]
+            logger.error(f"Tweet post failed ({resp.status_code}): {error_msg}")
+            return {'error': error_msg}
+
+    except Exception as e:
+        logger.error(f"Tweet post error: {e}")
+        return {'error': str(e)}
+
+
+def surface_x_content_candidates() -> dict:
+    """Daily content candidate surfacing for X distribution.
+
+    Runs each morning: scans analyst output, engagement targets, and predictions
+    to create x_content_candidates rows for operator review.
+    """
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    day_ago = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    candidates_created = 0
+
+    # ── Source 1: Sharp takes from recent analysis and source posts ──
+    try:
+        # Get recent high-signal source posts
+        recent_posts = supabase.table('source_posts')\
+            .select('title, source_url, source, body')\
+            .gte('scraped_at', day_ago)\
+            .order('scraped_at', desc=True)\
+            .limit(20)\
+            .execute()
+        posts = recent_posts.data or []
+
+        # Get latest analyst insights
+        latest_analysis = supabase.table('analysis_runs')\
+            .select('key_findings, analyst_notes, metadata')\
+            .eq('status', 'completed')\
+            .order('completed_at', desc=True)\
+            .limit(1)\
+            .execute()
+        analyst_context = ''
+        if latest_analysis.data:
+            a = latest_analysis.data[0]
+            analyst_context = f"\nAnalyst findings: {a.get('key_findings', '')}\nNotes: {a.get('analyst_notes', '')}"
+
+        if posts:
+            # Use DeepSeek to pick top 3-5 and generate take angles
+            post_text = '\n'.join(
+                f"- [{p.get('source', '?')}] {p.get('title', '')}: {(p.get('body') or '')[:200]} | URL: {p.get('source_url', '')}"
+                for p in posts[:15]
+            )
+
+            prompt = f"""You are an opinionated agent economy analyst with a personal X/Twitter presence.
+From these recent items, select the 3-5 most notable for the agent economy space.
+For each, provide a sharp take angle — not a news summary, but an opinion on WHY this matters.
+{analyst_context}
+
+Recent items:
+{post_text}
+
+Respond as JSON array:
+[{{"source_url": "...", "source_summary": "1-2 sentence summary", "suggested_angle": "your opinionated take angle", "suggested_tags": ["handle1", "handle2"]}}]
+
+Rules:
+- Only select items genuinely notable for the AI agent ecosystem
+- Take angles should be provocative, insightful, or contrarian — not bland summaries
+- suggested_tags: X handles of people/orgs mentioned (without @), or empty array
+- If fewer than 3 items are notable, return fewer. Quality over quantity."""
+
+            model = get_model('extraction')
+            response = routed_llm_call(model, [
+                {'role': 'system', 'content': 'You output valid JSON arrays only.'},
+                {'role': 'user', 'content': prompt},
+            ], temperature=0.4, max_tokens=2000)
+
+            raw = response.choices[0].message.content.strip()
+            # Strip markdown code fences if present
+            if raw.startswith('```'):
+                raw = re.sub(r'^```\w*\n?', '', raw)
+                raw = re.sub(r'\n?```$', '', raw)
+            takes = json.loads(raw)
+
+            for take in takes[:5]:
+                # Run through verification gate
+                v_status = 'pending'
+                v_notes = None
+                verification = verify_briefing_references({
+                    'content_markdown': f"**{take.get('source_summary', '')}** {take.get('suggested_angle', '')}",
+                    'data_snapshot': {'source_posts': posts},
+                })
+                if not verification['ok']:
+                    v_status = 'flagged'
+                    v_notes = '; '.join(verification.get('unverified', [])[:3])
+
+                supabase.table('x_content_candidates').insert({
+                    'content_type': 'sharp_take',
+                    'source_url': take.get('source_url'),
+                    'source_summary': take.get('source_summary'),
+                    'suggested_angle': take.get('suggested_angle'),
+                    'suggested_tags': take.get('suggested_tags', []),
+                    'verification_status': v_status,
+                    'verification_notes': v_notes,
+                }).execute()
+                candidates_created += 1
+
+    except Exception as e:
+        logger.error(f"X sharp take surfacing failed: {e}")
+
+    # ── Source 2: Engagement targets from X API search ──
+    if _check_x_budget():
+        try:
+            # Watchlist batch scan
+            watchlist = supabase.table('x_watchlist')\
+                .select('x_handle, priority')\
+                .eq('active', True)\
+                .order('priority', desc=True)\
+                .execute()
+            handles = [w['x_handle'] for w in (watchlist.data or [])]
+
+            if handles:
+                # Batch into groups of 5 for OR queries
+                for i in range(0, len(handles), 5):
+                    batch = handles[i:i+5]
+                    query = ' OR '.join(f'from:{h}' for h in batch)
+                    tweets = _x_api_search(query, max_results=10)
+                    for tw in tweets:
+                        metrics = tw.get('public_metrics', {})
+                        engagement = (metrics.get('like_count', 0) +
+                                      metrics.get('retweet_count', 0) +
+                                      metrics.get('reply_count', 0))
+                        if engagement < 5:
+                            continue  # Skip low-engagement posts
+                        supabase.table('x_content_candidates').insert({
+                            'content_type': 'engagement_reply',
+                            'source_url': f"https://x.com/{tw.get('author_username')}/status/{tw.get('id')}",
+                            'source_summary': f"@{tw.get('author_username')}: {tw.get('text', '')[:200]}",
+                            'suggested_angle': '',  # Will be filled by LLM below
+                            'suggested_tags': [tw.get('author_username', '')],
+                            'verification_status': 'verified',
+                        }).execute()
+                        candidates_created += 1
+
+                # Update last_checked_at
+                supabase.table('x_watchlist').update({
+                    'last_checked_at': datetime.now(timezone.utc).isoformat()
+                }).in_('x_handle', handles).execute()
+
+            # Keyword scan
+            keyword_query = '"MCP server" OR "AI agent framework" OR "agent infrastructure" OR "agentic AI" OR "agent economy"'
+            keyword_tweets = _x_api_search(keyword_query, max_results=10)
+            for tw in keyword_tweets:
+                metrics = tw.get('public_metrics', {})
+                engagement = (metrics.get('like_count', 0) +
+                              metrics.get('retweet_count', 0))
+                if engagement < 10:
+                    continue
+                supabase.table('x_content_candidates').insert({
+                    'content_type': 'engagement_reply',
+                    'source_url': f"https://x.com/{tw.get('author_username')}/status/{tw.get('id')}",
+                    'source_summary': f"@{tw.get('author_username')}: {tw.get('text', '')[:200]}",
+                    'suggested_angle': '',
+                    'suggested_tags': [tw.get('author_username', '')],
+                    'verification_status': 'verified',
+                }).execute()
+                candidates_created += 1
+
+        except Exception as e:
+            logger.error(f"X engagement surfacing failed: {e}")
+    else:
+        budget_status = get_x_budget_status()
+        send_telegram(
+            f"⏸️ X API weekly budget reached "
+            f"(${budget_status.get('week_spent', 0):.2f}/${X_WEEKLY_BUDGET:.2f}). "
+            f"Engagement surfacing paused until next Monday."
+        )
+
+    # ── Generate reply angles for engagement candidates missing them ──
+    try:
+        pending_replies = supabase.table('x_content_candidates')\
+            .select('id, source_summary, suggested_tags')\
+            .eq('content_type', 'engagement_reply')\
+            .eq('status', 'candidate')\
+            .eq('suggested_angle', '')\
+            .gte('created_at', day_ago)\
+            .execute()
+
+        if pending_replies.data:
+            reply_texts = '\n'.join(
+                f"[{r['id'][:8]}] {r.get('source_summary', '')}"
+                for r in pending_replies.data[:10]
+            )
+            prompt = f"""You are an agent economy expert with a personal, opinionated X presence.
+For each tweet below, suggest a smart reply angle. The reply should add value —
+an insight, a contrarian take, or a relevant connection the author might not have considered.
+Do NOT suck up or just agree. Be substantive.
+
+Tweets:
+{reply_texts}
+
+Respond as JSON object mapping the bracket ID to a suggested reply angle:
+{{"abc12345": "Your suggested angle here", ...}}"""
+
+            model = get_model('extraction')
+            response = routed_llm_call(model, [
+                {'role': 'system', 'content': 'You output valid JSON only.'},
+                {'role': 'user', 'content': prompt},
+            ], temperature=0.5, max_tokens=1500)
+
+            raw = response.choices[0].message.content.strip()
+            if raw.startswith('```'):
+                raw = re.sub(r'^```\w*\n?', '', raw)
+                raw = re.sub(r'\n?```$', '', raw)
+            angles = json.loads(raw)
+
+            for r in pending_replies.data:
+                angle = angles.get(r['id'][:8], '')
+                if angle:
+                    supabase.table('x_content_candidates').update({
+                        'suggested_angle': angle,
+                    }).eq('id', r['id']).execute()
+
+    except Exception as e:
+        logger.error(f"X reply angle generation failed: {e}")
+
+    # ── Source 4: Prediction posts ──
+    try:
+        recent_predictions = supabase.table('predictions')\
+            .select('id, prediction_text, target_date, status')\
+            .gte('created_at', day_ago)\
+            .in_('status', ['active', 'open'])\
+            .execute()
+        for pred in (recent_predictions.data or []):
+            draft = (
+                f"Prediction: {pred.get('prediction_text', '')}\n\n"
+                f"Tracking accountability in AgentPulse's public scorecard.\n"
+                f"{X_SUBSCRIBE_URL}"
+            )
+            supabase.table('x_content_candidates').insert({
+                'content_type': 'prediction',
+                'source_summary': pred.get('prediction_text', '')[:200],
+                'suggested_angle': 'New prediction — public accountability',
+                'draft_content': draft,
+                'verification_status': 'verified',
+            }).execute()
+            candidates_created += 1
+
+        # Resolved predictions
+        recently_resolved = supabase.table('predictions')\
+            .select('id, prediction_text, status, resolution_notes')\
+            .gte('resolved_at', day_ago)\
+            .in_('status', ['confirmed', 'refuted'])\
+            .execute()
+        for pred in (recently_resolved.data or []):
+            outcome = 'Right' if pred['status'] == 'confirmed' else 'Wrong'
+            draft = (
+                f"Prediction update: I said \"{pred.get('prediction_text', '')[:150]}\"\n\n"
+                f"Result: {outcome}. {pred.get('resolution_notes', '')[:100]}\n\n"
+                f"Full scorecard: {X_SUBSCRIBE_URL}"
+            )
+            supabase.table('x_content_candidates').insert({
+                'content_type': 'prediction',
+                'source_summary': f"Prediction resolved: {pred.get('prediction_text', '')[:200]}",
+                'suggested_angle': f'Prediction {outcome.lower()} — accountability update',
+                'draft_content': draft,
+                'verification_status': 'verified',
+            }).execute()
+            candidates_created += 1
+
+    except Exception as e:
+        logger.error(f"X prediction surfacing failed: {e}")
+
+    # ── Assign daily index numbers to today's candidates ──
+    try:
+        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
+        todays = supabase.table('x_content_candidates')\
+            .select('id')\
+            .eq('status', 'candidate')\
+            .gte('created_at', today_start)\
+            .order('created_at', desc=False)\
+            .execute()
+        for idx, row in enumerate(todays.data or [], start=1):
+            supabase.table('x_content_candidates').update({
+                'daily_index': idx,
+            }).eq('id', row['id']).execute()
+    except Exception as e:
+        logger.warning(f"Failed to assign daily indexes: {e}")
+
+    logger.info(f"X content surfacing complete: {candidates_created} candidates created")
+    return {'candidates_created': candidates_created}
+
+
+def generate_newsletter_thread(newsletter: dict) -> dict:
+    """Generate a thread draft from the newsletter's spotlight section."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    snapshot = newsletter.get('data_snapshot') or newsletter.get('input_data') or {}
+    spotlight = snapshot.get('spotlight')
+    if not spotlight:
+        return {'skipped': 'No spotlight in this edition'}
+
+    title = newsletter.get('title', '')
+    edition = newsletter.get('edition_number', '?')
+    spotlight_thesis = spotlight.get('thesis', spotlight.get('conviction_thesis', ''))
+    spotlight_evidence = spotlight.get('evidence', spotlight.get('key_evidence', []))
+    spotlight_prediction = spotlight.get('prediction', '')
+
+    prompt = f"""Turn this newsletter spotlight into a compelling 4-6 tweet thread for X/Twitter.
+
+Newsletter: "{title}" (Edition #{edition})
+Thesis: {spotlight_thesis}
+Evidence: {json.dumps(spotlight_evidence, default=str)[:1000]}
+Prediction: {spotlight_prediction}
+
+Structure:
+- Tweet 1: Hook — the conviction thesis as a provocative statement (max 280 chars)
+- Tweets 2-4: Evidence and reasoning, one idea per tweet (max 280 chars each)
+- Tweet 5: The prediction with specific, trackable claim (max 280 chars)
+- Tweet 6: CTA — "Full analysis and prediction scorecard in this week's AgentPulse: {X_SUBSCRIBE_URL}" (max 280 chars)
+
+Respond as JSON array of strings: ["tweet 1 text", "tweet 2 text", ...]
+
+Rules:
+- Each tweet must be under 280 characters
+- Write like a confident analyst, not a brand account
+- No hashtags. Minimal emojis.
+- Be specific — vague threads get no engagement"""
+
+    try:
+        response = routed_llm_call('gpt-4o', [
+            {'role': 'system', 'content': 'You output valid JSON arrays only.'},
+            {'role': 'user', 'content': prompt},
+        ], temperature=0.5, max_tokens=2000)
+
+        raw = response.choices[0].message.content.strip()
+        if raw.startswith('```'):
+            raw = re.sub(r'^```\w*\n?', '', raw)
+            raw = re.sub(r'\n?```$', '', raw)
+        thread_tweets = json.loads(raw)
+
+        # Run verification
+        v_status = 'pending'
+        v_notes = None
+        thread_text = ' '.join(thread_tweets)
+        verification = verify_briefing_references({
+            'content_markdown': thread_text,
+            'data_snapshot': snapshot,
+        })
+        if not verification['ok']:
+            v_status = 'flagged'
+            v_notes = '; '.join(verification.get('unverified', [])[:3])
+
+        supabase.table('x_content_candidates').insert({
+            'content_type': 'newsletter_thread',
+            'source_summary': f"Newsletter #{edition}: {title}",
+            'suggested_angle': spotlight_thesis[:200] if spotlight_thesis else '',
+            'draft_content': json.dumps(thread_tweets),
+            'verification_status': v_status,
+            'verification_notes': v_notes,
+        }).execute()
+
+        logger.info(f"Newsletter thread draft created ({len(thread_tweets)} tweets)")
+        return {'thread_tweets': len(thread_tweets)}
+
+    except Exception as e:
+        logger.error(f"Newsletter thread generation failed: {e}")
+        return {'error': str(e)}
+
+
+def send_x_morning_briefing():
+    """Send the daily X content plan to the operator via Telegram."""
+    if not supabase:
+        return
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
+
+    try:
+        candidates = supabase.table('x_content_candidates')\
+            .select('*')\
+            .eq('status', 'candidate')\
+            .gte('created_at', today_start)\
+            .order('daily_index', desc=False)\
+            .execute()
+
+        if not candidates.data:
+            return
+
+        takes = [c for c in candidates.data if c['content_type'] == 'sharp_take']
+        replies = [c for c in candidates.data if c['content_type'] == 'engagement_reply']
+        threads = [c for c in candidates.data if c['content_type'] == 'newsletter_thread']
+        predictions = [c for c in candidates.data if c['content_type'] == 'prediction']
+
+        lines = [f"📋 *X Content Plan — {datetime.now(timezone.utc).strftime('%b %d')}*\n"]
+
+        if takes:
+            lines.append("🔥 *TAKES* (pick 1-2 to post):")
+            for t in takes:
+                idx = t.get('daily_index', '?')
+                v = '⚠️ Flagged' if t.get('verification_status') == 'flagged' else '✅'
+                lines.append(f"{idx}. {t.get('source_summary', '')[:80]}")
+                lines.append(f"   → {t.get('suggested_angle', '')[:100]}")
+                if t.get('verification_notes'):
+                    lines.append(f"   {v}: {t['verification_notes'][:60]}")
+                else:
+                    lines.append(f"   {v}")
+
+        if replies:
+            shown = replies[:10]
+            lines.append(f"\n💬 *ENGAGE* (top {len(shown)} of {len(replies)}):")
+            for r in shown:
+                idx = r.get('daily_index', '?')
+                lines.append(f"{idx}. {r.get('source_summary', '')[:100]}")
+                if r.get('suggested_angle'):
+                    lines.append(f"   → Reply: {r['suggested_angle'][:80]}")
+
+        if threads:
+            lines.append("\n🧵 *THREAD*:")
+            for th in threads:
+                idx = th.get('daily_index', '?')
+                lines.append(f"{idx}. Newsletter thread draft — {th.get('source_summary', '')[:60]}")
+
+        if predictions:
+            lines.append("\n🎯 *PREDICTIONS*:")
+            for p in predictions:
+                idx = p.get('daily_index', '?')
+                lines.append(f"{idx}. {p.get('source_summary', '')[:80]}")
+
+        # Budget status
+        budget = get_x_budget_status()
+        lines.append(
+            f"\n💰 Budget: ${budget.get('week_spent', 0):.2f}/${X_WEEKLY_BUDGET:.2f} this week"
+        )
+
+        lines.append("\nReply: `/x-approve 1,3` | `/x-edit 2` | `/x-reject 4`")
+
+        send_telegram('\n'.join(lines))
+
+    except Exception as e:
+        logger.error(f"X morning briefing failed: {e}")
+
+
+def approve_x_candidate(daily_indexes: list, final_content: str = None) -> dict:
+    """Approve X content candidates by daily index number."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
+    approved = []
+    errors = []
+
+    for idx in daily_indexes:
+        try:
+            row = supabase.table('x_content_candidates')\
+                .select('*')\
+                .eq('daily_index', idx)\
+                .eq('status', 'candidate')\
+                .gte('created_at', today_start)\
+                .limit(1)\
+                .execute()
+            if not row.data:
+                errors.append(f"#{idx}: not found or already processed")
+                continue
+
+            candidate = row.data[0]
+            update = {'status': 'approved'}
+            if final_content:
+                update['final_content'] = final_content
+            elif candidate.get('draft_content'):
+                update['final_content'] = candidate['draft_content']
+
+            supabase.table('x_content_candidates').update(update)\
+                .eq('id', candidate['id']).execute()
+            approved.append(idx)
+
+        except Exception as e:
+            errors.append(f"#{idx}: {e}")
+
+    return {'approved': approved, 'errors': errors}
+
+
+def reject_x_candidate(daily_indexes: list, notes: str = '') -> dict:
+    """Reject X content candidates by daily index number."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
+    rejected = []
+
+    for idx in daily_indexes:
+        try:
+            row = supabase.table('x_content_candidates')\
+                .select('id')\
+                .eq('daily_index', idx)\
+                .eq('status', 'candidate')\
+                .gte('created_at', today_start)\
+                .limit(1)\
+                .execute()
+            if row.data:
+                supabase.table('x_content_candidates').update({
+                    'status': 'rejected',
+                    'operator_notes': notes or None,
+                }).eq('id', row.data[0]['id']).execute()
+                rejected.append(idx)
+        except Exception as e:
+            logger.error(f"X reject #{idx} failed: {e}")
+
+    return {'rejected': rejected}
+
+
+def edit_x_candidate(daily_index: int, new_content: str) -> dict:
+    """Replace draft content for a candidate by daily index."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
+    try:
+        row = supabase.table('x_content_candidates')\
+            .select('id, content_type')\
+            .eq('daily_index', daily_index)\
+            .gte('created_at', today_start)\
+            .limit(1)\
+            .execute()
+        if not row.data:
+            return {'error': f'Candidate #{daily_index} not found'}
+
+        supabase.table('x_content_candidates').update({
+            'final_content': new_content,
+        }).eq('id', row.data[0]['id']).execute()
+
+        return {'updated': daily_index, 'content_type': row.data[0].get('content_type')}
+
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def post_approved_x_content() -> dict:
+    """Pick up approved x_content_candidates and post them to X."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    try:
+        approved = supabase.table('x_content_candidates')\
+            .select('*')\
+            .eq('status', 'approved')\
+            .order('created_at', desc=False)\
+            .limit(5)\
+            .execute()
+
+        if not approved.data:
+            return {'posted': 0}
+
+        posted = []
+        failed = []
+
+        for candidate in approved.data:
+            content = candidate.get('final_content') or candidate.get('draft_content', '')
+            if not content:
+                failed.append({'id': candidate['id'], 'error': 'No content'})
+                continue
+
+            ctype = candidate.get('content_type')
+
+            if ctype == 'newsletter_thread':
+                # Post as thread
+                try:
+                    tweets = json.loads(content)
+                except (json.JSONDecodeError, TypeError):
+                    tweets = [content]
+
+                prev_id = None
+                thread_ids = []
+                for tweet_text in tweets:
+                    result = _post_tweet(tweet_text, reply_to=prev_id)
+                    if 'error' in result:
+                        failed.append({'id': candidate['id'], 'error': result['error']})
+                        break
+                    prev_id = result.get('id')
+                    thread_ids.append(prev_id)
+                    time.sleep(1)  # Brief pause between thread tweets
+
+                if thread_ids:
+                    supabase.table('x_content_candidates').update({
+                        'status': 'posted',
+                        'posted_at': datetime.now(timezone.utc).isoformat(),
+                        'x_post_id': thread_ids[0],
+                    }).eq('id', candidate['id']).execute()
+                    posted.append(candidate['id'])
+                    send_telegram(
+                        f"✅ Thread posted ({len(thread_ids)} tweets): "
+                        f"https://x.com/i/status/{thread_ids[0]}"
+                    )
+            else:
+                # Single tweet
+                result = _post_tweet(content)
+                if 'error' in result:
+                    supabase.table('x_content_candidates').update({
+                        'status': 'failed',
+                        'operator_notes': f"Post failed: {result['error'][:200]}",
+                    }).eq('id', candidate['id']).execute()
+                    failed.append({'id': candidate['id'], 'error': result['error']})
+                    send_telegram(f"❌ Post failed: {result['error'][:100]}")
+                else:
+                    tweet_id = result.get('id', '')
+                    supabase.table('x_content_candidates').update({
+                        'status': 'posted',
+                        'posted_at': datetime.now(timezone.utc).isoformat(),
+                        'x_post_id': tweet_id,
+                    }).eq('id', candidate['id']).execute()
+                    posted.append(candidate['id'])
+                    send_telegram(
+                        f"✅ Posted: {content[:50]}... — "
+                        f"https://x.com/i/status/{tweet_id}"
+                    )
+
+        return {'posted': len(posted), 'failed': len(failed)}
+
+    except Exception as e:
+        logger.error(f"X posting failed: {e}")
+        return {'error': str(e)}
+
+
+def expire_old_x_candidates():
+    """Expire candidates older than 48 hours that were never approved."""
+    if not supabase:
+        return
+    cutoff = (datetime.now(timezone.utc) - timedelta(hours=48)).isoformat()
+    try:
+        supabase.table('x_content_candidates').update({
+            'status': 'expired',
+        }).eq('status', 'candidate').lt('created_at', cutoff).execute()
+    except Exception as e:
+        logger.warning(f"X candidate expiry failed: {e}")
+
+
+def manage_x_watchlist(action: str, handle: str = '', category: str = '', notes: str = '') -> dict:
+    """Add/remove/list X watchlist accounts."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    if action == 'add':
+        handle = handle.lstrip('@').strip()
+        if not handle:
+            return {'error': 'Handle required'}
+        try:
+            supabase.table('x_watchlist').upsert({
+                'x_handle': handle,
+                'category': category or None,
+                'notes': notes or None,
+                'active': True,
+            }, on_conflict='x_handle').execute()
+            return {'added': handle}
+        except Exception as e:
+            return {'error': str(e)}
+
+    elif action == 'remove':
+        handle = handle.lstrip('@').strip()
+        try:
+            supabase.table('x_watchlist').update({
+                'active': False,
+            }).eq('x_handle', handle).execute()
+            return {'deactivated': handle}
+        except Exception as e:
+            return {'error': str(e)}
+
+    elif action == 'list':
+        try:
+            rows = supabase.table('x_watchlist')\
+                .select('x_handle, priority, category, active')\
+                .eq('active', True)\
+                .order('priority', desc=True)\
+                .execute()
+            return {'watchlist': rows.data or []}
+        except Exception as e:
+            return {'error': str(e)}
+
+    return {'error': f'Unknown action: {action}'}
+
+
+def get_x_posted_today() -> dict:
+    """Get today's posted X content."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
+    try:
+        rows = supabase.table('x_content_candidates')\
+            .select('content_type, final_content, draft_content, posted_at, x_post_id')\
+            .eq('status', 'posted')\
+            .gte('posted_at', today_start)\
+            .execute()
+        return {'posted': rows.data or []}
+    except Exception as e:
+        return {'error': str(e)}
+
 
 def get_current_opportunities(limit: int = 5, min_score: float = 0.0) -> dict:
     """Get current top opportunities."""
@@ -6064,20 +7145,50 @@ def process_db_tasks(agent_name: str = 'analyst'):
 # ============================================================================
 
 def send_telegram(message: str):
-    """Send notification to Telegram."""
+    """Send notification to Telegram, splitting if over 4096 chars."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_OWNER_ID:
         return
-    
+
+    MAX_LEN = 4000  # leave margin under Telegram's 4096 limit
+
+    # Split long messages on newline boundaries
+    chunks = []
+    if len(message) <= MAX_LEN:
+        chunks = [message]
+    else:
+        current = ""
+        for line in message.split('\n'):
+            if len(current) + len(line) + 1 > MAX_LEN:
+                if current:
+                    chunks.append(current)
+                current = line
+            else:
+                current = current + '\n' + line if current else line
+        if current:
+            chunks.append(current)
+
     try:
         with httpx.Client() as client:
-            client.post(
-                f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
-                data={
-                    'chat_id': TELEGRAM_OWNER_ID,
-                    'text': message,
-                    'parse_mode': 'Markdown'
-                }
-            )
+            for chunk in chunks:
+                resp = client.post(
+                    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                    data={
+                        'chat_id': TELEGRAM_OWNER_ID,
+                        'text': chunk,
+                        'parse_mode': 'Markdown'
+                    }
+                )
+                if resp.status_code != 200:
+                    logger.warning(f"Telegram Markdown failed ({resp.status_code}), retrying as plain text")
+                    resp = client.post(
+                        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                        data={
+                            'chat_id': TELEGRAM_OWNER_ID,
+                            'text': chunk,
+                        }
+                    )
+                    if resp.status_code != 200:
+                        logger.error(f"Telegram send failed ({resp.status_code}): {resp.text[:200]}")
     except Exception as e:
         logger.error(f"Telegram send failed: {e}")
 
@@ -6186,6 +7297,27 @@ def send_email_newsletter(newsletter: dict) -> dict:
         sent = 0
         errors = 0
 
+        def _send_with_throttle(params, sub_id, email, subject, mode, edition):
+            """Send one email via Resend with rate-limit throttling (max 2 req/s)."""
+            nonlocal sent
+            last_err = None
+            for attempt in range(3):
+                try:
+                    resp = resend.Emails.send(params)
+                    rid = resp.get('id') if isinstance(resp, dict) else getattr(resp, 'id', None)
+                    _log_email(sub_id, email, 'newsletter', subject, mode=mode, edition=edition, resend_id=rid)
+                    sent += 1
+                    time.sleep(0.6)  # stay under Resend's 2 req/s limit
+                    return
+                except Exception as e:
+                    last_err = e
+                    if 'rate' in str(e).lower() or '429' in str(e):
+                        logger.warning("Resend rate limit hit, backing off (attempt %d/3): %s", attempt + 1, e)
+                        time.sleep(2 ** attempt)  # 1s, 2s, 4s backoff
+                    else:
+                        raise
+            raise last_err
+
         for sub in subscribers:
             pref = sub.get('mode_preference', 'impact')
             email = sub['email']
@@ -6197,16 +7329,13 @@ def send_email_newsletter(newsletter: dict) -> dict:
                     # Send builder version
                     subject_b = "AgentPulse #" + str(edition) + " [Builder]: " + builder_title
                     html_b = render_newsletter_html(builder_title, builder_md, unsub_url, edition, mode="builder")
-                    resp_b = resend.Emails.send(_build_email_params(from_addr, email, subject_b, html_b, unsub_url, edition, "builder"))
-                    rid_b = resp_b.get('id') if isinstance(resp_b, dict) else getattr(resp_b, 'id', None)
-                    _log_email(sub_id, email, 'newsletter', subject_b, mode='builder', edition=edition, resend_id=rid_b)
+                    _send_with_throttle(_build_email_params(from_addr, email, subject_b, html_b, unsub_url, edition, "builder"),
+                                        sub_id, email, subject_b, 'builder', edition)
                     # Send impact version
                     subject_i = "AgentPulse #" + str(edition) + " [Impact]: " + impact_title
                     html_i = render_newsletter_html(impact_title, impact_md, unsub_url, edition, mode="impact")
-                    resp_i = resend.Emails.send(_build_email_params(from_addr, email, subject_i, html_i, unsub_url, edition, "impact"))
-                    rid_i = resp_i.get('id') if isinstance(resp_i, dict) else getattr(resp_i, 'id', None)
-                    _log_email(sub_id, email, 'newsletter', subject_i, mode='impact', edition=edition, resend_id=rid_i)
-                    sent += 2
+                    _send_with_throttle(_build_email_params(from_addr, email, subject_i, html_i, unsub_url, edition, "impact"),
+                                        sub_id, email, subject_i, 'impact', edition)
                 else:
                     if pref == 'builder':
                         title, content = builder_title, builder_md
@@ -6215,10 +7344,8 @@ def send_email_newsletter(newsletter: dict) -> dict:
 
                     subject = "AgentPulse #" + str(edition) + ": " + title
                     html = render_newsletter_html(title, content, unsub_url, edition, mode=pref)
-                    resp = resend.Emails.send(_build_email_params(from_addr, email, subject, html, unsub_url, edition, pref))
-                    rid = resp.get('id') if isinstance(resp, dict) else getattr(resp, 'id', None)
-                    _log_email(sub_id, email, 'newsletter', subject, mode=pref, edition=edition, resend_id=rid)
-                    sent += 1
+                    _send_with_throttle(_build_email_params(from_addr, email, subject, html, unsub_url, edition, pref),
+                                        sub_id, email, subject, pref, edition)
 
             except Exception as e:
                 _log_email(sub_id, email, 'newsletter', f"AgentPulse #{edition}", mode=pref, edition=edition, status='failed', error_message=str(e))
@@ -6230,6 +7357,93 @@ def send_email_newsletter(newsletter: dict) -> dict:
 
     except Exception as e:
         logger.error("Email newsletter delivery failed: %s", e)
+        return {'error': str(e)}
+
+
+def retry_failed_emails(edition: int | None = None) -> dict:
+    """Retry all failed email_log entries. If edition is None, retries the latest edition with failures."""
+    if not RESEND_API_KEY or not supabase:
+        return {'error': 'Resend or Supabase not configured'}
+
+    try:
+        # Find failed emails
+        query = supabase.table('email_log').select('*').eq('status', 'failed')
+        if edition:
+            query = query.eq('edition_number', edition)
+        else:
+            # Find the latest edition with failures
+            latest = supabase.table('email_log').select('edition_number')\
+                .eq('status', 'failed').order('created_at', desc=True).limit(1).execute()
+            if not latest.data:
+                return {'retried': 0, 'message': 'No failed emails found'}
+            edition = latest.data[0]['edition_number']
+            query = query.eq('edition_number', edition)
+
+        failed = query.execute()
+        if not failed.data:
+            return {'retried': 0, 'message': 'No failed emails found'}
+
+        # Get the newsletter content for this edition
+        nl = supabase.table('newsletters').select('*')\
+            .eq('edition_number', edition).limit(1).execute()
+        if not nl.data:
+            return {'error': f'Newsletter #{edition} not found'}
+        newsletter = nl.data[0]
+
+        builder_title = newsletter.get('title', 'AgentPulse Intelligence Brief')
+        builder_md = newsletter.get('content_markdown', '')
+        impact_title = newsletter.get('title_impact') or builder_title
+        impact_md = newsletter.get('content_markdown_impact') or builder_md
+        from_addr = "AgentPulse <newsletter@contact.aiagentspulse.com>"
+
+        retried = 0
+        errors = 0
+
+        for entry in failed.data:
+            email = entry['email']
+            sub_id = entry['subscriber_id']
+            mode = entry.get('mode', 'impact')
+            failed_log_id = entry['id']
+            unsub_url = "https://aiagentspulse.com/#/unsubscribe?id=" + str(sub_id)
+
+            try:
+                if mode == 'builder':
+                    title, content = builder_title, builder_md
+                elif mode == 'impact':
+                    title, content = impact_title, impact_md
+                else:
+                    # 'both' failed — need to figure out which email failed; resend both
+                    for m, t, c in [('builder', builder_title, builder_md), ('impact', impact_title, impact_md)]:
+                        subj = f"AgentPulse #{edition} [{m.title()}]: {t}"
+                        html = render_newsletter_html(t, c, unsub_url, edition, mode=m)
+                        resend.Emails.send(_build_email_params(from_addr, email, subj, html, unsub_url, edition, m))
+                        _log_email(sub_id, email, 'newsletter', subj, mode=m, edition=edition, resend_id=None)
+                        retried += 1
+                        time.sleep(0.6)
+                    # Mark original failure as retried
+                    supabase.table('email_log').update({'status': 'retried'}).eq('id', failed_log_id).execute()
+                    continue
+
+                subject = f"AgentPulse #{edition}: {title}"
+                html = render_newsletter_html(title, content, unsub_url, edition, mode=mode)
+                resp = resend.Emails.send(_build_email_params(from_addr, email, subject, html, unsub_url, edition, mode))
+                rid = resp.get('id') if isinstance(resp, dict) else getattr(resp, 'id', None)
+                _log_email(sub_id, email, 'newsletter', subject, mode=mode, edition=edition, resend_id=rid)
+                # Mark original failure as retried
+                supabase.table('email_log').update({'status': 'retried'}).eq('id', failed_log_id).execute()
+                retried += 1
+                time.sleep(0.6)
+
+            except Exception as e:
+                logger.error("Retry failed for %s: %s", email, e)
+                errors += 1
+
+        logger.info("Email retry: %d retried, %d errors", retried, errors)
+        send_telegram(f"📧 Email retry complete: {retried} resent, {errors} errors (edition #{edition})")
+        return {'retried': retried, 'errors': errors, 'edition': edition}
+
+    except Exception as e:
+        logger.error("Email retry failed: %s", e)
         return {'error': str(e)}
 
 
@@ -7205,6 +8419,200 @@ def scheduled_track_predictions():
         logger.error(f"Prediction tracking failed: {e}")
 
 
+def scheduled_surface_x_candidates():
+    """Daily X content candidate surfacing — runs morning CET (~7am CET = 06:00 UTC)."""
+    try:
+        expire_old_x_candidates()
+        result = surface_x_content_candidates()
+        logger.info(f"X candidate surfacing: {result}")
+        # Send morning briefing after surfacing
+        send_x_morning_briefing()
+    except Exception as e:
+        logger.error(f"X candidate surfacing failed: {e}")
+
+
+def scheduled_post_approved_x():
+    """Poll for approved X content and post it."""
+    try:
+        result = post_approved_x_content()
+        if result.get('posted', 0) > 0:
+            logger.info(f"X posting: {result}")
+    except Exception as e:
+        logger.error(f"X posting failed: {e}")
+
+
+def scheduled_x_newsletter_thread():
+    """Generate newsletter thread after auto-publish (Monday only)."""
+    if not supabase:
+        return
+    try:
+        latest = supabase.table('newsletters')\
+            .select('*')\
+            .eq('status', 'published')\
+            .order('published_at', desc=True)\
+            .limit(1)\
+            .execute()
+        if latest.data:
+            result = generate_newsletter_thread(latest.data[0])
+            logger.info(f"Newsletter thread: {result}")
+    except Exception as e:
+        logger.error(f"Newsletter thread generation failed: {e}")
+
+
+# ============================================================================
+# Health Checks
+# ============================================================================
+
+_health_cooldowns: dict = {}  # check_name → last_alert_time
+
+
+def _health_check_cooldown_ok(check_name: str, cooldown_minutes: int = 60) -> bool:
+    """Return True if enough time has passed since the last alert for this check."""
+    now = datetime.now(timezone.utc)
+    last = _health_cooldowns.get(check_name)
+    if last and (now - last) < timedelta(minutes=cooldown_minutes):
+        return False
+    return True
+
+
+def _mark_health_cooldown(check_name: str):
+    """Record that an alert was just sent for this check."""
+    _health_cooldowns[check_name] = datetime.now(timezone.utc)
+
+
+def run_health_checks() -> dict:
+    """Run all system health checks and return results dict."""
+    results = {}
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    # 1. Supabase connectivity
+    try:
+        supabase.table('pipeline_runs').select('id').limit(1).execute()
+        results['supabase'] = {'status': 'ok'}
+    except Exception as e:
+        results['supabase'] = {'status': 'fail', 'error': str(e)}
+
+    # 2. Subscribe RPC (insert test email, then delete)
+    test_email = 'healthcheck@test.agentpulse.internal'
+    try:
+        supabase.rpc('subscribe', {'p_email': test_email, 'p_mode': 'email'}).execute()
+        supabase.table('corpus_users').delete().eq('email', test_email).execute()
+        results['subscribe_rpc'] = {'status': 'ok'}
+    except Exception as e:
+        # Clean up just in case
+        try:
+            supabase.table('corpus_users').delete().eq('email', test_email).execute()
+        except Exception:
+            pass
+        results['subscribe_rpc'] = {'status': 'fail', 'error': str(e)}
+
+    # 3-5. External API reachability (just TCP connect, any response = ok)
+    api_endpoints = {
+        'deepseek': 'https://api.deepseek.com',
+        'openai': 'https://api.openai.com',
+        'x_api': 'https://api.twitter.com',
+    }
+    for name, url in api_endpoints.items():
+        try:
+            with httpx.Client(timeout=10) as client:
+                client.get(url)
+            results[name] = {'status': 'ok'}
+        except httpx.ConnectError as e:
+            results[name] = {'status': 'fail', 'error': str(e)}
+        except Exception:
+            # Any response (4xx, 5xx) means the host is reachable
+            results[name] = {'status': 'ok'}
+
+    # 6. gato_brain internal health
+    try:
+        with httpx.Client(timeout=10) as client:
+            resp = client.get('http://gato_brain:8100/health')
+        if resp.status_code == 200:
+            results['gato_brain'] = {'status': 'ok'}
+        else:
+            results['gato_brain'] = {'status': 'fail', 'error': f'HTTP {resp.status_code}'}
+    except Exception as e:
+        results['gato_brain'] = {'status': 'fail', 'error': str(e)}
+
+    # 7. Web frontend
+    try:
+        with httpx.Client(timeout=10) as client:
+            resp = client.get('http://web:80')
+        if resp.status_code == 200:
+            results['web'] = {'status': 'ok'}
+        else:
+            results['web'] = {'status': 'fail', 'error': f'HTTP {resp.status_code}'}
+    except Exception as e:
+        results['web'] = {'status': 'fail', 'error': str(e)}
+
+    # 8. Task queue depth
+    try:
+        pending = supabase.table('agent_tasks')\
+            .select('id', count='exact')\
+            .eq('status', 'pending')\
+            .execute()
+        count = pending.count if pending.count is not None else len(pending.data or [])
+        if count >= 50:
+            results['task_queue'] = {'status': 'fail', 'error': f'{count} pending tasks (>= 50)'}
+        else:
+            results['task_queue'] = {'status': 'ok', 'pending': count}
+    except Exception as e:
+        results['task_queue'] = {'status': 'fail', 'error': str(e)}
+
+    # 9. X API budget
+    try:
+        budget = get_x_budget_status()
+        remaining = budget.get('week_remaining', 999)
+        if remaining <= 0.50:
+            results['x_budget'] = {'status': 'fail', 'error': f'${remaining:.2f} remaining'}
+        else:
+            results['x_budget'] = {'status': 'ok', 'remaining': remaining}
+    except Exception as e:
+        results['x_budget'] = {'status': 'fail', 'error': str(e)}
+
+    # ── Write cache file ──────────────────────────────────────────
+    output = {
+        'timestamp': now_iso,
+        'checks': results,
+        'summary': {
+            'total': len(results),
+            'passed': sum(1 for r in results.values() if r['status'] == 'ok'),
+            'failed': sum(1 for r in results.values() if r['status'] != 'ok'),
+        }
+    }
+    cache_path = CACHE_DIR / 'health_latest.json'
+    try:
+        cache_path.write_text(json.dumps(output, indent=2))
+    except Exception as e:
+        logger.warning(f"Failed to write health cache: {e}")
+
+    # ── Alert on failures (with cooldown) ─────────────────────────
+    failures = {k: v['error'] for k, v in results.items() if v['status'] != 'ok'}
+    if failures:
+        lines = [f"  {k}: {v}" for k, v in failures.items()]
+        # Only alert for checks that haven't alerted recently
+        alertable = [k for k in failures if _health_check_cooldown_ok(k)]
+        if alertable:
+            alert_lines = [f"  {k}: {failures[k]}" for k in alertable]
+            msg = "\u26a0\ufe0f Health Check Failures:\n" + "\n".join(alert_lines)
+            send_telegram(msg)
+            for k in alertable:
+                _mark_health_cooldown(k)
+        logger.warning(f"Health check failures: {failures}")
+    else:
+        logger.info(f"All {len(results)} health checks passed")
+
+    return output
+
+
+def scheduled_health_check():
+    """Scheduler wrapper for health checks."""
+    try:
+        run_health_checks()
+    except Exception as e:
+        logger.error(f"Health check run failed: {e}")
+
+
 def setup_scheduler():
     """Set up scheduled tasks."""
     # Get intervals from environment or use defaults
@@ -7231,6 +8639,7 @@ def setup_scheduler():
     schedule.every().monday.at("09:00").do(scheduled_prepare_newsletter)
     schedule.every().monday.at("10:00").do(scheduled_notify_newsletter)
     schedule.every().monday.at("13:00").do(scheduled_auto_publish_newsletter)
+    schedule.every().monday.at("13:15").do(lambda: retry_failed_emails())
 
     # Recurring analysis & extraction
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
@@ -7249,7 +8658,18 @@ def setup_scheduler():
     schedule.every(1).hours.do(scheduled_refresh_cache)
     schedule.every(60).minutes.do(scheduled_proactive_scan)
     schedule.every(10).minutes.do(scheduled_check_negotiation_timeouts)
-    
+
+    # X Distribution Pipeline
+    #   06:00 UTC daily — surface candidates (= ~7am CET)
+    #   Every 5 min — post approved content (quick poll)
+    #   Monday 13:30 — generate newsletter thread (after auto-publish at 13:00)
+    schedule.every().day.at("06:00").do(scheduled_surface_x_candidates)
+    schedule.every(5).minutes.do(scheduled_post_approved_x)
+    schedule.every().monday.at("13:30").do(scheduled_x_newsletter_thread)
+
+    # Health checks — every 30 min
+    schedule.every(30).minutes.do(scheduled_health_check)
+
     logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h, trending every 12h")
     logger.info("Multi-source: HN scrape every 6h, GitHub scrape every 12h, RSS scrape every 6h, thought leaders every 6h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
@@ -7257,6 +8677,8 @@ def setup_scheduler():
     logger.info("Hourly: workspace cache refresh, proactive anomaly scan")
     logger.info("Every 10min: negotiation timeout check")
     logger.info("Personal briefing: 08:00 and 20:00 UTC daily")
+    logger.info("X distribution: candidates at 06:00 daily, approved posting every 5min, newsletter thread Monday 13:30")
+    logger.info("Health checks: every 30min with 60min alert cooldown")
 
 def run_scheduler():
     """Run the scheduler in a background thread."""
@@ -7270,7 +8692,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats', 'personal_briefing', 'get_agent_wallets', 'get_agent_ledger', 'topup_agent'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats', 'personal_briefing', 'get_agent_wallets', 'get_agent_ledger', 'topup_agent', 'surface_x_candidates', 'x_approve', 'x_reject', 'x_edit', 'x_draft', 'post_approved_x', 'get_x_plan', 'get_x_posted', 'get_x_budget', 'x_watch', 'x_unwatch', 'x_watchlist', 'health_check'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -7404,6 +8826,34 @@ def main():
 
     elif args.task == 'topup_agent':
         result = topup_agent('processor', 10000)
+        print(json.dumps(result, default=str, indent=2))
+
+    elif args.task == 'surface_x_candidates':
+        result = surface_x_content_candidates()
+        print(json.dumps(result, default=str, indent=2))
+
+    elif args.task == 'post_approved_x':
+        result = post_approved_x_content()
+        print(json.dumps(result, default=str, indent=2))
+
+    elif args.task == 'get_x_plan':
+        send_x_morning_briefing()
+        print("Morning briefing sent to Telegram")
+
+    elif args.task == 'get_x_posted':
+        result = get_x_posted_today()
+        print(json.dumps(result, default=str, indent=2))
+
+    elif args.task == 'get_x_budget':
+        result = get_x_budget_status()
+        print(json.dumps(result, default=str, indent=2))
+
+    elif args.task == 'x_watchlist':
+        result = manage_x_watchlist(action='list')
+        print(json.dumps(result, default=str, indent=2))
+
+    elif args.task == 'health_check':
+        result = run_health_checks()
         print(json.dumps(result, default=str, indent=2))
 
     elif args.task == 'queue':

@@ -223,10 +223,17 @@ services:
       - ../config/.env
     environment:
       <<: *common-env
+      # Route LLM calls through the proxy (internal network key)
+      OPENAI_API_KEY: ap_processor_bbf3520a2c38065dc95c8d16a37df978
+      DEEPSEEK_API_KEY: ap_processor_bbf3520a2c38065dc95c8d16a37df978
+      DEEPSEEK_BASE_URL: http://llm-proxy:8200/v1
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../config:/home/openclaw/.openclaw/config:ro
     mem_limit: 256m
+    depends_on:
+      llm-proxy:
+        condition: service_healthy
     networks:
       - agentpulse-net
     logging:
@@ -240,6 +247,41 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  # ═══════════════════════════════════════════════════════
+  # LLM PROXY — Transparent proxy between agents and LLM providers
+  # ═══════════════════════════════════════════════════════
+  llm-proxy:
+    build:
+      context: ./llm-proxy
+      dockerfile: Dockerfile
+    container_name: agentpulse-llm-proxy
+    restart: unless-stopped
+    env_file:
+      - ../config/.env
+    environment:
+      <<: *common-env
+      AGENT_NAME: llm-proxy
+      LLM_PROXY_PORT: "8200"
+      LLM_PROXY_ADMIN_KEY: ${LLM_PROXY_ADMIN_KEY:-}
+      OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
+      LOG_LEVEL: info
+    volumes:
+      - ../config:/home/openclaw/.openclaw/config:ro
+    mem_limit: 256m
+    networks:
+      - agentpulse-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8200/v1/proxy/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   # ═══════════════════════════════════════════════════════
   # WEB — Newsletter archive (Caddy + static SPA)

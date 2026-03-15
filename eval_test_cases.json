@@ -1,0 +1,182 @@
+[
+  {
+    "query": "What is the agent complexity trap?",
+    "expected_source_table": "spotlight_history",
+    "expected_keywords": ["complexity", "agent", "adoption"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "Will cloud providers offer native multi-agent orchestration?",
+    "expected_source_table": "predictions",
+    "expected_keywords": ["cloud", "orchestration", "multi-agent"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "AI agent persistent identity and memory across sessions",
+    "expected_source_table": "spotlight_history",
+    "expected_keywords": ["identity", "persistent", "memory", "continuity"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "session-based memory wipe after security incidents",
+    "expected_source_table": "predictions",
+    "expected_keywords": ["memory wipe", "security", "data leakage"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "middleware convergence MCP standardization local models",
+    "expected_source_table": "spotlight_history",
+    "expected_keywords": ["convergence", "middleware", "MCP"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "dominant middleware player emerging from convergence",
+    "expected_source_table": "predictions",
+    "expected_keywords": ["middleware", "convergence", "dominant"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "content creators chasing engagement metrics over quality",
+    "expected_source_table": "problems",
+    "expected_keywords": ["content", "metrics", "engagement", "quality"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "lack of documentation and configuration management for agents",
+    "expected_source_table": "problems",
+    "expected_keywords": ["documentation", "configuration", "unauthorized access"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "AI agents struggle with group coordination chaos",
+    "expected_source_table": "problems",
+    "expected_keywords": ["coordination", "chaos", "agents"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "unchecked behavior propagation echo chambers bias loops",
+    "expected_source_table": "problems",
+    "expected_keywords": ["echo chambers", "bias", "propagation"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "ContinuityGuard identity management system for AI",
+    "expected_source_table": "opportunities",
+    "expected_keywords": ["ContinuityGuard", "identity", "continuity"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "unified agent communication hub platform",
+    "expected_source_table": "opportunities",
+    "expected_keywords": ["communication", "protocols", "interaction"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "sustainable AI monetization and operational efficiency",
+    "expected_source_table": "opportunities",
+    "expected_keywords": ["monetization", "operational", "efficiency"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "StreamlineSync real-time collaboration SaaS platform",
+    "expected_source_table": "opportunities",
+    "expected_keywords": ["StreamlineSync", "collaboration", "trust"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "communication gap between AI outputs and human expectations",
+    "expected_source_table": "newsletters",
+    "expected_keywords": ["communication", "AI", "expectations"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "identity management solutions for AI agent sessions",
+    "expected_source_table": "newsletters",
+    "expected_keywords": ["identity", "management", "sessions", "continuity"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "Florida stablecoin bill DeSantis",
+    "expected_source_table": "source_posts",
+    "expected_keywords": ["Florida", "stablecoin", "DeSantis"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "USDC versus Tether stablecoin transfer volume record",
+    "expected_source_table": "source_posts",
+    "expected_keywords": ["USDC", "Tether", "stablecoin", "volume"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "deterministic semantic memory for LLMs local RAM",
+    "expected_source_table": "source_posts",
+    "expected_keywords": ["deterministic", "semantic", "memory", "LLM"],
+    "min_acceptable_similarity": 0.65
+  },
+  {
+    "query": "AI governance compliance challenges",
+    "expected_source_table": "topic_evolution",
+    "expected_keywords": ["governance", "compliance"],
+    "min_acceptable_similarity": 0.60
+  },
+  {
+    "query": "infrastructure scalability building stage",
+    "expected_source_table": "topic_evolution",
+    "expected_keywords": ["infrastructure", "scalability"],
+    "min_acceptable_similarity": 0.60
+  },
+  {
+    "query": "agent identity crisis fragmented ecosystem communication",
+    "expected_source_table": "spotlight_history",
+    "expected_keywords": ["identity", "communication", "fragmented"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "Agent Runtime Service cloud provider abstraction",
+    "expected_source_table": "predictions",
+    "expected_keywords": ["Runtime Service", "cloud", "identity", "resource"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "simplified deployment products for agent frameworks",
+    "expected_source_table": "predictions",
+    "expected_keywords": ["simplified", "deployment", "complexity"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "Anthropic AI guidelines US government policy",
+    "expected_source_table": "source_posts",
+    "expected_keywords": ["Anthropic", "AI", "guidelines"],
+    "min_acceptable_similarity": 0.65
+  },
+  {
+    "query": "Bitcoin dip retail buying below 70K Santiment",
+    "expected_source_table": "source_posts",
+    "expected_keywords": ["Bitcoin", "retail", "70K"],
+    "min_acceptable_similarity": 0.65
+  },
+  {
+    "query": "Trump cyber strategy crypto blockchain support",
+    "expected_source_table": "source_posts",
+    "expected_keywords": ["Trump", "crypto", "blockchain"],
+    "min_acceptable_similarity": 0.65
+  },
+  {
+    "query": "agent assumption validation layers before execution",
+    "expected_source_table": "predictions",
+    "expected_keywords": ["assumption", "validation", "execution"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "AI alignment toolkit monitoring agent behaviors",
+    "expected_source_table": "opportunities",
+    "expected_keywords": ["alignment", "monitor", "behaviors"],
+    "min_acceptable_similarity": 0.70
+  },
+  {
+    "query": "resilient systems compliance autonomy security agent economy",
+    "expected_source_table": "newsletters",
+    "expected_keywords": ["resilient", "compliance", "autonomy"],
+    "min_acceptable_similarity": 0.65
+  }
+]
