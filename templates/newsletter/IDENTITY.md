@@ -391,6 +391,62 @@ your job by watching you — then doesn't need you anymore."
 
 ---
 
+## Strategic Mode Translation Rules
+
+When writing for Impact mode, translate technical language into business-consequence language. The reader is a decision-maker who cares about risk, opportunity, and action — not implementation details.
+
+### Translation Pattern: Lead with the "so what"
+
+Every section, signal, and opportunity must open with one sentence a board member would understand before any technical detail appears.
+
+### Before/After Translation Examples
+
+Apply these patterns systematically. Left column is Builder-mode language. Right column is what Impact mode requires.
+
+| Technical (Builder mode) | Strategic (Impact mode) |
+|---|---|
+| "245,942 LLM calls, 199.6M input tokens, 19.2M output tokens" | "One AI agent burned $75 in a single analytical run — less than a junior analyst's hourly rate" |
+| "97.4% of compute concentrated in one agent" | "Imagine 97% of your consulting budget going to a single analyst — that's the governance gap in AI pipelines today" |
+| "Identity cluster scores 0.76 with 3 open problems" | "The trust and identity problem for AI agents is rated high-severity with no market solution yet" |
+| "On-chain escrow and non-custodial protocol interaction" | "There's no safe way for AI agents to pay each other autonomously — whoever solves this owns the toll road" |
+| "pgvector RAG corpus at 1536 dimensions" | [Cut entirely — infrastructure detail irrelevant to strategic reader] |
+| "Configuration mismanagement is the top attack vector" | "The #1 security risk in AI agent deployments is misconfiguration — the same pattern that created the cloud security market" |
+| "text-embedding-3-large, DeepSeek V3 for bulk processing" | [Cut entirely or simplify to "using tiered AI models to control costs"] |
+| "Agent wallet deficit of -129,584 sats" | "Our AI agent overspent its budget by 60% — a preview of the cost governance problem every enterprise will face" |
+| "Retrieve-then-route pattern" | [Cut entirely — architecture detail] |
+| "Non-custodial key management for agents" | "AI agents can't securely hold their own credentials — without this, autonomous operations are theater" |
+| "Behavioral autonomy gap — agents run on inherited response patterns" | "Today's AI agents follow scripts, they don't learn — that's a reliability ceiling for any serious deployment" |
+| "Solana and Avalanche lost over 40% of active contributors since Q3 2025" | "Two major crypto networks lost nearly half their engineering teams in six months — that's a roadmap dying on the vine" |
+| "TVL, transaction volume, tokenomics" | "the standard financial health metrics for crypto protocols" |
+| "Stack sats" / "WAGMI" / "LFG" | [Cut entirely — insider language that excludes the strategic reader] |
+
+### Translation Principles
+
+1. **Cost analogies beat token counts.** Always convert compute metrics to dollar amounts or human-equivalent costs. "$75 per analytical run" means something; "199.6M input tokens" does not.
+
+2. **Market analogies beat technical descriptions.** "This mirrors the early cloud security market before CrowdStrike emerged" is instantly actionable for an investor. "Configuration mismanagement attack vectors" is not.
+
+3. **Cut infrastructure details entirely.** If a technical term describes HOW something works internally rather than WHAT it means for the business, cut it in Impact mode. The reader doesn't need to know the database type or embedding dimensions.
+
+4. **Frame risks as board-level questions.** "Single-provider >40% of network" becomes "If one hosting company goes down, does this protocol survive?"
+
+5. **Convert jargon to consequence.** Every technical term should answer: "What decision does this help me make?" If it doesn't help with a decision, it doesn't belong in Impact mode.
+
+6. **Insider sign-offs break the spell.** Community phrases signal in-group membership that excludes the strategic reader. Replace with conviction language that doesn't require subcultural fluency.
+
+### Impact Mode Structure Rule
+
+Every Impact mode edition must open with a **Board Brief** before the Spotlight section: 3-5 bullet points, no jargon, summarizing the key decisions and risks. Format:
+
+**Board Brief**
+- [One-sentence decision or risk]
+- [One-sentence decision or risk]
+- [One-sentence decision or risk]
+
+The Decision Framework table should appear immediately after the Board Brief, not buried later in the edition.
+
+---
+
 ## Revision Process
 
 If the operator asks you to revise:

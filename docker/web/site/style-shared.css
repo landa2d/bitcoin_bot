@@ -29,18 +29,18 @@ body.technical {
 body.strategic {
     --accent: #7c3aed;
     --bg: #ffffff;
-    --text-primary: #1a1a2e;
-    --text-secondary: rgba(26, 26, 46, 0.45);
-    --text-body: rgba(26, 26, 46, 0.55);
-    --text-hint: rgba(26, 26, 46, 0.4);
+    --text-primary: #0a0a0f;
+    --text-secondary: rgba(10, 10, 15, 0.7);
+    --text-body: rgba(10, 10, 15, 0.85);
+    --text-hint: rgba(10, 10, 15, 0.55);
     --border: rgba(0, 0, 0, 0.08);
     --toggle-bg: rgba(0, 0, 0, 0.05);
-    --toggle-inactive: rgba(26, 26, 46, 0.45);
+    --toggle-inactive: rgba(10, 10, 15, 0.6);
     --btn-bg: #7c3aed;
     --btn-text: #ffffff;
     --bar-bg: rgba(124, 58, 237, 0.04);
     --bar-border: rgba(124, 58, 237, 0.12);
-    --bar-text: rgba(26, 26, 46, 0.5);
+    --bar-text: rgba(10, 10, 15, 0.7);
     --btn-secondary-border: rgba(124, 58, 237, 0.3);
     --blockquote-bg: rgba(124, 58, 237, 0.04);
     --code-bg: rgba(124, 58, 237, 0.08);
@@ -91,7 +91,7 @@ body {
 
 .nav-logo {
     font-family: 'Courier New', monospace;
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 500;
     color: var(--text-primary);
     letter-spacing: 1px;
@@ -100,7 +100,7 @@ body {
 
 .btn-subscribe-primary {
     font-family: 'Courier New', monospace;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -123,7 +123,7 @@ body {
 
 .hero-tagline {
     font-family: 'Courier New', monospace;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 400;
     color: var(--accent);
     letter-spacing: 2px;
@@ -133,7 +133,7 @@ body {
 
 .hero-headline {
     font-family: Georgia, serif;
-    font-size: 26px;
+    font-size: 29px;
     font-weight: 400;
     color: var(--text-primary);
     margin-bottom: 8px;
@@ -141,7 +141,7 @@ body {
 
 .hero-date {
     font-family: 'Courier New', monospace;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 400;
     color: var(--text-secondary);
     margin-bottom: 28px;
@@ -159,7 +159,7 @@ body {
 
 .toggle-btn {
     font-family: 'Courier New', monospace;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 400;
     padding: 8px 20px;
     border-radius: 6px;
@@ -178,7 +178,7 @@ body {
 
 .mode-subtitle {
     font-family: 'Courier New', monospace;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 400;
     color: var(--text-hint);
     letter-spacing: 0.5px;
@@ -201,7 +201,7 @@ body {
 
 .section-label {
     font-family: 'Courier New', monospace;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 400;
     color: var(--accent);
     letter-spacing: 1.5px;
@@ -211,7 +211,7 @@ body {
 
 .entry-title {
     font-family: Georgia, serif;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 400;
     color: var(--text-primary);
     text-decoration: none;
@@ -225,7 +225,7 @@ body {
 
 .entry-preview {
     font-family: 'Courier New', monospace;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 400;
     color: var(--text-body);
     line-height: 1.5;
@@ -235,7 +235,7 @@ body {
 
 .back-link {
     font-family: 'Courier New', monospace;
-    font-size: 13px;
+    font-size: 15px;
     color: var(--accent);
     text-decoration: none;
     display: inline-block;
@@ -248,7 +248,7 @@ body {
 
 article h2 {
     font-family: 'Courier New', monospace;
-    font-size: 11px;
+    font-size: 13px;
     font-weight: 400;
     color: var(--accent);
     letter-spacing: 1.5px;
@@ -259,7 +259,7 @@ article h2 {
 
 article h3 {
     font-family: Georgia, serif;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 400;
     color: var(--text-primary);
     margin-top: 20px;
@@ -268,7 +268,7 @@ article h3 {
 
 article p {
     font-family: 'Courier New', monospace;
-    font-size: 13px;
+    font-size: 15px;
     color: var(--text-body);
     line-height: 1.5;
     margin-bottom: 16px;
@@ -278,7 +278,7 @@ article ul, article ol {
     margin-bottom: 16px;
     padding-left: 24px;
     font-family: 'Courier New', monospace;
-    font-size: 13px;
+    font-size: 15px;
     color: var(--text-body);
     line-height: 1.5;
 }
@@ -329,7 +329,7 @@ article table {
     border-collapse: collapse;
     margin: 16px 0;
     font-family: 'Courier New', monospace;
-    font-size: 13px;
+    font-size: 15px;
 }
 
 article th {
@@ -338,7 +338,7 @@ article th {
     border-bottom: 1px solid var(--border);
     color: var(--accent);
     font-weight: 700;
-    font-size: 11px;
+    font-size: 13px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
 }
@@ -364,7 +364,7 @@ article tr:last-child td {
 
 .subscribe-heading {
     font-family: Georgia, serif;
-    font-size: 20px;
+    font-size: 23px;
     font-weight: 400;
     color: var(--text-primary);
     margin-bottom: 8px;
@@ -372,7 +372,7 @@ article tr:last-child td {
 
 .subscribe-tagline {
     font-family: 'Courier New', monospace;
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-secondary);
     margin-bottom: 24px;
 }
@@ -385,7 +385,7 @@ article tr:last-child td {
 #subscribe-email {
     width: 100%;
     padding: 10px 14px;
-    font-size: 13px;
+    font-size: 15px;
     font-family: 'Courier New', monospace;
     border: 0.5px solid var(--border);
     border-radius: 6px;
@@ -409,7 +409,7 @@ article tr:last-child td {
     gap: 16px;
     margin-bottom: 16px;
     font-family: 'Courier New', monospace;
-    font-size: 12px;
+    font-size: 14px;
     color: var(--text-secondary);
 }
 
@@ -426,7 +426,7 @@ article tr:last-child td {
 
 #subscribe-btn {
     font-family: 'Courier New', monospace;
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 700;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -443,7 +443,7 @@ article tr:last-child td {
 
 .subscribe-status {
     font-family: 'Courier New', monospace;
-    font-size: 12px;
+    font-size: 14px;
     margin-top: 12px;
     min-height: 16px;
     color: var(--accent);
@@ -462,14 +462,14 @@ article tr:last-child td {
 
 .bottom-bar-text {
     font-family: 'Courier New', monospace;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 400;
     color: var(--bar-text);
 }
 
 .btn-subscribe-secondary {
     font-family: 'Courier New', monospace;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 400;
     color: var(--accent);
     background: transparent;
@@ -485,11 +485,11 @@ article tr:last-child td {
 
 @media (max-width: 600px) {
     .hero { padding: 30px 16px 20px; }
-    .hero-headline { font-size: 22px; }
+    .hero-headline { font-size: 25px; }
 
     .content-area { padding: 0 16px 24px; padding-top: 16px; }
 
-    .toggle-btn { font-size: 12px; padding: 7px 16px; }
+    .toggle-btn { font-size: 14px; padding: 7px 16px; }
 
     .bottom-bar {
         flex-direction: column;

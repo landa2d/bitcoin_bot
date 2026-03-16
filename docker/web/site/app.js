@@ -107,16 +107,15 @@ function showView(viewName) {
 function renderList(data) {
     if (!data || data.length === 0) {
         document.getElementById('newsletter-list').innerHTML =
-            '<div class="content-area"><p style="color:var(--text-secondary);font-size:13px;">No newsletters published yet.</p></div>';
-        updateHero('Intelligence Archive', '');
+            '<div class="content-area"><p style="color:var(--text-secondary);font-size:15px;">No newsletters published yet.</p></div>';
+        updateHero('AI Agents Pulse', '');
         return;
     }
 
-    // Update hero with latest edition info
+    // Update hero with site title and latest edition date
     var latest = data[0];
-    var latestTitle = getModeTitle(latest);
     var latestDate = formatDate(latest.published_at);
-    updateHero(latestTitle, latestDate);
+    updateHero('AI Agents Pulse', 'Latest: Edition #' + latest.edition_number + ' \u00b7 ' + latestDate);
 
     var html = data.map(function(n) {
         var title = getModeTitle(n);
@@ -143,8 +142,8 @@ async function loadList() {
 
     if (error || !data || data.length === 0) {
         document.getElementById('newsletter-list').innerHTML =
-            '<p style="color:var(--text-secondary);font-size:13px;padding:20px 24px;">No newsletters published yet.</p>';
-        updateHero('Intelligence Archive', '');
+            '<p style="color:var(--text-secondary);font-size:15px;padding:20px 24px;">No newsletters published yet.</p>';
+        updateHero('AI Agents Pulse', '');
         return;
     }
 

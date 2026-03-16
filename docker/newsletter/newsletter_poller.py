@@ -30,6 +30,7 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
 AGENT_NAME = os.getenv("AGENT_NAME", "newsletter")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 POLL_INTERVAL = int(os.getenv("NEWSLETTER_POLL_INTERVAL", "30"))
@@ -201,7 +202,10 @@ def init():
         logger.error("OPENAI_API_KEY not set — cannot generate newsletters")
         return False
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    client_kwargs = {"api_key": OPENAI_API_KEY}
+    if OPENAI_BASE_URL:
+        client_kwargs["base_url"] = OPENAI_BASE_URL
+    client = OpenAI(**client_kwargs)
     if DEEPSEEK_API_KEY:
         deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
         logger.info("[INIT] DeepSeek client initialized successfully")
@@ -303,7 +307,7 @@ def validate_stat_repetition(content_md: str) -> list[dict]:
 
 
 def validate_section_echo(content_md: str) -> list[dict]:
-    """Issue #2: Check that Spotlight and Big Insight don't echo each other."""
+    """Issue #2: Check that Spotlight and the next major section don't echo each other."""
     issues = []
     sections = _extract_sections(content_md)
 
@@ -578,80 +582,67 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         "\n\nYou MUST respond with valid JSON only — no markdown fences, no extra text."
         "\n\nCRITICAL RULES — CHECK BEFORE WRITING EACH SECTION:"
         "\n1. SPOTLIGHT: If `spotlight` is null OR missing from input_data, OMIT the"
-        " ENTIRE section — no header, no placeholder, no explanation. Go straight from"
-        " Cold open / One Number to The Big Insight."
+        " ENTIRE section — no header, no placeholder, no explanation."
         " If spotlight exists but `has_prediction` is false or `prediction` key is"
-        " absent, write the Spotlight section WITHOUT a prediction paragraph —"
-        " skip the 'We believe...' paragraph entirely. NEVER invent a prediction"
-        " or write phrases like 'this spotlight has no prediction'."
-        "\n2. ON OUR RADAR: If `radar_topics` has fewer than 3 items, OMIT the ENTIRE"
-        " section — no header, no 'nothing to report' note."
-        "\n3. SECTION ORDER: Write every required section in order and complete it before"
-        " moving on. Required every edition: Cold open, The Big Insight, Top Opportunities,"
-        " Emerging Signals, Tool Radar, Prediction Tracker, Gato's Corner."
-        " Conditional (include only when data supports): One Number, Spotlight,"
-        " On Our Radar, The Curious Corner, Who's Moving."
+        " absent, write the Spotlight section WITHOUT the Prediction Scorecard Entry —"
+        " skip it entirely. NEVER invent a prediction."
+        "\n2. CANONICAL SECTION ORDER: Lede (no header), Spotlight (conditional),"
+        " Top Opportunities, Emerging Signals, Tool Radar, Prediction Tracker,"
+        " Gato's Corner. Write every required section in order."
         " NEVER stop before Gato's Corner — it is the last section and mandatory."
-        "\n4. THE BIG INSIGHT: Use a descriptive headline (e.g. `## The Agent Memory"
-        " Market Is About to Consolidate`), not the literal text '## The Big Insight'."
-        " The first body line MUST be the thesis in **bold markdown**. Thesis must be"
-        " falsifiable — a claim that could be wrong, not a vague observation."
-        "\n5. GATO'S CORNER: ALWAYS write this. NEVER omit it."
+        "\n3. GATO'S CORNER: ALWAYS write this. NEVER omit it."
         " A newsletter without Gato's Corner is a failed newsletter."
-        "\n6. SPOTLIGHT WORD COUNT: If Spotlight IS present, body MUST be 400–500 words."
+        "\n4. SPOTLIGHT WORD COUNT: If Spotlight IS present, body MUST be 400–500 words."
         " Under 350 is a hard failure — STOP and expand before continuing."
-        "\n7. ONE NUMBER: Include as `## One Number` only if a striking, real data point"
-        " exists in input_data. NEVER fabricate. Skip entirely if nothing is remarkable."
-        "\n8. WHO'S MOVING: Include `## Who's Moving` only if at least 1 real entry can"
-        " be sourced from analyst_insights, clusters, or trending_tools. Skip if not."
-        "\n9. NO PLACEHOLDER TEXT: Never write 'Watch for...', 'investigation underway',"
+        "\n5. NO PLACEHOLDER TEXT: Never write 'Watch for...', 'investigation underway',"
         " 'N/A', or any trailing incomplete sentence. If a section has no content,"
         " OMIT THE ENTIRE SECTION — no header, no 'N/A', no placeholder."
-        "\n10. FILLER PHRASES BANNED: 'navigating without a map', 'wake-up call',"
+        "\n6. FILLER PHRASES BANNED: 'navigating without a map', 'wake-up call',"
         " 'smart businesses are already', 'sifting through the narrative', 'elevated"
         " urgency', 'in today's rapidly evolving', 'it remains to be seen'."
         " Write like a reporter, not a business deck."
-        "\n11. ONE NUMBER REPETITION: The One Number stat appears with its full figure"
-        " ONCE in the One Number section. Later sections reference it by description"
-        " only ('the incident spike', 'the cost figure above'), NEVER re-quote the"
-        " exact number."
-        "\n12. SPOTLIGHT vs BIG INSIGHT: Before writing Big Insight, state what"
-        " Spotlight already covered. Then choose a DIFFERENT angle: second-order"
-        " effects, security implications, business model impact, supply chain"
-        " consequences, regulatory risk, or a contrarian take."
-        "\n13. JARGON GROUNDING: Every technical concept must be grounded on first"
+        "\n7. JARGON GROUNDING: Every technical concept must be grounded on first"
         " use: name it, explain it in one sentence, then give a specific real-world"
         " scenario. Write for a smart founder, not an AI engineer."
-        "\n14. STALE PREDICTIONS: Check input_data for stale_prediction_ids. Any"
+        "\n8. STALE PREDICTIONS: Check input_data for stale_prediction_ids. Any"
         " prediction whose target_date has passed MUST be resolved as ✅ Confirmed,"
-        " ❌ Wrong, or 🔄 Revised — with honest explanation. NEVER publish a"
-        " past-due prediction as Active or Developing."
-        "\n15. PREDICTION FORMAT: Every new prediction must follow: 'By [specific"
+        " 🔴 Failed, or updated — with honest explanation. NEVER publish a"
+        " past-due prediction as Active."
+        "\n9. PREDICTION FORMAT: Every new prediction must follow: 'By [specific"
         " date], [specific measurable outcome].' Target dates must be at least 4"
         " weeks in the future FROM TODAY'S DATE (shown in user message). NEVER"
         " use dates in the past. Check TODAY'S DATE before writing any prediction."
-        "\n16. GATO'S CORNER STRUCTURE: (1) Reference the week's main theme,"
-        " (2) draw a genuine parallel to Bitcoin/decentralization that feels earned,"
-        " (3) deliver an actionable insight. End with 'Stay humble, stack sats.'"
-        "\n17. THEME DIVERSITY: Check input_data for `avoided_themes`. These are"
-        " the primary themes from the last 3 editions. Your Big Insight, Spotlight"
-        " framing, and cold open MUST explore a DIFFERENT macro-theme. If the"
-        " data naturally points to a recent theme, find a genuinely fresh angle:"
-        " second-order effects, a different stakeholder's perspective, or a"
-        " contrarian take. NEVER lead with the same thesis as a recent edition."
-        "\n18. PRIMARY THEME: You MUST include a `primary_theme` field in your"
+        "\n10. GATO'S CORNER STRUCTURE: 1 paragraph. Must reference something specific"
+        " from this edition's data. End with 'Stay humble, stack sats.'"
+        "\n11. THEME DIVERSITY: Check input_data for `avoided_themes`. These are"
+        " the primary themes from the last 3 editions. Your Spotlight"
+        " framing and lede MUST explore a DIFFERENT macro-theme. If the"
+        " data naturally points to a recent theme, find a genuinely fresh angle."
+        " NEVER lead with the same thesis as a recent edition."
+        "\n12. PRIMARY THEME: You MUST include a `primary_theme` field in your"
         " JSON response — a 2-5 word label for this edition's dominant theme"
         " (e.g. 'agent memory management', 'protocol governance fragmentation')."
-        " This is stored for future diversity tracking."
-        "\n19. SOURCE ATTRIBUTION: input_data includes `premium_source_posts`"
+        "\n13. SPOTLIGHT STRUCTURE: If Spotlight is present, use the EXACT format:"
+        " `## Spotlight: [Conviction-Laden Title]` then `**Thesis: [one-line]**`"
+        " then body paragraphs (3 max), then `### Builder Lens` (technical implications),"
+        " then `### Impact Lens` (strategic implications), then"
+        " `### Prediction Scorecard Entry` with Prediction/Timeline/Metric/Confidence."
+        " Use proper markdown ## and ### headers — NEVER bold inline headers like"
+        " `**Builder Lens**`. Bold text is NOT a section header."
+        "\n14. SOURCE ATTRIBUTION: input_data includes `premium_source_posts`"
         " (Tier 1 AUTHORITY + Tier 2 CURATED sources like a16z, MIT Tech Review,"
         " Simon Willison, Latent Space, Andrew Ng, etc). Reference these by name"
-        " in your analysis: 'According to a16z...', 'As Simon Willison noted...',"
-        " 'MIT Technology Review reports...'. Prefer citing premium sources over"
-        " generic 'HN discussion' or 'GitHub repos'. The newsletter should feel"
-        " well-sourced from authoritative voices, not just community chatter."
-        " Also check `section_b_emerging` for `source_names` and `source_tier_label`"
-        " fields — cite the named sources when available."
+        " in your analysis. Prefer citing premium sources over generic 'HN discussion'."
+        " Also check `section_b_emerging` for `source_names` and `source_tier_label`."
+        "\n15. TOOL RADAR: Each entry MUST include: name, trajectory (Rising/Falling/Stable),"
+        " mention count in past 30 days, average sentiment score, and 1-2 sentence analysis."
+        " Entries without quantitative data are a failure."
+        "\n16. PREDICTION TRACKER: Each entry MUST include status emoji"
+        " (🟢 Active / 🟡 At Risk / 🔴 Failed / ✅ Confirmed), prediction text in bold,"
+        " and 1-2 sentences on progress or evidence. Entries without context are a failure."
+        "\n17. KILL RULES: 'In conclusion'/'In sum' → cut. 'Stakeholders'/'the industry'"
+        " without names → replace. Bold inline headers → use proper ## headers."
+        " Any generic paragraph → rewrite with specific data."
     )
 
     # Inject quality feedback on retry
@@ -705,6 +696,84 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
 
     logger.info(f"Newsletter generated: \"{result.get('title', '?')}\"")
     return result
+
+
+# ---------------------------------------------------------------------------
+# Strategic Editor — second-pass rewrite for non-technical readers
+# ---------------------------------------------------------------------------
+
+STRATEGIC_EDITOR_PROMPT = """You are editing an AI-industry intelligence newsletter for a non-technical business audience: C-suite executives, portfolio managers, board members, and strategy leads. These readers make investment and resource allocation decisions. They do not write code or manage infrastructure.
+
+Your job is to review the draft and apply these transformations. Preserve every insight — change only the packaging.
+
+## Rules
+
+1. **Jargon scan.** Rewrite any term that requires AI/ML, crypto, or software engineering background to understand. If you cannot rewrite it without losing meaning, add a parenthetical explanation of 10 words or fewer.
+
+2. **Metric translation.** Convert all technical metrics to business equivalents:
+   - Token counts → dollar costs or human-equivalent time
+   - Cluster scores / severity ratings → plain language (high/medium/low risk with one-sentence explanation)
+   - GitHub contributor counts → "engineering team size" or "active developer count"
+   - On-chain metrics → plain financial equivalents where possible
+
+3. **"So what" test.** Every paragraph's first sentence must be understandable by a CFO with no technical background. If not, rewrite the opening sentence.
+
+4. **Analogy injection.** Where a technical concept has a direct business-world parallel, add it:
+   - Agent coordination problems → "like managing a consulting team with no project manager"
+   - Settlement layers → "like Visa's network, but for AI agent transactions"
+   - Attack vectors → "security vulnerabilities" or "points of failure"
+
+5. **Structure check.** Verify:
+   - Board Brief exists at the top with 3-5 jargon-free bullets
+   - Decision Framework table appears early, not buried
+   - Opportunity Radar items each lead with a one-sentence business case
+   - Prediction Tracker entries are understandable without technical context
+   - Gato's Corner avoids insider community language in its sign-off
+
+6. **Do NOT:**
+   - Remove any substantive insight or prediction
+   - Add hedging language that weakens conviction (the editorial voice is deliberately opinionated)
+   - Increase word count by more than 15%
+   - Change the Decision Framework table structure
+   - Remove the Prediction Scorecard or Tracker sections
+   - Change any prediction wording, timeline, or confidence level
+
+## Output
+
+Return ONLY the full edited markdown. No commentary, no explanations, no wrapper text. Just the edited newsletter text ready for publication."""
+
+
+def edit_strategic_mode(content_markdown_impact: str) -> str:
+    """Second-pass editor: rewrites Impact mode content for non-technical readers.
+
+    Takes raw Impact mode markdown from generate_newsletter(), returns edited version.
+    On failure, raises exception — caller handles graceful degradation.
+    """
+    if not content_markdown_impact or not content_markdown_impact.strip():
+        return content_markdown_impact
+
+    logger.info("Running strategic editor second pass...")
+
+    _t0 = time.time()
+    response = routed_llm_call(
+        MODEL,
+        messages=[
+            {"role": "system", "content": STRATEGIC_EDITOR_PROMPT},
+            {"role": "user", "content": content_markdown_impact},
+        ],
+        max_tokens=16000,
+    )
+    log_llm_call("newsletter", "strategic_editor", response.model, response.usage, int((time.time() - _t0) * 1000))
+
+    edited = response.choices[0].message.content.strip()
+
+    # Strip markdown fences if the LLM wraps its response
+    if edited.startswith("```"):
+        edited = re.sub(r"^```(?:markdown)?\s*", "", edited)
+        edited = re.sub(r"\s*```$", "", edited)
+
+    logger.info(f"Strategic editor pass completed ({len(edited)} chars)")
+    return edited
 
 
 def save_newsletter(result: dict, input_data: dict):
@@ -1137,6 +1206,15 @@ def process_task(task: dict):
         all_warnings = [i["detail"] for i in quality_issues]
         if all_warnings:
             result["quality_warnings"] = all_warnings
+
+        # Strategic editor second pass
+        if result.get("content_markdown_impact"):
+            try:
+                edited_impact = edit_strategic_mode(result["content_markdown_impact"])
+                result["content_markdown_impact"] = edited_impact
+                logger.info("Strategic editor pass applied to content_markdown_impact")
+            except Exception as e:
+                logger.error(f"Strategic editor pass failed, using original: {e}")
 
         # Generate scorecard (Looking Back) if resolved predictions exist
         edition = result.get("edition", input_data.get("edition_number", 0))
