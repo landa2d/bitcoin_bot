@@ -249,6 +249,87 @@ RSS_FEEDS = {
         'tier': 2,
         'category': 'market_research'
     },
+    # ── Agentic AI infrastructure ──────────────────────────────────
+    'crewai_blog': {
+        'url': 'https://blog.crewai.com/feed',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'huggingface_blog': {
+        'url': 'https://huggingface.co/blog/feed.xml',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'replit_blog': {
+        'url': 'https://blog.replit.com/feed.xml',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'vercel_blog': {
+        'url': 'https://vercel.com/atom',
+        'tier': 1,
+        'category': 'authority'
+    },
+    # ── Enterprise AI / VC strategy ────────────────────────────────
+    'sequoia_blog': {
+        'url': 'https://www.sequoiacap.com/feed/',
+        'tier': 1,
+        'category': 'authority'
+    },
+    # ── AI safety & governance ─────────────────────────────────────
+    'alignment_forum': {
+        'url': 'https://www.alignmentforum.org/feed.xml',
+        'tier': 1,
+        'category': 'authority'
+    },
+    # ── Crypto primary data / research ─────────────────────────────
+    'messari': {
+        'url': 'https://messari.io/rss',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'chainalysis': {
+        'url': 'https://blog.chainalysis.com/feed/',
+        'tier': 1,
+        'category': 'authority'
+    },
+    # ── arXiv academic feeds ───────────────────────────────────────
+    'arxiv_cs_ai': {
+        'url': 'https://rss.arxiv.org/rss/cs.AI',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'arxiv_cs_ma': {
+        'url': 'https://rss.arxiv.org/rss/cs.MA',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'arxiv_cs_cr': {
+        'url': 'https://rss.arxiv.org/rss/cs.CR',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'arxiv_cs_cl': {
+        'url': 'https://rss.arxiv.org/rss/cs.CL',
+        'tier': 1,
+        'category': 'authority'
+    },
+    # ── Regulatory feeds ───────────────────────────────────────────
+    'sec_press': {
+        'url': 'https://www.sec.gov/news/pressreleases.rss',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'bis_speeches': {
+        'url': 'https://www.bis.org/doclist/cbspeeches.rss',
+        'tier': 1,
+        'category': 'authority'
+    },
+    'fsb_publications': {
+        'url': 'https://www.fsb.org/feed/',
+        'tier': 1,
+        'category': 'authority'
+    },
 }
 
 RSS_RELEVANCE_KEYWORDS = [
@@ -258,14 +339,22 @@ RSS_RELEVANCE_KEYWORDS = [
     'foundation model', 'gpt', 'claude', 'anthropic',
     'openai', 'copilot', 'automation', 'ai infrastructure',
     'rag', 'vector', 'embedding', 'mcp', 'langchain',
+    'orchestration', 'tool use', 'agent protocol',
+    # AI safety / governance keywords
+    'alignment', 'guardrails', 'red team', 'ai safety',
+    'ai governance', 'ai policy', 'ai act',
     # Bitcoin / Crypto keywords
     'bitcoin', 'btc', 'lightning', 'nostr', 'blockchain',
     'crypto', 'defi', 'web3', 'smart contract', 'tokenization',
     'ordinals', 'layer 2', 'digital asset', 'on-chain',
+    'tvl', 'protocol', 'stablecoin', 'l2',
+    # Regulatory keywords
+    'virtual currency', 'distributed ledger', 'fintech',
+    'stablecoin regulation', 'money transmission', 'securities offering',
     # Financial / Macro keywords
     'saas pricing', 'seat based', 'arr', 'net revenue retention',
     'white collar', 'displacement', 'layoff', 'headcount reduction',
-    'interchange', 'stablecoin', 'payment rail', 'agent commerce',
+    'interchange', 'payment rail', 'agent commerce',
     'private credit', 'lbo', 'software default',
     'mortgage', 'delinquency', 'consumer spending',
     'ghost gdp', 'labor share', 'wage compression',
@@ -1249,6 +1338,188 @@ def scrape_thought_leaders() -> dict:
     }
     log_pipeline_end(run_id, 'completed', summary)
     logger.info(f"Thought leader scrape complete: {feeds_scraped}/{len(THOUGHT_LEADER_FEEDS)} feeds, {total_articles} articles")
+    return summary
+
+
+# ============================================================================
+# X/Twitter Source Account Scanning
+# ============================================================================
+
+# Config file path (fallback if DB table not yet created)
+_X_SOURCE_ACCOUNTS_CONFIG = Path(__file__).resolve().parent.parent.parent / 'config' / 'x_source_accounts.json'
+X_SOURCE_ACCOUNT_TIER = 1.5  # Same tier as thought leaders — high-signal individual voices
+
+
+def _load_x_source_accounts() -> list:
+    """Load active X source accounts from Supabase, falling back to config file."""
+    # Try DB first
+    if supabase:
+        try:
+            result = supabase.table('x_source_accounts')\
+                .select('x_handle, display_name, category, description, priority')\
+                .eq('active', True)\
+                .order('priority', desc=True)\
+                .execute()
+            if result.data:
+                logger.info(f"Loaded {len(result.data)} X source accounts from DB")
+                return result.data
+        except Exception as e:
+            logger.warning(f"Could not load X source accounts from DB (table may not exist yet): {e}")
+
+    # Fallback to config file
+    try:
+        if _X_SOURCE_ACCOUNTS_CONFIG.exists():
+            config = json.loads(_X_SOURCE_ACCOUNTS_CONFIG.read_text())
+            accounts = config.get('accounts', [])
+            # Normalize to same shape as DB rows
+            normalized = []
+            for a in accounts:
+                normalized.append({
+                    'x_handle': a['handle'],
+                    'display_name': a.get('name', a['handle']),
+                    'category': a.get('category', 'uncategorized'),
+                    'description': a.get('description', ''),
+                    'priority': 5,
+                })
+            logger.info(f"Loaded {len(normalized)} X source accounts from config file")
+            return normalized
+    except Exception as e:
+        logger.warning(f"Could not load X source accounts config file: {e}")
+
+    return []
+
+
+def scrape_x_source_accounts() -> dict:
+    """Scan curated X/Twitter accounts and ingest tweets into source_posts.
+
+    Uses X API v2 search with from:<handle> queries, batched in groups of 5
+    using OR to minimize API calls. Respects X API budget.
+    """
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    if not X_BEARER_TOKEN:
+        logger.warning("X_BEARER_TOKEN not set — skipping X source account scan")
+        return {'skipped': True, 'reason': 'no_bearer_token'}
+
+    if not _check_x_budget():
+        logger.info("X API weekly budget exhausted — skipping X source account scan")
+        return {'skipped': True, 'reason': 'budget_exhausted'}
+
+    run_id = log_pipeline_start('scrape_x_source_accounts')
+    accounts = _load_x_source_accounts()
+
+    if not accounts:
+        log_pipeline_end(run_id, 'completed', {'accounts': 0, 'tweets_ingested': 0})
+        return {'accounts': 0, 'tweets_ingested': 0}
+
+    # Dedup against recently ingested tweets
+    existing_ids = set()
+    try:
+        recent = supabase.table('source_posts')\
+            .select('source_id')\
+            .like('source', 'x_source_%')\
+            .gte('scraped_at', (datetime.now(timezone.utc) - timedelta(days=7)).isoformat())\
+            .execute()
+        existing_ids = {r['source_id'] for r in (recent.data or []) if r.get('source_id')}
+    except Exception as e:
+        logger.warning(f"Could not pre-fetch existing X source post IDs: {e}")
+
+    # Build handle→account lookup
+    handle_map = {a['x_handle'].lower(): a for a in accounts}
+    handles = [a['x_handle'] for a in accounts]
+
+    total_ingested = 0
+    results_by_category = {}
+
+    # Batch handles in groups of 5 for efficient OR queries
+    for i in range(0, len(handles), 5):
+        if not _check_x_budget():
+            logger.info("X API budget exhausted mid-scan — stopping")
+            break
+
+        batch = handles[i:i+5]
+        query = ' OR '.join(f'from:{h}' for h in batch)
+        # Exclude retweets and replies to get original content only
+        query += ' -is:retweet -is:reply'
+
+        tweets = _x_api_search(query, max_results=20)
+
+        for tw in tweets:
+            tweet_id = tw.get('id', '')
+            if tweet_id in existing_ids:
+                continue
+
+            username = tw.get('author_username', '').lower()
+            account_info = handle_map.get(username, {})
+            category = account_info.get('category', 'uncategorized')
+            display_name = account_info.get('display_name', username)
+
+            # Skip very short tweets (likely noise)
+            text = tw.get('text', '')
+            if len(text) < 30:
+                continue
+
+            topics = _detect_topics(text)
+            metrics = tw.get('public_metrics', {})
+
+            post_data = {
+                'source': f'x_source_{username}',
+                'source_id': tweet_id,
+                'source_url': f'https://x.com/{tw.get("author_username", username)}/status/{tweet_id}',
+                'source_tier': 2,
+                'title': f'@{tw.get("author_username", username)}: {text[:100]}',
+                'body': text,
+                'author': display_name,
+                'score': X_SOURCE_ACCOUNT_TIER,
+                'comment_count': metrics.get('reply_count', 0),
+                'tags': topics + ['x_source', f'x_cat_{category}', f'x_{username}'],
+                'metadata': {
+                    'x_handle': tw.get('author_username', username),
+                    'display_name': display_name,
+                    'category': category,
+                    'description': account_info.get('description', ''),
+                    'source_tier': 'x_source_account',
+                    'tier_numeric': X_SOURCE_ACCOUNT_TIER,
+                    'tweet_id': tweet_id,
+                    'created_at': tw.get('created_at', ''),
+                    'topics_detected': topics,
+                    'metrics': {
+                        'likes': metrics.get('like_count', 0),
+                        'retweets': metrics.get('retweet_count', 0),
+                        'replies': metrics.get('reply_count', 0),
+                        'quotes': metrics.get('quote_count', 0),
+                    },
+                },
+            }
+
+            try:
+                supabase.table('source_posts').upsert(
+                    post_data, on_conflict='source,source_id'
+                ).execute()
+                existing_ids.add(tweet_id)
+                total_ingested += 1
+                results_by_category[category] = results_by_category.get(category, 0) + 1
+            except Exception as e:
+                logger.error(f"X source post upsert error for {username}/{tweet_id}: {e}")
+
+    # Update last_scanned_at for accounts in DB
+    if supabase and handles:
+        try:
+            supabase.table('x_source_accounts').update({
+                'last_scanned_at': datetime.now(timezone.utc).isoformat()
+            }).in_('x_handle', handles).execute()
+        except Exception:
+            pass  # Table may not exist yet
+
+    summary = {
+        'source': 'x_source_accounts',
+        'accounts_scanned': len(handles),
+        'tweets_ingested': total_ingested,
+        'by_category': results_by_category,
+    }
+    log_pipeline_end(run_id, 'completed', summary)
+    logger.info(f"X source account scan complete: {len(handles)} accounts, {total_ingested} tweets ingested")
     return summary
 
 
@@ -5612,6 +5883,12 @@ def execute_task(task: dict) -> dict:
             results['thought_leaders'] = {'error': str(e)}
 
         try:
+            results['x_source_accounts'] = scrape_x_source_accounts()
+        except Exception as e:
+            logger.error(f"X source account scan failed in pipeline: {e}")
+            results['x_source_accounts'] = {'error': str(e)}
+
+        try:
             results['extract'] = extract_problems_multisource()
         except Exception as e:
             logger.warning(f"Pipeline multisource problem extraction failed, falling back: {e}")
@@ -6065,7 +6342,10 @@ def execute_task(task: dict) -> dict:
 
     elif task_type == 'scrape_thought_leaders':
         return scrape_thought_leaders()
-    
+
+    elif task_type == 'scrape_x_source_accounts':
+        return scrape_x_source_accounts()
+
     elif task_type == 'track_predictions':
         return track_predictions()
     
@@ -8469,6 +8749,15 @@ def scheduled_scrape_thought_leaders():
         logger.error(f"Scheduled thought leader scrape failed: {e}")
 
 
+def scheduled_scrape_x_source_accounts():
+    """Scheduled X/Twitter source account scanning."""
+    try:
+        result = scrape_x_source_accounts()
+        logger.info(f"Scheduled X source account scan: {result}")
+    except Exception as e:
+        logger.error(f"Scheduled X source account scan failed: {e}")
+
+
 def scheduled_update_evolution():
     """Scheduled topic evolution update."""
     try:
@@ -8718,6 +9007,7 @@ def setup_scheduler():
     schedule.every(12).hours.do(scheduled_scrape_github)
     schedule.every(6).hours.do(scheduled_scrape_rss)
     schedule.every(6).hours.do(scheduled_scrape_thought_leaders)
+    schedule.every(6).hours.do(scheduled_scrape_x_source_accounts)
     # Monday newsletter pipeline (times in UTC):
     #   06:00 — Topic evolution update (lifecycle phases)
     #   06:10 — Analysis cycle (problems, tools, clusters, delegate to Analyst)
