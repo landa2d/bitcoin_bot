@@ -6972,8 +6972,14 @@ def post_approved_x_content() -> dict:
                         f"https://x.com/i/status/{thread_ids[0]}"
                     )
             else:
-                # Single tweet
-                result = _post_tweet(content)
+                # Single tweet — for engagement replies, extract reply-to ID from source_url
+                reply_to_id = None
+                if ctype == 'engagement_reply' and candidate.get('source_url'):
+                    # source_url format: https://x.com/{user}/status/{tweet_id}
+                    url_parts = candidate['source_url'].rstrip('/').split('/')
+                    if len(url_parts) >= 2 and url_parts[-2] == 'status':
+                        reply_to_id = url_parts[-1]
+                result = _post_tweet(content, reply_to=reply_to_id)
                 if 'error' in result:
                     supabase.table('x_content_candidates').update({
                         'status': 'failed',
@@ -8537,12 +8543,12 @@ def run_health_checks() -> dict:
     test_email = 'healthcheck@test.agentpulse.internal'
     try:
         supabase.rpc('subscribe', {'p_email': test_email, 'p_mode': 'email'}).execute()
-        supabase.table('corpus_users').delete().eq('email', test_email).execute()
+        supabase.table('subscribers').delete().eq('email', test_email).execute()
         results['subscribe_rpc'] = {'status': 'ok'}
     except Exception as e:
         # Clean up just in case
         try:
-            supabase.table('corpus_users').delete().eq('email', test_email).execute()
+            supabase.table('subscribers').delete().eq('email', test_email).execute()
         except Exception:
             pass
         results['subscribe_rpc'] = {'status': 'fail', 'error': str(e)}
@@ -8577,9 +8583,9 @@ def run_health_checks() -> dict:
 
     # 7. Web frontend
     try:
-        with httpx.Client(timeout=10) as client:
+        with httpx.Client(timeout=10, follow_redirects=True) as client:
             resp = client.get('http://web:80')
-        if resp.status_code == 200:
+        if resp.status_code < 400:
             results['web'] = {'status': 'ok'}
         else:
             results['web'] = {'status': 'fail', 'error': f'HTTP {resp.status_code}'}
