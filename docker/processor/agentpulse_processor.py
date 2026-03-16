@@ -5243,9 +5243,55 @@ def select_spotlight_topic() -> dict:
 
     candidates.sort(key=lambda c: c['spotlight_score'], reverse=True)
 
+    # Observability: log filter funnel every run
+    logger.info(
+        f"Spotlight selection: {len(topics.data)} topics evaluated, "
+        f"{len(candidates)} passed filters (min_mentions={config['min_mentions']}, "
+        f"min_source_tiers={config['min_source_tiers']}), "
+        f"cooldown_excluded={len(cooldown_topics)}"
+    )
+    if candidates:
+        top5 = candidates[:5]
+        for i, c in enumerate(top5):
+            logger.info(
+                f"  candidate #{i+1}: {c['topic_key']} "
+                f"score={c['spotlight_score']} phase={c['phase']} "
+                f"mentions={c['recent_mentions']} velocity={c['velocity']} "
+                f"diversity={c['source_diversity']}"
+            )
+
     if not candidates:
-        logger.info("Spotlight selection: no eligible candidates after filtering")
-        return {'selected': None, 'reason': 'all filtered out'}
+        # Fallback: pick highest-scoring topic ignoring mention/diversity minimums
+        logger.warning("No topics passed eligibility filters — trying fallback selection")
+        fallback_candidates = []
+        for topic in topics.data:
+            topic_key = topic.get('topic_key', '')
+            if topic_key in cooldown_topics:
+                continue
+            velocity = _compute_velocity(topic)
+            source_diversity = _compute_source_diversity(topic)
+            phase = topic.get('current_stage', 'emerging')
+            lifecycle_bonus = LIFECYCLE_BONUS.get(phase, 1.0)
+            spotlight_score = velocity * source_diversity * lifecycle_bonus
+            if spotlight_score > 0:
+                fallback_candidates.append({
+                    'topic': topic,
+                    'topic_key': topic_key,
+                    'phase': phase,
+                    'velocity': round(velocity, 3),
+                    'source_diversity': round(source_diversity, 3),
+                    'lifecycle_bonus': lifecycle_bonus,
+                    'spotlight_score': round(spotlight_score, 3),
+                    'recent_mentions': (topic.get('snapshots') or [{}])[-1].get('mentions', 0) if topic.get('snapshots') else 0,
+                    'related_topics': [],
+                })
+        if fallback_candidates:
+            fallback_candidates.sort(key=lambda c: c['spotlight_score'], reverse=True)
+            candidates = fallback_candidates
+            logger.info(f"Fallback found {len(candidates)} candidates, best: {candidates[0]['topic_key']} (score={candidates[0]['spotlight_score']})")
+        else:
+            logger.info("Spotlight selection: no eligible candidates even with fallback")
+            return {'selected': None, 'reason': 'all filtered out'}
 
     best = candidates[0]
 

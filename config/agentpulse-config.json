@@ -92,10 +92,10 @@
     }
   },
   "spotlight_selection": {
-    "min_score_threshold": 0.5,
-    "cooldown_issues": 4,
-    "min_mentions": 3,
-    "min_source_tiers": 2,
+    "min_score_threshold": 0.15,
+    "cooldown_issues": 2,
+    "min_mentions": 1,
+    "min_source_tiers": 1,
     "max_queue_items": 1
   },
   "analysis": {
