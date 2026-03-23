@@ -17,6 +17,7 @@ import re
 import time
 import math
 import logging
+import tweepy
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -5260,22 +5261,26 @@ def _get_spotlight_config() -> dict:
     """Load spotlight selection config, with defaults."""
     config = get_full_config().get('spotlight_selection', {})
     return {
-        'min_score_threshold': config.get('min_score_threshold', 0.5),
+        'min_score_threshold': config.get('min_score_threshold', 0.3),
         'cooldown_issues': config.get('cooldown_issues', 4),
-        'min_mentions': config.get('min_mentions', 3),
+        'min_mentions': config.get('min_mentions', 2),
         'min_source_tiers': config.get('min_source_tiers', 2),
         'max_queue_items': config.get('max_queue_items', 1),
     }
 
 
 def _compute_velocity(topic: dict, days: int = 7) -> float:
-    """Compute normalized mention velocity from recent snapshots (0-1)."""
+    """Compute normalized mention velocity from recent snapshots (0-1).
+
+    Denominator is 8 (not 20) to match observed data distribution where
+    most topics see 0-6 mentions per snapshot window.
+    """
     snapshots = topic.get('snapshots') or []
     if not snapshots:
         return 0.0
     recent = snapshots[-1]
     mentions = recent.get('mentions', 0)
-    return min(mentions / 20.0, 1.0)
+    return min(mentions / 8.0, 1.0)
 
 
 def _compute_source_diversity(topic: dict) -> float:
@@ -5455,9 +5460,10 @@ def select_spotlight_topic() -> dict:
     candidates = []
     for topic in topics.data:
         topic_key = topic.get('topic_key', '')
+        topic_id = topic.get('id', '')
         phase = topic.get('current_stage', 'emerging')
 
-        if topic_key in cooldown_topics:
+        if topic_id in cooldown_topics:
             continue
 
         velocity = _compute_velocity(topic)
@@ -5537,7 +5543,8 @@ def select_spotlight_topic() -> dict:
         fallback_candidates = []
         for topic in topics.data:
             topic_key = topic.get('topic_key', '')
-            if topic_key in cooldown_topics:
+            topic_id = topic.get('id', '')
+            if topic_id in cooldown_topics:
                 continue
             velocity = _compute_velocity(topic)
             source_diversity = _compute_source_diversity(topic)
@@ -6469,60 +6476,13 @@ def execute_task(task: dict) -> dict:
         return topup_agent(agent, int(amount))
 
     # ── X Distribution Pipeline ──
+    # NOTE: /x-* operator commands (approve, reject, draft, plan, etc.) are handled
+    # directly by gato_brain. Only pipeline tasks remain here.
     elif task_type == 'surface_x_candidates':
         return surface_x_content_candidates()
 
-    elif task_type == 'x_approve':
-        indexes = params.get('indexes', [])
-        content = params.get('final_content')
-        return approve_x_candidate(indexes, content)
-
-    elif task_type == 'x_reject':
-        indexes = params.get('indexes', [])
-        notes = params.get('notes', '')
-        return reject_x_candidate(indexes, notes)
-
-    elif task_type == 'x_edit':
-        idx = params.get('index', 0)
-        content = params.get('content', '')
-        return edit_x_candidate(int(idx), content)
-
-    elif task_type == 'x_draft':
-        idx = params.get('index', 0)
-        content = params.get('content', '')
-        result = edit_x_candidate(int(idx), content)
-        if 'error' not in result:
-            result.update(approve_x_candidate([int(idx)]))
-        return result
-
     elif task_type == 'post_approved_x':
         return post_approved_x_content()
-
-    elif task_type == 'get_x_plan':
-        send_x_morning_briefing()
-        return {'sent': True}
-
-    elif task_type == 'get_x_posted':
-        return get_x_posted_today()
-
-    elif task_type == 'get_x_budget':
-        return get_x_budget_status()
-
-    elif task_type == 'x_watch':
-        return manage_x_watchlist(
-            action='add',
-            handle=params.get('handle', ''),
-            category=params.get('category', ''),
-        )
-
-    elif task_type == 'x_unwatch':
-        return manage_x_watchlist(
-            action='remove',
-            handle=params.get('handle', ''),
-        )
-
-    elif task_type == 'x_watchlist':
-        return manage_x_watchlist(action='list')
 
     else:
         return {'error': f'Unknown task: {task_type}'}
@@ -6644,73 +6604,35 @@ def _x_api_search(query: str, max_results: int = 10) -> list:
 
 
 def _post_tweet(text: str, reply_to: str = None) -> dict:
-    """Post a tweet via X API v2. Returns {'id': ..., 'text': ...} or {'error': ...}."""
-    if not X_BEARER_TOKEN or not X_ACCESS_TOKEN:
+    """Post a tweet via X API v2 using tweepy. Returns {'id': ..., 'text': ...} or {'error': ...}."""
+    if not X_API_KEY or not X_API_SECRET or not X_ACCESS_TOKEN or not X_ACCESS_TOKEN_SECRET:
         return {'error': 'X API credentials not configured'}
 
     try:
-        # Use OAuth 1.0a for posting (requires user context)
-        import hashlib
-        import hmac
-        import base64
-        import urllib.parse
+        import tweepy
 
-        url = 'https://api.x.com/2/tweets'
-        body = {'text': text}
+        client = tweepy.Client(
+            consumer_key=X_API_KEY,
+            consumer_secret=X_API_SECRET,
+            access_token=X_ACCESS_TOKEN,
+            access_token_secret=X_ACCESS_TOKEN_SECRET,
+        )
+
+        kwargs = {'text': text}
         if reply_to:
-            body['reply'] = {'in_reply_to_tweet_id': reply_to}
+            kwargs['in_reply_to_tweet_id'] = reply_to
 
-        # Build OAuth 1.0a signature
-        timestamp = str(int(time.time()))
-        nonce = hashlib.md5(f"{timestamp}{text[:20]}".encode()).hexdigest()
-
-        oauth_params = {
-            'oauth_consumer_key': X_API_KEY,
-            'oauth_nonce': nonce,
-            'oauth_signature_method': 'HMAC-SHA1',
-            'oauth_timestamp': timestamp,
-            'oauth_token': X_ACCESS_TOKEN,
-            'oauth_version': '1.0',
-        }
-
-        # Create signature base string
-        param_string = '&'.join(
-            f"{urllib.parse.quote(k, safe='')}={urllib.parse.quote(str(v), safe='')}"
-            for k, v in sorted(oauth_params.items())
-        )
-        base_string = f"POST&{urllib.parse.quote(url, safe='')}&{urllib.parse.quote(param_string, safe='')}"
-        signing_key = f"{urllib.parse.quote(X_API_SECRET or '', safe='')}&{urllib.parse.quote(X_ACCESS_TOKEN_SECRET or '', safe='')}"
-        signature = base64.b64encode(
-            hmac.new(signing_key.encode(), base_string.encode(), hashlib.sha1).digest()
-        ).decode()
-
-        oauth_params['oauth_signature'] = signature
-        auth_header = 'OAuth ' + ', '.join(
-            f'{k}="{urllib.parse.quote(str(v), safe="")}"'
-            for k, v in sorted(oauth_params.items())
-        )
-
-        with httpx.Client(timeout=30) as client:
-            resp = client.post(
-                url,
-                headers={
-                    'Authorization': auth_header,
-                    'Content-Type': 'application/json',
-                },
-                json=body,
-            )
+        resp = client.create_tweet(**kwargs)
 
         _log_x_api_cost('post', '/2/tweets', 0.0, f"post: {text[:50]}")
 
-        if resp.status_code in (200, 201):
-            tweet_data = resp.json().get('data', {})
-            logger.info(f"Tweet posted: {tweet_data.get('id')}")
-            return tweet_data
-        else:
-            error_msg = resp.text[:300]
-            logger.error(f"Tweet post failed ({resp.status_code}): {error_msg}")
-            return {'error': error_msg}
+        tweet_data = resp.data
+        logger.info(f"Tweet posted: {tweet_data['id']}")
+        return {'id': str(tweet_data['id']), 'text': text}
 
+    except tweepy.errors.TweepyException as e:
+        logger.error(f"Tweet post failed: {e}")
+        return {'error': str(e)}
     except Exception as e:
         logger.error(f"Tweet post error: {e}")
         return {'error': str(e)}
@@ -6767,11 +6689,18 @@ Recent items:
 {post_text}
 
 Respond as JSON array:
-[{{"source_url": "...", "source_summary": "1-2 sentence summary", "suggested_angle": "your opinionated take angle", "suggested_tags": ["handle1", "handle2"]}}]
+[{{"source_url": "...", "source_summary": "1-2 sentence summary", "suggested_angle": "your opinionated take angle", "draft_content": "ready-to-post tweet text", "suggested_tags": ["handle1", "handle2"]}}]
 
 Rules:
 - Only select items genuinely notable for the AI agent ecosystem
 - Take angles should be provocative, insightful, or contrarian — not bland summaries
+- draft_content must be a ready-to-post tweet following this structure:
+  Line 1: What happened (the news, 1 sentence)
+  Line 2: Why it matters (the opinionated angle)
+  Line 3: A sharp, memorable closer
+  Be opinionated and punchy, not a neutral summary. Better too bold than too safe.
+  If the draft fits under 280 characters, return it as a plain string.
+  If longer, return a JSON array of tweet strings (each under 280 chars) forming a thread.
 - suggested_tags: X handles of people/orgs mentioned (without @), or empty array
 - If fewer than 3 items are notable, return fewer. Quality over quantity."""
 
@@ -6788,7 +6717,16 @@ Rules:
                 raw = re.sub(r'\n?```$', '', raw)
             takes = json.loads(raw)
 
+            # Build set of known source URLs from ingested posts
+            known_source_urls = {p.get('source_url') for p in posts if p.get('source_url')}
+
             for take in takes[:5]:
+                # Enforce source_url: must exist and match an actual ingested post
+                candidate_url = (take.get('source_url') or '').strip()
+                if not candidate_url or candidate_url not in known_source_urls:
+                    logger.warning(f"Skipping sharp_take candidate — no valid source_url: {take.get('source_summary', '')[:80]}")
+                    continue
+
                 # Run through verification gate
                 v_status = 'pending'
                 v_notes = None
@@ -6800,11 +6738,19 @@ Rules:
                     v_status = 'flagged'
                     v_notes = '; '.join(verification.get('unverified', [])[:3])
 
+                # Normalize draft_content: if it's a list, JSON-encode for thread storage
+                raw_draft = take.get('draft_content', '')
+                if isinstance(raw_draft, list):
+                    draft_content = json.dumps(raw_draft)
+                else:
+                    draft_content = str(raw_draft) if raw_draft else ''
+
                 supabase.table('x_content_candidates').insert({
                     'content_type': 'sharp_take',
-                    'source_url': take.get('source_url'),
+                    'source_url': candidate_url,
                     'source_summary': take.get('source_summary'),
                     'suggested_angle': take.get('suggested_angle'),
+                    'draft_content': draft_content,
                     'suggested_tags': take.get('suggested_tags', []),
                     'verification_status': v_status,
                     'verification_notes': v_notes,
@@ -6898,15 +6844,17 @@ Rules:
                 for r in pending_replies.data[:10]
             )
             prompt = f"""You are an agent economy expert with a personal, opinionated X presence.
-For each tweet below, suggest a smart reply angle. The reply should add value —
-an insight, a contrarian take, or a relevant connection the author might not have considered.
-Do NOT suck up or just agree. Be substantive.
+For each tweet below, suggest a smart reply angle AND write a ready-to-post reply draft.
+The reply should add value — an insight, a contrarian take, or a relevant connection the author might not have considered.
+Do NOT suck up or just agree. Be substantive, opinionated, and punchy. Better too bold than too safe.
 
 Tweets:
 {reply_texts}
 
-Respond as JSON object mapping the bracket ID to a suggested reply angle:
-{{"abc12345": "Your suggested angle here", ...}}"""
+Respond as JSON object mapping the bracket ID to an object with "angle" and "draft":
+{{"abc12345": {{"angle": "Your suggested angle here", "draft": "Ready-to-post reply text (under 280 chars)"}}, ...}}
+
+The draft must be under 280 characters. It should read as a standalone reply tweet — direct and sharp."""
 
             model = get_model('extraction')
             response = routed_llm_call(model, [
@@ -6921,11 +6869,21 @@ Respond as JSON object mapping the bracket ID to a suggested reply angle:
             angles = json.loads(raw)
 
             for r in pending_replies.data:
-                angle = angles.get(r['id'][:8], '')
+                entry = angles.get(r['id'][:8], '')
+                # Support both old format (plain string) and new format (dict with angle+draft)
+                if isinstance(entry, dict):
+                    angle = entry.get('angle', '')
+                    draft = entry.get('draft', '')
+                else:
+                    angle = str(entry) if entry else ''
+                    draft = ''
                 if angle:
-                    supabase.table('x_content_candidates').update({
-                        'suggested_angle': angle,
-                    }).eq('id', r['id']).execute()
+                    update_data = {'suggested_angle': angle}
+                    if draft:
+                        update_data['draft_content'] = draft
+                    supabase.table('x_content_candidates').update(
+                        update_data
+                    ).eq('id', r['id']).execute()
 
     except Exception as e:
         logger.error(f"X reply angle generation failed: {e}")
@@ -7083,15 +7041,46 @@ def send_x_morning_briefing():
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
 
     try:
-        candidates = supabase.table('x_content_candidates')\
+        # Fetch today's sharp takes/threads/predictions
+        today_candidates = supabase.table('x_content_candidates')\
             .select('*')\
             .eq('status', 'candidate')\
             .gte('created_at', today_start)\
             .order('daily_index', desc=False)\
             .execute()
 
+        # Fetch ALL unactioned engagement replies (may span multiple days)
+        all_engagement = supabase.table('x_content_candidates')\
+            .select('*')\
+            .eq('status', 'candidate')\
+            .eq('content_type', 'engagement_reply')\
+            .order('created_at', desc=True)\
+            .limit(20)\
+            .execute()
+
+        # Merge: today's candidates + any older engagement replies not already included
+        today_ids = {c['id'] for c in (today_candidates.data or [])}
+        merged = list(today_candidates.data or [])
+        for r in (all_engagement.data or []):
+            if r['id'] not in today_ids:
+                merged.append(r)
+
+        candidates_data = type('obj', (object,), {'data': merged})()
+        candidates = candidates_data
+
         if not candidates.data:
             return
+
+        # Verification gate: flag any candidate missing a source_url
+        for c in candidates.data:
+            if not (c.get('source_url') or '').strip():
+                if c.get('verification_status') != 'flagged':
+                    supabase.table('x_content_candidates').update({
+                        'verification_status': 'flagged',
+                        'verification_notes': 'No source URL \u2014 unverifiable claim',
+                    }).eq('id', c['id']).execute()
+                    c['verification_status'] = 'flagged'
+                    c['verification_notes'] = 'No source URL \u2014 unverifiable claim'
 
         takes = [c for c in candidates.data if c['content_type'] == 'sharp_take']
         replies = [c for c in candidates.data if c['content_type'] == 'engagement_reply']
@@ -7152,7 +7141,6 @@ def approve_x_candidate(daily_indexes: list, final_content: str = None) -> dict:
     if not supabase:
         return {'error': 'Supabase not configured'}
 
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
     approved = []
     errors = []
 
@@ -7162,7 +7150,7 @@ def approve_x_candidate(daily_indexes: list, final_content: str = None) -> dict:
                 .select('*')\
                 .eq('daily_index', idx)\
                 .eq('status', 'candidate')\
-                .gte('created_at', today_start)\
+                .order('created_at', desc=True)\
                 .limit(1)\
                 .execute()
             if not row.data:
@@ -7191,7 +7179,6 @@ def reject_x_candidate(daily_indexes: list, notes: str = '') -> dict:
     if not supabase:
         return {'error': 'Supabase not configured'}
 
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
     rejected = []
 
     for idx in daily_indexes:
@@ -7200,7 +7187,7 @@ def reject_x_candidate(daily_indexes: list, notes: str = '') -> dict:
                 .select('id')\
                 .eq('daily_index', idx)\
                 .eq('status', 'candidate')\
-                .gte('created_at', today_start)\
+                .order('created_at', desc=True)\
                 .limit(1)\
                 .execute()
             if row.data:
@@ -7220,12 +7207,12 @@ def edit_x_candidate(daily_index: int, new_content: str) -> dict:
     if not supabase:
         return {'error': 'Supabase not configured'}
 
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
     try:
         row = supabase.table('x_content_candidates')\
             .select('id, content_type')\
             .eq('daily_index', daily_index)\
-            .gte('created_at', today_start)\
+            .eq('status', 'candidate')\
+            .order('created_at', desc=True)\
             .limit(1)\
             .execute()
         if not row.data:
@@ -8918,8 +8905,8 @@ def run_health_checks() -> dict:
 
     # 7. Web frontend
     try:
-        with httpx.Client(timeout=10, follow_redirects=True) as client:
-            resp = client.get('http://web:80')
+        with httpx.Client(timeout=10) as client:
+            resp = client.get('http://web:8080/health')
         if resp.status_code < 400:
             results['web'] = {'status': 'ok'}
         else:
