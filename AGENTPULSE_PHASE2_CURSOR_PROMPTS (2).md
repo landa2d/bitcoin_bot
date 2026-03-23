@@ -413,7 +413,7 @@ Reference: AGENTPULSE_NEWSLETTER_AGENT.md for the full architecture and persona 
 5. Add the newsletter service to docker/docker-compose.yml:
    - Same pattern as analyst service
    - container_name: agentpulse-newsletter
-   - Environment: common env vars + ANTHROPIC_API_KEY + AGENT_NAME=newsletter
+   - Environment: common env vars + ANTHROPIC_AGENT_KEY + AGENT_NAME=newsletter
    - Volumes:
      * ../data/openclaw/agents/newsletter mounted to /home/openclaw/.openclaw/agents/newsletter
      * shared workspace-data volume

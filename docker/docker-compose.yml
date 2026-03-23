@@ -68,12 +68,16 @@ services:
       AGENT_NAME: gato_brain
       GATO_BRAIN_PORT: "8100"
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
+      LLM_PROXY_URL: http://llm-proxy:8200
+      AGENT_API_KEY: ${LLM_PROXY_GATO_KEY:-}
       LOG_LEVEL: info
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace:ro
       - ../config:/home/openclaw/.openclaw/config:ro
       - ../config/persona.md:/home/openclaw/persona.md:ro
     mem_limit: 512m
+    depends_on:
+      - llm-proxy
     networks:
       - agentpulse-net
     logging:
@@ -106,6 +110,11 @@ services:
       ANALYST_MODEL: deepseek-chat
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
       LOG_LEVEL: info
+      # Route LLM calls through the proxy (internal network key)
+      OPENAI_API_KEY: ap_analyst_8195afb1e9849c3227ade910047ea7c2
+      OPENAI_BASE_URL: http://llm-proxy:8200/v1
+      DEEPSEEK_API_KEY: ap_analyst_8195afb1e9849c3227ade910047ea7c2
+      DEEPSEEK_BASE_URL: http://llm-proxy:8200/v1
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../data/openclaw/agents/analyst:/home/openclaw/.openclaw/agents/analyst
@@ -114,6 +123,8 @@ services:
     mem_limit: 256m
     depends_on:
       processor:
+        condition: service_healthy
+      llm-proxy:
         condition: service_healthy
     networks:
       - agentpulse-net
@@ -147,6 +158,11 @@ services:
       NEWSLETTER_MODEL: deepseek-chat
       NEWSLETTER_POLL_INTERVAL: "30"
       LOG_LEVEL: info
+      # Route LLM calls through the proxy (internal network key)
+      OPENAI_API_KEY: ap_newsletter_3aaefe32b03b638665ca0560b7f784d3
+      OPENAI_BASE_URL: http://llm-proxy:8200/v1
+      DEEPSEEK_API_KEY: ap_newsletter_3aaefe32b03b638665ca0560b7f784d3
+      DEEPSEEK_BASE_URL: http://llm-proxy:8200/v1
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../data/openclaw/agents/newsletter:/home/openclaw/.openclaw/agents/newsletter
@@ -155,6 +171,8 @@ services:
     mem_limit: 256m
     depends_on:
       processor:
+        condition: service_healthy
+      llm-proxy:
         condition: service_healthy
     networks:
       - agentpulse-net
@@ -184,6 +202,8 @@ services:
     environment:
       <<: *common-env
       AGENT_NAME: research
+      AGENT_API_KEY: ${LLM_PROXY_RESEARCH_KEY:-}
+      LLM_PROXY_URL: http://llm-proxy:8200
       RESEARCH_MODEL: claude-sonnet-4-20250514
       RESEARCH_POLL_INTERVAL: "60"
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
@@ -194,6 +214,8 @@ services:
       - ../templates/research/IDENTITY.md:/home/openclaw/IDENTITY.md:ro
     mem_limit: 256m
     depends_on:
+      llm-proxy:
+        condition: service_healthy
       processor:
         condition: service_healthy
     networks:
@@ -266,6 +288,8 @@ services:
       LLM_PROXY_ADMIN_KEY: ${LLM_PROXY_ADMIN_KEY:-}
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
       LOG_LEVEL: info
+    ports:
+      - "127.0.0.1:8200:8200"
     volumes:
       - ../config:/home/openclaw/.openclaw/config:ro
     mem_limit: 256m

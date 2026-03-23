@@ -43,7 +43,19 @@
       "Read(//c/Users/landa/.ssh/**)",
       "Bash(bash -n C:/Users/landa/bitcoin_bot/scripts/deploy.sh && echo \"deploy.sh syntax OK\")",
       "Bash(python3:*)",
-      "Bash(docker compose:*)"
+      "Bash(docker compose:*)",
+      "Bash(set -a)",
+      "Bash(source config/.env)",
+      "Bash(set +a)",
+      "Bash(export SUPABASE_SERVICE_ROLE_KEY=\"$SUPABASE_SERVICE_KEY\")",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(PROXY_URL=\"http://172.18.0.2:8200\" python3 -c \"\nimport asyncio, httpx, time, os, sys\nfrom supabase import create_client\nfrom dotenv import load_dotenv\nload_dotenv\\('config/.env'\\)\n\nPROXY_URL = 'http://172.18.0.2:8200'\nAPI_KEY = 'ap_analyst_8195afb1e9849c3227ade910047ea7c2'\nSUPABASE_URL = os.getenv\\('SUPABASE_URL'\\)\nSUPABASE_KEY = os.getenv\\('SUPABASE_SERVICE_KEY'\\) or os.getenv\\('SUPABASE_KEY'\\)\nNUM_CALLS = 500\nCONCURRENCY = 50\n\nasync def make_call\\(client, i\\):\n    try:\n        resp = await client.post\\(\n            f'{PROXY_URL}/v1/chat/completions',\n            headers={'Authorization': f'Bearer {API_KEY}'},\n            json={'model': 'deepseek-chat', 'messages': [{'role': 'user', 'content': f'Say only the number {i}'}], 'max_tokens': 5},\n            timeout=60.0,\n        \\)\n        return resp.status_code\n    except Exception as e:\n        return f'error: {e}'\n\nasync def main\\(\\):\n    sb = create_client\\(SUPABASE_URL, SUPABASE_KEY\\)\n    before = sb.table\\('wallet_transactions'\\).select\\('id', count='exact'\\).eq\\('agent_name', 'analyst'\\).eq\\('transaction_type', 'llm_call'\\).execute\\(\\)\n    count_before = before.count\n    print\\(f'Transactions before: {count_before}'\\)\n\n    sem = asyncio.Semaphore\\(CONCURRENCY\\)\n    results = {'success': 0, 'fail': 0}\n    async def bounded_call\\(client, i\\):\n        async with sem:\n            code = await make_call\\(client, i\\)\n            if code == 200:\n                results['success'] += 1\n            else:\n                results['fail'] += 1\n                if results['fail'] <= 5:\n                    print\\(f'  Call {i} failed: {code}'\\)\n\n    async with httpx.AsyncClient\\(\\) as client:\n        t0 = time.time\\(\\)\n        tasks = [bounded_call\\(client, i\\) for i in range\\(NUM_CALLS\\)]\n        await asyncio.gather\\(*tasks\\)\n        elapsed = time.time\\(\\) - t0\n\n    print\\(f'Results: {results[\\\\\"success\\\\\"]} success, {results[\\\\\"fail\\\\\"]} fail in {elapsed:.1f}s'\\)\n    print\\(f'Rate: {NUM_CALLS / elapsed:.0f} calls/sec'\\)\n    print\\('Waiting 15s for batched log flush...'\\)\n    await asyncio.sleep\\(15\\)\n\n    after = sb.table\\('wallet_transactions'\\).select\\('id', count='exact'\\).eq\\('agent_name', 'analyst'\\).eq\\('transaction_type', 'llm_call'\\).execute\\(\\)\n    count_after = after.count\n    logged = count_after - count_before\n    print\\(f'Transactions after: {count_after}'\\)\n    print\\(f'New transactions logged: {logged}'\\)\n    print\\(f'Expected: {results[\\\\\"success\\\\\"]}'\\)\n    if logged == results['success']:\n        print\\(f'PASS: All {logged} transactions logged — zero drops!'\\)\n    else:\n        print\\(f'FAIL: {results[\\\\\"success\\\\\"] - logged} transactions dropped \\({\\(1 - logged / max\\(results[\\\\\"success\\\\\"],1\\)\\) * 100:.1f}%\\)'\\)\n        sys.exit\\(1\\)\n\nasyncio.run\\(main\\(\\)\\)\n\" 2>&1)",
+      "Bash(SUPABASE_SERVICE_KEY=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp4emFhcWZvd3Rxdm1zYml0cXB1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDMxNzgxMywiZXhwIjoyMDg1ODkzODEzfQ.rLWAGcnQdSexZenqxfTG4c8-k1Q1B6WbWERKeX_2304\" SUPABASE_URL=\"https://zxzaaqfowtqvmsbitqpu.supabase.co\" python3 generate_strategic_edition18.py)",
+      "Bash(docker image:*)",
+      "Bash(curl -s \"https://$SUPABASE_URL#https:///rest/v1/agent_wallets_v2?select=agent_name,balance_sats,total_spent_sats,total_deposited_sats,spending_cap_sats,spending_cap_window,allow_negative\" -H \"apikey: $SUPABASE_KEY\" -H \"Authorization: Bearer $SUPABASE_KEY\")",
+      "Bash(chown:*)",
+      "Bash(docker-compose restart:*)"
     ]
   }
 }

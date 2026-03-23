@@ -56,6 +56,13 @@ body {
     min-height: 100vh;
 }
 
+.container {
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
 /* ── Mode Transitions ────────────────────────────────────────── */
 
 .mode-transitioning,
@@ -71,7 +78,7 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 24px;
+    padding: 16px 0;
     border-bottom: 0.5px solid var(--border);
 }
 
@@ -117,7 +124,7 @@ body {
 /* ── Hero Area ───────────────────────────────────────────────── */
 
 .hero {
-    padding: 40px 24px 24px;
+    padding: 40px 0 24px;
     text-align: center;
 }
 
@@ -188,7 +195,7 @@ body {
 /* ── Content Area ────────────────────────────────────────────── */
 
 .content-area {
-    padding: 0 24px 32px;
+    padding: 0 0 32px;
     border-top: 0.5px solid var(--border);
     padding-top: 20px;
 }
@@ -357,7 +364,7 @@ article tr:last-child td {
 /* ── Subscribe Section ───────────────────────────────────────── */
 
 #subscribe-section {
-    padding: 40px 24px;
+    padding: 40px 0;
     text-align: center;
     border-top: 0.5px solid var(--border);
 }
@@ -455,7 +462,7 @@ article tr:last-child td {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 24px;
+    padding: 16px 0;
     border-top: 0.5px solid var(--bar-border);
     background: var(--bar-bg);
 }
@@ -484,10 +491,12 @@ article tr:last-child td {
 /* ── Responsive ──────────────────────────────────────────────── */
 
 @media (max-width: 600px) {
-    .hero { padding: 30px 16px 20px; }
+    .container { padding: 0 16px; }
+
+    .hero { padding: 30px 0 20px; }
     .hero-headline { font-size: 25px; }
 
-    .content-area { padding: 0 16px 24px; padding-top: 16px; }
+    .content-area { padding: 0 0 24px; padding-top: 16px; }
 
     .toggle-btn { font-size: 14px; padding: 7px 16px; }
 
@@ -503,5 +512,5 @@ article tr:last-child td {
         align-items: center;
     }
 
-    #subscribe-section { padding: 30px 16px; }
+    #subscribe-section { padding: 30px 0; }
 }

@@ -32,7 +32,7 @@ load_dotenv(env_path)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+ANTHROPIC_AGENT_KEY = os.getenv("ANTHROPIC_AGENT_KEY")
 
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "templates" / "research" / "IDENTITY.md"
 RESULTS_DIR = Path(__file__).resolve().parent.parent / "tests" / "research_results"
@@ -68,11 +68,11 @@ def init_clients():
     if not SUPABASE_URL or not SUPABASE_KEY:
         print("FATAL: SUPABASE_URL or SUPABASE_KEY not set")
         sys.exit(1)
-    if not ANTHROPIC_API_KEY:
-        print("FATAL: ANTHROPIC_API_KEY not set")
+    if not ANTHROPIC_AGENT_KEY:
+        print("FATAL: ANTHROPIC_AGENT_KEY not set")
         sys.exit(1)
     sb = create_client(SUPABASE_URL, SUPABASE_KEY)
-    claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    claude = anthropic.Anthropic(api_key=ANTHROPIC_AGENT_KEY)
 
 
 def load_prompt():

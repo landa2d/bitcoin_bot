@@ -21,11 +21,14 @@ EMBEDDING_DIMENSIONS = 1536
 _openai_client: OpenAI | None = None
 
 
-def init(api_key: str) -> None:
-    """Initialize the cached OpenAI client."""
+def init(api_key: str, base_url: str | None = None) -> None:
+    """Initialize the cached OpenAI client. Optionally route via proxy."""
     global _openai_client
-    _openai_client = OpenAI(api_key=api_key)
-    logger.info("Corpus probe OpenAI client initialized")
+    kwargs: dict = {"api_key": api_key}
+    if base_url:
+        kwargs["base_url"] = base_url
+    _openai_client = OpenAI(**kwargs)
+    logger.info("Corpus probe OpenAI client initialized%s", f" (proxy: {base_url})" if base_url else "")
 
 
 def _embed(text: str) -> list[float]:

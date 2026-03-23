@@ -189,7 +189,7 @@ The proxy service needs:
        "gpt-4o": {"provider": "openai", "base_url": "https://api.openai.com/v1", "env_key": "OPENAI_API_KEY"},
        "gpt-4o-mini": {"provider": "openai", "base_url": "https://api.openai.com/v1", "env_key": "OPENAI_API_KEY"},
        "text-embedding-3-large": {"provider": "openai", "base_url": "https://api.openai.com/v1", "env_key": "OPENAI_API_KEY"},
-       "claude-sonnet-4-20250514": {"provider": "anthropic", "base_url": "https://api.anthropic.com", "env_key": "ANTHROPIC_API_KEY"}
+       "claude-sonnet-4-20250514": {"provider": "anthropic", "base_url": "https://api.anthropic.com", "env_key": "ANTHROPIC_AGENT_KEY"}
    }
 
 5. Reserve-settle wallet flow:
@@ -237,7 +237,7 @@ The proxy service needs:
 
 13. Configuration via environment variables (read from config/.env):
     - SUPABASE_URL, SUPABASE_SERVICE_KEY (or whatever the existing env var names are — check config/.env)
-    - OPENAI_API_KEY, ANTHROPIC_API_KEY, DEEPSEEK_API_KEY
+    - OPENAI_API_KEY, ANTHROPIC_AGENT_KEY, DEEPSEEK_API_KEY
     - LLM_PROXY_PORT (default 8200)
     - LLM_PROXY_ADMIN_KEY (for /metrics and /stats endpoints)
 

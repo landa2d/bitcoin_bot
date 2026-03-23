@@ -22,8 +22,8 @@ RUN groupadd -r openclaw && useradd -r -g openclaw -m -d /home/openclaw openclaw
 # Set working directory
 WORKDIR /app
 
-# Clone OpenClaw repository
-RUN git clone https://github.com/openclaw/openclaw.git . \
+# Clone OpenClaw repository (pinned to known working version)
+RUN git clone --branch v2026.3.7 --depth 1 https://github.com/openclaw/openclaw.git . \
     && chown -R openclaw:openclaw /app
 
 # Switch to non-root user

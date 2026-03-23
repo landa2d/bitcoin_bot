@@ -45,9 +45,8 @@ class AnalyzeOpportunitiesInput(BaseModel):
 
 
 class ProactiveAnalysisInput(BaseModel):
-    anomaly_type: str
-    description: str
-    metrics: dict = {}
+    anomalies: list[dict]
+    budget: dict = {}
 
 
 class EnrichForNewsletterInput(BaseModel):

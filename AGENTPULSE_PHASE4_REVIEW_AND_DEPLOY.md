@@ -376,7 +376,7 @@ grep -q "GITHUB_TOKEN" config/.env || echo "GITHUB_TOKEN=ghp_your_token_here" >>
 
 # Verify all required env vars exist
 echo "Checking .env..."
-for var in SUPABASE_URL SUPABASE_KEY SUPABASE_SERVICE_KEY OPENAI_API_KEY ANTHROPIC_API_KEY TELEGRAM_BOT_TOKEN GITHUB_TOKEN AGENTPULSE_DOMAIN; do
+for var in SUPABASE_URL SUPABASE_KEY SUPABASE_SERVICE_KEY OPENAI_API_KEY ANTHROPIC_AGENT_KEY TELEGRAM_BOT_TOKEN GITHUB_TOKEN AGENTPULSE_DOMAIN; do
     if grep -q "$var" config/.env; then
         echo "  $var: OK"
     else

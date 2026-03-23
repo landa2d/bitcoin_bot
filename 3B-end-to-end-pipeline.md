@@ -97,7 +97,7 @@ research-agent:
   environment:
     - SUPABASE_URL=${SUPABASE_URL}
     - SUPABASE_KEY=${SUPABASE_KEY}
-    - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    - ANTHROPIC_AGENT_KEY=${ANTHROPIC_AGENT_KEY}
   volumes:
     - ./queue:/queue          # shared queue directory
     - ./data:/data            # shared data directory

@@ -633,7 +633,7 @@ class TestAnthropicEndpoint:
 
         with patch.object(proxy, "http_client") as mock_http:
             mock_http.post = AsyncMock(return_value=mock_resp)
-            with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            with patch.dict(os.environ, {"ANTHROPIC_AGENT_KEY": "sk-test"}):
                 resp = await client.post(
                     "/anthropic/v1/messages",
                     headers={"x-api-key": "test-key", "anthropic-version": "2023-06-01"},
@@ -658,7 +658,7 @@ class TestAnthropicEndpoint:
 
         with patch.object(proxy, "http_client") as mock_http:
             mock_http.post = AsyncMock(return_value=mock_resp)
-            with patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-test"}):
+            with patch.dict(os.environ, {"ANTHROPIC_AGENT_KEY": "sk-test"}):
                 resp = await client.post(
                     "/anthropic/v1/messages",
                     headers={
@@ -747,8 +747,8 @@ class TestIntegrationAnthropic:
 
     @pytest.fixture(autouse=True)
     def check_keys(self):
-        if not os.getenv("ANTHROPIC_API_KEY"):
-            pytest.skip("ANTHROPIC_API_KEY not set")
+        if not os.getenv("ANTHROPIC_AGENT_KEY"):
+            pytest.skip("ANTHROPIC_AGENT_KEY not set")
 
     @pytest.mark.asyncio
     async def test_messages_roundtrip(self, client, mock_auth_internal, mock_reserve_ok, mock_settle, mock_async_log):

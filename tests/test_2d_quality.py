@@ -78,7 +78,7 @@ def init():
     from dotenv import dotenv_values
     vals = dotenv_values(env_path)
     import anthropic
-    key = vals.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+    key = vals.get("ANTHROPIC_AGENT_KEY") or os.environ.get("ANTHROPIC_AGENT_KEY")
     if key:
         ra.claude_client = anthropic.Anthropic(api_key=key)
 

@@ -33,7 +33,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
-DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "http://llm-proxy:8200/v1")
+DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "http://llm-proxy:8200/v1")
 AGENT_NAME = os.getenv("AGENT_NAME", "analyst")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 POLL_INTERVAL = int(os.getenv("ANALYST_POLL_INTERVAL", "15"))
@@ -213,7 +214,7 @@ def init():
         logger.error("OPENAI_API_KEY not set — cannot run analysis")
         return False
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    client = OpenAI(api_key=OPENAI_API_KEY)
+    client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
     if DEEPSEEK_API_KEY:
         deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
         logger.info("[INIT] DeepSeek client initialized successfully")
@@ -894,10 +895,19 @@ Output as JSON:
 {{"direction": "confirms" | "contradicts" | "neutral", "significance": "low" | "medium" | "high", "evidence_summary": "..."}}"""
 
 
+_last_prediction_monitor: float = 0
+_PREDICTION_MONITOR_COOLDOWN = 3600  # once per hour
+
+
 def monitor_predictions():
     """Check open predictions against recent source material. Flags HIGH significance only."""
+    global _last_prediction_monitor
     if not supabase or not client:
         return
+    now = time.time()
+    if now - _last_prediction_monitor < _PREDICTION_MONITOR_COOLDOWN:
+        return
+    _last_prediction_monitor = now
 
     try:
         expire_stale_predictions()

@@ -102,12 +102,29 @@ const middleware = `
           const data = await res.json();
           const reply = String((data as any).response || "");
           if (reply) {
-            await ctx.reply(reply);
+            try {
+              await ctx.reply(reply);
+            } catch (sendErr: any) {
+              // Message too long for Telegram — truncate and retry
+              console.error("[gato-brain] send failed, truncating:", String(sendErr));
+              const truncated = reply.slice(0, 4000) + "\\n\\n... (truncated)";
+              await ctx.reply(truncated);
+            }
             return; // handled — skip OpenClaw's default path
           }
         }
+        // /x-* commands must never fall through to OpenClaw
+        if (isXCommand) {
+          await ctx.reply("Command processed but no response was returned.");
+          return;
+        }
       } catch (err: any) {
-        console.error("[gato-brain] middleware error, falling through to OpenClaw:", String(err));
+        console.error("[gato-brain] middleware error:", String(err));
+        // /x-* commands must never fall through to OpenClaw
+        if (isXCommand) {
+          await ctx.reply("gato-brain unavailable. Try again in a moment.");
+          return;
+        }
       }
     }
     await next();

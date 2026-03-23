@@ -70,6 +70,9 @@ _identity_mtime: float = 0
 _skill_cache: str | None = None
 _skill_mtime: float = 0
 
+_strategic_voice_cache: str | None = None
+_strategic_voice_mtime: float = 0
+
 
 def load_identity(agent_dir: Path) -> str:
     """Load IDENTITY.md + SOUL.md from agent_dir, caching by mtime."""
@@ -120,6 +123,26 @@ def load_skill(skill_dir: Path) -> str:
         _skill_cache = ""
 
     return _skill_cache
+
+
+def load_strategic_voice(agent_dir: Path) -> str:
+    """Load STRATEGIC_VOICE.md from agent_dir, caching by mtime."""
+    global _strategic_voice_cache, _strategic_voice_mtime
+    voice_path = agent_dir / "STRATEGIC_VOICE.md"
+
+    current_mtime = voice_path.stat().st_mtime if voice_path.exists() else 0
+
+    if _strategic_voice_cache is not None and current_mtime == _strategic_voice_mtime:
+        return _strategic_voice_cache
+
+    if voice_path.exists():
+        _strategic_voice_cache = voice_path.read_text(encoding="utf-8")
+        _strategic_voice_mtime = current_mtime
+    else:
+        logger.warning(f"STRATEGIC_VOICE.md not found in {agent_dir}")
+        _strategic_voice_cache = ""
+
+    return _strategic_voice_cache
 
 
 # ---------------------------------------------------------------------------
@@ -754,11 +777,17 @@ def edit_strategic_mode(content_markdown_impact: str) -> str:
 
     logger.info("Running strategic editor second pass...")
 
+    # Build system prompt: base editor rules + strategic voice guide
+    strategic_voice = load_strategic_voice(AGENT_DIR)
+    system_prompt = STRATEGIC_EDITOR_PROMPT
+    if strategic_voice:
+        system_prompt += f"\n\n---\n\nSTRATEGIC VOICE GUIDE:\n{strategic_voice}"
+
     _t0 = time.time()
     response = routed_llm_call(
         MODEL,
         messages=[
-            {"role": "system", "content": STRATEGIC_EDITOR_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": content_markdown_impact},
         ],
         max_tokens=16000,
@@ -1075,12 +1104,19 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
         logger.warning(f"Failed to log LLM call: {e}")
 
 
+DEEPSEEK_MAX_TOKENS = 8192  # DeepSeek API hard limit
+
+
 def routed_llm_call(model, messages, **kwargs):
     """Route LLM call to correct provider. DeepSeek falls back to OpenAI."""
     pricing = _load_pricing()
     provider = pricing.get(model, {}).get("provider", "openai")
     logger.info(f"[ROUTING] model={model} provider={provider} deepseek_client={'yes' if deepseek_client else 'NO'}")
     if provider == "deepseek":
+        # Clamp max_tokens to DeepSeek's limit
+        if "max_tokens" in kwargs and kwargs["max_tokens"] > DEEPSEEK_MAX_TOKENS:
+            logger.info(f"[ROUTING] Clamping max_tokens {kwargs['max_tokens']} → {DEEPSEEK_MAX_TOKENS} for DeepSeek")
+            kwargs["max_tokens"] = DEEPSEEK_MAX_TOKENS
         if deepseek_client:
             try:
                 resp = deepseek_client.chat.completions.create(model=model, messages=messages, **kwargs)

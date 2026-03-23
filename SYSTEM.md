@@ -694,7 +694,7 @@ pytest tests/ -v    # from project root
 
 | Variable | Used By |
 |----------|---------|
-| `ANTHROPIC_API_KEY` | Research, Gato Brain |
+| `ANTHROPIC_AGENT_KEY` | Research, Gato Brain |
 | `OPENAI_API_KEY` | Processor (extraction), Brain |
 | `RESEND_API_KEY` | Processor (email delivery) |
 | `GITHUB_TOKEN` | Processor (GitHub scraping) |

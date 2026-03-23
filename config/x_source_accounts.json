@@ -1,0 +1,89 @@
+{
+  "description": "Curated X/Twitter accounts for AgentPulse research pipeline source scanning. High-signal individual voices on the AI agent economy.",
+  "accounts": [
+    {
+      "handle": "jvisserlabs",
+      "name": "Jordi Visser",
+      "category": "macro",
+      "description": "AI × macro × crypto investment thesis"
+    },
+    {
+      "handle": "emollick",
+      "name": "Ethan Mollick",
+      "category": "macro",
+      "description": "AI impact on work/economy, Wharton"
+    },
+    {
+      "handle": "mattshumer_",
+      "name": "Matt Shumer",
+      "category": "macro",
+      "description": "HyperWrite CEO, practitioner-builder"
+    },
+    {
+      "handle": "erikbryn",
+      "name": "Erik Brynjolfsson",
+      "category": "macro",
+      "description": "Stanford Digital Economy Lab, AI labor"
+    },
+    {
+      "handle": "swyx",
+      "name": "Shawn Wang",
+      "category": "builder",
+      "description": "Latent Space, AI engineering, agent frameworks"
+    },
+    {
+      "handle": "hwchase17",
+      "name": "Harrison Chase",
+      "category": "builder",
+      "description": "LangChain, agent orchestration"
+    },
+    {
+      "handle": "yoheinakajima",
+      "name": "Yohei Nakajima",
+      "category": "builder",
+      "description": "BabyAGI, VC + builder"
+    },
+    {
+      "handle": "DrJimFan",
+      "name": "Jim Fan",
+      "category": "builder",
+      "description": "NVIDIA GEAR Lab, embodied agents"
+    },
+    {
+      "handle": "steipete",
+      "name": "Peter Steinberger",
+      "category": "builder",
+      "description": "OpenClaw creator, now at OpenAI"
+    },
+    {
+      "handle": "HighCoinviction",
+      "name": "Daniel Cheung",
+      "category": "crypto",
+      "description": "Bittensor, agentic economy infra"
+    },
+    {
+      "handle": "S4mmyEth",
+      "name": "S4mmyEth",
+      "category": "crypto",
+      "description": "AI agent analysis, crypto-AI intersection"
+    },
+    {
+      "handle": "blknoiz06",
+      "name": "Ansem",
+      "category": "crypto",
+      "description": "AI agent calls in crypto"
+    },
+    {
+      "handle": "rowancheung",
+      "name": "Rowan Cheung",
+      "category": "curation",
+      "description": "The Rundown AI newsletter"
+    },
+    {
+      "handle": "andrewng",
+      "name": "Andrew Ng",
+      "category": "curation",
+      "description": "Agentic reasoning frameworks"
+    }
+  ]
+}

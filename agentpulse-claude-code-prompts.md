@@ -354,7 +354,7 @@ The service should:
    - Temperature 0.7, max_tokens 2048
 
 6. Configuration via .env:
-   - ANTHROPIC_API_KEY (for Claude)
+   - ANTHROPIC_AGENT_KEY (for Claude)
    - DEEPSEEK_API_KEY (for session summaries — use OpenAI-compatible client pointing at DeepSeek API)
    - SUPABASE_URL, SUPABASE_SERVICE_KEY
    - GATO_BRAIN_PORT (default 8100)

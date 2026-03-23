@@ -220,7 +220,7 @@ newsletter:
     - agentpulse-net
   environment:
     <<: *common-env
-    ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+    ANTHROPIC_AGENT_KEY: ${ANTHROPIC_AGENT_KEY}
     AGENT_NAME: newsletter
   volumes:
     - ../data/openclaw/agents/newsletter:/home/openclaw/.openclaw/agents/newsletter

@@ -32,11 +32,13 @@ import web_search
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+ANTHROPIC_AGENT_KEY = os.getenv("ANTHROPIC_AGENT_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "")
+AGENT_API_KEY = os.getenv("AGENT_API_KEY", "")
 PORT = int(os.getenv("GATO_BRAIN_PORT", "8100"))
 WALLET_AGENT_NAME = os.getenv("WALLET_AGENT_NAME", "gato")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
@@ -618,16 +620,31 @@ def init_clients():
         logger.error("SUPABASE_URL / SUPABASE_SERVICE_KEY not set")
         raise RuntimeError("Supabase not configured")
 
-    if not ANTHROPIC_API_KEY:
-        logger.error("ANTHROPIC_API_KEY not set")
+    if not ANTHROPIC_AGENT_KEY:
+        logger.error("ANTHROPIC_AGENT_KEY not set")
         raise RuntimeError("Anthropic API key not configured")
 
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+
+    # Claude client: route through proxy when available
+    if LLM_PROXY_URL and AGENT_API_KEY:
+        claude_client = anthropic.Anthropic(
+            api_key=AGENT_API_KEY,
+            base_url=f"{LLM_PROXY_URL}/anthropic",
+        )
+        logger.info("Claude client initialized via proxy (%s)", LLM_PROXY_URL)
+    else:
+        claude_client = anthropic.Anthropic(api_key=ANTHROPIC_AGENT_KEY)
+        logger.warning("Claude client initialized DIRECT (no proxy) — calls will bypass spend tracking")
     logger.info("Supabase + Claude clients initialized")
 
+    # OpenAI embeddings: route through proxy when available
     if OPENAI_API_KEY:
-        corpus_probe.init(OPENAI_API_KEY)
+        if LLM_PROXY_URL and AGENT_API_KEY:
+            corpus_probe.init(AGENT_API_KEY, base_url=f"{LLM_PROXY_URL}/v1")
+            logger.info("Corpus probe initialized via proxy")
+        else:
+            corpus_probe.init(OPENAI_API_KEY)
     else:
         logger.warning("OPENAI_API_KEY not set — corpus probe disabled")
 
@@ -636,17 +653,25 @@ def init_clients():
     else:
         logger.warning("TAVILY_API_KEY not set — web search disabled")
 
+    # DeepSeek client: route through proxy when available
     if DEEPSEEK_API_KEY:
+        if LLM_PROXY_URL and AGENT_API_KEY:
+            ds_base = f"{LLM_PROXY_URL}/v1"
+            ds_key = AGENT_API_KEY
+            logger.info("DeepSeek client initialized via proxy (%s)", LLM_PROXY_URL)
+        else:
+            ds_base = DEEPSEEK_BASE_URL
+            ds_key = DEEPSEEK_API_KEY
+            logger.warning("DeepSeek client initialized DIRECT (no proxy) — calls will bypass spend tracking")
         deepseek_client = httpx.Client(
-            base_url=DEEPSEEK_BASE_URL,
+            base_url=ds_base,
             headers={
-                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Authorization": f"Bearer {ds_key}",
                 "Content-Type": "application/json",
             },
             timeout=30.0,
         )
         intent_router.init(deepseek_client)
-        logger.info("DeepSeek client initialized")
     else:
         logger.warning("DEEPSEEK_API_KEY not set — session summaries will be basic, intent router will use heuristic")
 
@@ -797,7 +822,7 @@ def _candidates_by_daily_index(daily_indexes: list[int]) -> list[dict]:
     for idx in daily_indexes:
         resp = (
             supabase.table("x_content_candidates")
-            .select("id, daily_index, content_type, status, draft_content, suggested_angle, source_summary")
+            .select("id, daily_index, content_type, status, draft_content, suggested_angle, source_summary, source_url, suggested_tags")
             .eq("daily_index", idx)
             .order("created_at", desc=True)
             .limit(1)
@@ -865,6 +890,44 @@ def _handle_x_reject(args: str) -> str:
     return "\n".join(parts)
 
 
+def _generate_reply_draft(candidate: dict) -> str:
+    """Auto-generate a reply draft for a candidate using Claude."""
+    source = candidate.get("source_summary") or ""
+    angle = candidate.get("suggested_angle") or ""
+    url = candidate.get("source_url") or ""
+
+    prompt = f"""You are an agent economy expert with a personal, opinionated X presence.
+Write a ready-to-post reply tweet for the following post.
+
+Original post: {source}
+{f'URL: {url}' if url else ''}
+{f'Suggested angle: {angle}' if angle else 'Pick a sharp, substantive angle.'}
+
+Rules:
+- MUST be under 280 characters
+- Add value: an insight, a contrarian take, or a connection the author might not have considered
+- Do NOT suck up or just agree. Be substantive, opinionated, and punchy
+- Better too bold than too safe
+- Output ONLY the tweet text, nothing else"""
+
+    try:
+        response = claude_client.messages.create(
+            model="claude-sonnet-4-20250514",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            max_tokens=300,
+        )
+        draft = response.content[0].text.strip().strip('"')
+        # Save to DB so it persists
+        supabase.table("x_content_candidates").update(
+            {"draft_content": draft}
+        ).eq("id", candidate["id"]).execute()
+        return draft
+    except Exception as e:
+        logger.error(f"Auto-draft generation failed: {e}")
+        return "(draft generation failed — use /x-draft to write manually)"
+
+
 def _handle_x_edit(args: str) -> str:
     nums = _parse_nums(args)
     if not nums:
@@ -875,12 +938,23 @@ def _handle_x_edit(args: str) -> str:
         return f"No candidate found with daily index {nums[0]}."
 
     c = candidates[0]
-    draft = c.get("draft_content") or "(no draft yet)"
+    draft = c.get("draft_content") or ""
+    # Auto-generate draft if missing
+    if not draft.strip():
+        draft = _generate_reply_draft(c)
     angle = c.get("suggested_angle") or ""
     header = f"#{c['daily_index']} [{c['content_type']}] — {c['status']}"
     parts = [header]
+    # Show source post for engagement replies
+    if c.get("content_type") == "engagement_reply":
+        source = c.get("source_summary") or ""
+        url = c.get("source_url") or ""
+        if source:
+            parts.append(f"\nReplying to: {source}")
+        if url:
+            parts.append(url)
     if angle:
-        parts.append(f"Angle: {angle}")
+        parts.append(f"\nAngle: {angle}")
     parts.append(f"\n{draft}")
     parts.append(f"\nTo replace: /x-draft {c['daily_index']} [new text]")
     return "\n".join(parts)
@@ -900,47 +974,101 @@ def _handle_x_draft(args: str) -> str:
 
     c = candidates[0]
     supabase.table("x_content_candidates").update(
-        {"draft_content": new_text}
+        {"draft_content": new_text, "final_content": new_text, "status": "approved"}
     ).eq("id", c["id"]).execute()
-    return f"Draft updated for #{idx}.\n\n{new_text}"
+    return f"Draft replaced and approved for #{idx}. Processor will post when ready.\n\n{new_text}"
 
 
 def _handle_x_plan() -> str:
-    """Show today's content candidates."""
+    """Show today's content candidates + any unactioned engagement replies."""
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    resp = (
+    # Today's candidates (all types)
+    today_resp = (
         supabase.table("x_content_candidates")
-        .select("daily_index, content_type, status, suggested_angle, draft_content, verification_status")
+        .select("daily_index, content_type, status, suggested_angle, draft_content, verification_status, source_summary, suggested_tags")
         .gte("created_at", today_start.isoformat())
         .order("daily_index")
         .execute()
     )
-    if not resp.data:
-        return "No X content candidates today."
+    # All unactioned engagement replies (may be from previous days)
+    engage_resp = (
+        supabase.table("x_content_candidates")
+        .select("daily_index, content_type, status, suggested_angle, draft_content, verification_status, source_summary, suggested_tags")
+        .eq("status", "candidate")
+        .eq("content_type", "engagement_reply")
+        .order("created_at", desc=True)
+        .limit(20)
+        .execute()
+    )
+    # Merge, deduplicating by daily_index
+    today_indexes = {c.get("daily_index") for c in (today_resp.data or [])}
+    merged = list(today_resp.data or [])
+    for r in (engage_resp.data or []):
+        if r.get("daily_index") not in today_indexes:
+            merged.append(r)
+            today_indexes.add(r.get("daily_index"))
 
-    lines = ["Today's X Content Plan\n"]
-    for c in resp.data:
+    if not merged:
+        return "No X content candidates."
+
+    # Sort: sharp_takes first, then engagement_replies, by daily_index
+    type_order = {"sharp_take": 0, "newsletter_thread": 1, "prediction": 2, "engagement_reply": 3}
+    merged.sort(key=lambda c: (type_order.get(c["content_type"], 9), c.get("daily_index", 0)))
+
+    # Telegram limit is 4096 chars — budget ~3800 to leave room for summary
+    CHAR_BUDGET = 3600
+    lines = ["X Content Plan\n"]
+    shown = 0
+    omitted = 0
+    for c in merged:
         idx = c.get("daily_index") or "?"
-        status_icon = {"candidate": "⏳", "approved": "✅", "rejected": "❌",
-                       "posted": "📤", "expired": "💤", "failed": "⚠️"}.get(c["status"], "•")
+        status_icon = {"candidate": "\u23f3", "approved": "\u2705", "rejected": "\u274c",
+                       "posted": "\ud83d\udce4", "expired": "\ud83d\udca4", "failed": "\u26a0\ufe0f"}.get(c["status"], "\u2022")
         verif = ""
         if c.get("verification_status") == "flagged":
-            verif = " ⚠️FLAGGED"
-        angle = c.get("suggested_angle") or ""
-        draft_preview = (c.get("draft_content") or "")[:80]
-        if len(c.get("draft_content") or "") > 80:
-            draft_preview += "…"
+            verif = " \u26a0\ufe0fFLAGGED"
+        angle = (c.get("suggested_angle") or "")[:60]
+        if len(c.get("suggested_angle") or "") > 60:
+            angle += "..."
+        draft_preview = (c.get("draft_content") or "")[:50]
+        if len(c.get("draft_content") or "") > 50:
+            draft_preview += "..."
 
-        lines.append(f"{status_icon} #{idx} [{c['content_type']}] {angle}{verif}")
-        if draft_preview:
-            lines.append(f"   {draft_preview}")
+        entry = f"{status_icon} #{idx} [{c['content_type']}]"
+        # Show source post and account for engagement replies
+        if c.get("content_type") == "engagement_reply":
+            source = (c.get("source_summary") or "")[:100]
+            if len(c.get("source_summary") or "") > 100:
+                source += "..."
+            if source:
+                entry += f"\n   {source}"
+            if angle:
+                entry += f"\n   Reply angle: {angle}"
+            if draft_preview:
+                entry += f"\n   Draft: {draft_preview}"
+        else:
+            if angle:
+                entry += f" {angle}"
+            entry += verif
+            if draft_preview:
+                entry += f"\n   {draft_preview}"
+
+        if len("\n".join(lines)) + len(entry) + 200 > CHAR_BUDGET:
+            omitted = len(merged) - shown
+            break
+
+        lines.append(entry)
+        shown += 1
 
     # Summary counts
-    statuses = [c["status"] for c in resp.data]
-    lines.append(f"\n{len(resp.data)} candidates — "
-                 f"{statuses.count('candidate')} pending, "
-                 f"{statuses.count('approved')} approved, "
-                 f"{statuses.count('posted')} posted")
+    statuses = [c["status"] for c in merged]
+    summary = f"\n{len(merged)} candidates \u2014 "
+    summary += f"{statuses.count('candidate')} pending, "
+    summary += f"{statuses.count('approved')} approved, "
+    summary += f"{statuses.count('posted')} posted"
+    if omitted:
+        summary += f"\n({omitted} more not shown)"
+    lines.append(summary)
     return "\n".join(lines)
 
 

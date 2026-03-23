@@ -1,3 +1,8 @@
+# Internal health-check endpoint (plain HTTP, no TLS)
+:8080 {
+    respond /health 200
+}
+
 aiagentspulse.com {
     root * /srv
     file_server

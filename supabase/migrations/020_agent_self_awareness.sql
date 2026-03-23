@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS agent_spending_caps (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     agent_name      TEXT NOT NULL UNIQUE,
     cap_sats        BIGINT NOT NULL DEFAULT 28000,
-    window          TEXT NOT NULL DEFAULT 'daily',   -- 'daily' or 'weekly'
+    "window"        TEXT NOT NULL DEFAULT 'daily',   -- 'daily' or 'weekly'
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );

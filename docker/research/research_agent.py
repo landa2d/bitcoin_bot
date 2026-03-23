@@ -39,7 +39,7 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+ANTHROPIC_AGENT_KEY = os.getenv("ANTHROPIC_AGENT_KEY")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 
 MODEL = os.getenv("RESEARCH_MODEL", "claude-sonnet-4-20250514")
@@ -72,8 +72,10 @@ _system_prompt_cache: str | None = None
 _system_prompt_mtime: float = 0
 
 AGENT_NAME = os.getenv("AGENT_NAME", "research")
-LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://gato_brain:8100")
+LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://llm-proxy:8200")
+LLM_PROXY_ECONOMICS_URL = os.getenv("LLM_PROXY_ECONOMICS_URL", "http://gato_brain:8100")
 _agent_api_key: str | None = os.getenv("AGENT_API_KEY") or None
+proxy_client: anthropic.Anthropic | None = None
 
 REQUIRED_OUTPUT_FIELDS = ["thesis", "evidence", "counter_argument", "prediction", "builder_implications"]
 
@@ -99,7 +101,7 @@ signal.signal(signal.SIGINT, handle_shutdown)
 # ============================================================================
 
 def init():
-    global supabase, claude_client
+    global supabase, claude_client, proxy_client
 
     if SUPABASE_URL and SUPABASE_KEY:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -108,12 +110,35 @@ def init():
         logger.error("SUPABASE_URL or SUPABASE_KEY missing — cannot start")
         sys.exit(1)
 
-    if ANTHROPIC_API_KEY:
-        claude_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    if ANTHROPIC_AGENT_KEY:
+        claude_client = anthropic.Anthropic(api_key=ANTHROPIC_AGENT_KEY)
         logger.info(f"Anthropic client initialized (model: {MODEL})")
     else:
-        logger.error("ANTHROPIC_API_KEY missing — cannot start")
+        logger.error("ANTHROPIC_AGENT_KEY missing — cannot start")
         sys.exit(1)
+
+    # Also create a proxy-routed client for spend tracking.
+    # Uses AGENT_API_KEY env var (the proxy key, e.g. ap_research_*).
+    agent_key = _agent_api_key or _get_agent_api_key_from_db()
+    if agent_key and LLM_PROXY_URL:
+        proxy_client = anthropic.Anthropic(
+            api_key=agent_key,
+            base_url=f"{LLM_PROXY_URL}/anthropic",
+        )
+        logger.info(f"Proxy-routed Anthropic client initialized ({LLM_PROXY_URL})")
+    else:
+        logger.warning("No proxy API key found — LLM calls will bypass spend tracking")
+
+
+def _get_agent_api_key_from_db() -> str | None:
+    """Fetch the agent's proxy API key from Supabase (at init time)."""
+    try:
+        result = supabase.table("agent_api_keys").select("api_key").eq("agent_name", AGENT_NAME).limit(1).execute()
+        if result.data:
+            return result.data[0]["api_key"]
+    except Exception as e:
+        logger.warning(f"Failed to fetch agent API key: {e}")
+    return None
 
 
 def load_system_prompt() -> str:
@@ -172,7 +197,7 @@ def fetch_economics_block() -> str:
 
     try:
         resp = httpx.get(
-            f"{LLM_PROXY_URL}/v1/proxy/wallet/{AGENT_NAME}/summary?period=7d",
+            f"{LLM_PROXY_ECONOMICS_URL}/v1/proxy/wallet/{AGENT_NAME}/summary?period=7d",
             headers={"Authorization": f"Bearer {api_key}"},
             timeout=5,
         )
@@ -248,7 +273,7 @@ def gather_sources(topic_id: str, topic_name: str, context_payload: dict | None 
             if not any(term in text for term in search_terms):
                 continue
             src = p.get("source", "")
-            if src.startswith("thought_leader_"):
+            if src.startswith("thought_leader_") or src.startswith("x_source_"):
                 continue
             elif src == "github":
                 github_posts.append(p)
@@ -260,6 +285,7 @@ def gather_sources(topic_id: str, topic_name: str, context_payload: dict | None 
     except Exception as e:
         logger.warning(f"General source gathering failed: {e}")
 
+    # Thought leaders + X source accounts (both tier 1.5, 14-day window)
     try:
         result = supabase.table("source_posts")\
             .select("title, body, source, source_url, score, tags, metadata")\
@@ -273,10 +299,26 @@ def gather_sources(topic_id: str, topic_name: str, context_payload: dict | None 
             text = f"{p.get('title', '')} {p.get('body', '')}".lower()
             if any(term in text for term in search_terms):
                 tl_posts.append(p)
-
-        tl_posts = tl_posts[:15]
     except Exception as e:
         logger.warning(f"Thought leader source gathering failed: {e}")
+
+    try:
+        result = supabase.table("source_posts")\
+            .select("title, body, source, source_url, score, tags, metadata")\
+            .like("source", "x_source_%")\
+            .gte("scraped_at", tl_cutoff)\
+            .order("scraped_at", desc=True)\
+            .limit(100)\
+            .execute()
+
+        for p in (result.data or []):
+            text = f"{p.get('title', '')} {p.get('body', '')}".lower()
+            if any(term in text for term in search_terms):
+                tl_posts.append(p)
+    except Exception as e:
+        logger.warning(f"X source account gathering failed: {e}")
+
+    tl_posts = tl_posts[:20]
 
     lifecycle_context = None
     try:
@@ -291,7 +333,7 @@ def gather_sources(topic_id: str, topic_name: str, context_payload: dict | None 
         logger.warning(f"Topic lifecycle lookup failed: {e}")
 
     total = len(general_posts) + len(tl_posts) + len(github_posts)
-    logger.info(f"Sources gathered: {len(general_posts)} general, {len(tl_posts)} TL, {len(github_posts)} GitHub = {total} total")
+    logger.info(f"Sources gathered: {len(general_posts)} general, {len(tl_posts)} TL+X, {len(github_posts)} GitHub = {total} total")
 
     return {
         "general": general_posts,
@@ -519,10 +561,13 @@ Respond with valid JSON only, following the output format in your instructions."
 
     usage_stats = {"input_tokens": 0, "output_tokens": 0, "model": MODEL, "retries": 0}
 
+    # Use proxy client for spend tracking, fall back to direct client
+    llm = proxy_client or claude_client
+
     for attempt in range(1 + RETRY_ON_FAILURE):
         try:
             _t0 = time.time()
-            response = claude_client.messages.create(
+            response = llm.messages.create(
                 model=MODEL,
                 max_tokens=MAX_GENERATION_TOKENS,
                 system=system_prompt,
@@ -681,9 +726,10 @@ def _create_prediction(spotlight: dict, thesis_data: dict, queue_item: dict):
 
 def _extract_prediction(raw_prediction: str) -> str | None:
     """Use Claude to sharpen a raw prediction into a single falsifiable sentence."""
+    llm = proxy_client or claude_client
     try:
         _t0 = time.time()
-        response = claude_client.messages.create(
+        response = llm.messages.create(
             model=MODEL,
             max_tokens=200,
             system=PREDICTION_EXTRACTOR_PROMPT,

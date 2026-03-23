@@ -20,14 +20,14 @@ load_dotenv(env_path)
 
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_KEY')
-ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+ANTHROPIC_AGENT_KEY = os.getenv('ANTHROPIC_AGENT_KEY')
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     print("FATAL: SUPABASE_URL or SUPABASE_KEY not set")
     sys.exit(1)
 
 sb = create_client(SUPABASE_URL, SUPABASE_KEY)
-claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+claude = anthropic.Anthropic(api_key=ANTHROPIC_AGENT_KEY) if ANTHROPIC_AGENT_KEY else None
 
 RESEARCH_PROMPT = (Path(__file__).resolve().parent.parent / 'templates' / 'research' / 'IDENTITY.md').read_text(encoding='utf-8')
 
@@ -235,7 +235,7 @@ def check_radar_generation():
 
     if not claude:
         results['radar'] = 'WARN'
-        errors['radar'] = 'No ANTHROPIC_API_KEY for LLM generation'
+        errors['radar'] = 'No ANTHROPIC_AGENT_KEY for LLM generation'
         print(f"  WARN: skipping LLM call (no API key)")
         return
 
@@ -275,7 +275,7 @@ def check_research_agent():
 
     if not claude:
         results['research'] = 'WARN'
-        errors['research'] = 'No ANTHROPIC_API_KEY'
+        errors['research'] = 'No ANTHROPIC_AGENT_KEY'
         print(f"  WARN: skipping (no API key)")
         return
 

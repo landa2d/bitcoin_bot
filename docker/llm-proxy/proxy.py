@@ -71,7 +71,7 @@ MODEL_ROUTES: dict[str, dict] = {
     "claude-sonnet-4-20250514": {
         "provider": "anthropic",
         "base_url": "https://api.anthropic.com",
-        "env_key": "ANTHROPIC_API_KEY",
+        "env_key": "ANTHROPIC_AGENT_KEY",
     },
 }
 
@@ -101,9 +101,9 @@ MAX_CHAT_BODY = 1_048_576  # 1MB
 MAX_EMBED_BODY = 524_288   # 512KB
 
 # Timeouts per endpoint type
-TIMEOUT_CHAT = 30.0
+TIMEOUT_CHAT = 120.0
 TIMEOUT_EMBED = 10.0
-TIMEOUT_ANTHROPIC = 30.0
+TIMEOUT_ANTHROPIC = 120.0
 
 # ─── Global state ─────────────────────────────────────────────────────────────
 
@@ -119,8 +119,21 @@ AGENT_CACHE_TTL = 30.0  # seconds
 # Rate limiting: agent_name -> deque of request timestamps
 rate_windows: dict[str, deque] = {}
 
-# Async log retry queue
-log_queue: deque[dict] = deque(maxlen=1000)
+# Async log queue — NO maxlen so records are never silently dropped
+log_queue: deque[dict] = deque()
+settle_retry_queue: deque[dict] = deque()
+LOG_BATCH_SIZE = 50        # flush when this many records accumulate
+LOG_FLUSH_INTERVAL = 5.0   # or every N seconds, whichever comes first
+LOG_FALLBACK_FILE = LOGS_DIR / "transaction_overflow.jsonl"
+
+# Wallet governance cache: agent_name -> wallet record
+wallet_cache: dict[str, dict] = {}
+wallet_cache_ts: dict[str, float] = {}
+WALLET_CACHE_TTL = 15.0  # seconds
+
+# Governance event dedup: prevent spamming the same event
+_gov_event_sent: dict[str, float] = {}  # "agent:event_type" -> timestamp
+GOV_EVENT_COOLDOWN = 300.0  # 5 minutes between duplicate events
 
 # Metrics counters
 metrics = {
@@ -130,6 +143,8 @@ metrics = {
     "latencies_ms": deque(maxlen=1000),
     "wallet_ops": 0,
     "log_queue_depth": 0,
+    "settle_failures": 0,
+    "settle_retries_ok": 0,
 }
 
 
@@ -228,6 +243,127 @@ def check_rate_limit(agent_name: str, rpm_limit: int | None) -> bool:
     return True
 
 
+# ─── Governance ──────────────────────────────────────────────────────────────
+
+def _get_wallet(agent_name: str) -> dict | None:
+    """Get wallet record with caching."""
+    now = time.time()
+    if agent_name in wallet_cache and now - wallet_cache_ts.get(agent_name, 0) < WALLET_CACHE_TTL:
+        return wallet_cache[agent_name]
+    try:
+        result = supabase.table("agent_wallets_v2").select("*").eq("agent_name", agent_name).execute()
+        if result.data:
+            wallet_cache[agent_name] = result.data[0]
+            wallet_cache_ts[agent_name] = now
+            return result.data[0]
+    except Exception as e:
+        logger.warning(f"Failed to fetch wallet for {agent_name}: {e}")
+    return wallet_cache.get(agent_name)
+
+
+def _emit_governance_event(agent_name: str, event_type: str, details: dict):
+    """Log a governance event (with dedup cooldown)."""
+    key = f"{agent_name}:{event_type}"
+    now = time.time()
+    if now - _gov_event_sent.get(key, 0) < GOV_EVENT_COOLDOWN:
+        return  # already emitted recently
+    _gov_event_sent[key] = now
+    try:
+        _sb_insert("governance_events", {
+            "agent_name": agent_name,
+            "event_type": event_type,
+            "details": details,
+        })
+        logger.info(f"[GOVERNANCE] {event_type} for {agent_name}: {details}")
+    except Exception as e:
+        logger.warning(f"Failed to log governance event {event_type} for {agent_name}: {e}")
+
+
+def _get_spending_window_total(agent_name: str, window: str) -> int:
+    """Get total sats spent by an agent in the current spending window."""
+    if window == "daily":
+        interval = "1 day"
+    elif window == "weekly":
+        interval = "7 days"
+    elif window == "monthly":
+        interval = "30 days"
+    else:
+        return 0
+    try:
+        result = supabase.rpc("get_agent_window_spending", {
+            "p_agent_name": agent_name,
+            "p_interval": interval,
+        }).execute()
+        if result.data is not None:
+            if isinstance(result.data, list) and result.data:
+                return int(result.data[0].get("total", 0))
+            elif isinstance(result.data, (int, float)):
+                return int(result.data)
+        return 0
+    except Exception:
+        # Fallback: query directly
+        try:
+            from datetime import timedelta
+            cutoff = datetime.now(timezone.utc) - timedelta(days={"daily": 1, "weekly": 7, "monthly": 30}.get(window, 1))
+            result = (
+                supabase.table("wallet_transactions")
+                .select("amount_sats")
+                .eq("agent_name", agent_name)
+                .eq("transaction_type", "llm_call")
+                .gte("created_at", cutoff.isoformat())
+                .execute()
+            )
+            return sum(abs(r["amount_sats"]) for r in (result.data or []))
+        except Exception as e2:
+            logger.warning(f"Failed to get window spending for {agent_name}: {e2}")
+            return 0
+
+
+def check_governance(agent_name: str, model: str, balance_after: int) -> dict:
+    """
+    Run governance checks AFTER reserve_balance succeeds.
+    Returns dict with 'action' key: 'allow', 'reject', or 'downgrade'.
+    Governance events fire regardless of action.
+    """
+    wallet = _get_wallet(agent_name)
+    if not wallet:
+        return {"action": "allow"}
+
+    total_deposited = wallet.get("total_deposited_sats", 0)
+
+    # --- Balance threshold events ---
+    if balance_after <= 0:
+        _emit_governance_event(agent_name, "balance_exhausted", {
+            "balance_sats": balance_after,
+            "allow_negative": wallet.get("allow_negative", False),
+        })
+    elif total_deposited > 0 and balance_after < total_deposited * 0.2:
+        _emit_governance_event(agent_name, "balance_low", {
+            "balance_sats": balance_after,
+            "threshold_sats": int(total_deposited * 0.2),
+            "total_deposited_sats": total_deposited,
+        })
+
+    # --- Spending cap check ---
+    cap_sats = wallet.get("spending_cap_sats")
+    cap_window = wallet.get("spending_cap_window", "daily")
+    if cap_sats and cap_sats > 0:
+        window_total = _get_spending_window_total(agent_name, cap_window)
+        if window_total >= cap_sats:
+            _emit_governance_event(agent_name, "cap_hit", {
+                "spending_cap_sats": cap_sats,
+                "window": cap_window,
+                "window_total_sats": window_total,
+                "model": model,
+            })
+            # For internal agents (allow_negative), alert but don't reject
+            if not wallet.get("allow_negative", False):
+                return {"action": "reject", "reason": f"Spending cap exceeded ({window_total}/{cap_sats} sats in {cap_window} window)"}
+            # Internal agents: log but allow through
+
+    return {"action": "allow"}
+
+
 # ─── Wallet operations ───────────────────────────────────────────────────────
 
 def reserve_balance(agent_name: str, estimated_sats: int, allow_negative: bool) -> tuple[bool, int]:
@@ -261,7 +397,17 @@ def settle_balance(agent_name: str, reserved_sats: int, actual_sats: int):
             "p_actual_sats": actual_sats,
         })
     except Exception as e:
-        logger.error(f"Settle balance failed for {agent_name}: {e}")
+        metrics["settle_failures"] += 1
+        logger.error(
+            "settle_balance FAILED for %s: reserved=%d, actual=%d, error=%s — queued for retry",
+            agent_name, reserved_sats, actual_sats, e,
+        )
+        settle_retry_queue.append({
+            "agent_name": agent_name,
+            "reserved_sats": reserved_sats,
+            "actual_sats": actual_sats,
+            "attempts": 1,
+        })
 
 
 # ─── Cost calculation ─────────────────────────────────────────────────────────
@@ -295,7 +441,7 @@ async def async_log_transaction(
     endpoint: str,
     request_id: str,
 ):
-    """Log the transaction to wallet_transactions (non-blocking)."""
+    """Enqueue a transaction record for batched write to wallet_transactions."""
     record = {
         "agent_name": agent_name,
         "transaction_type": "llm_call",
@@ -312,30 +458,118 @@ async def async_log_transaction(
             "request_id": request_id,
         },
     }
+    log_queue.append(record)
+    metrics["log_queue_depth"] = len(log_queue)
+    # Trigger immediate flush if batch is full
+    if len(log_queue) >= LOG_BATCH_SIZE:
+        asyncio.create_task(_flush_batch())
+
+
+def _write_fallback(records: list[dict]):
+    """Append records to local JSONL file as a fallback when Supabase is down."""
     try:
-        await asyncio.to_thread(_sb_insert, "wallet_transactions", record)
+        with open(LOG_FALLBACK_FILE, "a") as f:
+            for r in records:
+                f.write(json.dumps(r) + "\n")
+        logger.warning(f"Wrote {len(records)} records to fallback file {LOG_FALLBACK_FILE}")
     except Exception as e:
-        logger.warning(f"Async log failed, queuing: {e}")
-        if len(log_queue) >= 1000:
-            logger.warning("Log retry queue full — dropping oldest entry")
-        log_queue.append(record)
+        logger.error(f"CRITICAL: fallback file write failed: {e} — {len(records)} records lost")
+
+
+async def _flush_batch():
+    """Flush queued records to Supabase in a single batch insert."""
+    if not log_queue:
+        return
+    batch = []
+    while log_queue and len(batch) < LOG_BATCH_SIZE:
+        batch.append(log_queue.popleft())
+    if not batch:
+        return
+    try:
+        await asyncio.to_thread(_sb_batch_insert, "wallet_transactions", batch)
+        logger.debug(f"Batch-logged {len(batch)} transactions")
+    except Exception as e:
+        logger.warning(f"Batch insert failed ({len(batch)} records): {e} — writing to fallback file")
+        _write_fallback(batch)
+    metrics["log_queue_depth"] = len(log_queue)
+
+
+def _sb_batch_insert(table: str, records: list[dict]):
+    """Insert multiple records into a Supabase table in one call."""
+    supabase.table(table).insert(records).execute()
 
 
 async def flush_log_queue():
-    """Periodically retry queued log entries."""
+    """Periodically flush queued log entries in batches."""
     while True:
-        await asyncio.sleep(30)
-        retried = 0
+        await asyncio.sleep(LOG_FLUSH_INTERVAL)
         while log_queue:
-            record = log_queue.popleft()
+            await _flush_batch()
+
+
+SETTLE_RETRY_INTERVAL = 30.0  # seconds between retry sweeps
+SETTLE_MAX_ATTEMPTS = 5
+
+
+async def flush_settle_retries():
+    """Periodically retry failed settle_balance calls."""
+    while True:
+        await asyncio.sleep(SETTLE_RETRY_INTERVAL)
+        if not settle_retry_queue:
+            continue
+        pending = len(settle_retry_queue)
+        logger.info("Retrying %d failed settle operations", pending)
+        remaining: list[dict] = []
+        while settle_retry_queue:
+            item = settle_retry_queue.popleft()
             try:
-                await asyncio.to_thread(_sb_insert, "wallet_transactions", record)
-                retried += 1
-            except Exception:
-                log_queue.appendleft(record)
-                break
-        if retried:
-            logger.info(f"Flushed {retried} queued log entries")
+                await asyncio.to_thread(
+                    _sb_rpc,
+                    "settle_agent_balance",
+                    {
+                        "p_agent_name": item["agent_name"],
+                        "p_reserved_sats": item["reserved_sats"],
+                        "p_actual_sats": item["actual_sats"],
+                    },
+                )
+                metrics["settle_retries_ok"] += 1
+                logger.info(
+                    "Settle retry OK for %s: actual=%d sats",
+                    item["agent_name"], item["actual_sats"],
+                )
+            except Exception as e:
+                item["attempts"] += 1
+                if item["attempts"] < SETTLE_MAX_ATTEMPTS:
+                    remaining.append(item)
+                    logger.warning(
+                        "Settle retry %d/%d failed for %s: %s",
+                        item["attempts"], SETTLE_MAX_ATTEMPTS, item["agent_name"], e,
+                    )
+                else:
+                    logger.error(
+                        "Settle ABANDONED for %s after %d attempts: reserved=%d, actual=%d — wallet drift of %d sats",
+                        item["agent_name"], SETTLE_MAX_ATTEMPTS,
+                        item["reserved_sats"], item["actual_sats"], item["actual_sats"],
+                    )
+        for item in remaining:
+            settle_retry_queue.append(item)
+
+
+async def drain_log_queue():
+    """Drain all remaining records on shutdown — write to DB or fallback file."""
+    if not log_queue:
+        return
+    remaining = len(log_queue)
+    logger.info(f"Draining {remaining} queued log entries before shutdown...")
+    while log_queue:
+        batch = []
+        while log_queue and len(batch) < LOG_BATCH_SIZE:
+            batch.append(log_queue.popleft())
+        try:
+            _sb_batch_insert("wallet_transactions", batch)
+        except Exception:
+            _write_fallback(batch)
+    logger.info(f"Drain complete: {remaining} entries processed")
 
 
 # ─── Streaming helpers ────────────────────────────────────────────────────────
@@ -518,6 +752,15 @@ async def proxy_openai_compatible(
         return JSONResponse(
             status_code=402,
             content={"error": {"message": f"Insufficient balance ({balance} sats)", "type": "balance_error"}},
+        )
+
+    # Governance checks (spending caps, balance thresholds)
+    gov = check_governance(agent_name, model, balance - estimated_sats)
+    if gov["action"] == "reject":
+        settle_balance(agent_name, estimated_sats, 0)  # refund the reservation
+        return JSONResponse(
+            status_code=429,
+            content={"error": {"message": gov.get("reason", "Governance limit reached"), "type": "governance_error"}},
         )
 
     # Check if streaming
@@ -706,6 +949,15 @@ async def proxy_anthropic(request: Request) -> Response:
             content={"error": {"message": f"Insufficient balance ({balance} sats)", "type": "balance_error"}},
         )
 
+    # Governance checks
+    gov = check_governance(agent_name, model, balance - estimated_sats)
+    if gov["action"] == "reject":
+        settle_balance(agent_name, estimated_sats, 0)
+        return JSONResponse(
+            status_code=429,
+            content={"error": {"message": gov.get("reason", "Governance limit reached"), "type": "governance_error"}},
+        )
+
     is_streaming = body.get("stream", False)
 
     # Build upstream headers — Anthropic uses x-api-key + anthropic-version
@@ -833,13 +1085,16 @@ async def lifespan(app: FastAPI):
         follow_redirects=True,
     )
 
-    # Start log queue flusher
+    # Start log queue flusher and settle retry loop
     flush_task = asyncio.create_task(flush_log_queue())
+    settle_task = asyncio.create_task(flush_settle_retries())
 
     logger.info(f"LLM Proxy ready on port {LLM_PROXY_PORT}")
     yield
 
     flush_task.cancel()
+    settle_task.cancel()
+    await drain_log_queue()
     await http_client.aclose()
     logger.info("LLM Proxy shutting down")
 
@@ -896,6 +1151,9 @@ async def proxy_metrics(request: Request):
         },
         "wallet_ops": metrics["wallet_ops"],
         "log_queue_depth": len(log_queue),
+        "settle_failures": metrics["settle_failures"],
+        "settle_retries_ok": metrics["settle_retries_ok"],
+        "settle_retry_queue": len(settle_retry_queue),
         "uptime_seconds": round(time.time() - start_time, 1),
     }
 

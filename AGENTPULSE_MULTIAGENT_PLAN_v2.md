@@ -224,7 +224,7 @@ services:
       - agentpulse-net
     environment:
       <<: *common-env
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_AGENT_KEY: ${ANTHROPIC_AGENT_KEY}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
       TELEGRAM_OWNER_ID: ${TELEGRAM_OWNER_ID}
       AGENT_NAME: gato
@@ -253,7 +253,7 @@ services:
       - agentpulse-net
     environment:
       <<: *common-env
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_AGENT_KEY: ${ANTHROPIC_AGENT_KEY}
       AGENT_NAME: analyst
       ANALYST_POLL_INTERVAL: ${ANALYST_POLL_INTERVAL:-10}
     volumes:

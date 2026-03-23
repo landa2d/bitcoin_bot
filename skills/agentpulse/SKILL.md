@@ -52,16 +52,7 @@ When a user sends one of these commands, you MUST open the specified file using 
 | `/wallet` | `{"task":"get_agent_wallets","params":{}}` | Show all agent wallet balances (sats) |
 | `/ledger [agent]` | `{"task":"get_agent_ledger","params":{"agent_name":"<agent>"}}` | Show last 10 transactions for an agent |
 | `/topup [agent] [amount]` | `{"task":"topup_agent","params":{"agent_name":"<agent>","amount_sats":<amount>}}` | Top up an agent's wallet with sats |
-| `/x-plan` | `{"task":"get_x_plan","params":{}}` | Show today's X content candidates |
-| `/x-approve [nums]` | `{"task":"x_approve","params":{"indexes":[<nums>]}}` | "Approved candidates #N — Processor will post when ready." (Do NOT check for X API keys — Gato only marks status, Processor posts.) |
-| `/x-reject [nums]` | `{"task":"x_reject","params":{"indexes":[<nums>]}}` | Reject X candidates by number |
-| `/x-edit [num]` | Show the current draft for candidate #num so operator can rewrite |
-| `/x-draft [num] [text]` | `{"task":"x_draft","params":{"index":<num>,"content":"<text>"}}` | Replace draft with operator's text and approve |
-| `/x-posted` | `{"task":"get_x_posted","params":{}}` | Show what's been posted to X today |
-| `/x-budget` | `{"task":"get_x_budget","params":{}}` | Show X API budget (weekly + monthly) |
-| `/x-watch [handle] [category]` | `{"task":"x_watch","params":{"handle":"<handle>","category":"<category>"}}` | Add account to X watchlist |
-| `/x-unwatch [handle]` | `{"task":"x_unwatch","params":{"handle":"<handle>"}}` | Remove account from X watchlist |
-| `/x-watchlist` | `{"task":"x_watchlist","params":{}}` | Show current X watchlist |
+> **X commands** (`/x-plan`, `/x-approve`, `/x-reject`, `/x-edit`, `/x-draft`, `/x-posted`, `/x-budget`, `/x-watch`, `/x-unwatch`, `/x-watchlist`) are handled directly by gato_brain — do NOT write queue tasks for these. If a user sends any `/x-*` command, simply confirm you received it. Gato_brain intercepts and processes these commands before they reach you.
 
 | `/commands` | — | Display this help: list all AgentPulse commands with short descriptions |
 

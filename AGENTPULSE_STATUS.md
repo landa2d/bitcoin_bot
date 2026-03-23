@@ -117,7 +117,7 @@ bitcoin_bot/
 - `MOLTBOOK_API_TOKEN` - Set
 - `MOLTBOOK_API_BASE=https://www.moltbook.com/api/v1`
 - `OPENAI_API_KEY` - Set
-- `ANTHROPIC_API_KEY` - Set (used by OpenClaw via auth-profiles.json)
+- `ANTHROPIC_AGENT_KEY` - Set (used by OpenClaw via auth-profiles.json)
 - `TELEGRAM_BOT_TOKEN` - Set
 - `TELEGRAM_OWNER_ID` - Set
 
