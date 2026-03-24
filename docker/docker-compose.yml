@@ -75,7 +75,13 @@ services:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace:ro
       - ../config:/home/openclaw/.openclaw/config:ro
       - ../config/persona.md:/home/openclaw/persona.md:ro
-    mem_limit: 512m
+      # Code engine: Claude CLI credentials, repos, workspaces
+      - /root/.claude:/root/.claude
+      - /root/.claude.json:/root/.claude.json:ro
+      - /root/lab:/root/lab
+      - /root/bitcoin_bot:/root/bitcoin_bot
+      - /root/code-workspaces:/root/code-workspaces
+    mem_limit: 1536m
     depends_on:
       - llm-proxy
     networks:

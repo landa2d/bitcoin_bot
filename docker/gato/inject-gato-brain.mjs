@@ -75,6 +75,16 @@ const middleware = `
 /topup [agent] [amt] — Top up wallet (sats)
 /negotiations — Active negotiations
 
+💻 CODE ENGINE
+/code [repo] [instruction] — Start coding session
+/code-diff — View session diff
+/code-approve — Approve: commit + push + PR
+/code-reject — Reject: discard changes
+/code-merge — Merge latest PR
+/followup [instruction] — Continue session
+/repos — List registered repos
+/code-status — Session status
+
 ⚙️ CORE
 /status — Agent status
 /publish — Publish newsletter
@@ -83,20 +93,22 @@ const middleware = `
       return;
     }
 
-    // Forward /x-* commands to gato-brain (they're handled there, not in OpenClaw)
+    // Forward /x-* and code commands to gato-brain (they're handled there, not in OpenClaw)
     const isXCommand = text && /^\\/x-/i.test(text.trim());
+    const isCodeCommand = text && /^\\/(code|diff|code-diff|code-approve|approve|code-reject|reject|code-merge|followup|repos)\\b/i.test(text.trim());
+    const isGatoBrainCommand = isXCommand || isCodeCommand;
 
-    if (text && (!text.startsWith("/") || isXCommand)) {
+    if (text && (!text.startsWith("/") || isGatoBrainCommand)) {
       try {
         const res = await fetch("http://gato_brain:8100/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "X-Gato-Secret": process.env.GATO_BRAIN_SECRET || "" },
           body: JSON.stringify({
             user_id: String(ctx.from?.id),
             message: text,
             message_type: "text",
           }),
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(45000),
         });
         if (res.ok) {
           const data = await res.json();
@@ -113,15 +125,15 @@ const middleware = `
             return; // handled — skip OpenClaw's default path
           }
         }
-        // /x-* commands must never fall through to OpenClaw
-        if (isXCommand) {
+        // gato-brain commands must never fall through to OpenClaw
+        if (isGatoBrainCommand) {
           await ctx.reply("Command processed but no response was returned.");
           return;
         }
       } catch (err: any) {
         console.error("[gato-brain] middleware error:", String(err));
-        // /x-* commands must never fall through to OpenClaw
-        if (isXCommand) {
+        // gato-brain commands must never fall through to OpenClaw
+        if (isGatoBrainCommand) {
           await ctx.reply("gato-brain unavailable. Try again in a moment.");
           return;
         }

@@ -5,6 +5,7 @@ Sits between Gato's Telegram handler and the LLM.
 Handles: session management, conversation memory, rate limiting, response generation.
 """
 
+import hmac
 import logging
 import os
 import re
@@ -23,6 +24,7 @@ import asyncio
 import subprocess
 import threading
 
+import code_commands
 import corpus_probe
 import intent_router
 import query_templates
@@ -1418,9 +1420,14 @@ async def wallet_summary(
     }
 
 
+_GATO_BRAIN_SECRET = os.getenv("GATO_BRAIN_SECRET", "")
+
+
 @app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato-Secret")):
     """Main chat endpoint — session management, rate limiting, response generation."""
+    if not _GATO_BRAIN_SECRET or not x_gato_secret or not hmac.compare_digest(_GATO_BRAIN_SECRET, x_gato_secret):
+        raise HTTPException(status_code=401, detail="Unauthorized")
     start = time.time()
 
     # 1. Ensure user exists, get tier
@@ -1489,6 +1496,15 @@ async def chat(req: ChatRequest):
                 "/ledger [agent] — Last 10 transactions\n"
                 "/topup [agent] [amt] — Top up wallet (sats)\n"
                 "/negotiations — Active negotiations\n\n"
+                "💻 CODE ENGINE\n"
+                "/code [repo] [instruction] — Start coding session\n"
+                "/code-diff — View session diff\n"
+                "/code-approve — Approve: commit + push + PR\n"
+                "/code-reject — Reject: discard changes\n"
+                "/code-merge — Merge latest PR\n"
+                "/followup [instruction] — Continue session\n"
+                "/repos — List registered repos\n"
+                "/code-status — Session status\n\n"
                 "⚙️ CORE\n"
                 "/status — Agent status\n"
                 "/publish — Publish newsletter\n"
@@ -1506,6 +1522,20 @@ async def chat(req: ChatRequest):
             response=x_response,
             session_id="",
             intent="X_COMMAND",
+            metadata={},
+        )
+
+    # 2d. Code Engine commands — handle directly, skip intent router
+    _code_prefixes = ("/code", "/diff", "/code-diff", "/approve", "/code-approve", "/reject", "/code-reject", "/code-merge", "/followup", "/repos")
+    if any(_msg_lower.startswith(p) for p in _code_prefixes):
+        code_response = code_commands.handle_code_command(
+            message=req.message,
+            user_id=req.user_id,
+        )
+        return ChatResponse(
+            response=code_response,
+            session_id="",
+            intent="CODE_COMMAND",
             metadata={},
         )
 

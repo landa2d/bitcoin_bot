@@ -55,7 +55,13 @@
       "Bash(docker image:*)",
       "Bash(curl -s \"https://$SUPABASE_URL#https:///rest/v1/agent_wallets_v2?select=agent_name,balance_sats,total_spent_sats,total_deposited_sats,spending_cap_sats,spending_cap_window,allow_negative\" -H \"apikey: $SUPABASE_KEY\" -H \"Authorization: Bearer $SUPABASE_KEY\")",
       "Bash(chown:*)",
-      "Bash(docker-compose restart:*)"
+      "Bash(docker-compose restart:*)",
+      "Bash(/usr/local/bin/claude --version)",
+      "Bash(claude --version)",
+      "Bash(cp /root/lab/results/code-repos-registry/code_session.py /root/bitcoin_bot/docker/gato_brain/code_session.py)",
+      "Bash(cp /root/lab/results/code-repos-registry/repo_resolver.py /root/bitcoin_bot/docker/gato_brain/repo_resolver.py)",
+      "Bash(CODE_SESSION_SECRET=\"00862c0696b4723f603e7796e925f9b15fd7fc6da3913f6ceba36ce25894baf8\" python3 code_session.py start --repo test --instruction \"test\")",
+      "Bash(CODE_SESSION_SECRET=\"00862c0696b4723f603e7796e925f9b15fd7fc6da3913f6ceba36ce25894baf8\" python3 code_session.py start --repo test --instruction \"test\" --secret \"00862c0696b4723f603e7796e925f9b15fd7fc6da3913f6ceba36ce25894baf8\")"
     ]
   }
 }
