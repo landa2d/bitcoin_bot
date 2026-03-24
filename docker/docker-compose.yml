@@ -78,6 +78,7 @@ services:
       # Code engine: Claude CLI credentials, repos, workspaces
       - /root/.claude:/root/.claude
       - /root/.claude.json:/root/.claude.json:ro
+      - /root/rivalscope:/root/rivalscope
       - /root/lab:/root/lab
       - /root/bitcoin_bot:/root/bitcoin_bot
       - /root/code-workspaces:/root/code-workspaces
