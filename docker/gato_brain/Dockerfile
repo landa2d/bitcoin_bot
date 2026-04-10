@@ -36,6 +36,9 @@ COPY code_commands.py /home/openclaw/code_commands.py
 COPY code_session.py /home/openclaw/code_session.py
 COPY repo_resolver.py /home/openclaw/repo_resolver.py
 
+# Copy CTO commands
+COPY cto_commands.py /home/openclaw/cto_commands.py
+
 # Copy entrypoint
 COPY entrypoint.sh /home/openclaw/entrypoint.sh
 RUN chmod +x /home/openclaw/entrypoint.sh

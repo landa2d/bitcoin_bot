@@ -1,0 +1,227 @@
+{
+  "report_type": "weekly_economics",
+  "period": "2026-03-23 to 2026-03-30",
+  "generated_at": "2026-03-30T08:00:02.794164+00:00",
+  "summary": {
+    "total_cost_sats": 1558,
+    "total_cost_usd": "$1.36",
+    "total_calls": 1000,
+    "trend_vs_last_week": "+48.2%",
+    "refund_count": 0
+  },
+  "agent_breakdown": [
+    {
+      "agent": "analyst",
+      "spent_sats": 907,
+      "calls": 889,
+      "primary_model": "deepseek-chat",
+      "avg_cost": 1,
+      "trend": "-6.6%"
+    },
+    {
+      "agent": "processor",
+      "spent_sats": 265,
+      "calls": 80,
+      "primary_model": "deepseek-chat",
+      "avg_cost": 3,
+      "trend": "+679.4%"
+    },
+    {
+      "agent": "research",
+      "spent_sats": 188,
+      "calls": 5,
+      "primary_model": "unknown",
+      "avg_cost": 38,
+      "trend": "new"
+    },
+    {
+      "agent": "lab_data-provider",
+      "spent_sats": 154,
+      "calls": 5,
+      "primary_model": "unknown",
+      "avg_cost": 31,
+      "trend": "new"
+    },
+    {
+      "agent": "gato",
+      "spent_sats": 34,
+      "calls": 17,
+      "primary_model": "deepseek-chat",
+      "avg_cost": 2,
+      "trend": "-15.0%"
+    },
+    {
+      "agent": "newsletter",
+      "spent_sats": 8,
+      "calls": 2,
+      "primary_model": "deepseek-chat",
+      "avg_cost": 4,
+      "trend": "+33.3%"
+    },
+    {
+      "agent": "lab_hello-lab",
+      "spent_sats": 2,
+      "calls": 2,
+      "primary_model": "deepseek-chat",
+      "avg_cost": 1,
+      "trend": "new"
+    }
+  ],
+  "model_usage": {
+    "deepseek-chat": 983,
+    "claude-sonnet-4-20250514": 7,
+    "unknown": 6,
+    "text-embedding-3-large": 4
+  },
+  "governance_events": [],
+  "anomalies": [
+    "processor: spend increased 679% vs previous week (34 \u2192 265 sats)"
+  ],
+  "wallet_balances": [
+    {
+      "agent": "gato",
+      "balance": 99926,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "processor",
+      "balance": 99543,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "newsletter",
+      "balance": 49979,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "research",
+      "balance": 49630,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "analyst",
+      "balance": 41934,
+      "utilization_pct": 806.6
+    },
+    {
+      "agent": "lab_data-provider",
+      "balance": 10297,
+      "utilization_pct": 0.1
+    },
+    {
+      "agent": "lab_rivalscope",
+      "balance": 10000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_security-audit-full",
+      "balance": 10000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_rivalscope-foundation",
+      "balance": 8000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_rivalscope-skills",
+      "balance": 8000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_research-queue-fix",
+      "balance": 5000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_gato-code-engine",
+      "balance": 5000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_gato-code-debugger",
+      "balance": 5000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_531a2ee0",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_44a136ae",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_883ac9da",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_7e388c7b",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_ae077eed",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_97eec0af",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_be479cb1",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_f5f39b1c",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_db381104",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_code-repos-registry",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_f53a674d",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_c9a7dbf3",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_f83dcdb0",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_be0e5b5f",
+      "balance": 1000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_fa0c18a5",
+      "balance": 1000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_hello-lab",
+      "balance": 498,
+      "utilization_pct": 0.0
+    }
+  ]
+}

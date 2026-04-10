@@ -61,7 +61,17 @@
       "Bash(cp /root/lab/results/code-repos-registry/code_session.py /root/bitcoin_bot/docker/gato_brain/code_session.py)",
       "Bash(cp /root/lab/results/code-repos-registry/repo_resolver.py /root/bitcoin_bot/docker/gato_brain/repo_resolver.py)",
       "Bash(CODE_SESSION_SECRET=\"00862c0696b4723f603e7796e925f9b15fd7fc6da3913f6ceba36ce25894baf8\" python3 code_session.py start --repo test --instruction \"test\")",
-      "Bash(CODE_SESSION_SECRET=\"00862c0696b4723f603e7796e925f9b15fd7fc6da3913f6ceba36ce25894baf8\" python3 code_session.py start --repo test --instruction \"test\" --secret \"00862c0696b4723f603e7796e925f9b15fd7fc6da3913f6ceba36ce25894baf8\")"
+      "Bash(CODE_SESSION_SECRET=\"00862c0696b4723f603e7796e925f9b15fd7fc6da3913f6ceba36ce25894baf8\" python3 code_session.py start --repo test --instruction \"test\" --secret \"00862c0696b4723f603e7796e925f9b15fd7fc6da3913f6ceba36ce25894baf8\")",
+      "Bash(npx supabase:*)",
+      "Bash(docker exec agentpulse-analyst python3 -c \":*)",
+      "Bash(for svc:*)",
+      "Bash(do echo:*)",
+      "Bash(docker exec agentpulse-$svc python3 -c \":*)",
+      "Bash(done)",
+      "Bash(docker exec agentpulse-gato-brain python3 -c \":*)",
+      "Bash(docker exec agentpulse-processor python3 -c \":*)",
+      "Bash(crontab:*)",
+      "Bash(echo \"# Weekly economics report — runs Monday 08:00 UTC, 1h before newsletter prep:*)"
     ]
   }
 }

@@ -134,7 +134,7 @@ def load_skill(skill_dir: Path) -> str:
 # Economics context (self-awareness)
 # ---------------------------------------------------------------------------
 
-LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://gato_brain:8100")
+LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://llm-proxy:8200")
 _agent_api_key: str | None = os.getenv("AGENT_API_KEY") or None
 
 _economics_cache: str | None = None
@@ -159,7 +159,7 @@ def _get_agent_api_key() -> str:
 
 def fetch_economics_block() -> str:
     """Fetch spending summary from the proxy and format as a system prompt block.
-    Non-blocking: returns empty string on any failure."""
+    Non-blocking: returns empty string on any failure. 2-second timeout."""
     global _economics_cache, _economics_fetched_at
 
     now = time.time()
@@ -180,13 +180,17 @@ def fetch_economics_block() -> str:
             logger.debug(f"Economics fetch returned {resp.status_code}")
             return _economics_cache or ""
         d = resp.json()
-        trend_str = d.get("trend_vs_previous_period", "flat").replace("_", " ").replace("pct", "%")
+        cap_sats = d.get("spending_cap_sats") or 0
+        cap_window = d.get("spending_cap_window") or "n/a"
+        util = d.get("budget_utilization_pct")
+        util_str = f"{util}%" if util is not None else "no cap"
+        trend_str = d.get("trend_vs_previous_period", "flat")
         _economics_cache = (
             "\n\n---\n"
             "YOUR ECONOMICS (last 7 days):\n"
             f"Balance: {d['balance_sats']:,} sats | Spent: {d['spent_sats']:,} sats | Calls: {d['calls']:,}\n"
-            f"Budget utilization: {d['budget_utilization_pct']}% of {d['spending_cap_sats']:,} sats {d['spending_cap_window']} cap\n"
-            f"Cap hits: {d['cap_hits_in_period']} | Trend: {trend_str}\n"
+            f"Budget utilization: {util_str} of {cap_sats:,} sats {cap_window} cap\n"
+            f"Cap hits: {d.get('cap_hits_in_period', 0)} | Trend: {trend_str} vs prior week\n"
             "---"
         )
         _economics_fetched_at = now

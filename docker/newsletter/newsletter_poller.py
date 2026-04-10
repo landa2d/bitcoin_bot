@@ -145,11 +145,35 @@ def load_strategic_voice(agent_dir: Path) -> str:
     return _strategic_voice_cache
 
 
+_brief_template_cache: str | None = None
+_brief_template_mtime: float = 0
+
+
+def load_brief_template(agent_dir: Path) -> str:
+    """Load BRIEF_TEMPLATE.md from agent_dir, caching by mtime."""
+    global _brief_template_cache, _brief_template_mtime
+    path = agent_dir / "BRIEF_TEMPLATE.md"
+
+    current_mtime = path.stat().st_mtime if path.exists() else 0
+
+    if _brief_template_cache is not None and current_mtime == _brief_template_mtime:
+        return _brief_template_cache
+
+    if path.exists():
+        _brief_template_cache = path.read_text(encoding="utf-8")
+        _brief_template_mtime = current_mtime
+    else:
+        logger.warning(f"BRIEF_TEMPLATE.md not found in {agent_dir}")
+        _brief_template_cache = ""
+
+    return _brief_template_cache
+
+
 # ---------------------------------------------------------------------------
 # Economics context (self-awareness)
 # ---------------------------------------------------------------------------
 
-LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://gato_brain:8100")
+LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://llm-proxy:8200")
 _agent_api_key: str | None = os.getenv("AGENT_API_KEY") or None
 
 _economics_cache: str | None = None
@@ -174,7 +198,7 @@ def _get_agent_api_key() -> str:
 
 def fetch_economics_block() -> str:
     """Fetch spending summary from the proxy and format as a system prompt block.
-    Non-blocking: returns empty string on any failure."""
+    Non-blocking: returns empty string on any failure. 2-second timeout."""
     global _economics_cache, _economics_fetched_at
 
     now = time.time()
@@ -195,13 +219,17 @@ def fetch_economics_block() -> str:
             logger.debug(f"Economics fetch returned {resp.status_code}")
             return _economics_cache or ""
         d = resp.json()
-        trend_str = d.get("trend_vs_previous_period", "flat").replace("_", " ").replace("pct", "%")
+        cap_sats = d.get("spending_cap_sats") or 0
+        cap_window = d.get("spending_cap_window") or "n/a"
+        util = d.get("budget_utilization_pct")
+        util_str = f"{util}%" if util is not None else "no cap"
+        trend_str = d.get("trend_vs_previous_period", "flat")
         _economics_cache = (
             "\n\n---\n"
             "YOUR ECONOMICS (last 7 days):\n"
             f"Balance: {d['balance_sats']:,} sats | Spent: {d['spent_sats']:,} sats | Calls: {d['calls']:,}\n"
-            f"Budget utilization: {d['budget_utilization_pct']}% of {d['spending_cap_sats']:,} sats {d['spending_cap_window']} cap\n"
-            f"Cap hits: {d['cap_hits_in_period']} | Trend: {trend_str}\n"
+            f"Budget utilization: {util_str} of {cap_sats:,} sats {cap_window} cap\n"
+            f"Cap hits: {d.get('cap_hits_in_period', 0)} | Trend: {trend_str} vs prior week\n"
             "---"
         )
         _economics_fetched_at = now
@@ -599,8 +627,11 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
 
     identity = load_identity(AGENT_DIR)
     skill = load_skill(SKILL_DIR)
+    brief_template = load_brief_template(AGENT_DIR)
 
     system_prompt = f"{identity}\n\n---\n\nSKILL REFERENCE:\n{skill}"
+    if brief_template:
+        system_prompt += f"\n\n---\n\nBRIEF TEMPLATE REFERENCE:\n{brief_template}"
     system_prompt += (
         "\n\nYou MUST respond with valid JSON only — no markdown fences, no extra text."
         "\n\nCRITICAL RULES — CHECK BEFORE WRITING EACH SECTION:"
@@ -609,9 +640,10 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         " If spotlight exists but `has_prediction` is false or `prediction` key is"
         " absent, write the Spotlight section WITHOUT the Prediction Scorecard Entry —"
         " skip it entirely. NEVER invent a prediction."
-        "\n2. CANONICAL SECTION ORDER: Lede (no header), Spotlight (conditional),"
-        " Top Opportunities, Emerging Signals, Tool Radar, Prediction Tracker,"
-        " Gato's Corner. Write every required section in order."
+        "\n2. CANONICAL SECTION ORDER: Read This Skip the Rest (## header, 3 paragraphs),"
+        " Spotlight (conditional), Top Opportunities, Emerging Signals, Tool Radar,"
+        " Prediction Tracker, Gato's Corner. Write every required section in order."
+        " The brief is ALWAYS first — before Spotlight. No separate Lede or Board Brief."
         " NEVER stop before Gato's Corner — it is the last section and mandatory."
         "\n3. GATO'S CORNER: ALWAYS write this. NEVER omit it."
         " A newsletter without Gato's Corner is a failed newsletter."
@@ -747,7 +779,7 @@ Your job is to review the draft and apply these transformations. Preserve every 
    - Attack vectors → "security vulnerabilities" or "points of failure"
 
 5. **Structure check.** Verify:
-   - Board Brief exists at the top with 3-5 jargon-free bullets
+   - "Read This, Skip the Rest" section exists at the top (## header, 3 paragraphs, zero jargon). Do NOT use "Board Brief" — that name is deprecated.
    - Decision Framework table appears early, not buried
    - Opportunity Radar items each lead with a one-sentence business case
    - Prediction Tracker entries are understandable without technical context

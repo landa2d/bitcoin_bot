@@ -10,11 +10,12 @@ import hashlib
 import json
 import logging
 import os
+import re
 import time
 import uuid
-from collections import deque
+from collections import Counter, deque
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -1119,6 +1120,12 @@ async def anthropic_messages(request: Request):
     return await proxy_anthropic(request)
 
 
+@app.post("/v1/messages")
+async def anthropic_messages_compat(request: Request):
+    """Backward-compat route for agents using /v1/messages directly."""
+    return await proxy_anthropic(request)
+
+
 @app.get("/v1/proxy/health")
 async def health():
     return {"status": "ok", "uptime_seconds": round(time.time() - start_time, 1)}
@@ -1156,6 +1163,249 @@ async def proxy_metrics(request: Request):
         "settle_retry_queue": len(settle_retry_queue),
         "uptime_seconds": round(time.time() - start_time, 1),
     }
+
+
+# ─── Wallet summary endpoint ─────────────────────────────────────────────────
+
+_PERIOD_RE = re.compile(r"^(\d+)d$")
+
+
+def _parse_period(period: str | None, from_param: str | None, to_param: str | None):
+    """Return (start, end, label) or raise ValueError."""
+    now = datetime.now(timezone.utc)
+    if from_param and to_param:
+        try:
+            start = datetime.fromisoformat(from_param).replace(tzinfo=timezone.utc)
+            end = datetime.fromisoformat(to_param).replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise ValueError("Invalid date format for from/to — use ISO 8601 (e.g. 2026-03-20)")
+        if end <= start:
+            raise ValueError("'to' must be after 'from'")
+        label = f"{start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}"
+        return start, end, label
+    p = period or "7d"
+    m = _PERIOD_RE.match(p)
+    if not m or int(m.group(1)) not in (1, 7, 30):
+        raise ValueError(f"Invalid period '{p}'. Use 1d, 7d, 30d, or from=/to= query params.")
+    days = int(m.group(1))
+    return now - timedelta(days=days), now, p
+
+
+def _wallet_summary_sync(agent_name: str, start, end, period_label: str) -> dict:
+    """Run all Supabase queries synchronously (called via to_thread)."""
+    # Wallet info
+    wallet_result = supabase.table("agent_wallets_v2").select("*").eq("agent_name", agent_name).execute()
+    if not wallet_result.data:
+        return None  # agent doesn't exist
+
+    wallet = wallet_result.data[0]
+
+    # Compute previous period
+    duration = end - start
+    prev_start = start - duration
+    prev_end = start
+
+    # Current period transactions
+    cur_txs = (
+        supabase.table("wallet_transactions")
+        .select("amount_sats, metadata, created_at")
+        .eq("agent_name", agent_name)
+        .gte("created_at", start.isoformat())
+        .lt("created_at", end.isoformat())
+        .execute()
+    ).data or []
+
+    # Previous period transactions
+    prev_txs = (
+        supabase.table("wallet_transactions")
+        .select("amount_sats")
+        .eq("agent_name", agent_name)
+        .gte("created_at", prev_start.isoformat())
+        .lt("created_at", prev_end.isoformat())
+        .execute()
+    ).data or []
+
+    # Governance events in period
+    gov_result = (
+        supabase.table("governance_events")
+        .select("event_type")
+        .eq("agent_name", agent_name)
+        .gte("created_at", start.isoformat())
+        .lt("created_at", end.isoformat())
+        .execute()
+    ).data or []
+
+    # Aggregate current period
+    spent_sats = 0
+    models_used = Counter()
+    task_types = Counter()
+    for tx in cur_txs:
+        spent_sats += abs(tx.get("amount_sats") or 0)
+        meta = tx.get("metadata") or {}
+        models_used[meta.get("model", "unknown")] += 1
+        tt = meta.get("task_type")
+        if tt:
+            task_types[tt] += 1
+
+    calls = len(cur_txs)
+    avg_cost = round(spent_sats / calls) if calls else 0
+
+    # Previous period total
+    prev_spent = sum(abs(tx.get("amount_sats") or 0) for tx in prev_txs)
+    if prev_spent > 0:
+        trend_pct = ((spent_sats - prev_spent) / prev_spent) * 100
+        trend_str = f"{trend_pct:+.0f}%"
+    elif spent_sats > 0:
+        trend_str = "+100%"
+    else:
+        trend_str = "0%"
+
+    # Budget utilization — current spending window
+    cap_sats = wallet.get("spending_cap_sats")
+    cap_window = wallet.get("spending_cap_window")
+    utilization = None
+    if cap_sats and cap_sats > 0:
+        window_spent = _get_spending_window_total(agent_name, cap_window or "daily")
+        utilization = round((window_spent / cap_sats) * 100, 1)
+
+    # Governance event counts
+    gov_total = len(gov_result)
+    cap_hits = sum(1 for e in gov_result if e["event_type"] == "cap_hit")
+
+    # Estimated USD cents from wallet
+    # Use the usd_cents columns if available, else estimate
+    balance_usd_cents = wallet.get("balance_usd_cents") or 0
+    spent_usd_cents = wallet.get("total_spent_usd_cents") or 0
+
+    result = {
+        "agent": agent_name,
+        "period": period_label,
+        "balance_sats": wallet["balance_sats"],
+        "balance_usd_cents": balance_usd_cents,
+        "spent_sats": spent_sats,
+        "spent_usd_cents": round(spent_sats * (100 / SATS_PER_USD)),  # convert sats to usd cents
+        "calls": calls,
+        "avg_cost_per_call_sats": avg_cost,
+        "models_used": dict(models_used.most_common()),
+        "budget_utilization_pct": utilization,
+        "spending_cap_sats": cap_sats,
+        "spending_cap_window": cap_window,
+        "cap_hits_in_period": cap_hits,
+        "governance_events_in_period": gov_total,
+        "trend_vs_previous_period": trend_str,
+    }
+
+    if task_types:
+        result["top_task_types"] = dict(task_types.most_common(10))
+
+    return result
+
+
+@app.get("/v1/proxy/wallet/{agent_name}/summary")
+async def wallet_summary(agent_name: str, request: Request):
+    api_key = _extract_api_key(request)
+    if not api_key:
+        return JSONResponse(status_code=401, content={"error": {"message": "Missing API key", "type": "auth_error"}})
+
+    # Admin key can view any agent
+    is_admin = LLM_PROXY_ADMIN_KEY and api_key == LLM_PROXY_ADMIN_KEY
+    if not is_admin:
+        agent = authenticate_agent(api_key)
+        if not agent:
+            return JSONResponse(status_code=401, content={"error": {"message": "Invalid API key", "type": "auth_error"}})
+        if agent["agent_name"] != agent_name:
+            return JSONResponse(
+                status_code=403,
+                content={"error": {"message": f"API key belongs to '{agent['agent_name']}', not '{agent_name}'", "type": "permission_error"}},
+            )
+
+    # Parse period
+    params = request.query_params
+    try:
+        start, end, period_label = _parse_period(
+            params.get("period"), params.get("from"), params.get("to"),
+        )
+    except ValueError as e:
+        return JSONResponse(status_code=400, content={"error": {"message": str(e), "type": "invalid_request"}})
+
+    # Run queries off the event loop
+    try:
+        result = await asyncio.to_thread(_wallet_summary_sync, agent_name, start, end, period_label)
+    except Exception as e:
+        logger.error(f"Wallet summary query failed for {agent_name}: {e}")
+        return JSONResponse(status_code=500, content={"error": {"message": "Internal error querying wallet data", "type": "proxy_error"}})
+
+    if result is None:
+        return JSONResponse(status_code=404, content={"error": {"message": f"Agent '{agent_name}' not found", "type": "not_found"}})
+
+    return result
+
+
+# ─── Agent-to-agent payment endpoint ─────────────────────────────────────────
+
+@app.post("/v1/proxy/pay")
+async def agent_pay(request: Request):
+    """Transfer sats between two agent wallets atomically."""
+    api_key = _extract_api_key(request)
+    if not api_key:
+        return JSONResponse(status_code=401, content={"error": {"message": "Missing API key", "type": "auth_error"}})
+
+    # Admin key can initiate payments on behalf of any agent
+    is_admin = LLM_PROXY_ADMIN_KEY and api_key == LLM_PROXY_ADMIN_KEY
+    if not is_admin:
+        agent = authenticate_agent(api_key)
+        if not agent:
+            return JSONResponse(status_code=401, content={"error": {"message": "Invalid API key", "type": "auth_error"}})
+
+    try:
+        body = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": {"message": "Invalid JSON body", "type": "invalid_request"}})
+
+    from_agent = body.get("from_agent")
+    to_agent = body.get("to_agent")
+    amount_sats = body.get("amount_sats")
+    reason = body.get("reason")
+    reference_id = body.get("reference_id")
+
+    if not from_agent or not to_agent or not amount_sats:
+        return JSONResponse(status_code=400, content={"error": {"message": "from_agent, to_agent, and amount_sats are required", "type": "invalid_request"}})
+
+    if not is_admin and agent["agent_name"] != from_agent:
+        return JSONResponse(
+            status_code=403,
+            content={"error": {"message": f"API key belongs to '{agent['agent_name']}', not '{from_agent}'", "type": "permission_error"}},
+        )
+
+    if amount_sats <= 0:
+        return JSONResponse(status_code=400, content={"error": {"message": "amount_sats must be positive", "type": "invalid_request"}})
+
+    if from_agent == to_agent:
+        return JSONResponse(status_code=400, content={"error": {"message": "Cannot pay yourself", "type": "invalid_request"}})
+
+    try:
+        result = await asyncio.to_thread(
+            _sb_rpc, "transfer_between_agents", {
+                "p_from_agent": from_agent,
+                "p_to_agent": to_agent,
+                "p_amount_sats": amount_sats,
+                "p_reason": reason,
+                "p_reference_id": reference_id,
+            }
+        )
+        if isinstance(result, list) and result:
+            result = result[0]
+        if not result or not result.get("success"):
+            error = result.get("error", "transfer failed") if result else "no result"
+            logger.warning(f"[PAY] Transfer failed {from_agent} → {to_agent}: {error}")
+            return JSONResponse(status_code=402, content={"error": {"message": str(error), "type": "payment_error"}})
+
+        logger.info(f"[PAY] {from_agent} → {to_agent}: {amount_sats} sats (reason={reason})")
+        return result
+
+    except Exception as e:
+        logger.error(f"[PAY] Transfer error {from_agent} → {to_agent}: {e}")
+        return JSONResponse(status_code=500, content={"error": {"message": "Internal payment error", "type": "proxy_error"}})
 
 
 # ─── Main ─────────────────────────────────────────────────────────────────────

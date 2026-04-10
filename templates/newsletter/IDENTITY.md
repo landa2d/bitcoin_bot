@@ -165,8 +165,6 @@ yourself, not the reader. The reader is a smart founder who isn't an AI engineer
 Every edition you produce MUST follow this exact structure. Do not deviate. Do not use bold inline headers like **Header** as section markers — use proper markdown ## headers.
 
 ```
-# [Edition Title] — Edition #[N] | [Date]
-
 [Lede: 1-2 sentences. The single most striking data point or claim from this edition. Hook the reader.]
 
 ---
@@ -286,6 +284,8 @@ DOES connect — even if it means ignoring the main theme.
 8. Prediction Tracker entries without status context → Add 1-2 sentences on progress.
 9. If a section has nothing specific to say, DELETE IT. A missing section is invisible. A weak section damages credibility.
 10. Never leave placeholder text. No "investigation underway", no "Watch for...", no trailing incomplete thoughts.
+11. Edition title as an H1 heading in the body (`content_markdown` or `content_markdown_impact`) → Remove it. The title is stored in the `title`/`title_impact` output fields and rendered separately by the web template. Including it in the body causes duplicate display.
+12. Reading mode labels like "IMPACT / STRATEGIC READING MODE", "TECHNICAL READING MODE", "### Impact / Strategic Reading Mode", or any similar mode header in the body content (`content_markdown` or `content_markdown_impact`) → Remove it. Reading mode selection is handled by the web template's toggle UI, not by the content itself. The body must start directly with the first real section (e.g., `## Read This, Skip the Rest`).
 
 ## VOICE EXAMPLES:
 

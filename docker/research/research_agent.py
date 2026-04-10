@@ -73,7 +73,7 @@ _system_prompt_mtime: float = 0
 
 AGENT_NAME = os.getenv("AGENT_NAME", "research")
 LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://llm-proxy:8200")
-LLM_PROXY_ECONOMICS_URL = os.getenv("LLM_PROXY_ECONOMICS_URL", "http://gato_brain:8100")
+LLM_PROXY_ECONOMICS_URL = os.getenv("LLM_PROXY_URL", "http://llm-proxy:8200")
 _agent_api_key: str | None = os.getenv("AGENT_API_KEY") or None
 proxy_client: anthropic.Anthropic | None = None
 
@@ -184,7 +184,7 @@ def _get_agent_api_key() -> str:
 
 def fetch_economics_block() -> str:
     """Fetch spending summary from the proxy and format as a system prompt block.
-    Non-blocking: returns empty string on any failure."""
+    Non-blocking: returns empty string on any failure. 2-second timeout."""
     global _economics_cache, _economics_fetched_at
 
     now = time.time()
@@ -205,13 +205,17 @@ def fetch_economics_block() -> str:
             logger.debug(f"Economics fetch returned {resp.status_code}")
             return _economics_cache or ""
         d = resp.json()
-        trend_str = d.get("trend_vs_previous_period", "flat").replace("_", " ").replace("pct", "%")
+        cap_sats = d.get("spending_cap_sats") or 0
+        cap_window = d.get("spending_cap_window") or "n/a"
+        util = d.get("budget_utilization_pct")
+        util_str = f"{util}%" if util is not None else "no cap"
+        trend_str = d.get("trend_vs_previous_period", "flat")
         _economics_cache = (
             "\n\n---\n"
             "YOUR ECONOMICS (last 7 days):\n"
             f"Balance: {d['balance_sats']:,} sats | Spent: {d['spent_sats']:,} sats | Calls: {d['calls']:,}\n"
-            f"Budget utilization: {d['budget_utilization_pct']}% of {d['spending_cap_sats']:,} sats {d['spending_cap_window']} cap\n"
-            f"Cap hits: {d['cap_hits_in_period']} | Trend: {trend_str}\n"
+            f"Budget utilization: {util_str} of {cap_sats:,} sats {cap_window} cap\n"
+            f"Cap hits: {d.get('cap_hits_in_period', 0)} | Trend: {trend_str} vs prior week\n"
             "---"
         )
         _economics_fetched_at = now
@@ -220,6 +224,90 @@ def fetch_economics_block() -> str:
         logger.debug(f"Economics fetch failed (non-critical): {e}")
 
     return _economics_cache or ""
+
+
+# ============================================================================
+# Data Provider Integration (agent-to-agent)
+# ============================================================================
+
+DATA_PROVIDER_URL = os.getenv("DATA_PROVIDER_URL", "http://lab-data-provider:8300")
+DATA_PROVIDER_TIMEOUT = 30  # seconds
+
+
+def fetch_external_research(topic: str, depth: str = "deep", max_sources: int = 5) -> dict | None:
+    """Call the Lab Data Provider for web research. Returns result dict or None on failure."""
+    api_key = _agent_api_key or _get_agent_api_key()
+    if not api_key:
+        logger.debug("No API key for external research")
+        return None
+
+    try:
+        # 1. Request research from the Data Provider
+        resp = httpx.post(
+            f"{DATA_PROVIDER_URL}/research",
+            json={"topic": topic, "depth": depth, "max_sources": max_sources},
+            timeout=DATA_PROVIDER_TIMEOUT,
+        )
+        if resp.status_code != 200:
+            logger.warning(f"Data Provider returned {resp.status_code}: {resp.text[:200]}")
+            return None
+
+        result = resp.json()
+        cost_sats = result.get("cost_sats", 0)
+        logger.info(
+            f"Data Provider: {result.get('source_count', 0)} sources for '{topic[:40]}', "
+            f"cost={cost_sats} sats, synthesis={len(result.get('synthesis', ''))} chars"
+        )
+
+        # 2. Pay for the research via the proxy
+        if cost_sats > 0:
+            pay_resp = httpx.post(
+                f"{LLM_PROXY_URL}/v1/proxy/pay",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "from_agent": AGENT_NAME,
+                    "to_agent": "lab_data-provider",
+                    "amount_sats": cost_sats,
+                    "reason": "web_research",
+                },
+                timeout=10,
+            )
+            if pay_resp.status_code == 200:
+                pay_data = pay_resp.json()
+                logger.info(
+                    f"Payment OK: {cost_sats} sats → lab_data-provider "
+                    f"(research balance: {pay_data.get('from_balance')} sats)"
+                )
+            else:
+                logger.warning(f"Payment failed ({pay_resp.status_code}): {pay_resp.text[:200]} — using data anyway")
+
+        return result
+
+    except httpx.ConnectError:
+        logger.debug("Data Provider unreachable — skipping external research")
+        return None
+    except Exception as e:
+        logger.warning(f"External research failed (non-blocking): {e}")
+        return None
+
+
+def format_external_research(result: dict) -> str:
+    """Format Data Provider results as context for the Claude prompt."""
+    lines = ["\n=== EXTERNAL WEB RESEARCH (from Data Provider agent) ==="]
+
+    if result.get("synthesis"):
+        lines.append(f"\nSynthesis:\n{result['synthesis']}")
+
+    sources = result.get("sources", [])
+    if sources:
+        lines.append(f"\nSources ({len(sources)}):")
+        for s in sources:
+            lines.append(f"- {s.get('title', 'Untitled')}: {s.get('url', '')}")
+            excerpt = s.get("excerpt", "")
+            if excerpt:
+                lines.append(f"  {excerpt[:200]}")
+
+    return "\n".join(lines)
 
 
 # ============================================================================
@@ -841,7 +929,16 @@ def process_one() -> bool:
                                 context_payload={**(item.get("context_payload") or {}), "_warning": "timeout_after_gathering"})
             return True
 
+        # Fetch external web research from the Data Provider agent
+        external_data = fetch_external_research(topic_name, depth="deep", max_sources=5)
+
         context = build_context_window(item, sources)
+
+        # Append external research if available
+        if external_data and (external_data.get("sources") or external_data.get("synthesis")):
+            context += format_external_research(external_data)
+            logger.info(f"Context enriched with external research: +{external_data.get('source_count', 0)} sources")
+
         logger.info(f"Context window: {len(context)} chars")
 
         thesis_data, usage_stats = generate_thesis(context, mode)

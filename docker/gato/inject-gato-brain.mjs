@@ -36,6 +36,7 @@ const middleware = `
 📰 NEWSLETTER
 /brief — Latest newsletter (Telegram)
 /newsletter_full — Generate new edition
+/newsletter_preview — Preview on web (no send)
 /newsletter_publish — Publish draft
 /newsletter_revise [text] — Send revision notes
 /freshness — Excluded from next edition
@@ -85,6 +86,15 @@ const middleware = `
 /repos — List registered repos
 /code-status — Session status
 
+🧠 PERSONAL CTO
+/cto status — Docker container status
+/cto db — Database table counts
+/cto spend — Agent wallet balances
+/cto logs [service] — Recent service logs
+/cto git — Recent commits across repos
+/cto search [query] — Search codebase
+/cto arch [question] — AI architecture research
+
 ⚙️ CORE
 /status — Agent status
 /publish — Publish newsletter
@@ -96,7 +106,9 @@ const middleware = `
     // Forward /x-* and code commands to gato-brain (they're handled there, not in OpenClaw)
     const isXCommand = text && /^\\/x-/i.test(text.trim());
     const isCodeCommand = text && /^\\/(code|diff|code-diff|code-approve|approve|code-reject|reject|code-merge|followup|repos)\\b/i.test(text.trim());
-    const isGatoBrainCommand = isXCommand || isCodeCommand;
+    const isCtoCommand = text && /^\\/cto\\b/i.test(text.trim());
+    const isNewsletterPreview = text && /^\\/newsletter_preview\\b/i.test(text.trim());
+    const isGatoBrainCommand = isXCommand || isCodeCommand || isCtoCommand || isNewsletterPreview;
 
     if (text && (!text.startsWith("/") || isGatoBrainCommand)) {
       try {

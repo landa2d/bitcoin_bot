@@ -62,7 +62,7 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('AGENTPULSE_OPENAI_MODEL', 'gpt-4o')
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 DEEPSEEK_BASE_URL = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
-LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://gato_brain:8100")
+LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://llm-proxy:8200")
 _agent_api_key: str | None = os.getenv("AGENT_API_KEY") or None
 
 # Hacker News
@@ -3362,11 +3362,19 @@ def _fetch_latest_spotlight_for_newsletter(edition_number: int) -> dict | None:
         return None
 
 
-def prepare_newsletter_data() -> dict:
+def prepare_newsletter_data(edition_override: int = None) -> dict:
     """Gather data for the Newsletter agent and create a write_newsletter task."""
     if not supabase:
         logger.error("Supabase not configured")
         return {'error': 'Not configured'}
+
+    # Guard: skip if a write_newsletter task already exists this week (unless edition_override)
+    if not edition_override:
+        week_start = (datetime.now(timezone.utc) - timedelta(days=datetime.now(timezone.utc).weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        existing = supabase.table('agent_tasks').select('id').eq('task_type', 'write_newsletter').gte('created_at', week_start.isoformat()).execute()
+        if existing.data:
+            logger.info(f"[PIPELINE] Newsletter task already exists this week (task {existing.data[0]['id']}), skipping")
+            return {'status': 'already_exists', 'task_id': existing.data[0]['id']}
 
     run_id = log_pipeline_start('prepare_newsletter')
     week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
@@ -3722,16 +3730,20 @@ def prepare_newsletter_data() -> dict:
         resolved = confirmed_count + faded_count
         prediction_accuracy = round(confirmed_count / resolved * 100) if resolved > 0 else None
 
-        # Get next edition number
-        try:
-            edition_result = supabase.rpc('next_newsletter_edition').execute()
-            edition_number = edition_result.data if edition_result.data else 1
-        except Exception:
-            # Fallback: count existing newsletters + 1
-            existing = supabase.table('newsletters')\
-                .select('id', count='exact')\
-                .execute()
-            edition_number = (existing.count or 0) + 1
+        # Get next edition number (or use override for reprocessing)
+        if edition_override:
+            edition_number = edition_override
+            logger.info(f"[PIPELINE] Using edition override: #{edition_number}")
+        else:
+            try:
+                edition_result = supabase.rpc('next_newsletter_edition').execute()
+                edition_number = edition_result.data if edition_result.data else 1
+            except Exception:
+                # Fallback: count existing newsletters + 1
+                existing = supabase.table('newsletters')\
+                    .select('id', count='exact')\
+                    .execute()
+                edition_number = (existing.count or 0) + 1
 
         # ── Premium Source Posts (Tier 1 & 2 RSS for attribution) ──
         premium_posts = supabase.table('source_posts')\
@@ -4075,10 +4087,10 @@ def publish_newsletter() -> dict:
         return {'error': 'Supabase not configured'}
 
     try:
-        # Get latest draft newsletter
+        # Get latest unpublished newsletter (draft or pending)
         draft = supabase.table('newsletters')\
             .select('*')\
-            .eq('status', 'draft')\
+            .in_('status', ['draft', 'pending', 'preview'])\
             .order('created_at', desc=True)\
             .limit(1)\
             .execute()
@@ -4147,6 +4159,30 @@ def publish_newsletter() -> dict:
 
     except Exception as e:
         logger.error(f"Newsletter publish failed: {e}")
+        return {'error': str(e)}
+
+
+def preview_newsletter() -> dict:
+    """Set latest draft/pending newsletter to 'preview' — visible on web but not distributed."""
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+    try:
+        draft = supabase.table('newsletters')\
+            .select('id, edition_number')\
+            .in_('status', ['draft', 'pending', 'preview'])\
+            .order('created_at', desc=True)\
+            .limit(1)\
+            .execute()
+        if not draft.data:
+            return {'error': 'No draft newsletter found'}
+        newsletter = draft.data[0]
+        supabase.table('newsletters').update({
+            'status': 'preview'
+        }).eq('id', newsletter['id']).execute()
+        logger.info(f"Newsletter #{newsletter.get('edition_number')} set to preview")
+        return {'previewed': newsletter['id'], 'edition': newsletter.get('edition_number')}
+    except Exception as e:
+        logger.error(f"Newsletter preview failed: {e}")
         return {'error': str(e)}
 
 
@@ -4562,6 +4598,12 @@ def proactive_scan() -> dict:
             return {'anomalies': 0, 'analysis_requested': False}
 
         logger.info(f"Proactive scan: {len(anomalies)} anomalies detected")
+
+        # Pre-check analyst daily budget before creating a task that would immediately fail
+        if not check_daily_budget('analyst'):
+            logger.debug("Proactive scan: analyst daily budget exhausted, skipping task creation")
+            log_pipeline_end(run_id, 'completed', {'anomalies': len(anomalies), 'analysis_requested': False, 'reason': 'analyst_budget_exhausted'})
+            return {'anomalies': len(anomalies), 'analysis_requested': False, 'reason': 'analyst_budget_exhausted'}
 
         # Create a focused analysis task for the Analyst
         budget = get_budget_config('analyst', 'proactive_scan')
@@ -5760,11 +5802,24 @@ def _get_agent_api_key() -> str:
     return ""
 
 
-def log_economics_context():
-    """Fetch and log processor economics from the proxy. Non-blocking."""
+_economics_cache: str = ""
+_economics_fetched_at: float = 0
+_ECONOMICS_TTL = 300
+
+
+def fetch_economics_block() -> str:
+    """Fetch processor economics from proxy, cache it, log it.
+    Non-blocking: returns empty string on any failure. 2-second timeout."""
+    global _economics_cache, _economics_fetched_at
+
+    now = time.time()
+    if _economics_cache and (now - _economics_fetched_at) < _ECONOMICS_TTL:
+        return _economics_cache
+
     api_key = _get_agent_api_key()
     if not api_key:
-        return
+        return ""
+
     try:
         resp = httpx.get(
             f"{LLM_PROXY_URL}/v1/proxy/wallet/processor/summary?period=7d",
@@ -5772,16 +5827,36 @@ def log_economics_context():
             timeout=5,
         )
         if resp.status_code != 200:
-            return
+            return _economics_cache
         d = resp.json()
-        trend_str = d.get("trend_vs_previous_period", "flat").replace("_", " ").replace("pct", "%")
+        cap_sats = d.get("spending_cap_sats") or 0
+        cap_window = d.get("spending_cap_window") or "n/a"
+        util = d.get("budget_utilization_pct")
+        util_str = f"{util}%" if util is not None else "no cap"
+        trend_str = d.get("trend_vs_previous_period", "flat")
+        _economics_cache = (
+            "\n\n---\n"
+            "YOUR ECONOMICS (last 7 days):\n"
+            f"Balance: {d['balance_sats']:,} sats | Spent: {d['spent_sats']:,} sats | Calls: {d['calls']:,}\n"
+            f"Budget utilization: {util_str} of {cap_sats:,} sats {cap_window} cap\n"
+            f"Cap hits: {d.get('cap_hits_in_period', 0)} | Trend: {trend_str} vs prior week\n"
+            "---"
+        )
+        _economics_fetched_at = now
         logger.info(
             f"[ECONOMICS] Balance: {d['balance_sats']:,} sats | "
             f"Spent: {d['spent_sats']:,} sats | Calls: {d['calls']:,} | "
-            f"Utilization: {d['budget_utilization_pct']}% | Trend: {trend_str}"
+            f"Utilization: {util_str} | Trend: {trend_str}"
         )
     except Exception as e:
         logger.debug(f"Economics fetch failed (non-critical): {e}")
+
+    return _economics_cache
+
+
+def log_economics_context():
+    """Periodic scheduler hook — fetch and log economics."""
+    fetch_economics_block()
 
 
 def get_agent_wallets() -> dict:
@@ -6638,17 +6713,101 @@ def _post_tweet(text: str, reply_to: str = None) -> dict:
         return {'error': str(e)}
 
 
+def _get_active_editorial_arc() -> dict | None:
+    """Fetch the current active editorial arc, if any."""
+    if not supabase:
+        return None
+    try:
+        result = supabase.table('x_editorial_arc')\
+            .select('*')\
+            .eq('status', 'active')\
+            .order('week_start', desc=True)\
+            .limit(1)\
+            .execute()
+        return result.data[0] if result.data else None
+    except Exception as e:
+        logger.warning(f"Failed to fetch active editorial arc: {e}")
+        return None
+
+
+def _get_todays_arc_entry(arc: dict) -> dict | None:
+    """Return the full post_sequence entry for today, if any.
+
+    Supports week-aware sequences: {"day": "wed", "week": 1, "angle": "...",
+    "continuity": "...", "engagement_keywords": [...], "cta": "..."}
+    Calculates current week number relative to arc's week_start.
+    If entries have no 'week' field, matches on day only (backwards-compatible).
+    """
+    if not arc:
+        return None
+    sequence = arc.get('post_sequence') or []
+    if isinstance(sequence, str):
+        try:
+            sequence = json.loads(sequence)
+        except Exception:
+            return None
+
+    now = datetime.now(timezone.utc)
+    day_abbr = now.strftime('%a').lower()[:3]
+
+    # Calculate current week number (1-based) relative to week_start
+    week_start = arc.get('week_start')
+    current_week = 1
+    if week_start:
+        try:
+            if isinstance(week_start, str):
+                ws = datetime.strptime(week_start, '%Y-%m-%d').replace(tzinfo=timezone.utc)
+            else:
+                ws = datetime.combine(week_start, datetime.min.time()).replace(tzinfo=timezone.utc)
+            days_elapsed = (now - ws).days
+            current_week = max(1, (days_elapsed // 7) + 1)
+        except Exception:
+            current_week = 1
+
+    # First try matching day + week
+    for entry in sequence:
+        entry_day = entry.get('day', '').lower()[:3]
+        entry_week = entry.get('week')
+        if entry_day == day_abbr:
+            if entry_week is not None and int(entry_week) == current_week:
+                return entry
+
+    # Fallback: match day only (for entries without a week field)
+    for entry in sequence:
+        entry_day = entry.get('day', '').lower()[:3]
+        if entry_day == day_abbr and entry.get('week') is None:
+            return entry
+
+    return None
+
+
 def surface_x_content_candidates() -> dict:
     """Daily content candidate surfacing for X distribution.
 
     Runs each morning: scans analyst output, engagement targets, and predictions
     to create x_content_candidates rows for operator review.
+    Arc-aware: reads the active editorial arc to generate narrative + opportunistic posts.
     """
     if not supabase:
         return {'error': 'Supabase not configured'}
 
     day_ago = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
     candidates_created = 0
+
+    # ── Load active editorial arc ──
+    active_arc = _get_active_editorial_arc()
+    arc_context = ''
+    if active_arc:
+        arc_context = (
+            f"\n\nACTIVE EDITORIAL ARC:\n"
+            f"Pillar: {active_arc.get('pillar', '')}\n"
+            f"Title: {active_arc.get('arc_title', '')}\n"
+            f"Thesis: {active_arc.get('arc_thesis', '')}\n"
+            f"Overarching thesis: {active_arc.get('overarching_thesis', '')}\n"
+        )
+        todays_entry = _get_todays_arc_entry(active_arc)
+        if todays_entry:
+            arc_context += f"Today's planned angle: {todays_entry.get('angle', '')}\n"
 
     # ── Source 1: Sharp takes from recent analysis and source posts ──
     try:
@@ -6680,29 +6839,54 @@ def surface_x_content_candidates() -> dict:
                 for p in posts[:15]
             )
 
-            prompt = f"""You are an opinionated agent economy analyst with a personal X/Twitter presence.
+            arc_instructions = ''
+            if active_arc:
+                arc_instructions = f"""
+IMPORTANT — EDITORIAL ARC CONTEXT:
+{arc_context}
+
+You must classify each candidate as either "narrative" or "opportunistic":
+- "narrative": directly advances the active arc's thesis on '{active_arc.get('pillar', '')}'. Prioritize news items related to the arc pillar and thesis.
+- "opportunistic": trending/notable news that you can tie back to the overarching thesis: "{active_arc.get('overarching_thesis', '')}"
+
+For EACH candidate, include a "narrative_context" field (1-2 sentences) explaining how this post advances or connects to the editorial arc.
+Target: 1-2 narrative posts + 1-2 opportunistic posts."""
+
+            prompt = f"""You are writing X/Twitter posts for @diegolancha. He writes about the agent economy — the economics and trust infrastructure of autonomous AI agents.
 From these recent items, select the 3-5 most notable for the agent economy space.
 For each, provide a sharp take angle — not a news summary, but an opinion on WHY this matters.
 {analyst_context}
+{arc_instructions}
 
 Recent items:
 {post_text}
 
 Respond as JSON array:
-[{{"source_url": "...", "source_summary": "1-2 sentence summary", "suggested_angle": "your opinionated take angle", "draft_content": "ready-to-post tweet text", "suggested_tags": ["handle1", "handle2"]}}]
+[{{"source_url": "...", "source_summary": "1-2 sentence summary", "suggested_angle": "your opinionated take angle", "draft_content": ["tweet 1 text", "tweet 2 text"], "suggested_tags": ["handle1", "handle2"], "content_category": "narrative|opportunistic", "narrative_context": "how this advances the arc"}}]
 
 Rules:
 - Only select items genuinely notable for the AI agent ecosystem
 - Take angles should be provocative, insightful, or contrarian — not bland summaries
-- draft_content must be a ready-to-post tweet following this structure:
-  Line 1: What happened (the news, 1 sentence)
-  Line 2: Why it matters (the opinionated angle)
-  Line 3: A sharp, memorable closer
-  Be opinionated and punchy, not a neutral summary. Better too bold than too safe.
-  If the draft fits under 280 characters, return it as a plain string.
-  If longer, return a JSON array of tweet strings (each under 280 chars) forming a thread.
+- draft_content must be a JSON array of 2 tweet strings forming a thread:
+  TWEET 1 (the take — NO outbound links):
+  - Open with what happened or what was found, in plain language (1-2 sentences of context)
+  - Then give the opinionated take — why this matters for agent economics or trust
+  - Under 280 characters. No hashtags, no emojis.
+  TWEET 2 (the punch + source):
+  - The sharpest single-sentence conclusion or implication
+  - End with: Source: <source_url>
+  - Under 280 characters
+- VOICE:
+  - First person where natural ("I think", "this is why I built")
+  - Conversational, like explaining to a smart friend — not presenting to a conference
+  - Short sentences. Break up dense ideas.
+  - Replace jargon with plain language: "burning compute on chaos" > "suboptimal resource allocation"
+  - Be opinionated and direct, not neutral
+  - Never use: "game-changer", "paradigm shift", "deep dive", "here's the thing", "buckle up", "let that sink in"
+  - Hedging is fine when genuine: "so far", "I'm still figuring this out", "early signal but"
 - suggested_tags: X handles of people/orgs mentioned (without @), or empty array
-- If fewer than 3 items are notable, return fewer. Quality over quantity."""
+- If fewer than 3 items are notable, return fewer. Quality over quantity.
+- content_category and narrative_context are required if an editorial arc is active."""
 
             model = get_model('extraction')
             response = routed_llm_call(model, [
@@ -6745,7 +6929,7 @@ Rules:
                 else:
                     draft_content = str(raw_draft) if raw_draft else ''
 
-                supabase.table('x_content_candidates').insert({
+                insert_data = {
                     'content_type': 'sharp_take',
                     'source_url': candidate_url,
                     'source_summary': take.get('source_summary'),
@@ -6754,11 +6938,116 @@ Rules:
                     'suggested_tags': take.get('suggested_tags', []),
                     'verification_status': v_status,
                     'verification_notes': v_notes,
-                }).execute()
+                }
+                # Add arc-aware fields if arc is active
+                if active_arc:
+                    insert_data['narrative_context'] = take.get('narrative_context', '')
+                    insert_data['content_category'] = take.get('content_category', 'opportunistic')
+
+                supabase.table('x_content_candidates').insert(insert_data).execute()
                 candidates_created += 1
 
     except Exception as e:
         logger.error(f"X sharp take surfacing failed: {e}")
+
+    # ── Source 1b: Narrative posts from arc post_sequence ──
+    todays_entry = None
+    if active_arc:
+        try:
+            todays_entry = _get_todays_arc_entry(active_arc)
+            if todays_entry:
+                todays_angle = todays_entry.get('angle', '')
+                continuity = todays_entry.get('continuity')
+                cta = todays_entry.get('cta')
+
+                continuity_instruction = ''
+                if continuity:
+                    continuity_instruction = f"""
+CONTINUITY: This post follows a previous one. Open with this callback context:
+"{continuity}"
+Weave it naturally into the first line — don't just paste it verbatim."""
+
+                cta_instruction = ''
+                if cta:
+                    cta_instruction = f"""
+CTA: End the post (or final tweet in a thread) with this call-to-action:
+"{cta}"
+Integrate it naturally as the closer — not a jarring ad."""
+
+                narrative_prompt = f"""You are writing an X/Twitter post for @diegolancha about his own experience building an AI agent pipeline called AgentPulse.
+
+EDITORIAL ARC:
+Title: {active_arc.get('arc_title', '')}
+Pillar: {active_arc.get('pillar', '')}
+ARC THESIS: {active_arc.get('arc_thesis', '')}
+Overarching thesis: {active_arc.get('overarching_thesis', '')}
+
+TODAY'S ANGLE: {todays_angle}
+{analyst_context}
+{continuity_instruction}
+{cta_instruction}
+
+Write a 2-3 tweet thread:
+
+TWEET 1:
+- If continuity was provided above, open with a natural callback (not "as I mentioned" — more like "Last week I showed you X. Today it gets worse.")
+- State what you did or found, with specific numbers if in the angle
+- Under 280 characters
+
+TWEET 2:
+- The insight or lesson — what this means beyond your own pipeline
+- Connect to the broader agent economy
+- Under 280 characters
+
+TWEET 3 (only if a CTA was provided above):
+- The CTA, framed naturally: "I wrote up the full technical breakdown in this week's AgentPulse: [link]"
+- Under 280 characters
+
+Respond as JSON:
+{{"draft_content": ["tweet 1", "tweet 2"] or ["tweet 1", "tweet 2", "tweet 3"], "suggested_angle": "the angle executed", "narrative_context": "how this advances the arc"}}
+
+VOICE RULES:
+- First person always — this is your personal experience
+- "I built", "I found", "my agent did X" — not "one might observe"
+- Specific > general: "13,000 API calls per day" > "excessive API usage"
+- Honest about uncertainty: "I'm not sure this scales" > "this is the future"
+- Short paragraphs. One idea per tweet. Breathing room between thoughts.
+- Never use: "game-changer", "paradigm shift", "deep dive", "here's the thing", "buckle up", "let that sink in"
+- No hashtags. No emojis."""
+
+                # Use GPT-4o for editorial quality on narrative posts
+                response = routed_llm_call('gpt-4o', [
+                    {'role': 'system', 'content': 'You output valid JSON only.'},
+                    {'role': 'user', 'content': narrative_prompt},
+                ], temperature=0.5, max_tokens=1000)
+
+                raw = response.choices[0].message.content.strip()
+                if raw.startswith('```'):
+                    raw = re.sub(r'^```\w*\n?', '', raw)
+                    raw = re.sub(r'\n?```$', '', raw)
+                narrative = json.loads(raw)
+
+                raw_draft = narrative.get('draft_content', '')
+                if isinstance(raw_draft, list):
+                    draft_content = json.dumps(raw_draft)
+                else:
+                    draft_content = str(raw_draft) if raw_draft else ''
+
+                supabase.table('x_content_candidates').insert({
+                    'content_type': 'narrative',
+                    'source_summary': f"[ARC] {active_arc.get('arc_title', '')}: {todays_angle}",
+                    'suggested_angle': narrative.get('suggested_angle', todays_angle),
+                    'draft_content': draft_content,
+                    'suggested_tags': [],
+                    'verification_status': 'verified',
+                    'narrative_context': narrative.get('narrative_context', ''),
+                    'content_category': 'narrative',
+                }).execute()
+                candidates_created += 1
+                logger.info(f"Generated narrative arc post for: {todays_angle}")
+
+        except Exception as e:
+            logger.error(f"X narrative arc post generation failed: {e}")
 
     # ── Source 2: Engagement targets from X API search ──
     if _check_x_budget():
@@ -6799,8 +7088,35 @@ Rules:
                     'last_checked_at': datetime.now(timezone.utc).isoformat()
                 }).in_('x_handle', handles).execute()
 
-            # Keyword scan
-            keyword_query = '"MCP server" OR "AI agent framework" OR "agent infrastructure" OR "agentic AI" OR "agent economy"'
+            # Keyword scan — use arc engagement_keywords if available, plus generic fallbacks
+            arc_keywords = []
+            if todays_entry and todays_entry.get('engagement_keywords'):
+                arc_keywords = todays_entry['engagement_keywords']
+
+            generic_keywords = ['"MCP server"', '"AI agent framework"', '"agent infrastructure"', '"agentic AI"', '"agent economy"']
+
+            if arc_keywords:
+                # Arc keywords first (topically aligned with today's narrative post)
+                arc_query = ' OR '.join(f'"{kw}"' if ' ' in kw else kw for kw in arc_keywords)
+                arc_keyword_tweets = _x_api_search(arc_query, max_results=10)
+                for tw in arc_keyword_tweets:
+                    metrics = tw.get('public_metrics', {})
+                    engagement = (metrics.get('like_count', 0) +
+                                  metrics.get('retweet_count', 0))
+                    if engagement < 5:
+                        continue
+                    supabase.table('x_content_candidates').insert({
+                        'content_type': 'engagement_reply',
+                        'source_url': f"https://x.com/{tw.get('author_username')}/status/{tw.get('id')}",
+                        'source_summary': f"@{tw.get('author_username')}: {tw.get('text', '')[:200]}",
+                        'suggested_angle': '',
+                        'suggested_tags': [tw.get('author_username', '')],
+                        'verification_status': 'verified',
+                    }).execute()
+                    candidates_created += 1
+
+            # Generic keywords (always run as fallback)
+            keyword_query = ' OR '.join(generic_keywords)
             keyword_tweets = _x_api_search(keyword_query, max_results=10)
             for tw in keyword_tweets:
                 metrics = tw.get('public_metrics', {})
@@ -6843,10 +7159,17 @@ Rules:
                 f"[{r['id'][:8]}] {r.get('source_summary', '')}"
                 for r in pending_replies.data[:10]
             )
-            prompt = f"""You are an agent economy expert with a personal, opinionated X presence.
-For each tweet below, suggest a smart reply angle AND write a ready-to-post reply draft.
-The reply should add value — an insight, a contrarian take, or a relevant connection the author might not have considered.
-Do NOT suck up or just agree. Be substantive, opinionated, and punchy. Better too bold than too safe.
+            prompt = f"""You are writing X/Twitter replies from @diegolancha. Diego writes about agent economics and trust infrastructure.
+
+For each tweet below, write a single reply tweet:
+- Add a NEW angle or insight to the conversation — don't just agree or disagree
+- Connect their topic to agent economics or trust if possible, but don't force it
+- Be respectful but direct — challenge ideas, not people
+- Under 280 characters
+- No hashtags, no emojis
+- Don't start with "Great point!" or "This!" or "Interesting!" — just make your point
+
+VOICE: Conversational, opinionated, like a smart reply from someone who's actually building in the space.
 
 Tweets:
 {reply_texts}
@@ -6854,7 +7177,7 @@ Tweets:
 Respond as JSON object mapping the bracket ID to an object with "angle" and "draft":
 {{"abc12345": {{"angle": "Your suggested angle here", "draft": "Ready-to-post reply text (under 280 chars)"}}, ...}}
 
-The draft must be under 280 characters. It should read as a standalone reply tweet — direct and sharp."""
+The draft is a plain string (single tweet only), under 280 characters."""
 
             model = get_model('extraction')
             response = routed_llm_call(model, [
@@ -6936,15 +7259,22 @@ The draft must be under 280 characters. It should read as a standalone reply twe
         logger.error(f"X prediction surfacing failed: {e}")
 
     # ── Assign daily index numbers to today's candidates ──
+    # Narrative posts get lowest numbers (shown first), then by creation time
     try:
         today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0).isoformat()
         todays = supabase.table('x_content_candidates')\
-            .select('id')\
+            .select('id, content_type')\
             .eq('status', 'candidate')\
             .gte('created_at', today_start)\
             .order('created_at', desc=False)\
             .execute()
-        for idx, row in enumerate(todays.data or [], start=1):
+        # Sort: narrative first, then sharp_take, then rest
+        type_order = {'narrative': 0, 'sharp_take': 1, 'newsletter_thread': 2, 'prediction': 3, 'engagement_reply': 4}
+        sorted_candidates = sorted(
+            todays.data or [],
+            key=lambda c: type_order.get(c.get('content_type', ''), 9)
+        )
+        for idx, row in enumerate(sorted_candidates, start=1):
             supabase.table('x_content_candidates').update({
                 'daily_index': idx,
             }).eq('id', row['id']).execute()
@@ -7285,6 +7615,47 @@ def post_approved_x_content() -> dict:
                         f"https://x.com/i/status/{thread_ids[0]}"
                     )
             else:
+                # Check if content is a JSON thread array (or plain text over 280 chars)
+                thread_tweets = None
+                try:
+                    parsed = json.loads(content)
+                    if isinstance(parsed, list) and all(isinstance(t, str) for t in parsed):
+                        thread_tweets = parsed
+                except (json.JSONDecodeError, TypeError):
+                    pass
+
+                # If plain text over 280 chars, split into thread on double-newlines
+                if not thread_tweets and len(content) > 280:
+                    parts = [p.strip() for p in content.split('\n\n') if p.strip()]
+                    if len(parts) > 1:
+                        thread_tweets = parts
+
+                if thread_tweets and len(thread_tweets) > 1:
+                    # Post as thread
+                    prev_id = None
+                    thread_ids = []
+                    for tweet_text in thread_tweets:
+                        result = _post_tweet(tweet_text, reply_to=prev_id)
+                        if 'error' in result:
+                            failed.append({'id': candidate['id'], 'error': result['error']})
+                            break
+                        prev_id = result.get('id')
+                        thread_ids.append(prev_id)
+                        time.sleep(1)
+
+                    if thread_ids:
+                        supabase.table('x_content_candidates').update({
+                            'status': 'posted',
+                            'posted_at': datetime.now(timezone.utc).isoformat(),
+                            'x_post_id': thread_ids[0],
+                        }).eq('id', candidate['id']).execute()
+                        posted.append(candidate['id'])
+                        send_telegram(
+                            f"✅ Thread posted ({len(thread_ids)} tweets): "
+                            f"https://x.com/i/status/{thread_ids[0]}"
+                        )
+                    continue
+
                 # Single tweet — for engagement replies, extract reply-to ID from source_url
                 reply_to_id = None
                 if ctype == 'engagement_reply' and candidate.get('source_url'):
@@ -7564,21 +7935,26 @@ def render_newsletter_html(title: str, content_markdown: str, unsubscribe_url: s
     if mode == "impact":
         bg_outer = "#e8e4de"
         bg_inner = "#faf8f4"
-        color_text = "#1a1a1a"
-        color_accent = "#c44b2b"
+        color_text = "#0a0a0f"
+        color_accent = "#7c3aed"
         color_muted = "#6b6560"
         color_border = "#e5e0d8"
-        color_title = "#1a1a1a"
-        color_link = "#c44b2b"
+        color_title = "#0a0a0f"
+        color_link = "#7c3aed"
     else:
         bg_outer = "#0a0a0a"
         bg_inner = "#111"
-        color_text = "#e0e0e0"
-        color_accent = "#00d4aa"
+        color_text = "#ffffff"
+        color_accent = "#00e5a0"
         color_muted = "#888"
         color_border = "#333"
-        color_title = "#fff"
-        color_link = "#00d4aa"
+        color_title = "#ffffff"
+        color_link = "#00e5a0"
+
+    # Inject inline heading styles into markdown-generated HTML
+    heading_style = f'style="font-family:Courier New,monospace;font-size:15px;font-weight:700;color:{color_accent};letter-spacing:2px;text-transform:uppercase;margin:28px 0 12px;"'
+    body_html = body_html.replace('<h2>', f'<h2 {heading_style}>')
+    body_html = body_html.replace('<h3>', f'<h3 {heading_style}>')
 
     return f"""<!DOCTYPE html>
 <html>
@@ -7692,7 +8068,7 @@ def send_email_newsletter(newsletter: dict) -> dict:
                     _send_with_throttle(_build_email_params(from_addr, email, subject_b, html_b, unsub_url, edition, "builder"),
                                         sub_id, email, subject_b, 'builder', edition)
                     # Send impact version
-                    subject_i = "AgentPulse #" + str(edition) + " [Impact]: " + impact_title
+                    subject_i = "AgentPulse #" + str(edition) + " [Strategic]: " + impact_title
                     html_i = render_newsletter_html(impact_title, impact_md, unsub_url, edition, mode="impact")
                     _send_with_throttle(_build_email_params(from_addr, email, subject_i, html_i, unsub_url, edition, "impact"),
                                         sub_id, email, subject_i, 'impact', edition)
@@ -8178,6 +8554,7 @@ RULES:
 FORMAT:
 Return plain text, not JSON. This goes straight to Telegram.
 Use numbered items. Keep it under 500 words total."""
+    system_prompt += fetch_economics_block()
 
     model = get_model('personal_briefing')
     try:
@@ -8526,9 +8903,10 @@ def scheduled_auto_publish_newsletter():
     if not supabase:
         return
     try:
+        # Only auto-publish draft/pending — NOT preview (preview = operator reviewing on web)
         draft = supabase.table('newsletters')\
             .select('id, edition_number, created_at')\
-            .eq('status', 'draft')\
+            .in_('status', ['draft', 'pending'])\
             .order('created_at', desc=True)\
             .limit(1)\
             .execute()
@@ -8811,7 +9189,7 @@ def scheduled_post_approved_x():
 
 
 def scheduled_x_newsletter_thread():
-    """Generate newsletter thread after auto-publish (Monday only)."""
+    """Generate newsletter thread after auto-publish (Monday after publish)."""
     if not supabase:
         return
     try:
@@ -8982,6 +9360,207 @@ def scheduled_health_check():
         logger.error(f"Health check run failed: {e}")
 
 
+# ============================================================================
+# Pipeline Watchdog — Autonomous Self-Healing
+# ============================================================================
+
+_watchdog_cooldowns: dict = {}  # action_key → last_action_time
+
+
+def _watchdog_cooldown_ok(key: str, cooldown_minutes: int = 120) -> bool:
+    """Prevent the same auto-fix from firing more than once per cooldown period."""
+    now = datetime.now(timezone.utc)
+    last = _watchdog_cooldowns.get(key)
+    if last and (now - last).total_seconds() < cooldown_minutes * 60:
+        return False
+    _watchdog_cooldowns[key] = now
+    return True
+
+
+def _ops_restart_service(service: str, reason: str) -> bool:
+    """Ask gato_brain to restart a container via the /ops/restart endpoint."""
+    secret = os.getenv("CODE_SESSION_SECRET", "")
+    try:
+        with httpx.Client(timeout=40) as client:
+            resp = client.post(
+                "http://gato_brain:8100/ops/restart",
+                json={"service": service, "reason": reason},
+                headers={"X-Ops-Secret": secret},
+            )
+        data = resp.json()
+        if data.get("status") == "restarted":
+            logger.info(f"[WATCHDOG] Restarted {service}: {reason}")
+            return True
+        else:
+            logger.warning(f"[WATCHDOG] Restart request for {service} returned: {data}")
+            return False
+    except Exception as e:
+        logger.error(f"[WATCHDOG] Failed to restart {service}: {e}")
+        return False
+
+
+def _ops_get_container_health(service: str) -> dict:
+    """Check container status via gato_brain."""
+    try:
+        with httpx.Client(timeout=10) as client:
+            resp = client.get(f"http://gato_brain:8100/ops/container-status/{service}")
+        return resp.json()
+    except Exception:
+        return {"status": "unreachable"}
+
+
+def run_pipeline_watchdog():
+    """Detect and auto-fix pipeline failures. Runs every 15 minutes."""
+    if not supabase:
+        return
+
+    now = datetime.now(timezone.utc)
+    actions_taken = []
+
+    # ── 1. Stuck tasks: in_progress for >30 minutes ──────────────────
+    try:
+        cutoff = (now - timedelta(minutes=30)).isoformat()
+        stuck = supabase.table('agent_tasks')\
+            .select('id, task_type, assigned_to, started_at')\
+            .eq('status', 'in_progress')\
+            .lt('started_at', cutoff)\
+            .execute()
+
+        for task in (stuck.data or []):
+            task_id = task['id']
+            assigned = task.get('assigned_to', 'unknown')
+            task_type = task.get('task_type', 'unknown')
+            key = f"stuck_task_{task_id}"
+
+            if _watchdog_cooldown_ok(key, cooldown_minutes=60):
+                # Reset to pending so the agent picks it up again
+                supabase.table('agent_tasks').update({
+                    'status': 'pending',
+                    'started_at': None,
+                    'error_message': f'Reset by watchdog: stuck in_progress since {task["started_at"]}',
+                }).eq('id', task_id).execute()
+                actions_taken.append(f"Reset stuck task {task_id[:8]} ({task_type} → {assigned})")
+                logger.warning(f"[WATCHDOG] Reset stuck task {task_id} ({task_type})")
+    except Exception as e:
+        logger.error(f"[WATCHDOG] Stuck task check failed: {e}")
+
+    # ── 2. Agent service health (newsletter, analyst, research) ──────
+    for service in ['newsletter', 'analyst', 'research']:
+        try:
+            health = _ops_get_container_health(service)
+            container_status = health.get('status', 'unknown')
+            container_health = health.get('health', 'unknown')
+
+            if container_status == 'running' and container_health == 'healthy':
+                continue
+
+            key = f"restart_{service}"
+            if _watchdog_cooldown_ok(key, cooldown_minutes=120):
+                reason = f"container {container_status}, health {container_health}"
+                if _ops_restart_service(service, reason):
+                    actions_taken.append(f"Restarted {service} ({reason})")
+                else:
+                    actions_taken.append(f"FAILED to restart {service} ({reason})")
+        except Exception as e:
+            logger.error(f"[WATCHDOG] Service check for {service} failed: {e}")
+
+    # ── 3. Repeated poll errors (agent_tasks table missing, etc.) ────
+    # Check if newsletter/analyst can actually claim tasks
+    for service in ['newsletter', 'analyst']:
+        try:
+            test = supabase.rpc(
+                'claim_agent_task',
+                {'p_assigned_to': f'__watchdog_test_{service}__', 'p_limit': 1},
+            ).execute()
+            # If we get here without exception, the RPC works
+        except Exception as e:
+            error_str = str(e)
+            key = f"rpc_broken_{service}"
+            if _watchdog_cooldown_ok(key, cooldown_minutes=240):
+                actions_taken.append(f"CRITICAL: claim_agent_task RPC broken — {error_str[:100]}")
+                logger.error(f"[WATCHDOG] claim_agent_task RPC broken: {e}")
+
+    # ── 4. Friday newsletter pipeline guard ──────────────────────────
+    if now.weekday() == 4 and now.hour >= 13:
+        # It's Friday after 13:00 UTC — newsletter should exist
+        try:
+            today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+            tasks = supabase.table('agent_tasks')\
+                .select('id, status, error_message')\
+                .eq('task_type', 'write_newsletter')\
+                .gte('created_at', today_start)\
+                .execute()
+
+            if not tasks.data:
+                key = "newsletter_missing_friday"
+                if _watchdog_cooldown_ok(key, cooldown_minutes=240):
+                    logger.warning("[WATCHDOG] No newsletter task found on Friday after 13:00 — triggering")
+                    try:
+                        scheduled_prepare_newsletter()
+                        actions_taken.append("Triggered missing Friday newsletter preparation")
+                    except Exception as prep_err:
+                        actions_taken.append(f"FAILED to trigger newsletter: {prep_err}")
+            else:
+                # Check if all tasks failed
+                all_failed = all(t.get('status') == 'failed' for t in tasks.data)
+                if all_failed and len(tasks.data) < 3:
+                    key = "newsletter_retry_friday"
+                    if _watchdog_cooldown_ok(key, cooldown_minutes=240):
+                        last_error = tasks.data[0].get('error_message', 'unknown')
+                        logger.warning(f"[WATCHDOG] All newsletter tasks failed ({last_error}), retrying")
+
+                        # Restart the newsletter service and re-trigger
+                        _ops_restart_service('newsletter', f'all tasks failed: {last_error[:80]}')
+                        time.sleep(10)  # brief pause for container to come up
+                        scheduled_prepare_newsletter()
+                        actions_taken.append(f"Retried newsletter after all tasks failed: {last_error[:60]}")
+        except Exception as e:
+            logger.error(f"[WATCHDOG] Newsletter pipeline check failed: {e}")
+
+    # ── 5. Failed tasks piling up — alert for code-level fixes ───────
+    try:
+        recent_cutoff = (now - timedelta(hours=6)).isoformat()
+        failed = supabase.table('agent_tasks')\
+            .select('task_type, assigned_to, error_message', count='exact')\
+            .eq('status', 'failed')\
+            .gte('created_at', recent_cutoff)\
+            .execute()
+
+        fail_count = failed.count if failed.count is not None else len(failed.data or [])
+        if fail_count >= 5:
+            key = "many_failures"
+            if _watchdog_cooldown_ok(key, cooldown_minutes=360):
+                # Group by error pattern
+                error_summary = {}
+                for t in (failed.data or [])[:10]:
+                    err = (t.get('error_message') or 'unknown')[:80]
+                    error_summary[err] = error_summary.get(err, 0) + 1
+
+                summary_lines = [f"  {k}: {v}x" for k, v in error_summary.items()]
+                actions_taken.append(
+                    f"ESCALATE: {fail_count} failed tasks in 6h — may need code fix:\n"
+                    + "\n".join(summary_lines)
+                )
+    except Exception as e:
+        logger.error(f"[WATCHDOG] Failed task check failed: {e}")
+
+    # ── Report ───────────────────────────────────────────────────────
+    if actions_taken:
+        msg = "🔧 Pipeline Watchdog Actions:\n\n" + "\n".join(f"• {a}" for a in actions_taken)
+        send_telegram(msg)
+        logger.info(f"[WATCHDOG] {len(actions_taken)} actions taken")
+    else:
+        logger.debug("[WATCHDOG] All clear, no actions needed")
+
+
+def scheduled_pipeline_watchdog():
+    """Scheduler wrapper for pipeline watchdog."""
+    try:
+        run_pipeline_watchdog()
+    except Exception as e:
+        logger.error(f"[WATCHDOG] Pipeline watchdog run failed: {e}")
+
+
 def setup_scheduler():
     """Set up scheduled tasks."""
     # Get intervals from environment or use defaults
@@ -8995,21 +9574,24 @@ def setup_scheduler():
     schedule.every(6).hours.do(scheduled_scrape_rss)
     schedule.every(6).hours.do(scheduled_scrape_thought_leaders)
     schedule.every(6).hours.do(scheduled_scrape_x_source_accounts)
-    # Monday newsletter pipeline (times in UTC):
-    #   06:00 — Topic evolution update (lifecycle phases)
-    #   06:10 — Analysis cycle (problems, tools, clusters, delegate to Analyst)
-    #   06:30 — Spotlight selection heuristic → writes research trigger
-    #   06:30 — Research Agent picks up trigger (runs in its own container)
-    #   06:30 — Prediction tracking (before newsletter)
-    #   09:00 — Newsletter preparation (allows ~2.5h for Research Agent)
-    #   10:00 — Newsletter notification
-    schedule.every().monday.at("06:00").do(scheduled_update_evolution)
-    schedule.every().monday.at("06:30").do(scheduled_select_spotlight)
-    schedule.every().monday.at("06:30").do(scheduled_track_predictions)
-    schedule.every().monday.at("09:00").do(scheduled_prepare_newsletter)
-    schedule.every().monday.at("10:00").do(scheduled_notify_newsletter)
-    schedule.every().monday.at("13:00").do(scheduled_auto_publish_newsletter)
-    schedule.every().monday.at("13:15").do(lambda: retry_failed_emails())
+    # Newsletter pipeline (times in UTC, CET = UTC+1):
+    # GENERATION — Friday (ready by 15:00 CET / 14:00 UTC for weekend review)
+    #   08:00 — Topic evolution update (lifecycle phases)
+    #   08:30 — Spotlight selection heuristic → writes research trigger
+    #   08:30 — Research Agent picks up trigger (runs in its own container)
+    #   08:30 — Prediction tracking (before newsletter)
+    #   11:00 — Newsletter preparation (allows ~2.5h for Research Agent)
+    #   12:00 — Newsletter notification (= 13:00 CET, draft ready for review)
+    # PUBLISHING — Monday (12:00 CET / 11:00 UTC, after weekend review)
+    #   11:00 — Auto-publish newsletter
+    #   11:15 — Retry failed emails
+    schedule.every().friday.at("08:00").do(scheduled_update_evolution)
+    schedule.every().friday.at("08:30").do(scheduled_select_spotlight)
+    schedule.every().friday.at("08:30").do(scheduled_track_predictions)
+    schedule.every().friday.at("11:00").do(scheduled_prepare_newsletter)
+    schedule.every().friday.at("12:00").do(scheduled_notify_newsletter)
+    schedule.every().monday.at("11:00").do(scheduled_auto_publish_newsletter)
+    schedule.every().monday.at("11:15").do(lambda: retry_failed_emails())
 
     # Recurring analysis & extraction
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
@@ -9032,13 +9614,16 @@ def setup_scheduler():
     # X Distribution Pipeline
     #   06:00 UTC daily — surface candidates (= ~7am CET)
     #   Every 5 min — post approved content (quick poll)
-    #   Monday 13:30 — generate newsletter thread (after auto-publish at 13:00)
+    #   Monday 11:30 — generate newsletter thread (after auto-publish at 11:00)
     schedule.every().day.at("06:00").do(scheduled_surface_x_candidates)
     schedule.every(5).minutes.do(scheduled_post_approved_x)
-    schedule.every().monday.at("13:30").do(scheduled_x_newsletter_thread)
+    schedule.every().monday.at("11:30").do(scheduled_x_newsletter_thread)
 
     # Health checks — every 30 min
     schedule.every(30).minutes.do(scheduled_health_check)
+
+    # Pipeline watchdog — autonomous self-healing every 15 min
+    schedule.every(15).minutes.do(scheduled_pipeline_watchdog)
 
     schedule.every(6).hours.do(log_economics_context)
 
@@ -9049,8 +9634,37 @@ def setup_scheduler():
     logger.info("Hourly: workspace cache refresh, proactive anomaly scan")
     logger.info("Every 10min: negotiation timeout check")
     logger.info("Personal briefing: 08:00 and 20:00 UTC daily")
-    logger.info("X distribution: candidates at 06:00 daily, approved posting every 5min, newsletter thread Monday 13:30")
+    logger.info("X distribution: candidates at 06:00 daily, approved posting every 5min, newsletter thread Monday 11:30")
+    logger.info("Newsletter: generation Friday 08:00-12:00 UTC, publish Monday 11:00 UTC")
     logger.info("Health checks: every 30min with 60min alert cooldown")
+    logger.info("Pipeline watchdog: every 15min — auto-restart, stuck task reset, newsletter guard")
+
+    # Catch-up: if today is Monday and we missed the newsletter trigger
+    _check_missed_newsletter()
+
+
+def _check_missed_newsletter():
+    """On startup, check if we missed the Friday newsletter trigger."""
+    now = datetime.now(timezone.utc)
+    if now.weekday() != 4:  # Not Friday
+        return
+    if now.hour < 11:  # Before trigger time
+        return
+    if not supabase:
+        return
+    try:
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+        existing = supabase.table('agent_tasks')\
+            .select('id')\
+            .eq('task_type', 'write_newsletter')\
+            .gte('created_at', today_start)\
+            .execute()
+        if not existing.data:
+            logger.info("[PIPELINE] Catch-up: missed Friday newsletter trigger, running now")
+            scheduled_prepare_newsletter()
+    except Exception as e:
+        logger.error(f"[PIPELINE] Catch-up check failed: {e}")
+
 
 def run_scheduler():
     """Run the scheduler in a background thread."""
@@ -9064,10 +9678,11 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats', 'personal_briefing', 'get_agent_wallets', 'get_agent_ledger', 'topup_agent', 'surface_x_candidates', 'x_approve', 'x_reject', 'x_edit', 'x_draft', 'post_approved_x', 'get_x_plan', 'get_x_posted', 'get_x_budget', 'x_watch', 'x_unwatch', 'x_watchlist', 'health_check'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'preview_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats', 'personal_briefing', 'get_agent_wallets', 'get_agent_ledger', 'topup_agent', 'surface_x_candidates', 'x_approve', 'x_reject', 'x_edit', 'x_draft', 'post_approved_x', 'get_x_plan', 'get_x_posted', 'get_x_budget', 'x_watch', 'x_unwatch', 'x_watchlist', 'health_check'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
+    parser.add_argument('--edition', type=int, help='Override edition number for newsletter preparation')
     args = parser.parse_args()
     
     init_clients()
@@ -9113,9 +9728,13 @@ def main():
         print(json.dumps(result, default=str, indent=2))
     
     elif args.task == 'prepare_newsletter':
-        result = prepare_newsletter_data()
+        result = prepare_newsletter_data(edition_override=args.edition)
         print(json.dumps(result, default=str, indent=2))
     
+    elif args.task == 'preview_newsletter':
+        result = preview_newsletter()
+        print(json.dumps(result, default=str, indent=2))
+
     elif args.task == 'publish_newsletter':
         result = publish_newsletter()
         print(json.dumps(result, default=str, indent=2))

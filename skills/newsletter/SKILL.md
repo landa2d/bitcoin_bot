@@ -45,12 +45,13 @@ Then write. Lead with what's interesting, not what's comprehensive.
 
 Every edition MUST follow this exact structure. Do not deviate.
 
-**Edition header**
-`# [Edition Title] — Edition #[N] | [Date]`
-
-**Lede** (no header)
-1-2 sentences. The single most striking data point or claim. Hook the reader.
-If it could open any newsletter, it's too generic. Never open with "This week in..."
+**Read This, Skip the Rest**
+Header: `## Read This, Skip the Rest`
+Always the FIRST section. 3 paragraphs, 3-5 sentences each. Self-contained value.
+Technical version (content_markdown): names tools, frameworks, metrics.
+Strategic version (content_markdown_impact): zero jargon, business language, analogies.
+Absorb the strongest hook into paragraph 1. See BRIEF_TEMPLATE.md for examples.
+This replaces the old Lede and Board Brief — do NOT write either of those.
 
 **Spotlight** (only if spotlight field is present and not null)
 Header: `## Spotlight: [Conviction-Laden Title]` — title must be opinionated, not a topic label.
@@ -146,6 +147,7 @@ These are more important than the section guide. Rewrite before outputting if AN
 6. A section with zero named companies, projects, or people → Add specifics or cut.
 7. Tool Radar entries without mention counts or sentiment scores → Add quantitative data.
 8. Prediction Tracker entries without status context → Add 1-2 sentences on progress.
+9. Edition title as an H1 heading in `content_markdown` or `content_markdown_impact` → Remove it. The title is stored in the `title`/`title_impact` JSON fields and rendered separately by the web template. Including it in the body causes duplicate display.
 
 ### Freshness Rules
 
@@ -190,10 +192,10 @@ The Impact / Strategic reading mode speaks to investors, executives, and strateg
 The `content_markdown_impact` field MUST follow this exact structure:
 
 ```
-# [Edition Title] — Edition #[N] | [Date]
-### Impact / Strategic Reading Mode
-
-[Lede: 1-2 sentences. The single most commercially significant data point. Frame as business risk or opportunity, not technical observation.]
+## Read This, Skip the Rest
+[3 paragraphs in strategic/business language. Zero tool names, zero jargon.
+Use everyday analogies. See BRIEF_TEMPLATE.md for rules and examples.
+This replaces the old Lede and Board Brief — do NOT write either.]
 
 ---
 

@@ -137,7 +137,7 @@ async function loadList() {
     var { data, error } = await sb
         .from('newsletters')
         .select('*')
-        .eq('status', 'published')
+        .in('status', ['published', 'preview'])
         .order('edition_number', { ascending: false });
 
     if (error || !data || data.length === 0) {
@@ -156,13 +156,18 @@ async function loadList() {
 function renderArticle(data) {
     var title = getModeTitle(data);
     var content = getModeContent(data);
-    var date = formatDate(data.published_at);
+    var date = formatDate(data.published_at || data.created_at);
 
     // Update hero with edition info
     updateHero(title, 'Edition #' + data.edition_number + ' \u00b7 ' + date);
 
+    var banner = '';
+    if (data.status === 'preview') {
+        banner = '<div style="background:#f59e0b;color:#000;padding:10px 16px;border-radius:6px;margin-bottom:16px;font-weight:600;text-align:center;">PREVIEW — NOT YET PUBLISHED</div>';
+    }
+
     var rendered = marked.parse(content);
-    document.getElementById('newsletter-content').innerHTML = rendered;
+    document.getElementById('newsletter-content').innerHTML = banner + rendered;
 }
 
 async function loadEdition(editionNumber) {
@@ -172,7 +177,7 @@ async function loadEdition(editionNumber) {
         .from('newsletters')
         .select('*')
         .eq('edition_number', editionNumber)
-        .eq('status', 'published')
+        .in('status', ['published', 'preview'])
         .single();
 
     if (error || !data) {

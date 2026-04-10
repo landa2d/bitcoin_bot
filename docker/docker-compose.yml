@@ -82,6 +82,8 @@ services:
       - /root/lab:/root/lab
       - /root/bitcoin_bot:/root/bitcoin_bot
       - /root/code-workspaces:/root/code-workspaces
+      # CTO commands: Docker socket for container status/logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     mem_limit: 1536m
     depends_on:
       - llm-proxy
@@ -122,6 +124,8 @@ services:
       OPENAI_BASE_URL: http://llm-proxy:8200/v1
       DEEPSEEK_API_KEY: ap_analyst_8195afb1e9849c3227ade910047ea7c2
       DEEPSEEK_BASE_URL: http://llm-proxy:8200/v1
+      AGENT_API_KEY: ap_analyst_8195afb1e9849c3227ade910047ea7c2
+      LLM_PROXY_URL: http://llm-proxy:8200
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../data/openclaw/agents/analyst:/home/openclaw/.openclaw/agents/analyst
@@ -170,6 +174,8 @@ services:
       OPENAI_BASE_URL: http://llm-proxy:8200/v1
       DEEPSEEK_API_KEY: ap_newsletter_3aaefe32b03b638665ca0560b7f784d3
       DEEPSEEK_BASE_URL: http://llm-proxy:8200/v1
+      AGENT_API_KEY: ap_newsletter_3aaefe32b03b638665ca0560b7f784d3
+      LLM_PROXY_URL: http://llm-proxy:8200
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../data/openclaw/agents/newsletter:/home/openclaw/.openclaw/agents/newsletter
@@ -256,6 +262,8 @@ services:
       OPENAI_API_KEY: ap_processor_bbf3520a2c38065dc95c8d16a37df978
       DEEPSEEK_API_KEY: ap_processor_bbf3520a2c38065dc95c8d16a37df978
       DEEPSEEK_BASE_URL: http://llm-proxy:8200/v1
+      AGENT_API_KEY: ap_processor_bbf3520a2c38065dc95c8d16a37df978
+      LLM_PROXY_URL: http://llm-proxy:8200
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../config:/home/openclaw/.openclaw/config:ro
@@ -313,6 +321,36 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
+
+  # ═══════════════════════════════════════════════════════
+  # LAB DATA PROVIDER — Web research service (agent-to-agent)
+  # ═══════════════════════════════════════════════════════
+  lab-data-provider:
+    build:
+      context: ./lab-data-provider
+      dockerfile: Dockerfile
+    container_name: agentpulse-lab-data-provider
+    restart: unless-stopped
+    env_file:
+      - ../config/.env
+    environment:
+      <<: *common-env
+      AGENT_NAME: lab_data-provider
+      AGENT_API_KEY: ap_lab-data-provider_8a13531d1fb9a271adb6ed410d74024d
+      LLM_PROXY_URL: http://llm-proxy:8200
+      DATA_PROVIDER_PORT: "8300"
+      LOG_LEVEL: info
+    mem_limit: 256m
+    depends_on:
+      llm-proxy:
+        condition: service_healthy
+    networks:
+      - agentpulse-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ═══════════════════════════════════════════════════════
   # WEB — Newsletter archive (Caddy + static SPA)

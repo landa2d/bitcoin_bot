@@ -6,6 +6,7 @@ Handles: session management, conversation memory, rate limiting, response genera
 """
 
 import hmac
+import json
 import logging
 import os
 import re
@@ -25,6 +26,7 @@ import subprocess
 import threading
 
 import code_commands
+import cto_commands
 import corpus_probe
 import intent_router
 import query_templates
@@ -133,8 +135,8 @@ _ECONOMICS_TTL = 300
 
 
 def fetch_economics_block() -> str:
-    """Fetch Gato's spending summary from our own endpoint and format for the system prompt.
-    Non-blocking: returns empty string on any failure.
+    """Fetch Gato's spending summary from the proxy wallet endpoint.
+    Non-blocking: returns empty string on any failure. 2-second timeout.
     Gato gets conversational framing so it can answer user questions about its budget."""
     global _economics_cache, _economics_fetched_at
 
@@ -142,51 +144,35 @@ def fetch_economics_block() -> str:
     if _economics_cache is not None and (now - _economics_fetched_at) < _ECONOMICS_TTL:
         return _economics_cache
 
+    if not LLM_PROXY_URL or not AGENT_API_KEY:
+        return ""
+
     try:
-        # Query Supabase directly rather than HTTP to self to avoid circular dependency.
-        wallet_res = supabase.table("agent_wallets").select("*").eq("agent_name", WALLET_AGENT_NAME).limit(1).execute()
-        if not wallet_res.data:
-            return ""
-        wallet = wallet_res.data[0]
-
-        seven_days_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-
-        txns = (
-            supabase.table("agent_transactions")
-            .select("amount_sats")
-            .eq("agent_name", WALLET_AGENT_NAME)
-            .eq("transaction_type", "spend")
-            .gte("created_at", seven_days_ago)
-            .execute()
+        resp = httpx.get(
+            f"{LLM_PROXY_URL}/v1/proxy/wallet/{WALLET_AGENT_NAME}/summary?period=7d",
+            headers={"Authorization": f"Bearer {AGENT_API_KEY}"},
+            timeout=5,
         )
-        spent_sats = sum(t["amount_sats"] for t in (txns.data or []))
-
-        calls_data = (
-            supabase.table("llm_call_log")
-            .select("model, estimated_cost")
-            .eq("agent_name", WALLET_AGENT_NAME)
-            .gte("created_at", seven_days_ago)
-            .execute()
-        )
-        rows = calls_data.data or []
-        total_calls = len(rows)
-
-        cap_res = supabase.table("agent_spending_caps").select("cap_sats, window").eq("agent_name", WALLET_AGENT_NAME).limit(1).execute()
-        cap_row = (cap_res.data or [None])[0]
-        cap_sats = cap_row["cap_sats"] if cap_row else 0
-        cap_window = cap_row["window"] if cap_row else "daily"
-        util = round((spent_sats / cap_sats) * 100, 1) if cap_sats > 0 else 0.0
-
+        if resp.status_code != 200:
+            logger.debug(f"Economics fetch returned {resp.status_code}")
+            return _economics_cache or ""
+        d = resp.json()
+        cap_sats = d.get("spending_cap_sats") or 0
+        cap_window = d.get("spending_cap_window") or "n/a"
+        util = d.get("budget_utilization_pct")
+        util_str = f"{util}%" if util is not None else "no cap"
+        trend_str = d.get("trend_vs_previous_period", "flat")
         _economics_cache = (
             "\n\n---\n"
             "YOUR ECONOMICS (last 7 days) — you may share this when users ask about your costs, "
             "budget, spending, or how much you cost to run:\n"
-            f"Balance: {wallet['balance_sats']:,} sats | Spent: {spent_sats:,} sats | Calls: {total_calls:,}\n"
-            f"Budget utilization: {util}% of {cap_sats:,} sats {cap_window} cap\n"
+            f"Balance: {d['balance_sats']:,} sats | Spent: {d['spent_sats']:,} sats | Calls: {d['calls']:,}\n"
+            f"Budget utilization: {util_str} of {cap_sats:,} sats {cap_window} cap\n"
+            f"Cap hits: {d.get('cap_hits_in_period', 0)} | Trend: {trend_str} vs prior week\n"
             "---"
         )
         _economics_fetched_at = now
-        logger.info(f"Economics context refreshed: {spent_sats} sats spent, {total_calls} calls")
+        logger.info(f"Economics context refreshed: {d['spent_sats']} sats spent, {d['calls']} calls")
     except Exception as e:
         logger.debug(f"Economics fetch failed (non-critical): {e}")
 
@@ -709,6 +695,70 @@ async def health():
     return {"status": "ok", "active_sessions": active}
 
 
+# ─── Ops endpoint — autonomous container management ────────────────
+
+@app.post("/ops/restart")
+async def ops_restart(request: Request):
+    """Restart a Docker container by service name. Called by processor watchdog."""
+    body = await request.json()
+    service = body.get("service", "")
+    reason = body.get("reason", "unknown")
+    secret = request.headers.get("X-Ops-Secret", "")
+
+    # Auth: reuse the inter-service secret
+    expected = os.getenv("CODE_SESSION_SECRET", "")
+    if not expected or secret != expected:
+        return {"error": "unauthorized"}
+
+    allowed = {"newsletter", "analyst", "research", "web"}
+    if service not in allowed:
+        return {"error": f"service '{service}' not in allowed list: {allowed}"}
+
+    logger.info(f"[OPS] Restart requested: {service} — reason: {reason}")
+    try:
+        import docker as dockerlib
+        client = dockerlib.from_env()
+        # Map service name to container name
+        container_map = {
+            "newsletter": "agentpulse-newsletter",
+            "analyst": "agentpulse-analyst",
+            "research": "agentpulse-research",
+            "web": "agentpulse-web",
+        }
+        container_name = container_map.get(service, f"agentpulse-{service}")
+        container = client.containers.get(container_name)
+        container.restart(timeout=30)
+        logger.info(f"[OPS] Restarted {container_name}")
+        return {"status": "restarted", "service": service}
+    except Exception as e:
+        logger.error(f"[OPS] Restart failed for {service}: {e}")
+        return {"error": str(e)}
+
+
+@app.get("/ops/container-status/{service}")
+async def ops_container_status(service: str):
+    """Return container health status for a service."""
+    try:
+        import docker as dockerlib
+        client = dockerlib.from_env()
+        container_map = {
+            "newsletter": "agentpulse-newsletter",
+            "analyst": "agentpulse-analyst",
+            "research": "agentpulse-research",
+            "processor": "agentpulse-processor",
+            "web": "agentpulse-web",
+        }
+        container_name = container_map.get(service, f"agentpulse-{service}")
+        container = client.containers.get(container_name)
+        return {
+            "service": service,
+            "status": container.status,
+            "health": container.attrs.get("State", {}).get("Health", {}).get("Status", "unknown"),
+        }
+    except Exception as e:
+        return {"service": service, "status": "not_found", "error": str(e)}
+
+
 # ─── Embedding pipeline trigger ─────────────────────────────────────
 
 _embed_lock = threading.Lock()
@@ -753,6 +803,33 @@ def _run_embed_pipeline(mode: str = "--incremental") -> dict:
         return {"status": "error", "error": str(e)}
     finally:
         _embed_lock.release()
+
+
+def _run_economics_report() -> str:
+    """Run economics_report.py --dry-run and return the human-readable output."""
+    try:
+        result = subprocess.run(
+            ["python3", "/root/bitcoin_bot/economics_report.py", "--dry-run"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd="/root/bitcoin_bot",
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            # Truncate to fit Telegram's 4096 char limit with margin
+            output = result.stdout.strip()
+            if len(output) > 3900:
+                output = output[:3900] + "\n... (truncated)"
+            return output
+        else:
+            err = result.stderr.strip()[-300:] if result.stderr else "no output"
+            logger.warning(f"/economics failed (exit {result.returncode}): {err}")
+            return f"Economics report failed (exit {result.returncode}). Check logs."
+    except subprocess.TimeoutExpired:
+        return "Economics report timed out (30s limit)."
+    except Exception as e:
+        logger.error(f"/economics error: {e}")
+        return f"Economics report error: {e}"
 
 
 @app.post("/embed/incremental")
@@ -981,13 +1058,157 @@ def _handle_x_draft(args: str) -> str:
     return f"Draft replaced and approved for #{idx}. Processor will post when ready.\n\n{new_text}"
 
 
+def _handle_x_arc() -> str:
+    """Show the current active editorial arc, its thesis, and planned post sequence."""
+    try:
+        result = supabase.table("x_editorial_arc")\
+            .select("*")\
+            .eq("status", "active")\
+            .order("week_start", desc=True)\
+            .limit(1)\
+            .execute()
+    except Exception as e:
+        return f"Failed to fetch arc: {e}"
+
+    if not result.data:
+        return "No active editorial arc.\nUse /x-arc-set [title] to create one."
+
+    arc = result.data[0]
+    sequence = arc.get("post_sequence") or []
+    if isinstance(sequence, str):
+        try:
+            sequence = json.loads(sequence)
+        except Exception:
+            sequence = []
+
+    lines = [
+        "\U0001f4d6 Active Editorial Arc\n",
+        f"Title: {arc.get('arc_title', '')}",
+        f"Pillar: {arc.get('pillar', '')}",
+        f"Week: {arc.get('week_start', '')}",
+        f"Status: {arc.get('status', '')}",
+        f"\nThesis: {arc.get('arc_thesis', '')}",
+        f"\nOverarching: {arc.get('overarching_thesis', '')}",
+    ]
+
+    if sequence:
+        lines.append("\nPost Sequence:")
+        for entry in sequence:
+            day = entry.get("day", "?").upper()
+            angle = entry.get("angle", "")
+            lines.append(f"  {day}: {angle}")
+
+    return "\n".join(lines)
+
+
+def _handle_x_arc_set(args: str) -> str:
+    """Create a new active editorial arc. Usage: /x-arc-set [title]
+    Uses LLM to generate arc details from the title."""
+    if not args.strip():
+        return "Usage: /x-arc-set [arc title]\nExample: /x-arc-set The Hidden Cost Problem"
+
+    arc_title = args.strip()
+
+    # Deactivate any current active arc
+    try:
+        active = supabase.table("x_editorial_arc")\
+            .select("id")\
+            .eq("status", "active")\
+            .execute()
+        for row in (active.data or []):
+            supabase.table("x_editorial_arc").update(
+                {"status": "completed"}
+            ).eq("id", row["id"]).execute()
+    except Exception as e:
+        logger.warning(f"Failed to deactivate old arcs: {e}")
+
+    # Determine week_start (Monday of current week)
+    today = date.today()
+    week_start = today - timedelta(days=today.weekday())
+
+    # Use LLM to generate arc details from the title
+    arc_thesis = ""
+    pillar = "economics"
+    post_sequence = []
+
+    if deepseek_client:
+        try:
+            prompt = f"""You are designing a weekly editorial arc for an X/Twitter presence focused on the agent economy.
+
+Arc title: "{arc_title}"
+
+Generate:
+1. pillar: either "economics" or "trust" — whichever this arc is about
+2. arc_thesis: 1-2 sentences — the argument this arc builds toward
+3. post_sequence: a planned sequence of 3-5 posts across the week
+
+Respond as JSON:
+{{"pillar": "economics|trust", "arc_thesis": "...", "post_sequence": [{{"day": "mon", "angle": "hook — ..."}}, {{"day": "wed", "angle": "evidence — ..."}}, {{"day": "fri", "angle": "lesson — ..."}}]}}"""
+
+            response = deepseek_client.post(
+                "/chat/completions",
+                json={
+                    "model": "deepseek-chat",
+                    "messages": [
+                        {"role": "system", "content": "You output valid JSON only."},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "temperature": 0.4,
+                    "max_tokens": 1000,
+                },
+            )
+            response.raise_for_status()
+            raw = response.json()["choices"][0]["message"]["content"].strip()
+            if raw.startswith("```"):
+                import re as _re
+                raw = _re.sub(r'^```\w*\n?', '', raw)
+                raw = _re.sub(r'\n?```$', '', raw)
+            arc_data = json.loads(raw)
+            pillar = arc_data.get("pillar", "economics")
+            arc_thesis = arc_data.get("arc_thesis", arc_title)
+            post_sequence = arc_data.get("post_sequence", [])
+        except Exception as e:
+            logger.warning(f"LLM arc generation failed, using defaults: {e}")
+            arc_thesis = arc_title
+
+    if not arc_thesis:
+        arc_thesis = arc_title
+
+    try:
+        supabase.table("x_editorial_arc").insert({
+            "arc_title": arc_title,
+            "pillar": pillar,
+            "arc_thesis": arc_thesis,
+            "week_start": week_start.isoformat(),
+            "status": "active",
+            "post_sequence": post_sequence,
+        }).execute()
+    except Exception as e:
+        return f"Failed to create arc: {e}"
+
+    # Format confirmation
+    lines = [
+        "\u2705 New editorial arc activated\n",
+        f"Title: {arc_title}",
+        f"Pillar: {pillar}",
+        f"Thesis: {arc_thesis}",
+        f"Week: {week_start.isoformat()}",
+    ]
+    if post_sequence:
+        lines.append("\nPlanned sequence:")
+        for entry in post_sequence:
+            lines.append(f"  {entry.get('day', '?').upper()}: {entry.get('angle', '')}")
+
+    return "\n".join(lines)
+
+
 def _handle_x_plan() -> str:
     """Show today's content candidates + any unactioned engagement replies."""
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     # Today's candidates (all types)
     today_resp = (
         supabase.table("x_content_candidates")
-        .select("daily_index, content_type, status, suggested_angle, draft_content, verification_status, source_summary, suggested_tags")
+        .select("daily_index, content_type, status, suggested_angle, draft_content, verification_status, source_summary, source_url, suggested_tags, narrative_context, content_category")
         .gte("created_at", today_start.isoformat())
         .order("daily_index")
         .execute()
@@ -995,7 +1216,7 @@ def _handle_x_plan() -> str:
     # All unactioned engagement replies (may be from previous days)
     engage_resp = (
         supabase.table("x_content_candidates")
-        .select("daily_index, content_type, status, suggested_angle, draft_content, verification_status, source_summary, suggested_tags")
+        .select("daily_index, content_type, status, suggested_angle, draft_content, verification_status, source_summary, source_url, suggested_tags, narrative_context, content_category")
         .eq("status", "candidate")
         .eq("content_type", "engagement_reply")
         .order("created_at", desc=True)
@@ -1013,8 +1234,8 @@ def _handle_x_plan() -> str:
     if not merged:
         return "No X content candidates."
 
-    # Sort: sharp_takes first, then engagement_replies, by daily_index
-    type_order = {"sharp_take": 0, "newsletter_thread": 1, "prediction": 2, "engagement_reply": 3}
+    # Sort: narrative first, then sharp_takes, then engagement_replies, by daily_index
+    type_order = {"narrative": 0, "sharp_take": 1, "newsletter_thread": 2, "prediction": 3, "engagement_reply": 4}
     merged.sort(key=lambda c: (type_order.get(c["content_type"], 9), c.get("daily_index", 0)))
 
     # Telegram limit is 4096 chars — budget ~3800 to leave room for summary
@@ -1022,7 +1243,31 @@ def _handle_x_plan() -> str:
     lines = ["X Content Plan\n"]
     shown = 0
     omitted = 0
-    for c in merged:
+
+    def _format_draft(raw_draft):
+        """Format draft_content for display. Parses JSON thread arrays into numbered tweets."""
+        if not raw_draft:
+            return []
+        # Try parsing as JSON array (thread format)
+        try:
+            tweets = json.loads(raw_draft)
+            if isinstance(tweets, list):
+                lines = []
+                for i, t in enumerate(tweets, 1):
+                    text = str(t)[:120]
+                    if len(str(t)) > 120:
+                        text += "..."
+                    lines.append(f"   Tweet {i}: {text}")
+                return lines
+        except (json.JSONDecodeError, TypeError):
+            pass
+        # Plain string draft
+        preview = raw_draft[:120]
+        if len(raw_draft) > 120:
+            preview += "..."
+        return [f"   Draft: {preview}"]
+
+    def _format_candidate(c):
         idx = c.get("daily_index") or "?"
         status_icon = {"candidate": "\u23f3", "approved": "\u2705", "rejected": "\u274c",
                        "posted": "\ud83d\udce4", "expired": "\ud83d\udca4", "failed": "\u26a0\ufe0f"}.get(c["status"], "\u2022")
@@ -1032,12 +1277,8 @@ def _handle_x_plan() -> str:
         angle = (c.get("suggested_angle") or "")[:60]
         if len(c.get("suggested_angle") or "") > 60:
             angle += "..."
-        draft_preview = (c.get("draft_content") or "")[:50]
-        if len(c.get("draft_content") or "") > 50:
-            draft_preview += "..."
 
         entry = f"{status_icon} #{idx} [{c['content_type']}]"
-        # Show source post and account for engagement replies
         if c.get("content_type") == "engagement_reply":
             source = (c.get("source_summary") or "")[:100]
             if len(c.get("source_summary") or "") > 100:
@@ -1046,21 +1287,69 @@ def _handle_x_plan() -> str:
                 entry += f"\n   {source}"
             if angle:
                 entry += f"\n   Reply angle: {angle}"
-            if draft_preview:
-                entry += f"\n   Draft: {draft_preview}"
+            draft_lines = _format_draft(c.get("draft_content"))
+            for line in draft_lines:
+                entry += f"\n{line}"
         else:
-            if angle:
-                entry += f" {angle}"
             entry += verif
-            if draft_preview:
-                entry += f"\n   {draft_preview}"
+            if c.get("source_url"):
+                entry += f"\n   Source: {c['source_url']}"
+            if c.get("source_summary"):
+                summ = (c["source_summary"])[:120]
+                if len(c["source_summary"]) > 120:
+                    summ += "..."
+                entry += f"\n   Summary: {summ}"
+            if angle:
+                entry += f"\n   Angle: {angle}"
+            draft_lines = _format_draft(c.get("draft_content"))
+            for line in draft_lines:
+                entry += f"\n{line}"
+            if c.get("narrative_context"):
+                nc = (c["narrative_context"])[:80]
+                if len(c["narrative_context"]) > 80:
+                    nc += "..."
+                entry += f"\n   Arc: {nc}"
+        return entry
 
-        if len("\n".join(lines)) + len(entry) + 200 > CHAR_BUDGET:
-            omitted = len(merged) - shown
-            break
+    def _append_section(candidates, header, lines, shown, omitted):
+        if not candidates:
+            return shown, omitted
+        lines.append(header)
+        for c in candidates:
+            entry = _format_candidate(c)
+            if len("\n".join(lines)) + len(entry) + 200 > CHAR_BUDGET:
+                omitted = len(merged) - shown
+                return shown, omitted
+            lines.append(entry)
+            shown += 1
+        return shown, omitted
 
-        lines.append(entry)
-        shown += 1
+    narrative = [c for c in merged if c.get("content_type") == "narrative"]
+    takes = [c for c in merged if c.get("content_type") in ("sharp_take", "newsletter_thread", "prediction")]
+    engage = [c for c in merged if c.get("content_type") == "engagement_reply"]
+
+    shown, omitted = _append_section(narrative, "\U0001f4d6 NARRATIVE (today's arc post):", lines, shown, omitted)
+    if not omitted:
+        shown, omitted = _append_section(takes, "\n\U0001f525 TAKES:", lines, shown, omitted)
+    if not omitted:
+        # Build engage header — reference today's arc angle if a narrative post exists
+        engage_header = "\n\U0001f4ac ENGAGE:"
+        if narrative:
+            # Extract angle summary from the narrative candidate's source_summary
+            arc_angle = ""
+            for n in narrative:
+                ss = n.get("source_summary") or ""
+                if ss.startswith("[ARC] "):
+                    # Format: "[ARC] Arc Title: angle text"
+                    parts = ss.split(": ", 1)
+                    arc_angle = parts[1] if len(parts) > 1 else ss[6:]
+                    break
+            if arc_angle:
+                # Truncate angle for header
+                if len(arc_angle) > 50:
+                    arc_angle = arc_angle[:50] + "..."
+                engage_header = f"\n\U0001f4ac ENGAGE (related to today's arc: {arc_angle}):"
+        shown, omitted = _append_section(engage, engage_header, lines, shown, omitted)
 
     # Summary counts
     statuses = [c["status"] for c in merged]
@@ -1225,8 +1514,12 @@ def handle_x_command(message: str) -> str:
             return _handle_x_unwatch(args)
         elif cmd == "/x-watchlist":
             return _handle_x_watchlist()
+        elif cmd == "/x-arc":
+            return _handle_x_arc()
+        elif cmd == "/x-arc-set":
+            return _handle_x_arc_set(args)
         else:
-            return f"Unknown X command: {cmd}\nAvailable: /x-plan, /x-approve, /x-reject, /x-edit, /x-draft, /x-posted, /x-budget, /x-watch, /x-unwatch, /x-watchlist"
+            return f"Unknown X command: {cmd}\nAvailable: /x-plan, /x-approve, /x-reject, /x-edit, /x-draft, /x-posted, /x-budget, /x-watch, /x-unwatch, /x-watchlist, /x-arc, /x-arc-set"
     except Exception as e:
         logger.error(f"X command failed: {cmd} — {e}")
         return f"Command failed: {e}"
@@ -1462,6 +1755,7 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
                 "📰 NEWSLETTER\n"
                 "/brief — Latest newsletter (Telegram)\n"
                 "/newsletter_full — Generate new edition\n"
+                "/newsletter_preview — Preview on web (no send)\n"
                 "/newsletter_publish — Publish draft\n"
                 "/newsletter_revise [text] — Send revision notes\n"
                 "/freshness — Excluded from next edition\n"
@@ -1490,7 +1784,9 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
                 "/x-budget — X API spend\n"
                 "/x-watch [handle] [cat] — Add to watchlist\n"
                 "/x-unwatch [handle] — Remove from watchlist\n"
-                "/x-watchlist — Show watchlist\n\n"
+                "/x-watchlist — Show watchlist\n"
+                "/x-arc — Current editorial arc & sequence\n"
+                "/x-arc-set [title] — Set new arc focus\n\n"
                 "💰 AGENT ECONOMY\n"
                 "/wallet — Agent wallet balances\n"
                 "/ledger [agent] — Last 10 transactions\n"
@@ -1508,10 +1804,51 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
                 "⚙️ CORE\n"
                 "/status — Agent status\n"
                 "/publish — Publish newsletter\n"
-                "/help — Basic help"
+                "/help — Basic help\n\n"
+                "📈 ECONOMICS\n"
+                "/economics — Weekly pipeline cost report"
             ),
             session_id="",
             intent="COMMANDS",
+            metadata={},
+        )
+
+    # 2c-1. Economics report — run on demand, dry-run only
+    if _msg_lower == "/economics":
+        econ_response = _run_economics_report()
+        return ChatResponse(
+            response=econ_response,
+            session_id="",
+            intent="ECONOMICS_COMMAND",
+            metadata={},
+        )
+
+    # 2c-2. Newsletter preview — set to preview status (visible on web, not distributed)
+    if _msg_lower == "/newsletter_preview":
+        try:
+            draft = supabase.table("newsletters")\
+                .select("id, edition_number")\
+                .in_("status", ["draft", "pending"])\
+                .order("created_at", desc=True)\
+                .limit(1)\
+                .execute()
+            if not draft.data:
+                preview_resp = "No draft newsletter found to preview."
+            else:
+                nl = draft.data[0]
+                supabase.table("newsletters").update({"status": "preview"}).eq("id", nl["id"]).execute()
+                edition = nl.get("edition_number", "?")
+                preview_resp = (
+                    f"📰 Newsletter #{edition} is now in preview mode.\n\n"
+                    f"View it on the web before publishing.\n"
+                    f"Send /newsletter_publish when ready to distribute."
+                )
+        except Exception as e:
+            preview_resp = f"Preview failed: {e}"
+        return ChatResponse(
+            response=preview_resp,
+            session_id="",
+            intent="NEWSLETTER_COMMAND",
             metadata={},
         )
 
@@ -1536,6 +1873,19 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
             response=code_response,
             session_id="",
             intent="CODE_COMMAND",
+            metadata={},
+        )
+
+    # 2e. CTO commands — handle directly, skip intent router
+    if _msg_lower.startswith("/cto"):
+        cto_response = cto_commands.handle_cto_command(
+            message=req.message,
+            user_id=req.user_id,
+        )
+        return ChatResponse(
+            response=cto_response,
+            session_id="",
+            intent="CTO_COMMAND",
             metadata={},
         )
 

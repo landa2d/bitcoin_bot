@@ -46,4 +46,6 @@ TASK_INPUT_SCHEMAS: dict[str, type[BaseModel]] = {
     "generate_newsletter": GenerateNewsletterInput,
     "generate_newsletter_full": GenerateNewsletterInput,
     "generate_scorecard": GenerateNewsletterInput,
+    "write_newsletter": GenerateNewsletterInput,
+    "revise_newsletter": GenerateNewsletterInput,
 }

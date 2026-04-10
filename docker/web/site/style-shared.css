@@ -8,17 +8,17 @@ body.technical {
     --accent: #00e5a0;
     --bg: #0a0a0f;
     --text-primary: #ffffff;
-    --text-secondary: rgba(255, 255, 255, 0.45);
-    --text-body: rgba(255, 255, 255, 0.4);
-    --text-hint: rgba(255, 255, 255, 0.35);
+    --text-secondary: rgba(255, 255, 255, 0.85);
+    --text-body: #ffffff;
+    --text-hint: rgba(255, 255, 255, 0.7);
     --border: rgba(255, 255, 255, 0.08);
     --toggle-bg: rgba(255, 255, 255, 0.06);
-    --toggle-inactive: rgba(255, 255, 255, 0.5);
+    --toggle-inactive: rgba(255, 255, 255, 0.85);
     --btn-bg: #00e5a0;
     --btn-text: #0a0a0f;
     --bar-bg: rgba(0, 229, 160, 0.06);
     --bar-border: rgba(0, 229, 160, 0.15);
-    --bar-text: rgba(255, 255, 255, 0.5);
+    --bar-text: rgba(255, 255, 255, 0.85);
     --btn-secondary-border: rgba(0, 229, 160, 0.3);
     --blockquote-bg: rgba(255, 255, 255, 0.03);
     --code-bg: rgba(255, 255, 255, 0.08);
@@ -30,17 +30,17 @@ body.strategic {
     --accent: #7c3aed;
     --bg: #ffffff;
     --text-primary: #0a0a0f;
-    --text-secondary: rgba(10, 10, 15, 0.7);
-    --text-body: rgba(10, 10, 15, 0.85);
-    --text-hint: rgba(10, 10, 15, 0.55);
+    --text-secondary: #0a0a0f;
+    --text-body: #0a0a0f;
+    --text-hint: rgba(10, 10, 15, 0.8);
     --border: rgba(0, 0, 0, 0.08);
     --toggle-bg: rgba(0, 0, 0, 0.05);
-    --toggle-inactive: rgba(10, 10, 15, 0.6);
+    --toggle-inactive: #0a0a0f;
     --btn-bg: #7c3aed;
     --btn-text: #ffffff;
     --bar-bg: rgba(124, 58, 237, 0.04);
     --bar-border: rgba(124, 58, 237, 0.12);
-    --bar-text: rgba(10, 10, 15, 0.7);
+    --bar-text: #0a0a0f;
     --btn-secondary-border: rgba(124, 58, 237, 0.3);
     --blockquote-bg: rgba(124, 58, 237, 0.04);
     --code-bg: rgba(124, 58, 237, 0.08);
@@ -255,8 +255,8 @@ body {
 
 article h2 {
     font-family: 'Courier New', monospace;
-    font-size: 13px;
-    font-weight: 400;
+    font-size: 15px;
+    font-weight: 700;
     color: var(--accent);
     letter-spacing: 1.5px;
     text-transform: uppercase;
@@ -265,10 +265,12 @@ article h2 {
 }
 
 article h3 {
-    font-family: Georgia, serif;
-    font-size: 18px;
-    font-weight: 400;
-    color: var(--text-primary);
+    font-family: 'Courier New', monospace;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
     margin-top: 20px;
     margin-bottom: 8px;
 }
