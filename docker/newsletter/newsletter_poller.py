@@ -19,6 +19,7 @@ from dotenv import load_dotenv
 from pydantic import ValidationError
 from supabase import create_client, Client
 from openai import OpenAI
+import anthropic
 
 from schemas import TASK_INPUT_SCHEMAS, NewsletterOutput
 
@@ -35,6 +36,8 @@ AGENT_NAME = os.getenv("AGENT_NAME", "newsletter")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 POLL_INTERVAL = int(os.getenv("NEWSLETTER_POLL_INTERVAL", "30"))
 MODEL = os.getenv("NEWSLETTER_MODEL", "gpt-4o")
+STRATEGIC_MODEL = os.getenv("NEWSLETTER_STRATEGIC_MODEL", "claude-sonnet-4-20250514")
+LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://llm-proxy:8200")
 
 WORKSPACE = Path(OPENCLAW_DATA_DIR) / "workspace"
 NEWSLETTERS_DIR = WORKSPACE / "agentpulse" / "newsletters"
@@ -56,6 +59,7 @@ logger = logging.getLogger("newsletter-agent")
 supabase: Client | None = None
 client: OpenAI | None = None
 deepseek_client: OpenAI | None = None
+claude_client: anthropic.Anthropic | None = None
 
 # ---------------------------------------------------------------------------
 # Identity + Skill loading (from disk, with mtime caching)
@@ -241,7 +245,7 @@ def fetch_economics_block() -> str:
 
 
 def init():
-    global supabase, client, deepseek_client
+    global supabase, client, deepseek_client, claude_client
     logger.info(f"[INIT] NEWSLETTER_MODEL={MODEL}")
     logger.info(f"[INIT] DEEPSEEK_API_KEY={'set (' + DEEPSEEK_API_KEY[:8] + '...)' if DEEPSEEK_API_KEY else 'NOT SET'}")
     logger.info(f"[INIT] DEEPSEEK_BASE_URL={DEEPSEEK_BASE_URL}")
@@ -262,6 +266,12 @@ def init():
         logger.info("[INIT] DeepSeek client initialized successfully")
     else:
         logger.warning("[INIT] DEEPSEEK_API_KEY missing — all DeepSeek calls will fall back to OpenAI")
+    # Claude client via LLM proxy (for strategic editor pass)
+    claude_client = anthropic.Anthropic(
+        api_key=OPENAI_API_KEY,  # Proxy uses the agent's ap_ key
+        base_url=f"{LLM_PROXY_URL}/anthropic",
+    )
+    logger.info(f"[INIT] Claude client initialized (proxy: {LLM_PROXY_URL}/anthropic, model: {STRATEGIC_MODEL})")
     return True
 
 
@@ -560,6 +570,17 @@ def run_quality_checks(result: dict, input_data: dict) -> list[dict]:
                  "section": "Newsletter", "detail": "No content_markdown"}]
 
     all_issues: list[dict] = []
+
+    # Missing impact edition is critical — triggers retry
+    impact = result.get('content_markdown_impact', '')
+    if not impact or not impact.strip():
+        all_issues.append({
+            "severity": "critical", "issue": "empty_impact",
+            "section": "Impact Edition",
+            "detail": "content_markdown_impact is empty. You MUST generate the impact/strategic "
+                      "version. Include it in the JSON as content_markdown_impact."
+        })
+
     all_issues.extend(validate_stat_repetition(content))
     all_issues.extend(validate_section_echo(content))
     all_issues.extend(validate_stale_predictions(content, input_data))
@@ -622,6 +643,104 @@ def mark_task_status(task_id: str, status: str, **fields):
     supabase.table("agent_tasks").update(payload).eq("id", task_id).execute()
 
 
+def editorial_prepass(input_data: dict) -> dict | None:
+    """Editor-in-chief pre-pass: choose this week's angle based on editorial history.
+
+    Uses Claude Sonnet for a lightweight judgment call before the main generation.
+    Returns a JSON dict with editorial direction, or None on failure.
+    """
+    if not claude_client:
+        logger.warning("[EDITORIAL] Claude client not available — skipping pre-pass")
+        return None
+
+    narrative_ctx = input_data.get('narrative_context')
+    if not narrative_ctx or not narrative_ctx.get('previous_editions'):
+        logger.info("[EDITORIAL] No narrative context — skipping pre-pass")
+        return None
+
+    # Build compact context for the editor-in-chief
+    editions = narrative_ctx['previous_editions']
+    edition_lines = []
+    for ed in editions:
+        excerpt = (ed.get('opening_excerpt') or '')[:150]
+        edition_lines.append(
+            f"#{ed.get('edition_number', '?')} ({ed.get('weeks_ago', '?')}w ago): "
+            f"\"{ed.get('title', '?')}\" — Theme: {ed.get('primary_theme', '?')}"
+            f"\n  Excerpt: {excerpt}"
+        )
+
+    clusters = input_data.get('clusters', [])
+    cluster_lines = []
+    for c in clusters[:10]:
+        cluster_lines.append(
+            f"- {c.get('theme', '?')} (score: {c.get('opportunity_score', 0):.2f})"
+        )
+
+    spotlight = input_data.get('spotlight')
+    spotlight_str = f"Spotlight topic: {spotlight.get('topic_name', '?')}" if spotlight else "No spotlight this week."
+
+    avoided = input_data.get('avoided_themes', [])
+
+    system_prompt = (
+        "You are the editor-in-chief of AgentPulse, a weekly intelligence brief about "
+        "the AI agent economy. Your job is to choose THIS WEEK's editorial angle.\n\n"
+        "You must pick an angle that:\n"
+        "1. Is genuinely different from the last 3 editions' lead themes\n"
+        "2. Draws from the strongest clusters in this week's data\n"
+        "3. Connects to the ongoing narrative (builds on what readers already know)\n"
+        "4. Would make a smart executive stop scrolling\n\n"
+        "Respond with valid JSON only. No markdown, no commentary."
+    )
+
+    user_msg = (
+        f"PREVIOUS EDITIONS (oldest first):\n" + "\n".join(edition_lines) +
+        f"\n\nTHIS WEEK'S CLUSTERS (by score):\n" + "\n".join(cluster_lines) +
+        f"\n\n{spotlight_str}" +
+        f"\n\nAVOIDED THEMES (already covered recently): {', '.join(avoided)}" +
+        f"\n\nChoose this week's angle. Return JSON:\n"
+        "{\n"
+        '  "chosen_angle": "one sentence describing this week\'s lead angle",\n'
+        '  "why_fresh": "one sentence explaining why this is different from recent editions",\n'
+        '  "clusters_to_emphasize": ["2-3 cluster themes to draw from"],\n'
+        '  "clusters_to_avoid": ["cluster themes already well-covered"],\n'
+        '  "narrative_bridge": "one sentence connecting to a previous edition"\n'
+        "}"
+    )
+
+    try:
+        logger.info("[EDITORIAL] Running editor-in-chief pre-pass...")
+        _t0 = time.time()
+        response = claude_client.messages.create(
+            model=STRATEGIC_MODEL,
+            max_tokens=512,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+
+        class _Usage:
+            def __init__(self, inp, out):
+                self.prompt_tokens = inp
+                self.completion_tokens = out
+                self.total_tokens = inp + out
+        usage = _Usage(response.usage.input_tokens, response.usage.output_tokens)
+        log_llm_call("newsletter", "editorial_prepass", response.model, usage, int((time.time() - _t0) * 1000))
+
+        text = response.content[0].text.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+
+        result = json.loads(text)
+        logger.info(f"[EDITORIAL] Chosen angle: {result.get('chosen_angle', '?')}")
+        logger.info(f"[EDITORIAL] Why fresh: {result.get('why_fresh', '?')}")
+        logger.info(f"[EDITORIAL] Clusters to emphasize: {result.get('clusters_to_emphasize', [])}")
+        logger.info(f"[EDITORIAL] Narrative bridge: {result.get('narrative_bridge', '?')}")
+        return result
+    except Exception as e:
+        logger.error(f"[EDITORIAL] Pre-pass failed (non-blocking): {e}")
+        return None
+
+
 def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -> dict:
     """Call OpenAI with identity + skill as system prompt, task + data as user message."""
 
@@ -635,6 +754,13 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
     system_prompt += (
         "\n\nYou MUST respond with valid JSON only — no markdown fences, no extra text."
         "\n\nCRITICAL RULES — CHECK BEFORE WRITING EACH SECTION:"
+        "\n0. NARRATIVE CONTINUITY (HIGHEST PRIORITY): The FIRST sentence of your"
+        " content_markdown_impact opening paragraph MUST bridge to a previous edition."
+        " Use phrasing like: 'Last week we explored [topic]. This week, [transition].'"
+        " or 'Two editions ago we covered [topic]. The situation just changed.'"
+        " Check the EDITORIAL CONTINUITY section below for recent edition titles and"
+        " themes. This is NON-NEGOTIABLE — an impact edition without a continuity"
+        " bridge is a failed edition."
         "\n1. SPOTLIGHT: If `spotlight` is null OR missing from input_data, OMIT the"
         " ENTIRE section — no header, no placeholder, no explanation."
         " If spotlight exists but `has_prediction` is false or `prediction` key is"
@@ -700,6 +826,57 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         " Any generic paragraph → rewrite with specific data."
     )
 
+    # Inject editorial continuity from narrative_context (promoted to system prompt)
+    narrative_ctx = input_data.get('narrative_context')
+    if narrative_ctx:
+        editions_list = narrative_ctx.get('previous_editions', [])
+        spotlights_list = narrative_ctx.get('recent_spotlights', [])
+        if editions_list:
+            edition_lines = []
+            for ed in editions_list:
+                edition_lines.append(
+                    f"  {ed.get('edition_number', '?')}. \"{ed.get('title', '?')}\" "
+                    f"— Theme: {ed.get('primary_theme', '?')} "
+                    f"— {ed.get('opening_excerpt', '')[:200]}"
+                )
+            system_prompt += (
+                "\n\nEDITORIAL CONTINUITY — READ BEFORE WRITING:"
+                "\nHere is what you covered in recent editions:"
+                "\n" + "\n".join(edition_lines)
+            )
+            if spotlights_list:
+                system_prompt += "\n\nRecent spotlights (deep-dived previously): " + ", ".join(spotlights_list)
+            system_prompt += (
+                "\n\nRULES (non-negotiable):"
+                "\n1. Your opening paragraph MUST include a one-sentence bridge to a"
+                " previous edition. Examples: \"Last week we mapped the payment"
+                " infrastructure gap. This week, something shifted.\" or \"Two"
+                " editions ago we explained why agents can't verify each other."
+                " The problem just got more expensive.\""
+                "\n2. Do NOT repeat the same lead angle as the last 3 editions."
+                " Find what's NEW in this week's data."
+                "\n3. In the impact edition (content_markdown_impact), use bold inline"
+                " markers like **The credential problem.** to introduce sub-topics"
+                " within your main essay. These create scannability. Every impact"
+                " edition needs 3-4 of these markers woven into the flowing prose."
+            )
+            logger.info(f"Injected editorial continuity into system prompt ({len(editions_list)} editions)")
+
+    # Inject editorial direction from pre-pass
+    editorial_dir = input_data.get('editorial_direction')
+    if editorial_dir:
+        system_prompt += (
+            "\n\nEDITORIAL DIRECTION (from editor-in-chief):"
+            f"\nLead angle: {editorial_dir.get('chosen_angle', '?')}"
+            f"\nWhy this is fresh: {editorial_dir.get('why_fresh', '?')}"
+            f"\nDraw from these clusters: {', '.join(editorial_dir.get('clusters_to_emphasize', []))}"
+            f"\nAvoid leading with: {', '.join(editorial_dir.get('clusters_to_avoid', []))}"
+            f"\nNarrative bridge: {editorial_dir.get('narrative_bridge', '?')}"
+            "\n\nFollow this direction. The editor has reviewed the past 8 editions"
+            " and chosen this angle specifically because it hasn't been covered recently."
+        )
+        logger.info("Injected editorial direction into system prompt")
+
     # Inject quality feedback on retry
     quality_feedback = input_data.pop('_quality_feedback', None)
     if quality_feedback:
@@ -761,44 +938,55 @@ STRATEGIC_EDITOR_PROMPT = """You are editing an AI-industry intelligence newslet
 
 Your job is to review the draft and apply these transformations. Preserve every insight — change only the packaging.
 
+BEFORE APPLYING ANY RULES BELOW: Gato's Corner must be passed through EXACTLY as written from the input. Do not edit, rewrite, soften, translate, or alter Gato's Corner in any way. Copy it verbatim — same words, same tone, same crypto/Bitcoin jargon, same sentence structure. The only check: confirm it ends with "Stay humble, stack sats." The rules below apply to ALL OTHER SECTIONS only.
+
 ## Rules
 
-1. **Jargon scan.** Rewrite any term that requires AI/ML, crypto, or software engineering background to understand. If you cannot rewrite it without losing meaning, add a parenthetical explanation of 10 words or fewer.
+1. **Jargon scan.** Rewrite any term that requires AI/ML, crypto, or software engineering background to understand. If you cannot rewrite it without losing meaning, add a parenthetical explanation of 10 words or fewer. Exception: Gato's Corner is exempt from jargon rewriting. Pass it through unchanged.
 
 2. **Metric translation.** Convert all technical metrics to business equivalents:
    - Token counts → dollar costs or human-equivalent time
    - Cluster scores / severity ratings → plain language (high/medium/low risk with one-sentence explanation)
    - GitHub contributor counts → "engineering team size" or "active developer count"
    - On-chain metrics → plain financial equivalents where possible
+   Exception: does not apply to Gato's Corner.
 
-3. **"So what" test.** Every paragraph's first sentence must be understandable by a CFO with no technical background. If not, rewrite the opening sentence.
+3. **"So what" test.** Every paragraph's first sentence must be understandable by a CFO with no technical background. If not, rewrite the opening sentence. Exception: does not apply to Gato's Corner.
 
 4. **Analogy injection.** Where a technical concept has a direct business-world parallel, add it:
    - Agent coordination problems → "like managing a consulting team with no project manager"
    - Settlement layers → "like Visa's network, but for AI agent transactions"
    - Attack vectors → "security vulnerabilities" or "points of failure"
+   Exception: does not apply to Gato's Corner.
 
 5. **Structure check.** Verify:
-   - "Read This, Skip the Rest" section exists at the top (## header, 3 paragraphs, zero jargon). Do NOT use "Board Brief" — that name is deprecated.
-   - Decision Framework table appears early, not buried
-   - Opportunity Radar items each lead with a one-sentence business case
+   - "Read This, Skip the Rest" section exists at the top (## header, not # header — use ##). Zero jargon.
    - Prediction Tracker entries are understandable without technical context
-   - Gato's Corner avoids insider community language in its sign-off
+   - Gato's Corner is present and ends with exactly "Stay humble, stack sats."
 
-6. **Do NOT:**
+6. **PRESERVE (critical):**
+   - Any sentence referencing previous editions ("Last week we...", "Two editions ago...") — this is narrative continuity. Do NOT remove or rewrite it.
+   - Bold inline markers like **The trust problem.** — these create scannability. If the draft has them, keep them. If it doesn't have at least 3, ADD them to introduce sub-topics within the flowing prose.
+   - The three-section structure: "Read This, Skip the Rest" (main essay), "Prediction Tracker", "Gato's Corner". Do NOT add extra ## sections.
+   - Gato's Corner: copy verbatim from the input. Every word, unchanged.
+
+7. **Do NOT:**
    - Remove any substantive insight or prediction
    - Add hedging language that weakens conviction (the editorial voice is deliberately opinionated)
    - Increase word count by more than 15%
-   - Change the Decision Framework table structure
-   - Remove the Prediction Scorecard or Tracker sections
+   - Remove the Prediction Tracker section
    - Change any prediction wording, timeline, or confidence level
+   - Add "Decision Framework" tables, "Board Brief", "Opportunity Radar", or any other section structure — the impact edition is ONE flowing essay plus predictions and Gato
+   - Edit, rewrite, soften, or translate Gato's Corner in any way
+
+8. **PREDICTIONS:** Do not rewrite, reformat, or summarize predictions. Use the exact prediction text, dates, status emojis (🟢/🟡/🔴/✅), and status labels from the PREDICTION GROUND TRUTH data provided after the draft. Add a one-sentence plain-language explanation before each prediction for non-technical readers, but preserve the prediction entry itself exactly as provided.
 
 ## Output
 
 Return ONLY the full edited markdown. No commentary, no explanations, no wrapper text. Just the edited newsletter text ready for publication."""
 
 
-def edit_strategic_mode(content_markdown_impact: str) -> str:
+def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -> str:
     """Second-pass editor: rewrites Impact mode content for non-technical readers.
 
     Takes raw Impact mode markdown from generate_newsletter(), returns edited version.
@@ -806,6 +994,11 @@ def edit_strategic_mode(content_markdown_impact: str) -> str:
     """
     if not content_markdown_impact or not content_markdown_impact.strip():
         return content_markdown_impact
+
+    # Log pre-editor Gato for before/after comparison
+    _gato_pre = re.search(r"## Gato.s Corner.*", content_markdown_impact, re.DOTALL)
+    if _gato_pre:
+        logger.info(f"[GATO PRE-EDIT] {_gato_pre.group(0)[:300]}")
 
     logger.info("Running strategic editor second pass...")
 
@@ -815,18 +1008,102 @@ def edit_strategic_mode(content_markdown_impact: str) -> str:
     if strategic_voice:
         system_prompt += f"\n\n---\n\nSTRATEGIC VOICE GUIDE:\n{strategic_voice}"
 
-    _t0 = time.time()
-    response = routed_llm_call(
-        MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": content_markdown_impact},
-        ],
-        max_tokens=16000,
-    )
-    log_llm_call("newsletter", "strategic_editor", response.model, response.usage, int((time.time() - _t0) * 1000))
+    # Inject editorial continuity into the editor pass (full context)
+    narrative_ctx = (input_data or {}).get('narrative_context')
+    if narrative_ctx:
+        editions_list = narrative_ctx.get('previous_editions', [])
+        spotlights_list = narrative_ctx.get('recent_spotlights', [])
+        if editions_list:
+            edition_lines = []
+            for ed in editions_list:
+                excerpt = ed.get('opening_excerpt', '')
+                excerpt_str = f"\n    Excerpt: {excerpt[:200]}" if excerpt else ""
+                edition_lines.append(
+                    f"  #{ed.get('edition_number', '?')} ({ed.get('weeks_ago', '?')}w ago):"
+                    f" \"{ed.get('title', '?')}\""
+                    f" — Theme: {ed.get('primary_theme', '?')}"
+                    f"{excerpt_str}"
+                )
+            system_prompt += (
+                "\n\n---\n\nEDITORIAL CONTINUITY (preserve or add during editing):"
+                "\nRecent editions (oldest first):\n" + "\n".join(edition_lines)
+            )
+            if spotlights_list:
+                system_prompt += "\n\nRecent spotlights: " + ", ".join(spotlights_list)
+            system_prompt += (
+                "\n\nDuring editing, PRESERVE any narrative bridge to previous editions."
+                " If none exists, ADD one to the opening paragraph (e.g. \"Last week"
+                " we explored X. This week...\")."
+                "\nEnsure the text uses bold inline markers like **The trust problem.**"
+                " to introduce sub-topics — at least 3 markers throughout the essay."
+            )
 
-    edited = response.choices[0].message.content.strip()
+    # Inject editorial direction into strategic editor pass
+    editorial_dir = (input_data or {}).get('editorial_direction')
+    if editorial_dir:
+        system_prompt += (
+            "\n\n---\n\nEDITORIAL DIRECTION (from editor-in-chief — preserve this angle):"
+            f"\nLead angle: {editorial_dir.get('chosen_angle', '?')}"
+            f"\nClusters emphasized: {', '.join(editorial_dir.get('clusters_to_emphasize', []))}"
+            f"\nNarrative bridge: {editorial_dir.get('narrative_bridge', '?')}"
+            "\nPreserve the editorial angle during editing. Do not drift toward a different theme."
+        )
+
+    # Build user message with prediction ground truth
+    predictions_json = json.dumps(
+        (input_data or {}).get('predictions', []),
+        indent=2, default=str,
+    )
+    user_message = (
+        f"Here is the impact edition draft to edit:\n\n"
+        f"{content_markdown_impact}\n\n"
+        f"---\n\n"
+        f"PREDICTION GROUND TRUTH — use these exact predictions, dates, and status."
+        f" Do not invent or modify predictions:\n\n"
+        f"{predictions_json}"
+    )
+
+    # Log what we're sending (truncated for readability)
+    pred_count = len((input_data or {}).get('predictions', []))
+    logger.info(
+        f"[STRATEGIC EDITOR] User message: {len(user_message)} chars, "
+        f"predictions ground truth: {pred_count} entries, "
+        f"system prompt: {len(system_prompt)} chars"
+    )
+    logger.info(f"[STRATEGIC EDITOR] Predictions JSON preview: {predictions_json[:300]}")
+
+    _t0 = time.time()
+    if claude_client:
+        logger.info(f"[ROUTING] Strategic editor using {STRATEGIC_MODEL} via Claude proxy")
+        claude_response = claude_client.messages.create(
+            model=STRATEGIC_MODEL,
+            max_tokens=8192,
+            system=system_prompt,
+            messages=[
+                {"role": "user", "content": user_message},
+            ],
+        )
+        # Build a minimal usage-compatible object for logging
+        class _Usage:
+            def __init__(self, inp, out):
+                self.prompt_tokens = inp
+                self.completion_tokens = out
+                self.total_tokens = inp + out
+        usage = _Usage(claude_response.usage.input_tokens, claude_response.usage.output_tokens)
+        log_llm_call("newsletter", "strategic_editor", claude_response.model, usage, int((time.time() - _t0) * 1000))
+        edited = claude_response.content[0].text.strip()
+    else:
+        logger.warning("[ROUTING] Claude client not available — falling back to MODEL for strategic editor")
+        response = routed_llm_call(
+            MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_message},
+            ],
+            max_tokens=16000,
+        )
+        log_llm_call("newsletter", "strategic_editor", response.model, response.usage, int((time.time() - _t0) * 1000))
+        edited = response.choices[0].message.content.strip()
 
     # Strip markdown fences if the LLM wraps its response
     if edited.startswith("```"):
@@ -834,6 +1111,23 @@ def edit_strategic_mode(content_markdown_impact: str) -> str:
         edited = re.sub(r"\s*```$", "", edited)
 
     logger.info(f"Strategic editor pass completed ({len(edited)} chars)")
+
+    # Force-restore original Gato's Corner (LLM cannot be trusted to preserve it)
+    _gato_original = re.search(r"(## Gato.s Corner.*)", content_markdown_impact, re.DOTALL)
+    _gato_edited = re.search(r"(## Gato.s Corner.*)", edited, re.DOTALL)
+    if _gato_original and _gato_edited:
+        original_text = _gato_original.group(1).strip()
+        edited_text = _gato_edited.group(1).strip()
+        if original_text != edited_text:
+            edited = edited[:_gato_edited.start(1)] + original_text + "\n"
+            logger.info("[GATO] Restored original Gato's Corner (editor had modified it)")
+        else:
+            logger.info("[GATO] Gato's Corner preserved by editor — no restoration needed")
+    elif _gato_original and not _gato_edited:
+        # Editor dropped Gato entirely — append it
+        edited = edited.rstrip() + "\n\n" + _gato_original.group(1).strip() + "\n"
+        logger.info("[GATO] Editor dropped Gato's Corner — re-appended from original")
+
     return edited
 
 
@@ -1232,6 +1526,12 @@ def process_task(task: dict):
     logger.info(f"Budget for {task_type}: {budget}")
 
     try:
+        # Editorial pre-pass: choose this week's angle
+        if task_type == 'write_newsletter':
+            editorial_brief = editorial_prepass(input_data)
+            if editorial_brief:
+                input_data['editorial_direction'] = editorial_brief
+
         # Generate newsletter via OpenAI
         raw_result = generate_newsletter(task_type, input_data, budget)
         validated = validate_llm_output(raw_result, NewsletterOutput)
@@ -1278,11 +1578,31 @@ def process_task(task: dict):
         # Strategic editor second pass
         if result.get("content_markdown_impact"):
             try:
-                edited_impact = edit_strategic_mode(result["content_markdown_impact"])
+                edited_impact = edit_strategic_mode(result["content_markdown_impact"], input_data)
                 result["content_markdown_impact"] = edited_impact
                 logger.info("Strategic editor pass applied to content_markdown_impact")
             except Exception as e:
                 logger.error(f"Strategic editor pass failed, using original: {e}")
+
+        # ── Impact edition quality checks (log-only) ──
+        impact_content = result.get("content_markdown_impact", "")
+        if impact_content:
+            # Check narrative continuity bridge
+            continuity_phrases = ["last week", "last edition", "previously", "edition #", "editions ago"]
+            has_continuity = any(p in impact_content.lower() for p in continuity_phrases)
+            if not has_continuity:
+                logger.warning("QUALITY: Missing narrative continuity bridge in impact edition")
+            else:
+                logger.info("QUALITY: Narrative continuity bridge detected")
+
+            # Check bold inline markers (**Text.**)
+            bold_marker_count = len(re.findall(r'\*\*[A-Z][^*]{3,60}\.\*\*', impact_content))
+            if bold_marker_count < 2:
+                logger.warning(f"QUALITY: Missing bold inline markers in impact edition (found {bold_marker_count}, need ≥2)")
+            else:
+                logger.info(f"QUALITY: Found {bold_marker_count} bold inline markers")
+        elif input_data.get('narrative_context'):
+            logger.warning("QUALITY: content_markdown_impact is empty — impact edition not generated")
 
         # Generate scorecard (Looking Back) if resolved predictions exist
         edition = result.get("edition", input_data.get("edition_number", 0))

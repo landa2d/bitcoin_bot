@@ -166,7 +166,7 @@ services:
       <<: *common-env
       AGENT_NAME: newsletter
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
-      NEWSLETTER_MODEL: deepseek-chat
+      NEWSLETTER_MODEL: gpt-4o
       NEWSLETTER_POLL_INTERVAL: "30"
       LOG_LEVEL: info
       # Route LLM calls through the proxy (internal network key)

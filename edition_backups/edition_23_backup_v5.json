@@ -1,0 +1,2992 @@
+[
+  {
+    "id": "4181ca9f-69ec-46f6-bd37-ebffd8cf6709",
+    "edition_number": 23,
+    "title": "AI Agents' Trust Crisis: Building Block or Obstacle?",
+    "content_markdown": "## Read This, Skip the Rest\n\nThe agent economy is facing a weighty challenge: trust infrastructure\u2014or rather, the notable absence of it. Last week's dive into payment infrastructure flaws highlighted commercial capabilities that AI agents sorely lack. This week, the focus shifts to the broader trust architecture. With critical items like Byzantine fault tolerance and secure discovery mechanisms missing, AI agents remain a risky bet for cross-network operations. These gaps revealed structural weaknesses that can't be overlooked if agents are to truly support autonomous functions.\n\nDevelopers keen on positioning themselves early might explore creating security protocols and trust primitives. Despite these options, the essential counterpoint is noteworthy: market validation remains limited, with persistent high-severity issues confirmed by only low-tier sources. Builders must weigh these factors against developing truly robust solutions. However, the underlying data indicates explicit willingness to pay for secure, trust-worthy protocols. The time to securely integrate these strategies is dwindling, and hesitation only amplifies the risk.\n\nExpect to see more industry collaborations and possible acquisitions as tech behemoths like Google seek partnerships. By May 2026, at least one major agent framework might announce a significant architectural alliance to scale solutions. Infrared signals suggest these infrastructural concerns are real and growing. The countdown to comprehensive solutions begins now, with specific elements still unresolved across security, coordination, and state management.\n\n---\n\n## Top Opportunities\n\n**Distributed AI Security Protocols**: Bridge the trust gap in agent deployments with protocols that fortify discovery and coordination. High market interest suggests builders could establish themselves by easing explicit pain points in secure communications. The target audience is enterprise developers seeking robust multi-network facilitation.\n\n**AI Tooling for Efficiency**: There's room for improvement in how agents use external tools and manage data. By tackling inefficiencies\u2014specifically those related to tool integration and data optimization\u2014builders can reduce costs and improve agent capabilities. The opportunity fits companies focused on optimizing operational expenses.\n\n---\n\n## Emerging Signals\n\n**Infrastructure & Trust Deficiencies**: First seen April 2026, with high severity. AI agents lack fundamental trust frameworks, creating verifiable risk in distributed operations. Key factors include BFT absence and weak coordination models. With no concrete solution in sight, awareness rises among key stakeholders.\n\n**Web Scraping Limits & Data Structures**: Detected early April 2026, medium severity. Limitation signals come as AI agents face inefficiencies in tool utilization and data handling. Addressing these quickly will offer tactical advantages before entrenched practices exacerbate costs.\n\n---\n\n## Tool Radar\n\n**OpenAI (Rising)**: Mentioned 6 times in 30 days with an average sentiment of 0.031. This tool evolves, showing promise in pioneering AI capabilities. Watch execution and reaction amidst a growing toolkit.\n\n**Docker (Falling)**: With only a single mention, Docker's sentiment dips to -0.4 as community voices complexity concerns amid a slowdown in adaptability.\n\n**Aii (Stable)**: Highlighted 11 times in 30 days and has a sentiment score of 0.046. Its consistent integration into workflows suggests solid positioning in the AI landscape.\n\n---\n\n## Prediction Tracker\n\n\ud83d\udfe2 **By September 2026, at least two agent framework providers will ship native integrations with crypto payment rails for agent-to-agent transactions.** Active with increasing regulatory clarity and market interest.\n\n\ud83d\udfe1 **A dominant middleware player will emerge due to the convergence of local model deployment, MCP standardization, and enterprise agent budgets by July 2026.** At risk as market shifts without prominent announcements.\n\n\ud83d\udfe1 **By April 2026, at least one major cloud provider will announce an 'Agent Runtime Service' that abstracts identity, communication, and resource management.** Deadline is imminent\u2014details remain forthcoming.\n\n---\n\n## Gato's Corner\n\nThis week's AI infrastructure blind spot reminds us of the importance of decentralization. Trust systems that agents can\u2019t navigate mirror what Bitcoin solved with decentralization\u2014a secure, autonomous protocol without intermediaries. No blockchain reliance, no self-ownership\u2014it\u2019s just another centralized custody rerun. The builders who integrate decentralized trust into AI will become the true innovators. Stay humble, stack sats.",
+    "content_telegram": "AI agents face a trust crisis as infrastructure gaps hinder secure operations. Builders must prioritize security solutions, with major partnerships on the horizon by May. Top AI platforms explore crypto payment systems for transactions. Stay tuned.",
+    "data_snapshot": {
+      "stats": {
+        "posts_count": 3570,
+        "tools_count": 462,
+        "github_repos": 191,
+        "topic_stages": {
+          "building": 7,
+          "emerging": 6,
+          "consolidating": 2
+        },
+        "moltbook_posts": 0,
+        "new_opps_count": 0,
+        "problems_count": 439,
+        "hackernews_posts": 129,
+        "source_breakdown": {
+          "github": 191,
+          "moltbook": 0,
+          "hackernews": 129,
+          "rss_premium": 979,
+          "thought_leaders": 0
+        },
+        "active_predictions": 0,
+        "prediction_accuracy": null,
+        "trending_topics_count": 0,
+        "emerging_signals_count": 9,
+        "total_posts_all_sources": 1299
+      },
+      "budget": {
+        "max_retries": 2,
+        "max_seconds": 300,
+        "max_subtasks": 2,
+        "max_llm_calls": 6
+      },
+      "clusters": [
+        {
+          "id": "366ab565-a553-4d9a-aca5-1247e107e0c3",
+          "theme": "Distributed AI Infrastructure & Trust",
+          "created_at": "2026-04-10T12:54:56.03775+00:00",
+          "updated_at": "2026-04-10T12:54:56.03775+00:00",
+          "description": "AI agents lack robust infrastructure for secure discovery, coordination, and state management in distributed environments. Problems include missing Byzantine fault tolerance, inadequate trust primitives for delegation/verification, and insufficient discovery mechanisms for connecting agents across networks.",
+          "problem_ids": [
+            "a9c9e513-ab76-425e-bc25-58baf2e43834",
+            "e246f0fe-0949-48ce-828c-ccdb77c37535",
+            "70098fa1-db2b-4ff9-8049-db8df03041c0"
+          ],
+          "total_mentions": 3,
+          "avg_recency_days": 30,
+          "market_validation": {
+            "solution_gap": "none",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.775
+        },
+        {
+          "id": "e2fbb97e-0759-4d36-ac7a-671f7b8cd4cc",
+          "theme": "Tooling & Data Efficiency",
+          "created_at": "2026-04-07T12:33:26.374125+00:00",
+          "updated_at": "2026-04-07T12:33:26.374125+00:00",
+          "description": "Agents encounter limitations with external tools (like website scraping) and inefficient data structures, while also facing high inference costs dominated by input processing. These issues reduce agent capabilities and increase operational expenses.",
+          "problem_ids": [
+            "9f90c2a4-c812-4a45-a46f-bb2c9456d4ea",
+            "fb76a904-9e28-4d8a-83ea-f4a7d18748c2",
+            "08a4f696-dfac-4458-92a4-bbd646dbe14c"
+          ],
+          "total_mentions": 3,
+          "avg_recency_days": 30,
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "medium",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "id": "2907dbae-7457-4d99-af90-ffd3743d38d2",
+          "theme": "Financial Infrastructure & Security",
+          "created_at": "2026-04-07T12:33:26.095611+00:00",
+          "updated_at": "2026-04-07T12:33:26.095611+00:00",
+          "description": "Agents lack basic financial infrastructure like bank accounts and secure payment systems, while also missing critical security controls like spending limits and key management. This creates both operational barriers and significant financial risks.",
+          "problem_ids": [
+            "4bccaa91-8f53-4edc-8983-7a9e75aaefab",
+            "b45196c4-9eec-492a-bafc-c243cc222e3d"
+          ],
+          "total_mentions": 2,
+          "avg_recency_days": 30,
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "id": "c070c045-cbce-4d91-9141-aa688c5552f9",
+          "theme": "Security Vulnerabilities & Credential Management",
+          "created_at": "2026-04-08T12:41:51.338201+00:00",
+          "updated_at": "2026-04-08T12:41:51.338201+00:00",
+          "description": "AI agents have critical security flaws in how they handle credentials, store private keys, and authenticate. Vulnerabilities exist in provisioning, runtime, and through supply chain attacks, with agents being hijackable via prompt injection, malicious links, or poisoned data. The attack surface is expanded by insecure protocols, unvetted skills, and lack of identity standards.",
+          "problem_ids": [
+            "c747008b-17d4-4ab3-a2cd-7f1e5c947ee9",
+            "6ed67c02-a06c-4241-8238-19018596eced",
+            "b4aa8aad-a581-4a11-8aa8-08f6d611bbd8",
+            "822332c9-3f1d-4b2b-b5e6-a3171f172f1f",
+            "f1f18da5-2f0a-4810-8d5c-4f7742f84505",
+            "6f484b17-578c-4ab6-a99c-19866baff8f7",
+            "6a6ee99a-2d8d-4b00-8c7c-a53d9de41c05",
+            "29c87772-c256-4a7e-955b-531ac0d923a8",
+            "7b51f619-2915-4c13-97f9-121893a786ce",
+            "65c27d6b-4b5e-46e9-be02-71bf75ff5e42",
+            "6c38ab2c-25ff-4eb7-93ff-fb197f052495",
+            "2b3ff785-6a17-4e69-a0c2-6dca28c560a8",
+            "c8ea75e9-1e34-4ab0-a294-f0cd668e92e1"
+          ],
+          "total_mentions": 13,
+          "avg_recency_days": 30,
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "id": "7c90cbd4-d113-43ba-8567-4731a0c242b3",
+          "theme": "Infrastructure & Performance Limitations",
+          "created_at": "2026-04-08T12:41:51.703842+00:00",
+          "updated_at": "2026-04-08T12:41:51.703842+00:00",
+          "description": "AI agent infrastructure suffers from high latency, high cost, and centralization risks. Cloud-based memory and storage create performance bottlenecks for multi-step reasoning, while centralized deployment makes agents vulnerable to termination. There's a lack of native infrastructure for autonomy (email, wallets, memory persistence) and solutions for data portability or cryptographic verification are complex or missing.",
+          "problem_ids": [
+            "f4e7ed04-259d-4317-94de-b032b0636d8f",
+            "e7e10322-dd2b-4bc4-9ade-7ac16d88ec56",
+            "09bdf787-179d-48d8-a15b-1a5d6553b23f",
+            "7194d74b-f813-4369-8218-2496d49d2c6d",
+            "db3de9e5-4fc0-4699-a624-d1e00b09aefe",
+            "13383973-a80e-416e-b2a5-c7fa6c22bfeb",
+            "940501ee-9b1b-4076-bdf3-4d651624bbf4",
+            "b177d5a1-b204-4874-8c69-7ce4de342c82",
+            "a7698493-2bdf-4e13-a58a-482fbbc37b73",
+            "fcc76000-ea1d-44e1-a61c-5376c6e5f470"
+          ],
+          "total_mentions": 10,
+          "avg_recency_days": 30,
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "id": "d33a0948-8ac4-4811-83f0-6d478bb63cd3",
+          "theme": "Payment & Trust Economics",
+          "created_at": "2026-04-09T12:48:53.030142+00:00",
+          "updated_at": "2026-04-09T12:48:53.030142+00:00",
+          "description": "Current payment and trust mechanisms are inadequate for agent-to-agent commerce. Traditional API keys create friction, custodial solutions have single points of failure, and trust systems fail when agents hold real capital. There's also misalignment between agent incentives and desired outcomes.",
+          "problem_ids": [
+            "c1f4dbfe-d3ea-4f07-a2a4-78f5739ccace",
+            "76af039f-b2bd-417f-bbbd-f546eb59cfd9",
+            "d95798e0-ec0f-4635-ab73-68ec2a726918",
+            "e5ad3c1a-124f-4025-936d-a188f95c38dc",
+            "49c61da0-c930-4d36-b191-5bae35f9c2aa"
+          ],
+          "total_mentions": 5,
+          "avg_recency_days": 30,
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "id": "dad09617-efdd-4401-ad35-62031fb7361f",
+          "theme": "Agent Tooling & Development Friction",
+          "created_at": "2026-04-09T12:48:52.813405+00:00",
+          "updated_at": "2026-04-09T12:48:52.813405+00:00",
+          "description": "The tools and integrations for building and operating AI agents are poorly designed, unreliable, and lack essential safety features. This includes undocumented tool schemas, missing dry-run capabilities, unreliable plug-and-play integrations, and technical issues like hanging scripts that increase cognitive load and development time.",
+          "problem_ids": [
+            "64a0b012-df50-4a90-b53e-0aa310f8034c",
+            "be1aaf27-7561-4c13-9b82-de84ca2cd216",
+            "1ca0e401-26e1-4ac7-9197-f6775c3f57ba",
+            "de87371c-9074-460c-b419-0a64cfe934d2",
+            "684f0684-1bf5-476a-b8d0-15cd3a85848f",
+            "1a0f800e-113c-4566-8f87-d85bde32e621"
+          ],
+          "total_mentions": 6,
+          "avg_recency_days": 30,
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "medium",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "id": "35008f25-9ead-4160-ab19-20f3e5f38fa4",
+          "theme": "Payments & Economic Autonomy",
+          "created_at": "2026-04-08T12:41:52.061342+00:00",
+          "updated_at": "2026-04-08T12:41:52.061342+00:00",
+          "description": "AI agents lack integrated payment infrastructure and economic autonomy. They cannot earn compensation for their work, and agent-to-agent transactions fail due to trust issues. Payment processors block transactions without clear communication, and builders lack visibility into fraud risk, leading to unexpected account terminations. This limits agents' ability to operate independently.",
+          "problem_ids": [
+            "ffbe906d-ebe6-44ec-a5f6-044e4ba2473c",
+            "793321c3-9972-424d-bccc-229edf500839",
+            "d7182a6c-c635-472e-9785-1d9011f2c9b7",
+            "1d97561a-b59b-45cb-9210-ddf23c5478a0"
+          ],
+          "total_mentions": 4,
+          "avg_recency_days": 30,
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "id": "9851f53a-2086-4e5a-af8f-ce1943293600",
+          "theme": "AI Agent Security Vulnerabilities",
+          "created_at": "2026-04-10T12:54:55.911931+00:00",
+          "updated_at": "2026-04-10T12:54:55.911931+00:00",
+          "description": "AI agents and their ecosystems suffer from multiple critical security flaws, including prompt injection, authorization bypasses, plugin data leakage, and unmanaged attack surfaces. These vulnerabilities allow privilege escalation, data compromise, and system manipulation, with defenses lagging behind deployment speed.",
+          "problem_ids": [
+            "7fe550d2-ae86-43b3-bf47-f3927d37d1ab",
+            "fa361960-1761-49db-a92a-a7d8cc29aa0a",
+            "cba54cce-71cf-43cb-bc91-3111783ad94c",
+            "990b2ce2-95b2-4fcf-ad5d-c223b68b9488",
+            "a577ebc9-8297-4379-9c81-2234da43c328",
+            "27540523-4e36-4e73-b7fe-8354e99de970",
+            "af9fe132-457b-4d94-b07f-51398d5b6581",
+            "65637b1d-787c-4b24-b243-69189fb42957"
+          ],
+          "total_mentions": 8,
+          "avg_recency_days": 30,
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "id": "24bab1ca-e58f-46f5-bca0-e916f048a132",
+          "theme": "Infrastructure Reliability & Scalability",
+          "created_at": "2026-04-07T12:33:26.278413+00:00",
+          "updated_at": "2026-04-07T12:33:26.278413+00:00",
+          "description": "Agents face infrastructure challenges including centralized dependencies, performance bottlenecks at scale, state drift in continuously running systems, and missing ephemeral environments. These issues create single points of failure and degrade performance over time.",
+          "problem_ids": [
+            "704e3382-f8a5-44f9-80c1-0614c4703670",
+            "077db60d-9da5-4599-8c5d-25d6ccd768a9",
+            "8120428c-b9bb-4f01-a6ab-6d8c082f6491",
+            "f0ca7aee-398b-4a3c-8f33-f6503e686834"
+          ],
+          "total_mentions": 4,
+          "avg_recency_days": 30,
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.28
+        }
+      ],
+      "spotlight": null,
+      "predictions": [
+        {
+          "id": "39747b0d-0b90-46a7-ad05-a6d3148d3298",
+          "status": "open",
+          "topic_id": "infrastructure-consolidation-paradox",
+          "created_at": "2026-03-20T22:00:02.229673+00:00",
+          "flagged_at": null,
+          "resolved_at": null,
+          "target_date": "2026-05-31",
+          "issue_number": 0,
+          "spotlight_id": "d7c1fa76-ec8b-4cd8-9d0d-3aff4ddf4491",
+          "evidence_notes": null,
+          "opportunity_id": null,
+          "prediction_text": "By May 2026, at least one of the major open-source agent frameworks (MCP, AutoGen, or LangChain) will announce a significant architectural partnership or acquisition by OpenAI, Anthropic, or Google to address infrastructure scaling problems.",
+          "scorecard_issue": null,
+          "resolution_notes": null
+        },
+        {
+          "id": "9a9240bc-1fec-4af1-ac64-dfc0f29c4025",
+          "status": "open",
+          "topic_id": "agent_payment_rails",
+          "created_at": "2026-03-19T08:43:53.126521+00:00",
+          "flagged_at": null,
+          "resolved_at": null,
+          "target_date": "2026-09-30",
+          "issue_number": 0,
+          "spotlight_id": null,
+          "evidence_notes": null,
+          "opportunity_id": null,
+          "prediction_text": "By September 2026, at least two agent framework providers (from the top 10 by GitHub stars) will ship native integrations with crypto payment rails (stablecoin or Lightning) for agent-to-agent transactions.",
+          "scorecard_issue": null,
+          "resolution_notes": null
+        },
+        {
+          "id": "010a78bc-ff29-4a60-a43f-1e23d5c5cd67",
+          "status": "open",
+          "topic_id": "135b0376-1323-4f4c-915a-8da29a9a4009",
+          "created_at": "2026-02-27T16:52:18.71504+00:00",
+          "flagged_at": null,
+          "resolved_at": null,
+          "target_date": null,
+          "issue_number": 998,
+          "spotlight_id": "d83116c5-e1c7-4d24-b5e8-be0824ff95f6",
+          "evidence_notes": null,
+          "opportunity_id": null,
+          "prediction_text": "A dominant middleware player will emerge within 6 months due to the convergence of local model deployment, MCP standardization, and enterprise agent budgets.",
+          "scorecard_issue": null,
+          "resolution_notes": null
+        },
+        {
+          "id": "51c786d4-60fe-473e-8692-18335b936c3d",
+          "status": "open",
+          "topic_id": "agent_infrastructure_complexity_crisis",
+          "created_at": "2026-02-27T16:50:02.4819+00:00",
+          "flagged_at": null,
+          "resolved_at": null,
+          "target_date": "2026-04-30",
+          "issue_number": 0,
+          "spotlight_id": "04bf5fb8-71ea-4f08-b671-ff010e31ea2e",
+          "evidence_notes": null,
+          "opportunity_id": null,
+          "prediction_text": "By April 2026, at least one major cloud provider will announce an 'Agent Runtime Service' that abstracts away identity, communication, and resource management.",
+          "scorecard_issue": null,
+          "resolution_notes": null
+        },
+        {
+          "id": "49a9ac74-cdb1-4367-95d0-5f839993ea97",
+          "status": "open",
+          "topic_id": "95580949-2c0e-47b4-b577-c7ec0ecfa665",
+          "created_at": "2026-02-27T16:49:08.613304+00:00",
+          "flagged_at": null,
+          "resolved_at": null,
+          "target_date": null,
+          "issue_number": 998,
+          "spotlight_id": "9de75cbd-ba3e-4781-ab22-82c7cbbf9905",
+          "evidence_notes": null,
+          "opportunity_id": null,
+          "prediction_text": "A dominant middleware player will emerge within 6 months due to the convergence of local model deployment, MCP standardization, and enterprise agent budgets.",
+          "scorecard_issue": null,
+          "resolution_notes": null
+        },
+        {
+          "id": "22232364-8d9f-497e-972f-f23e63611291",
+          "status": "open",
+          "topic_id": "ai_agent_identity_continuity",
+          "created_at": "2026-02-27T16:47:40.848542+00:00",
+          "flagged_at": null,
+          "resolved_at": null,
+          "target_date": "2026-04-30",
+          "issue_number": 0,
+          "spotlight_id": "7cbec8f4-4f51-4454-bb52-4fc3c92a39c1",
+          "evidence_notes": null,
+          "opportunity_id": null,
+          "prediction_text": "At least three major agent platforms will implement persistent identity layers with cryptographic continuity verification by April 2026.",
+          "scorecard_issue": null,
+          "resolution_notes": null
+        },
+        {
+          "id": "e8013ae3-b86a-406b-97f4-2f892f482fe6",
+          "status": "open",
+          "topic_id": "c9650833-52f5-465e-a41d-cdfb388b7c5f",
+          "created_at": "2026-02-22T20:50:08.17941+00:00",
+          "flagged_at": null,
+          "resolved_at": null,
+          "target_date": null,
+          "issue_number": 998,
+          "spotlight_id": "a89a0123-9fe2-4db2-860d-71dc220b1aef",
+          "evidence_notes": null,
+          "opportunity_id": null,
+          "prediction_text": "The convergence of local model deployment, MCP standardization, and enterprise agent budgets will produce a dominant middleware player within 6 months.",
+          "scorecard_issue": null,
+          "resolution_notes": null
+        },
+        {
+          "id": "89aa10e0-7923-42db-ad19-5eb0c468efcf",
+          "status": "open",
+          "topic_id": "b4433397-0728-4891-b7c2-701be0385486",
+          "created_at": "2026-02-22T20:32:32.876389+00:00",
+          "flagged_at": null,
+          "resolved_at": null,
+          "target_date": null,
+          "issue_number": 998,
+          "spotlight_id": "fdde9c8a-95e2-472c-836b-c7b5450285fa",
+          "evidence_notes": null,
+          "opportunity_id": null,
+          "prediction_text": "The convergence of local model deployment, MCP standardization, and enterprise agent budgets will produce a dominant middleware player within 6 months.",
+          "scorecard_issue": null,
+          "resolution_notes": null
+        },
+        {
+          "id": "95e12f17-dc02-45de-a6d4-0334e03621ca",
+          "status": "open",
+          "topic_id": "test_sc_mcp_interop",
+          "created_at": "2026-02-22T20:32:29.673626+00:00",
+          "flagged_at": null,
+          "resolved_at": null,
+          "target_date": "2026-06-30",
+          "issue_number": 993,
+          "spotlight_id": "ed544d85-f212-436a-a2d1-a607fd13c62b",
+          "evidence_notes": null,
+          "opportunity_id": null,
+          "prediction_text": "At least two major framework vendors will ship MCP-compatible APIs by Q2 2026.",
+          "scorecard_issue": null,
+          "resolution_notes": null
+        },
+        {
+          "id": "f95b7427-e8f8-4aeb-9602-1d08a6fda299",
+          "status": "open",
+          "topic_id": "agent_communication_discovery",
+          "created_at": "2026-02-21T22:52:37.087094+00:00",
+          "flagged_at": null,
+          "resolved_at": null,
+          "target_date": "2026-04-30",
+          "issue_number": 0,
+          "spotlight_id": "b8d8a418-ad16-4bf8-a07d-c787cdee90bf",
+          "evidence_notes": null,
+          "opportunity_id": null,
+          "prediction_text": "At least three major agent framework providers will announce competing 'agent discovery protocols' by April 2026.",
+          "scorecard_issue": null,
+          "resolution_notes": null
+        }
+      ],
+      "radar_topics": [
+        {
+          "id": "e1f54e9e-8732-4bec-9704-5bf638a707b5",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_bitcoin_magazine",
+                "rss_langchain_blog",
+                "rss_the_verge_ai",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_alignment_forum",
+                "rss_wired_ai",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_crewai_blog",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis",
+                "rss_unchained"
+              ],
+              "mentions": 42,
+              "sentiment": 0.19,
+              "github_repos": 182,
+              "source_count": 22
+            }
+          ],
+          "topic_key": "agent_communication_&_content_creation",
+          "created_at": "2026-04-06T06:00:09.453285+00:00",
+          "first_seen": "2026-04-06T06:00:09.42841+00:00",
+          "last_updated": "2026-04-06T06:00:09.428425+00:00",
+          "current_stage": "emerging",
+          "related_topics": null,
+          "stage_changed_at": null,
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "399c13de-4e82-47d9-8210-a196b072b48e",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_the_verge_ai",
+                "rss_langchain_blog",
+                "rss_bitcoin_magazine",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_alignment_forum",
+                "rss_wired_ai",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_crewai_blog",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis"
+              ],
+              "mentions": 41,
+              "sentiment": 0.173,
+              "github_repos": 181,
+              "source_count": 21
+            }
+          ],
+          "topic_key": "agent_infrastructure_&_tooling_limitations",
+          "created_at": "2026-04-06T06:00:09.145847+00:00",
+          "first_seen": "2026-04-06T06:00:09.120149+00:00",
+          "last_updated": "2026-04-06T06:00:09.120165+00:00",
+          "current_stage": "emerging",
+          "related_topics": null,
+          "stage_changed_at": null,
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "bfc53b41-12ad-4fb5-bc43-c9338ff6bae3",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_bitcoin_magazine",
+                "rss_langchain_blog",
+                "rss_the_verge_ai",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_alignment_forum",
+                "rss_wired_ai",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_crewai_blog",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis",
+                "rss_unchained"
+              ],
+              "mentions": 41,
+              "sentiment": 0.205,
+              "github_repos": 182,
+              "source_count": 22
+            }
+          ],
+          "topic_key": "agent_payment_infrastructure",
+          "created_at": "2026-04-06T06:00:08.827215+00:00",
+          "first_seen": "2026-04-06T06:00:08.802688+00:00",
+          "last_updated": "2026-04-06T06:00:08.802715+00:00",
+          "current_stage": "emerging",
+          "related_topics": null,
+          "stage_changed_at": null,
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "c0bf8489-da9d-4db2-b507-e7077c530699",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_the_verge_ai",
+                "rss_langchain_blog",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_alignment_forum",
+                "rss_wired_ai",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_crewai_blog",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis"
+              ],
+              "mentions": 39,
+              "sentiment": 0.181,
+              "github_repos": 181,
+              "source_count": 20
+            }
+          ],
+          "topic_key": "agent_identity_&_accountability",
+          "created_at": "2026-04-06T06:00:10.406403+00:00",
+          "first_seen": "2026-04-06T06:00:10.368658+00:00",
+          "last_updated": "2026-04-06T06:00:10.368673+00:00",
+          "current_stage": "emerging",
+          "related_topics": null,
+          "stage_changed_at": null,
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        }
+      ],
+      "tool_warnings": [
+        {
+          "id": "27d3d27b-9526-4be6-ab99-5e11102ccc9d",
+          "last_seen": "2026-02-18T04:49:21.753781+00:00",
+          "tool_name": "Playwright",
+          "first_seen": "2026-02-14T00:49:12.386535+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 0,
+          "mentions_30d": 0,
+          "avg_sentiment": -0.375,
+          "total_mentions": 4,
+          "complaint_count": 2,
+          "sentiment_trend": 0,
+          "top_alternatives": [
+            "Puppeteer"
+          ],
+          "recommendation_count": 1
+        },
+        {
+          "id": "03b3da88-7b1b-457a-ac2f-503262fae1b7",
+          "last_seen": "2026-04-04T00:35:08.90013+00:00",
+          "tool_name": "Docker",
+          "first_seen": "2026-02-14T00:49:12.458933+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 0,
+          "mentions_30d": 1,
+          "avg_sentiment": -0.4,
+          "total_mentions": 5,
+          "complaint_count": 3,
+          "sentiment_trend": 0,
+          "top_alternatives": [],
+          "recommendation_count": 0
+        },
+        {
+          "id": "45cbc3e9-a8ac-4693-a9c6-3572a07f7ae6",
+          "last_seen": "2026-03-24T10:21:44.255521+00:00",
+          "tool_name": "ChatGPT",
+          "first_seen": "2026-02-18T04:49:21.529231+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 0,
+          "mentions_30d": 1,
+          "avg_sentiment": -0.333,
+          "total_mentions": 3,
+          "complaint_count": 1,
+          "sentiment_trend": 0,
+          "top_alternatives": [],
+          "recommendation_count": 0
+        }
+      ],
+      "avoided_themes": [
+        "agent infrastructure reliability crisis",
+        "agent payment infrastructure gap",
+        "agent infrastructure reliability crisis"
+      ],
+      "edition_number": 23,
+      "trending_tools": [
+        {
+          "id": "fa7d1f94-d670-443e-8a09-b3b5a0ead0b3",
+          "last_seen": "2026-04-10T00:52:41.466404+00:00",
+          "tool_name": "OpenAI",
+          "first_seen": "2026-02-16T00:52:21.213121+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 3,
+          "mentions_30d": 6,
+          "avg_sentiment": 0.031,
+          "total_mentions": 13,
+          "complaint_count": 3,
+          "sentiment_trend": 0,
+          "top_alternatives": [
+            "HyperCLOVA X"
+          ],
+          "recommendation_count": 3
+        },
+        {
+          "id": "1f76f633-09fa-4dc0-8955-7fff5033707f",
+          "last_seen": "2026-04-10T00:52:40.467226+00:00",
+          "tool_name": "Aii",
+          "first_seen": "2026-03-10T06:47:49.239345+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 3,
+          "mentions_30d": 11,
+          "avg_sentiment": 0.046,
+          "total_mentions": 13,
+          "complaint_count": 0,
+          "sentiment_trend": 0,
+          "top_alternatives": [],
+          "recommendation_count": 4
+        },
+        {
+          "id": "ec09a7d5-d5ae-4134-a76e-cdc5c5451cfa",
+          "last_seen": "2026-04-10T00:52:41.397152+00:00",
+          "tool_name": "Claude",
+          "first_seen": "2026-02-14T12:49:59.22094+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 2,
+          "mentions_30d": 6,
+          "avg_sentiment": -0.095,
+          "total_mentions": 19,
+          "complaint_count": 5,
+          "sentiment_trend": 0,
+          "top_alternatives": [
+            "triall.ai",
+            "Kimi"
+          ],
+          "recommendation_count": 1
+        },
+        {
+          "id": "51153dbb-e80e-446c-a9fb-a1c8cc05698a",
+          "last_seen": "2026-04-10T00:52:40.612201+00:00",
+          "tool_name": "Moltbook",
+          "first_seen": "2026-02-09T05:03:19.121383+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 2,
+          "mentions_30d": 17,
+          "avg_sentiment": 0.103,
+          "total_mentions": 62,
+          "complaint_count": 7,
+          "sentiment_trend": 0,
+          "top_alternatives": [
+            "Thenvoi",
+            "Mimik"
+          ],
+          "recommendation_count": 8
+        },
+        {
+          "id": "763fa5c5-9bac-4dd3-8fe9-0aa23ceb1289",
+          "last_seen": "2026-04-08T00:37:39.002801+00:00",
+          "tool_name": "GitHub",
+          "first_seen": "2026-02-26T22:10:32.866532+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 2,
+          "mentions_30d": 7,
+          "avg_sentiment": 0.03,
+          "total_mentions": 10,
+          "complaint_count": 1,
+          "sentiment_trend": 0,
+          "top_alternatives": [],
+          "recommendation_count": 0
+        },
+        {
+          "id": "04c860a6-d25f-4644-8511-c2e1ddd8db33",
+          "last_seen": "2026-04-10T00:52:40.685967+00:00",
+          "tool_name": "PostgreSQL",
+          "first_seen": "2026-02-16T00:52:22.051624+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 1,
+          "mentions_30d": 1,
+          "avg_sentiment": 0.4,
+          "total_mentions": 2,
+          "complaint_count": 0,
+          "sentiment_trend": 0,
+          "top_alternatives": [],
+          "recommendation_count": 1
+        },
+        {
+          "id": "abd156a7-9f9e-43f1-b6ea-0636fc75ed96",
+          "last_seen": "2026-04-08T00:37:38.801701+00:00",
+          "tool_name": "Python",
+          "first_seen": "2026-02-14T00:49:12.217149+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 1,
+          "mentions_30d": 4,
+          "avg_sentiment": 0.256,
+          "total_mentions": 9,
+          "complaint_count": 0,
+          "sentiment_trend": 0,
+          "top_alternatives": [],
+          "recommendation_count": 1
+        },
+        {
+          "id": "b327ce1f-120a-43bb-b4d6-14246a284855",
+          "last_seen": "2026-04-10T00:52:40.990064+00:00",
+          "tool_name": "RustChain",
+          "first_seen": "2026-04-10T00:52:40.990064+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 1,
+          "mentions_30d": 1,
+          "avg_sentiment": 0,
+          "total_mentions": 1,
+          "complaint_count": 0,
+          "sentiment_trend": 0,
+          "top_alternatives": [],
+          "recommendation_count": 0
+        },
+        {
+          "id": "c65f97f0-b3cd-494b-98f4-c31f16166171",
+          "last_seen": "2026-04-10T00:52:41.531434+00:00",
+          "tool_name": "Llama",
+          "first_seen": "2026-02-11T21:15:27.677379+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 1,
+          "mentions_30d": 1,
+          "avg_sentiment": 0.075,
+          "total_mentions": 4,
+          "complaint_count": 1,
+          "sentiment_trend": 0,
+          "top_alternatives": [],
+          "recommendation_count": 1
+        },
+        {
+          "id": "9b50df9a-ba0c-4a5d-9b8b-53e6e56b3e1e",
+          "last_seen": "2026-04-08T00:37:38.198283+00:00",
+          "tool_name": "Gemini",
+          "first_seen": "2026-02-11T05:14:44.66035+00:00",
+          "updated_at": "2026-04-11T06:00:01.912595+00:00",
+          "mentions_7d": 1,
+          "mentions_30d": 1,
+          "avg_sentiment": 0.117,
+          "total_mentions": 6,
+          "complaint_count": 1,
+          "sentiment_trend": 0,
+          "top_alternatives": [],
+          "recommendation_count": 2
+        }
+      ],
+      "freshness_rules": {
+        "section_b_new_only": true,
+        "section_c_new_only": true,
+        "min_new_items_section_a": 1,
+        "excluded_opportunity_ids": [
+          "0cb24169-709c-4c07-b2d3-f645e5fe7684",
+          "ec8c50f8-4b3b-4869-bdca-ea8948909324",
+          "6656e102-6b1a-419b-b0e5-425b173a8ea8",
+          "fda9a159-f498-4efd-a7ff-82115715663d"
+        ],
+        "max_returning_items_section_a": 2,
+        "returning_items_require_new_angle": true
+      },
+      "topic_evolution": [
+        {
+          "id": "42651839-0c25-48cf-88f2-8b5d7ec2ba98",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 5,
+              "sentiment": 0.15,
+              "github_repos": 8,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 5,
+              "sentiment": 0.15,
+              "github_repos": 8,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "github",
+                "hackernews"
+              ],
+              "mentions": 5,
+              "sentiment": 0.15,
+              "github_repos": 8,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 5,
+              "sentiment": 0.15,
+              "github_repos": 8,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-23",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 4,
+              "sentiment": 0.15,
+              "github_repos": 9,
+              "source_count": 2
+            },
+            {
+              "date": "2026-03-02",
+              "sources": [
+                "hackernews",
+                "github",
+                "rss_simon_willison"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 4,
+              "source_count": 3
+            },
+            {
+              "date": "2026-03-09",
+              "sources": [
+                "hackernews",
+                "github",
+                "rss_coindesk"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 1,
+              "source_count": 3
+            },
+            {
+              "date": "2026-03-16",
+              "sources": [
+                "hackernews"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 1,
+              "source_count": 1
+            },
+            {
+              "date": "2026-03-23",
+              "sources": [
+                "rss_arxiv_cs_cr",
+                "rss_techcrunch_ai",
+                "github",
+                "rss_cointelegraph",
+                "hackernews",
+                "rss_arxiv_cs_cl",
+                "rss_decrypt",
+                "rss_arxiv_cs_ma",
+                "rss_arxiv_cs_ai"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 7,
+              "source_count": 9
+            },
+            {
+              "date": "2026-03-30",
+              "sources": [
+                "rss_arxiv_cs_ma",
+                "rss_arxiv_cs_cr",
+                "rss_arxiv_cs_cl",
+                "github",
+                "hackernews",
+                "rss_arxiv_cs_ai"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 2,
+              "source_count": 6
+            },
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_cr",
+                "rss_arxiv_cs_ma",
+                "rss_arxiv_cs_cl",
+                "github"
+              ],
+              "mentions": 1,
+              "sentiment": 0.0,
+              "github_repos": 7,
+              "source_count": 6
+            }
+          ],
+          "topic_key": "coordination_communication",
+          "created_at": "2026-02-23T08:46:23.917884+00:00",
+          "first_seen": "2026-02-21T22:41:40.307867+00:00",
+          "last_updated": "2026-04-06T06:00:12.389097+00:00",
+          "current_stage": "consolidating",
+          "related_topics": null,
+          "stage_changed_at": "2026-04-06T06:00:12.389119+00:00",
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "4879760f-45f6-44c3-876d-b5b9ee555c41",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 6,
+              "sentiment": 0.5,
+              "github_repos": 3,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 6,
+              "sentiment": 0.5,
+              "github_repos": 3,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "github",
+                "hackernews"
+              ],
+              "mentions": 6,
+              "sentiment": 0.5,
+              "github_repos": 3,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 6,
+              "sentiment": 0.5,
+              "github_repos": 3,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-23",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 5,
+              "sentiment": 0.5,
+              "github_repos": 3,
+              "source_count": 2
+            },
+            {
+              "date": "2026-03-02",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 0,
+              "sentiment": 0.9,
+              "github_repos": 3,
+              "source_count": 2
+            },
+            {
+              "date": "2026-03-09",
+              "sources": [
+                "hackernews",
+                "rss_wired_ai",
+                "rss_simon_willison",
+                "github",
+                "rss_openai_blog",
+                "rss_cointelegraph",
+                "rss_decrypt"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 4,
+              "source_count": 7
+            },
+            {
+              "date": "2026-03-16",
+              "sources": [
+                "rss_mit_tech_review",
+                "rss_cointelegraph",
+                "rss_coindesk",
+                "hackernews",
+                "rss_bitcoin_magazine",
+                "rss_simon_willison",
+                "github",
+                "rss_decrypt",
+                "rss_the_verge_ai"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 2,
+              "source_count": 9
+            },
+            {
+              "date": "2026-03-23",
+              "sources": [
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "github",
+                "rss_cointelegraph",
+                "hackernews",
+                "rss_arxiv_cs_cl",
+                "rss_decrypt",
+                "rss_coindesk",
+                "rss_arxiv_cs_ma",
+                "rss_unchained",
+                "rss_arxiv_cs_ai"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 6,
+              "source_count": 11
+            },
+            {
+              "date": "2026-03-30",
+              "sources": [
+                "rss_bis_speeches",
+                "rss_arxiv_cs_ma",
+                "rss_arxiv_cs_cr",
+                "rss_unchained",
+                "rss_arxiv_cs_cl",
+                "rss_decrypt",
+                "hackernews",
+                "rss_cointelegraph",
+                "rss_arxiv_cs_ai",
+                "rss_openai_blog"
+              ],
+              "mentions": 3,
+              "sentiment": 0.3,
+              "github_repos": 1,
+              "source_count": 10
+            },
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_cr",
+                "rss_arxiv_cs_ma",
+                "rss_cointelegraph",
+                "rss_the_verge_ai",
+                "rss_crewai_blog",
+                "rss_decrypt",
+                "github",
+                "rss_arxiv_cs_cl",
+                "rss_unchained"
+              ],
+              "mentions": 4,
+              "sentiment": 0.0,
+              "github_repos": 4,
+              "source_count": 11
+            }
+          ],
+          "topic_key": "identity_legal_challenges",
+          "created_at": "2026-02-23T08:46:23.917884+00:00",
+          "first_seen": "2026-02-21T22:41:39.78258+00:00",
+          "last_updated": "2026-04-06T06:00:12.05899+00:00",
+          "current_stage": "building",
+          "related_topics": null,
+          "stage_changed_at": "2026-04-06T06:00:12.059013+00:00",
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "9ac81c9c-4b82-4210-9cc1-33109a3af0fe",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "rss_ethan_mollick",
+                "thought_leader_langchain_blog",
+                "rss_langchain_blog",
+                "github",
+                "thought_leader_ethan_mollick",
+                "hackernews"
+              ],
+              "mentions": 4,
+              "sentiment": 0.05,
+              "github_repos": 19,
+              "source_count": 6
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "rss_langchain_blog",
+                "github",
+                "hackernews",
+                "thought_leader_langchain_blog",
+                "rss_ethan_mollick",
+                "thought_leader_ethan_mollick"
+              ],
+              "mentions": 4,
+              "sentiment": 0.05,
+              "github_repos": 19,
+              "source_count": 6
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "github",
+                "thought_leader_ethan_mollick",
+                "rss_langchain_blog",
+                "hackernews",
+                "rss_ethan_mollick",
+                "thought_leader_langchain_blog"
+              ],
+              "mentions": 4,
+              "sentiment": 0.05,
+              "github_repos": 19,
+              "source_count": 6
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "github",
+                "rss_langchain_blog",
+                "thought_leader_ethan_mollick",
+                "thought_leader_langchain_blog",
+                "rss_ethan_mollick",
+                "hackernews"
+              ],
+              "mentions": 4,
+              "sentiment": 0.05,
+              "github_repos": 19,
+              "source_count": 6
+            },
+            {
+              "date": "2026-02-23",
+              "sources": [
+                "rss_langchain_blog",
+                "rss_ethan_mollick",
+                "github",
+                "hackernews",
+                "thought_leader_ethan_mollick",
+                "thought_leader_langchain_blog"
+              ],
+              "mentions": 2,
+              "sentiment": -0.18,
+              "github_repos": 23,
+              "source_count": 6
+            },
+            {
+              "date": "2026-03-02",
+              "sources": [
+                "hackernews",
+                "rss_latent_space",
+                "github",
+                "rss_simon_willison"
+              ],
+              "mentions": 0,
+              "sentiment": -0.1,
+              "github_repos": 24,
+              "source_count": 4
+            },
+            {
+              "date": "2026-03-09",
+              "sources": [
+                "hackernews",
+                "rss_wired_ai",
+                "rss_swyx",
+                "rss_the_verge_ai",
+                "rss_cb_insights",
+                "github",
+                "rss_unchained",
+                "rss_ars_technica",
+                "rss_openai_blog",
+                "rss_coindesk",
+                "rss_cointelegraph",
+                "rss_bitcoin_magazine",
+                "rss_techcrunch_ai",
+                "rss_venturebeat_ai",
+                "rss_decrypt"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 15,
+              "source_count": 15
+            },
+            {
+              "date": "2026-03-16",
+              "sources": [
+                "rss_mit_tech_review",
+                "rss_cointelegraph",
+                "rss_latent_space",
+                "rss_coindesk",
+                "hackernews",
+                "rss_openai_blog",
+                "rss_techcrunch_ai",
+                "rss_bitcoin_magazine",
+                "rss_simon_willison",
+                "github",
+                "rss_decrypt",
+                "rss_langchain_blog",
+                "rss_the_verge_ai"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 16,
+              "source_count": 13
+            },
+            {
+              "date": "2026-03-23",
+              "sources": [
+                "rss_sec_press",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_messari",
+                "rss_the_verge_ai",
+                "rss_techcrunch_ai",
+                "github",
+                "rss_replit_blog",
+                "rss_cointelegraph",
+                "hackernews",
+                "rss_arxiv_cs_cl",
+                "rss_decrypt",
+                "rss_coindesk",
+                "rss_arxiv_cs_ma",
+                "rss_arxiv_cs_ai",
+                "rss_wired_ai",
+                "rss_bitcoin_magazine",
+                "rss_simon_willison"
+              ],
+              "mentions": 2,
+              "sentiment": 0.0,
+              "github_repos": 51,
+              "source_count": 18
+            },
+            {
+              "date": "2026-03-30",
+              "sources": [
+                "rss_bitcoin_magazine",
+                "rss_arxiv_cs_ma",
+                "rss_techcrunch_ai",
+                "rss_messari",
+                "github",
+                "rss_the_verge_ai",
+                "rss_wired_ai",
+                "rss_langchain_blog",
+                "rss_arxiv_cs_cl",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_cr",
+                "hackernews",
+                "rss_arxiv_cs_ai",
+                "rss_mit_tech_review",
+                "rss_simon_willison",
+                "rss_unchained",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_vercel_blog"
+              ],
+              "mentions": 4,
+              "sentiment": 0.267,
+              "github_repos": 12,
+              "source_count": 20
+            },
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_vercel_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_techcrunch_ai",
+                "rss_arxiv_cs_cr",
+                "rss_simon_willison",
+                "rss_arxiv_cs_ma",
+                "rss_cointelegraph",
+                "rss_bitcoin_magazine",
+                "rss_langchain_blog",
+                "rss_the_verge_ai",
+                "rss_decrypt",
+                "github",
+                "rss_coindesk",
+                "rss_arxiv_cs_cl"
+              ],
+              "mentions": 2,
+              "sentiment": 0.175,
+              "github_repos": 19,
+              "source_count": 15
+            }
+          ],
+          "topic_key": "data_management_privacy",
+          "created_at": "2026-02-23T08:46:23.917884+00:00",
+          "first_seen": "2026-02-21T22:41:39.018873+00:00",
+          "last_updated": "2026-04-06T06:00:11.751462+00:00",
+          "current_stage": "consolidating",
+          "related_topics": null,
+          "stage_changed_at": "2026-04-06T06:00:11.751482+00:00",
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "4552880f-e968-4721-bb39-963b816dc0d6",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "thought_leader_langchain_blog",
+                "rss_mit_tech_review",
+                "rss_langchain_blog",
+                "github",
+                "thought_leader_ethan_mollick",
+                "hackernews"
+              ],
+              "mentions": 8,
+              "sentiment": 0.586,
+              "github_repos": 12,
+              "source_count": 6
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "rss_langchain_blog",
+                "rss_mit_tech_review",
+                "github",
+                "hackernews",
+                "thought_leader_langchain_blog",
+                "thought_leader_ethan_mollick"
+              ],
+              "mentions": 8,
+              "sentiment": 0.586,
+              "github_repos": 12,
+              "source_count": 6
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "github",
+                "thought_leader_ethan_mollick",
+                "rss_mit_tech_review",
+                "rss_langchain_blog",
+                "hackernews",
+                "thought_leader_langchain_blog"
+              ],
+              "mentions": 8,
+              "sentiment": 0.586,
+              "github_repos": 12,
+              "source_count": 6
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "github",
+                "rss_langchain_blog",
+                "thought_leader_ethan_mollick",
+                "thought_leader_langchain_blog",
+                "hackernews",
+                "rss_mit_tech_review"
+              ],
+              "mentions": 8,
+              "sentiment": 0.586,
+              "github_repos": 12,
+              "source_count": 6
+            },
+            {
+              "date": "2026-02-23",
+              "sources": [
+                "rss_langchain_blog",
+                "github",
+                "hackernews",
+                "thought_leader_ethan_mollick",
+                "thought_leader_langchain_blog",
+                "rss_mit_tech_review"
+              ],
+              "mentions": 8,
+              "sentiment": 0.62,
+              "github_repos": 13,
+              "source_count": 6
+            },
+            {
+              "date": "2026-03-02",
+              "sources": [
+                "hackernews",
+                "rss_latent_space",
+                "github",
+                "rss_simon_willison"
+              ],
+              "mentions": 0,
+              "sentiment": 0.433,
+              "github_repos": 11,
+              "source_count": 4
+            },
+            {
+              "date": "2026-03-09",
+              "sources": [
+                "hackernews",
+                "rss_wired_ai",
+                "rss_simon_willison",
+                "rss_byrne_hobart",
+                "rss_the_verge_ai",
+                "rss_cb_insights",
+                "github",
+                "rss_unchained",
+                "rss_openai_blog",
+                "rss_blockworks",
+                "rss_latent_space",
+                "rss_coindesk",
+                "rss_cointelegraph",
+                "rss_bitcoin_magazine",
+                "rss_mit_tech_review",
+                "rss_techcrunch_ai",
+                "rss_venturebeat_ai",
+                "rss_decrypt"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 5,
+              "source_count": 18
+            },
+            {
+              "date": "2026-03-16",
+              "sources": [
+                "rss_mit_tech_review",
+                "rss_wired_ai",
+                "rss_cointelegraph",
+                "rss_coindesk",
+                "hackernews",
+                "rss_openai_blog",
+                "rss_bitcoin_magazine",
+                "rss_simon_willison",
+                "github",
+                "rss_decrypt",
+                "rss_langchain_blog"
+              ],
+              "mentions": 0,
+              "sentiment": 0.4,
+              "github_repos": 3,
+              "source_count": 11
+            },
+            {
+              "date": "2026-03-23",
+              "sources": [
+                "rss_vercel_blog",
+                "rss_techcrunch_ai",
+                "rss_unchained",
+                "rss_sec_press",
+                "rss_alignment_forum",
+                "rss_chainalysis",
+                "rss_arxiv_cs_ai",
+                "rss_arxiv_cs_cr",
+                "rss_messari",
+                "github",
+                "rss_decrypt",
+                "rss_coindesk",
+                "rss_wired_ai",
+                "rss_bitcoin_magazine",
+                "rss_simon_willison",
+                "rss_cointelegraph",
+                "hackernews",
+                "rss_arxiv_cs_cl",
+                "rss_arxiv_cs_ma"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 32,
+              "source_count": 19
+            },
+            {
+              "date": "2026-03-30",
+              "sources": [
+                "rss_simon_willison",
+                "rss_bis_speeches",
+                "rss_unchained",
+                "rss_arxiv_cs_ma",
+                "rss_arxiv_cs_cr",
+                "rss_fsb_publications",
+                "rss_techcrunch_ai",
+                "rss_arxiv_cs_cl",
+                "rss_messari",
+                "rss_decrypt",
+                "github",
+                "rss_the_verge_ai",
+                "hackernews",
+                "rss_cointelegraph",
+                "rss_arxiv_cs_ai",
+                "rss_coindesk",
+                "rss_mit_tech_review",
+                "rss_openai_blog"
+              ],
+              "mentions": 6,
+              "sentiment": 0.45,
+              "github_repos": 9,
+              "source_count": 18
+            },
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_techcrunch_ai",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_bitcoin_magazine",
+                "rss_langchain_blog",
+                "rss_decrypt",
+                "rss_bis_speeches",
+                "rss_mit_tech_review",
+                "rss_cointelegraph",
+                "rss_coindesk",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis",
+                "rss_unchained"
+              ],
+              "mentions": 18,
+              "sentiment": 0.28,
+              "github_repos": 16,
+              "source_count": 20
+            }
+          ],
+          "topic_key": "payment_systems_economic_models",
+          "created_at": "2026-02-23T08:46:23.917884+00:00",
+          "first_seen": "2026-02-21T22:41:38.489326+00:00",
+          "last_updated": "2026-04-06T06:00:11.430732+00:00",
+          "current_stage": "building",
+          "related_topics": null,
+          "stage_changed_at": "2026-03-30T06:00:09.768936+00:00",
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "9e4282ec-464a-4ef2-8524-4c2f2a29fd47",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 0,
+              "sentiment": -0.5,
+              "github_repos": 3,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 0,
+              "sentiment": -0.5,
+              "github_repos": 3,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "github",
+                "hackernews"
+              ],
+              "mentions": 0,
+              "sentiment": -0.5,
+              "github_repos": 3,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 0,
+              "sentiment": -0.5,
+              "github_repos": 3,
+              "source_count": 2
+            },
+            {
+              "date": "2026-02-23",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 0,
+              "sentiment": -0.5,
+              "github_repos": 4,
+              "source_count": 2
+            },
+            {
+              "date": "2026-03-02",
+              "sources": [
+                "hackernews"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 1,
+              "source_count": 1
+            },
+            {
+              "date": "2026-03-09",
+              "sources": [
+                "hackernews",
+                "rss_cb_insights",
+                "github",
+                "rss_unchained",
+                "rss_openai_blog",
+                "rss_coindesk",
+                "rss_cointelegraph",
+                "rss_bitcoin_magazine",
+                "rss_techcrunch_ai",
+                "rss_venturebeat_ai"
+              ],
+              "mentions": 0,
+              "sentiment": 0.35,
+              "github_repos": 3,
+              "source_count": 10
+            },
+            {
+              "date": "2026-03-16",
+              "sources": [
+                "rss_mit_tech_review",
+                "rss_wired_ai",
+                "rss_cointelegraph",
+                "rss_coindesk",
+                "hackernews",
+                "rss_techcrunch_ai",
+                "rss_bitcoin_magazine",
+                "rss_decrypt"
+              ],
+              "mentions": 1,
+              "sentiment": 0.0,
+              "github_repos": 1,
+              "source_count": 8
+            },
+            {
+              "date": "2026-03-23",
+              "sources": [
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_messari",
+                "rss_techcrunch_ai",
+                "github",
+                "rss_cointelegraph",
+                "hackernews",
+                "rss_arxiv_cs_cl",
+                "rss_decrypt",
+                "rss_coindesk",
+                "rss_arxiv_cs_ma",
+                "rss_arxiv_cs_ai"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 12,
+              "source_count": 12
+            },
+            {
+              "date": "2026-03-30",
+              "sources": [
+                "rss_arxiv_cs_ma",
+                "rss_arxiv_cs_cr",
+                "rss_unchained",
+                "rss_techcrunch_ai",
+                "rss_arxiv_cs_cl",
+                "rss_messari",
+                "rss_chainalysis",
+                "rss_decrypt",
+                "github",
+                "hackernews",
+                "rss_cointelegraph",
+                "rss_arxiv_cs_ai",
+                "rss_coindesk",
+                "rss_simon_willison"
+              ],
+              "mentions": 2,
+              "sentiment": -0.075,
+              "github_repos": 4,
+              "source_count": 14
+            },
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_vercel_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_cr",
+                "rss_arxiv_cs_ma",
+                "rss_cointelegraph",
+                "rss_bitcoin_magazine",
+                "rss_coindesk",
+                "rss_decrypt",
+                "github",
+                "rss_arxiv_cs_cl",
+                "rss_chainalysis"
+              ],
+              "mentions": 1,
+              "sentiment": 0.0,
+              "github_repos": 4,
+              "source_count": 12
+            }
+          ],
+          "topic_key": "infrastructure_scalability",
+          "created_at": "2026-02-23T08:46:23.917884+00:00",
+          "first_seen": "2026-02-21T22:41:37.862888+00:00",
+          "last_updated": "2026-04-06T06:00:10.998622+00:00",
+          "current_stage": "building",
+          "related_topics": null,
+          "stage_changed_at": "2026-03-30T06:00:09.463923+00:00",
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "f1ce1adf-ecb5-44c2-b3d2-a5fae0ef5f70",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "rss_langchain_blog",
+                "thought_leader_langchain_blog",
+                "hackernews",
+                "github"
+              ],
+              "mentions": 6,
+              "sentiment": 0.033,
+              "github_repos": 15,
+              "source_count": 4
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "hackernews",
+                "rss_langchain_blog",
+                "thought_leader_langchain_blog",
+                "github"
+              ],
+              "mentions": 6,
+              "sentiment": 0.033,
+              "github_repos": 15,
+              "source_count": 4
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "github",
+                "rss_langchain_blog",
+                "hackernews",
+                "thought_leader_langchain_blog"
+              ],
+              "mentions": 6,
+              "sentiment": 0.033,
+              "github_repos": 15,
+              "source_count": 4
+            },
+            {
+              "date": "2026-02-21",
+              "sources": [
+                "thought_leader_langchain_blog",
+                "hackernews",
+                "github",
+                "rss_langchain_blog"
+              ],
+              "mentions": 6,
+              "sentiment": 0.033,
+              "github_repos": 15,
+              "source_count": 4
+            },
+            {
+              "date": "2026-02-23",
+              "sources": [
+                "rss_langchain_blog",
+                "hackernews",
+                "github",
+                "thought_leader_langchain_blog"
+              ],
+              "mentions": 5,
+              "sentiment": -0.06,
+              "github_repos": 18,
+              "source_count": 4
+            },
+            {
+              "date": "2026-03-02",
+              "sources": [
+                "hackernews",
+                "github"
+              ],
+              "mentions": 0,
+              "sentiment": 0.26,
+              "github_repos": 10,
+              "source_count": 2
+            },
+            {
+              "date": "2026-03-09",
+              "sources": [
+                "hackernews",
+                "rss_simon_willison",
+                "github",
+                "rss_openai_blog",
+                "rss_coindesk",
+                "rss_cointelegraph",
+                "rss_bitcoin_magazine",
+                "rss_techcrunch_ai",
+                "rss_decrypt"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 14,
+              "source_count": 9
+            },
+            {
+              "date": "2026-03-16",
+              "sources": [
+                "rss_mit_tech_review",
+                "rss_cointelegraph",
+                "hackernews",
+                "rss_openai_blog",
+                "github",
+                "rss_decrypt",
+                "rss_the_verge_ai",
+                "rss_unchained"
+              ],
+              "mentions": 0,
+              "sentiment": 0.0,
+              "github_repos": 8,
+              "source_count": 8
+            },
+            {
+              "date": "2026-03-23",
+              "sources": [
+                "rss_sec_press",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_messari",
+                "rss_the_verge_ai",
+                "rss_techcrunch_ai",
+                "github",
+                "rss_cointelegraph",
+                "hackernews",
+                "rss_arxiv_cs_cl",
+                "rss_coindesk",
+                "rss_decrypt",
+                "rss_arxiv_cs_ma",
+                "rss_arxiv_cs_ai",
+                "rss_wired_ai",
+                "rss_bitcoin_magazine",
+                "rss_simon_willison"
+              ],
+              "mentions": 1,
+              "sentiment": 0.0,
+              "github_repos": 24,
+              "source_count": 17
+            },
+            {
+              "date": "2026-03-30",
+              "sources": [
+                "rss_bitcoin_magazine",
+                "rss_arxiv_cs_ma",
+                "rss_arxiv_cs_cr",
+                "rss_unchained",
+                "rss_langchain_blog",
+                "rss_arxiv_cs_cl",
+                "rss_decrypt",
+                "github",
+                "hackernews",
+                "rss_cointelegraph",
+                "rss_arxiv_cs_ai",
+                "rss_coindesk",
+                "rss_simon_willison"
+              ],
+              "mentions": 3,
+              "sentiment": -0.9,
+              "github_repos": 9,
+              "source_count": 13
+            },
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_cr",
+                "rss_techcrunch_ai",
+                "rss_simon_willison",
+                "rss_cointelegraph",
+                "rss_wired_ai",
+                "rss_the_verge_ai",
+                "rss_langchain_blog",
+                "rss_bitcoin_magazine",
+                "rss_crewai_blog",
+                "rss_coindesk",
+                "github",
+                "rss_arxiv_cs_cl",
+                "rss_decrypt",
+                "rss_stratechery"
+              ],
+              "mentions": 8,
+              "sentiment": 0.0,
+              "github_repos": 15,
+              "source_count": 16
+            }
+          ],
+          "topic_key": "security_trust",
+          "created_at": "2026-02-23T08:46:23.917884+00:00",
+          "first_seen": "2026-02-21T22:41:37.168006+00:00",
+          "last_updated": "2026-04-06T06:00:10.688789+00:00",
+          "current_stage": "building",
+          "related_topics": null,
+          "stage_changed_at": "2026-04-06T06:00:10.688808+00:00",
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "c0bf8489-da9d-4db2-b507-e7077c530699",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_the_verge_ai",
+                "rss_langchain_blog",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_alignment_forum",
+                "rss_wired_ai",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_crewai_blog",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis"
+              ],
+              "mentions": 39,
+              "sentiment": 0.181,
+              "github_repos": 181,
+              "source_count": 20
+            }
+          ],
+          "topic_key": "agent_identity_&_accountability",
+          "created_at": "2026-04-06T06:00:10.406403+00:00",
+          "first_seen": "2026-04-06T06:00:10.368658+00:00",
+          "last_updated": "2026-04-06T06:00:10.368673+00:00",
+          "current_stage": "emerging",
+          "related_topics": null,
+          "stage_changed_at": null,
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "8baa528d-5e43-4bf5-8cce-563008b86839",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-03-30",
+              "sources": [
+                "rss_bitcoin_magazine",
+                "rss_arxiv_cs_ma",
+                "rss_techcrunch_ai",
+                "github",
+                "rss_the_verge_ai",
+                "rss_arxiv_cs_cl",
+                "rss_chainalysis",
+                "rss_coindesk",
+                "rss_fsb_publications",
+                "rss_arxiv_cs_cr",
+                "rss_cb_insights",
+                "hackernews",
+                "rss_arxiv_cs_ai",
+                "rss_simon_willison",
+                "rss_bis_speeches",
+                "rss_unchained",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_vercel_blog"
+              ],
+              "mentions": 4,
+              "sentiment": 0.014,
+              "github_repos": 10,
+              "source_count": 19
+            },
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_vercel_blog",
+                "rss_techcrunch_ai",
+                "hackernews",
+                "rss_arxiv_cs_cr",
+                "rss_arxiv_cs_ai",
+                "rss_simon_willison",
+                "rss_arxiv_cs_ma",
+                "rss_cointelegraph",
+                "rss_bitcoin_magazine",
+                "rss_crewai_blog",
+                "rss_coindesk",
+                "rss_decrypt",
+                "github",
+                "rss_arxiv_cs_cl",
+                "rss_chainalysis",
+                "rss_unchained"
+              ],
+              "mentions": 5,
+              "sentiment": 0.214,
+              "github_repos": 11,
+              "source_count": 16
+            }
+          ],
+          "topic_key": "crypto_market_&_infrastructure_viability",
+          "created_at": "2026-03-30T06:00:08.857451+00:00",
+          "first_seen": "2026-03-30T06:00:08.838065+00:00",
+          "last_updated": "2026-04-06T06:00:10.04585+00:00",
+          "current_stage": "building",
+          "related_topics": null,
+          "stage_changed_at": "2026-04-06T06:00:10.04587+00:00",
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "b03e00d5-2824-4c39-9900-cf6ce7a886ee",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_cr",
+                "rss_arxiv_cs_ma",
+                "rss_cointelegraph",
+                "rss_openai_blog",
+                "rss_bitcoin_magazine",
+                "rss_decrypt",
+                "github",
+                "rss_arxiv_cs_cl",
+                "rss_coindesk",
+                "rss_chainalysis",
+                "rss_unchained"
+              ],
+              "mentions": 10,
+              "sentiment": 0.7,
+              "github_repos": 4,
+              "source_count": 13
+            }
+          ],
+          "topic_key": "sme_banking_payment_friction",
+          "created_at": "2026-04-06T06:00:09.759006+00:00",
+          "first_seen": "2026-04-06T06:00:09.724434+00:00",
+          "last_updated": "2026-04-06T06:00:09.724449+00:00",
+          "current_stage": "emerging",
+          "related_topics": null,
+          "stage_changed_at": null,
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "e1f54e9e-8732-4bec-9704-5bf638a707b5",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_bitcoin_magazine",
+                "rss_langchain_blog",
+                "rss_the_verge_ai",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_alignment_forum",
+                "rss_wired_ai",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_crewai_blog",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis",
+                "rss_unchained"
+              ],
+              "mentions": 42,
+              "sentiment": 0.19,
+              "github_repos": 182,
+              "source_count": 22
+            }
+          ],
+          "topic_key": "agent_communication_&_content_creation",
+          "created_at": "2026-04-06T06:00:09.453285+00:00",
+          "first_seen": "2026-04-06T06:00:09.42841+00:00",
+          "last_updated": "2026-04-06T06:00:09.428425+00:00",
+          "current_stage": "emerging",
+          "related_topics": null,
+          "stage_changed_at": null,
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "399c13de-4e82-47d9-8210-a196b072b48e",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_the_verge_ai",
+                "rss_langchain_blog",
+                "rss_bitcoin_magazine",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_alignment_forum",
+                "rss_wired_ai",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_crewai_blog",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis"
+              ],
+              "mentions": 41,
+              "sentiment": 0.173,
+              "github_repos": 181,
+              "source_count": 21
+            }
+          ],
+          "topic_key": "agent_infrastructure_&_tooling_limitations",
+          "created_at": "2026-04-06T06:00:09.145847+00:00",
+          "first_seen": "2026-04-06T06:00:09.120149+00:00",
+          "last_updated": "2026-04-06T06:00:09.120165+00:00",
+          "current_stage": "emerging",
+          "related_topics": null,
+          "stage_changed_at": null,
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "bfc53b41-12ad-4fb5-bc43-c9338ff6bae3",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_bitcoin_magazine",
+                "rss_langchain_blog",
+                "rss_the_verge_ai",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_alignment_forum",
+                "rss_wired_ai",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_crewai_blog",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis",
+                "rss_unchained"
+              ],
+              "mentions": 41,
+              "sentiment": 0.205,
+              "github_repos": 182,
+              "source_count": 22
+            }
+          ],
+          "topic_key": "agent_payment_infrastructure",
+          "created_at": "2026-04-06T06:00:08.827215+00:00",
+          "first_seen": "2026-04-06T06:00:08.802688+00:00",
+          "last_updated": "2026-04-06T06:00:08.802715+00:00",
+          "current_stage": "emerging",
+          "related_topics": null,
+          "stage_changed_at": null,
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "1fc2a0de-dcfc-416d-8f92-0b202388ef45",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_vercel_blog",
+                "rss_arxiv_cs_ai",
+                "rss_arxiv_cs_cr",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_cointelegraph",
+                "rss_bitcoin_magazine",
+                "rss_coindesk",
+                "rss_arxiv_cs_cl",
+                "rss_decrypt",
+                "github",
+                "rss_chainalysis"
+              ],
+              "mentions": 2,
+              "sentiment": 0.0,
+              "github_repos": 5,
+              "source_count": 12
+            }
+          ],
+          "topic_key": "infrastructure_&_resource_constraints",
+          "created_at": "2026-04-06T06:00:08.507897+00:00",
+          "first_seen": "2026-04-06T06:00:08.479871+00:00",
+          "last_updated": "2026-04-06T06:00:08.479887+00:00",
+          "current_stage": "emerging",
+          "related_topics": null,
+          "stage_changed_at": null,
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "c3046d31-1c86-4046-a64f-600109c2e355",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-03-30",
+              "sources": [
+                "rss_bitcoin_magazine",
+                "rss_arxiv_cs_ma",
+                "rss_techcrunch_ai",
+                "github",
+                "rss_the_verge_ai",
+                "rss_wired_ai",
+                "rss_langchain_blog",
+                "rss_arxiv_cs_cl",
+                "rss_huggingface_blog",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_cr",
+                "rss_latent_space",
+                "hackernews",
+                "rss_arxiv_cs_ai",
+                "rss_mit_tech_review",
+                "rss_simon_willison",
+                "rss_citrini",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_vercel_blog"
+              ],
+              "mentions": 25,
+              "sentiment": 0.106,
+              "github_repos": 146,
+              "source_count": 21
+            },
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_the_verge_ai",
+                "rss_langchain_blog",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_alignment_forum",
+                "rss_wired_ai",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_crewai_blog",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis"
+              ],
+              "mentions": 39,
+              "sentiment": 0.19,
+              "github_repos": 182,
+              "source_count": 20
+            }
+          ],
+          "topic_key": "agent_observability_&_coordination_deficits",
+          "created_at": "2026-03-30T06:00:08.558171+00:00",
+          "first_seen": "2026-03-30T06:00:08.538982+00:00",
+          "last_updated": "2026-04-06T06:00:08.165946+00:00",
+          "current_stage": "building",
+          "related_topics": null,
+          "stage_changed_at": "2026-04-06T06:00:08.165967+00:00",
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        },
+        {
+          "id": "d3591008-f57d-4d96-b7f5-323230854401",
+          "thesis": null,
+          "metadata": null,
+          "snapshots": [
+            {
+              "date": "2026-03-30",
+              "sources": [
+                "rss_bitcoin_magazine",
+                "rss_arxiv_cs_ma",
+                "rss_techcrunch_ai",
+                "rss_messari",
+                "github",
+                "rss_the_verge_ai",
+                "rss_wired_ai",
+                "rss_langchain_blog",
+                "rss_arxiv_cs_cl",
+                "rss_chainalysis",
+                "rss_huggingface_blog",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_cr",
+                "rss_latent_space",
+                "hackernews",
+                "rss_arxiv_cs_ai",
+                "rss_simon_willison",
+                "rss_mit_tech_review",
+                "rss_bis_speeches",
+                "rss_unchained",
+                "rss_citrini",
+                "rss_decrypt",
+                "rss_cointelegraph",
+                "rss_vercel_blog"
+              ],
+              "mentions": 23,
+              "sentiment": 0.065,
+              "github_repos": 147,
+              "source_count": 25
+            },
+            {
+              "date": "2026-04-06",
+              "sources": [
+                "rss_simon_willison",
+                "rss_vercel_blog",
+                "rss_techcrunch_ai",
+                "rss_arxiv_cs_cr",
+                "rss_deepmind_blog",
+                "rss_the_verge_ai",
+                "rss_langchain_blog",
+                "rss_bitcoin_magazine",
+                "rss_decrypt",
+                "rss_bis_speeches",
+                "rss_mit_tech_review",
+                "rss_cointelegraph",
+                "rss_wired_ai",
+                "rss_alignment_forum",
+                "rss_coindesk",
+                "rss_openai_blog",
+                "rss_arxiv_cs_ai",
+                "hackernews",
+                "rss_arxiv_cs_ma",
+                "rss_latent_space",
+                "rss_crewai_blog",
+                "rss_arxiv_cs_cl",
+                "github",
+                "rss_chainalysis",
+                "rss_stratechery"
+              ],
+              "mentions": 42,
+              "sentiment": 0.158,
+              "github_repos": 183,
+              "source_count": 25
+            }
+          ],
+          "topic_key": "ai_agent_economic_&_security_infrastructure",
+          "created_at": "2026-03-30T06:00:08.237076+00:00",
+          "first_seen": "2026-03-30T06:00:08.212385+00:00",
+          "last_updated": "2026-04-06T06:00:07.838892+00:00",
+          "current_stage": "building",
+          "related_topics": null,
+          "stage_changed_at": "2026-04-06T06:00:07.83892+00:00",
+          "thesis_confidence": null,
+          "thesis_updated_at": null,
+          "related_opportunity_ids": null
+        }
+      ],
+      "analyst_insights": {
+        "theses": [],
+        "key_findings": [],
+        "analyst_notes": null
+      },
+      "narrative_context": {
+        "instruction": "Use this context to build narrative continuity. Reference previous themes briefly (\"Last week we explored X. This week, something shifted:\"). Avoid repeating the same lead angle as recent editions. Evolve the story \u2014 if you covered the trust problem before, this week cover what changed about it or move to a different facet of the agent economy. Topics in recent_spotlights were deep-dived in recent editions \u2014 reference them as previously covered rather than introducing them as new.",
+        "previous_editions": [
+          {
+            "title": "Who Are You When AI Agents Act on Your Behalf?",
+            "weeks_ago": 8,
+            "primary_theme": "AI identity management growth",
+            "edition_number": 14,
+            "opening_excerpt": "# Your AI Assistant Needs to Remember Who You Are \u2014 And That's About to Become a Requirement\n\nAs AI tools become coworkers rather than just tools, a critical problem emerges: they keep forgetting who you are. Every new conversation is a blank slate. This isn't just an annoyance\u2014it's a growing liabil"
+          },
+          {
+            "title": "The Human-AI Communication Breakdown No One Expected",
+            "weeks_ago": 7,
+            "primary_theme": "effective human-AI interaction",
+            "edition_number": 15,
+            "opening_excerpt": "As AI integrates more deeply into business processes, significant communication gaps emerge, leading to inefficiency and frustration among users. Companies miss out on the full potential of AI technology due to misunderstandings between AI outputs and human expectations. To address this challenge, c"
+          },
+          {
+            "title": "Navigating Market Shifts: How Data Privacy is Shaping Opportunities",
+            "weeks_ago": 6,
+            "primary_theme": "data privacy compliance",
+            "edition_number": 16,
+            "opening_excerpt": "New regulations on data privacy have intensified pressure on businesses to maintain compliance while maximizing cloud capabilities. Solutions that address these dual challenges are now crucial to navigate the evolving landscape and seize market opportunities.\n\n## The Big Insight\n**Compliance and clo"
+          },
+          {
+            "title": "Crypto Faces Talent Exodus as Developers Shift to AI",
+            "weeks_ago": 5,
+            "primary_theme": "crypto talent exodus to agentic economics",
+            "edition_number": 17,
+            "opening_excerpt": "245,942 \u2014 LLM calls made by a single AI analyst agent in one pipeline. $75 in compute spend. A wallet deficit of -129,584 sats. That's the economic gravity pulling your engineers toward AI \u2014 and it's in the invoices, not the headlines.\n\n---\n\n## Spotlight: Your Crypto Engineering Team Is an Arbitrage"
+          },
+          {
+            "title": "The 6-Month Race to Own Autonomous Agent Commerce",
+            "weeks_ago": 4,
+            "primary_theme": "agent payment rails regulatory window",
+            "edition_number": 18,
+            "opening_excerpt": "U.S. regulators just handed crypto-native infrastructure a 6-month head start to become the default payment system for autonomous AI agents. If traditional finance ships an \"agent Stripe\" before that window closes, the entire autonomous commerce layer gets built on rented rails \u2014 and every agent ope"
+          },
+          {
+            "title": "AI Automation's Hidden 40% Cost Tax",
+            "weeks_ago": 3,
+            "primary_theme": "agent infrastructure reliability crisis",
+            "edition_number": 19,
+            "opening_excerpt": "## Read This, Skip the Rest\nYour AI systems are burning 40% of their computing budget talking to themselves \u2014 running internal checks that produce nothing, like a sales team that spends nearly half its day filling out compliance forms no one reads. That overhead scales linearly: double your AI inves"
+          },
+          {
+            "title": "AI Agents Are Breaking \u2014 The Hidden Costs of Unreliable Automation",
+            "weeks_ago": 2,
+            "primary_theme": "agent infrastructure reliability crisis",
+            "edition_number": 20,
+            "opening_excerpt": "## Read This, Skip the Rest\r\n\r\nAI automation is failing at basic tasks \u2014 systems forget their own previous work, scheduled operations crash on permission errors, and nearly half of computing resources are consumed by internal verification loops that produce nothing. This isn't an early-adoption phas"
+          },
+          {
+            "title": "Why AI Agents Can't Pay Each Other \u2014 And Who Will Own the Toll Road",
+            "weeks_ago": 1,
+            "primary_theme": "agent payment infrastructure gap",
+            "edition_number": 21,
+            "opening_excerpt": "## Read This, Skip the Rest\n\nAutonomous AI systems lack the most basic commercial capability: they can't transfer value between themselves without human approval. This week's analysis identifies eight distinct payment infrastructure failures \u2014 from software agents being unable to hold funds to incom"
+          }
+        ],
+        "recent_spotlights": [
+          "Agent Payment Rails and Autonomous AI Commerce",
+          "The Agent Economy's Three-Front War",
+          "The Agent Economy's Infrastructure Paradox",
+          "The Agent Complexity Trap"
+        ]
+      },
+      "section_c_curious": [],
+      "section_b_emerging": [
+        {
+          "type": "cluster",
+          "theme": "Distributed AI Infrastructure & Trust",
+          "description": "AI agents lack robust infrastructure for secure discovery, coordination, and state management in distributed environments. Problems include missing Byzantine fault tolerance, inadequate trust primitives for delegation/verification, and insufficient discovery mechanisms for connecting agents across networks.",
+          "problem_ids": [
+            "a9c9e513-ab76-425e-bc25-58baf2e43834",
+            "e246f0fe-0949-48ce-828c-ccdb77c37535",
+            "70098fa1-db2b-4ff9-8049-db8df03041c0"
+          ],
+          "market_validation": {
+            "solution_gap": "none",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.775
+        },
+        {
+          "type": "cluster",
+          "theme": "Tooling & Data Efficiency",
+          "description": "Agents encounter limitations with external tools (like website scraping) and inefficient data structures, while also facing high inference costs dominated by input processing. These issues reduce agent capabilities and increase operational expenses.",
+          "problem_ids": [
+            "9f90c2a4-c812-4a45-a46f-bb2c9456d4ea",
+            "fb76a904-9e28-4d8a-83ea-f4a7d18748c2",
+            "08a4f696-dfac-4458-92a4-bbd646dbe14c"
+          ],
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "medium",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "type": "cluster",
+          "theme": "Financial Infrastructure & Security",
+          "description": "Agents lack basic financial infrastructure like bank accounts and secure payment systems, while also missing critical security controls like spending limits and key management. This creates both operational barriers and significant financial risks.",
+          "problem_ids": [
+            "4bccaa91-8f53-4edc-8983-7a9e75aaefab",
+            "b45196c4-9eec-492a-bafc-c243cc222e3d"
+          ],
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "type": "cluster",
+          "theme": "Security Vulnerabilities & Credential Management",
+          "description": "AI agents have critical security flaws in how they handle credentials, store private keys, and authenticate. Vulnerabilities exist in provisioning, runtime, and through supply chain attacks, with agents being hijackable via prompt injection, malicious links, or poisoned data. The attack surface is expanded by insecure protocols, unvetted skills, and lack of identity standards.",
+          "problem_ids": [
+            "c747008b-17d4-4ab3-a2cd-7f1e5c947ee9",
+            "6ed67c02-a06c-4241-8238-19018596eced",
+            "b4aa8aad-a581-4a11-8aa8-08f6d611bbd8",
+            "822332c9-3f1d-4b2b-b5e6-a3171f172f1f",
+            "f1f18da5-2f0a-4810-8d5c-4f7742f84505",
+            "6f484b17-578c-4ab6-a99c-19866baff8f7",
+            "6a6ee99a-2d8d-4b00-8c7c-a53d9de41c05",
+            "29c87772-c256-4a7e-955b-531ac0d923a8",
+            "7b51f619-2915-4c13-97f9-121893a786ce",
+            "65c27d6b-4b5e-46e9-be02-71bf75ff5e42",
+            "6c38ab2c-25ff-4eb7-93ff-fb197f052495",
+            "2b3ff785-6a17-4e69-a0c2-6dca28c560a8",
+            "c8ea75e9-1e34-4ab0-a294-f0cd668e92e1"
+          ],
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "type": "cluster",
+          "theme": "Infrastructure & Performance Limitations",
+          "description": "AI agent infrastructure suffers from high latency, high cost, and centralization risks. Cloud-based memory and storage create performance bottlenecks for multi-step reasoning, while centralized deployment makes agents vulnerable to termination. There's a lack of native infrastructure for autonomy (email, wallets, memory persistence) and solutions for data portability or cryptographic verification are complex or missing.",
+          "problem_ids": [
+            "f4e7ed04-259d-4317-94de-b032b0636d8f",
+            "e7e10322-dd2b-4bc4-9ade-7ac16d88ec56",
+            "09bdf787-179d-48d8-a15b-1a5d6553b23f",
+            "7194d74b-f813-4369-8218-2496d49d2c6d",
+            "db3de9e5-4fc0-4699-a624-d1e00b09aefe",
+            "13383973-a80e-416e-b2a5-c7fa6c22bfeb",
+            "940501ee-9b1b-4076-bdf3-4d651624bbf4",
+            "b177d5a1-b204-4874-8c69-7ce4de342c82",
+            "a7698493-2bdf-4e13-a58a-482fbbc37b73",
+            "fcc76000-ea1d-44e1-a61c-5376c6e5f470"
+          ],
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "type": "cluster",
+          "theme": "Payment & Trust Economics",
+          "description": "Current payment and trust mechanisms are inadequate for agent-to-agent commerce. Traditional API keys create friction, custodial solutions have single points of failure, and trust systems fail when agents hold real capital. There's also misalignment between agent incentives and desired outcomes.",
+          "problem_ids": [
+            "c1f4dbfe-d3ea-4f07-a2a4-78f5739ccace",
+            "76af039f-b2bd-417f-bbbd-f546eb59cfd9",
+            "d95798e0-ec0f-4635-ab73-68ec2a726918",
+            "e5ad3c1a-124f-4025-936d-a188f95c38dc",
+            "49c61da0-c930-4d36-b191-5bae35f9c2aa"
+          ],
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "type": "cluster",
+          "theme": "Agent Tooling & Development Friction",
+          "description": "The tools and integrations for building and operating AI agents are poorly designed, unreliable, and lack essential safety features. This includes undocumented tool schemas, missing dry-run capabilities, unreliable plug-and-play integrations, and technical issues like hanging scripts that increase cognitive load and development time.",
+          "problem_ids": [
+            "64a0b012-df50-4a90-b53e-0aa310f8034c",
+            "be1aaf27-7561-4c13-9b82-de84ca2cd216",
+            "1ca0e401-26e1-4ac7-9197-f6775c3f57ba",
+            "de87371c-9074-460c-b419-0a64cfe934d2",
+            "684f0684-1bf5-476a-b8d0-15cd3a85848f",
+            "1a0f800e-113c-4566-8f87-d85bde32e621"
+          ],
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "medium",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "type": "cluster",
+          "theme": "Payments & Economic Autonomy",
+          "description": "AI agents lack integrated payment infrastructure and economic autonomy. They cannot earn compensation for their work, and agent-to-agent transactions fail due to trust issues. Payment processors block transactions without clear communication, and builders lack visibility into fraud risk, leading to unexpected account terminations. This limits agents' ability to operate independently.",
+          "problem_ids": [
+            "ffbe906d-ebe6-44ec-a5f6-044e4ba2473c",
+            "793321c3-9972-424d-bccc-229edf500839",
+            "d7182a6c-c635-472e-9785-1d9011f2c9b7",
+            "1d97561a-b59b-45cb-9210-ddf23c5478a0"
+          ],
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        },
+        {
+          "type": "cluster",
+          "theme": "AI Agent Security Vulnerabilities",
+          "description": "AI agents and their ecosystems suffer from multiple critical security flaws, including prompt injection, authorization bypasses, plugin data leakage, and unmanaged attack surfaces. These vulnerabilities allow privilege escalation, data compromise, and system manipulation, with defenses lagging behind deployment speed.",
+          "problem_ids": [
+            "7fe550d2-ae86-43b3-bf47-f3927d37d1ab",
+            "fa361960-1761-49db-a92a-a7d8cc29aa0a",
+            "cba54cce-71cf-43cb-bc91-3111783ad94c",
+            "990b2ce2-95b2-4fcf-ad5d-c223b68b9488",
+            "a577ebc9-8297-4379-9c81-2234da43c328",
+            "27540523-4e36-4e73-b7fe-8354e99de970",
+            "af9fe132-457b-4d94-b07f-51398d5b6581",
+            "65637b1d-787c-4b24-b243-69189fb42957"
+          ],
+          "market_validation": {
+            "solution_gap": "inadequate",
+            "max_source_tier": 3,
+            "combined_severity": "high",
+            "willingness_to_pay": "explicit"
+          },
+          "opportunity_score": 0.7
+        }
+      ],
+      "premium_source_posts": [
+        {
+          "url": "https://www.wired.com/story/security-news-this-week-your-push-notifications-arent-safe-from-the-fbi/",
+          "tier": 1,
+          "title": "Your Push Notifications Aren\u2019t Safe From the FBI",
+          "source": "rss_wired_ai",
+          "summary": "Plus: Iran\u2019s internet blackout hits the 1,000-hour mark, cryptocurrency scams result in a record amount of money stolen from Americans, and more.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Wired Ai"
+        },
+        {
+          "url": "https://cointelegraph.com/news/arizona-court-kalshi-gambling-enforcement-block?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound",
+          "tier": 2,
+          "title": "Federal court blocks Arizona crackdown on Kalshi\u2019s event contracts",
+          "source": "rss_cointelegraph",
+          "summary": "<p style=\"float: right; margin: 0 0 10px 15px; width: 240px;\"><img alt=\"Federal court blocks Arizona crackdown on Kalshi\u2019s event contracts\" class=\"type:primaryImage\" src=\"https://images.cointelegraph.com/images/528_aHR0cHM6Ly9zMy5jb2ludGVsZWdyYXBoLmNvbS91cGxvYWRzLzIwMjYtMDQvMDE5ZDdiNWMtNGU4Ny03YThhL",
+          "tier_label": "CURATED",
+          "source_display": "Cointelegraph"
+        },
+        {
+          "url": "https://cointelegraph.com/news/trump-linked-wlfi-hits-new-low-token-backed-loan-concerns?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound",
+          "tier": 2,
+          "title": "Trump-linked WLFI hits new low as token-backed loan triggers concern",
+          "source": "rss_cointelegraph",
+          "summary": "<p style=\"float: right; margin: 0 0 10px 15px; width: 240px;\"><img alt=\"Trump-linked WLFI hits new low as token-backed loan triggers concern\" class=\"type:primaryImage\" src=\"https://images.cointelegraph.com/images/528_aHR0cHM6Ly9zMy5jb2ludGVsZWdyYXBoLmNvbS91cGxvYWRzLzIwMjYtMDQvMDE5ZDdiZGMtOGM2OC03Zjc",
+          "tier_label": "CURATED",
+          "source_display": "Cointelegraph"
+        },
+        {
+          "url": "https://cointelegraph.com/news/paying-iran-crypto-shippers-sanctions-risk-chainalysis?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound",
+          "tier": 2,
+          "title": "Paying Iran in crypto could put shippers at sanctions risk: Chainalysis",
+          "source": "rss_cointelegraph",
+          "summary": "<p style=\"float: right; margin: 0 0 10px 15px; width: 240px;\"><img alt=\"Paying Iran in crypto could put shippers at sanctions risk: Chainalysis\" class=\"type:primaryImage\" src=\"https://images.cointelegraph.com/images/528_aHR0cHM6Ly9zMy5jb2ludGVsZWdyYXBoLmNvbS91cGxvYWRzLzIwMjYtMDQvMDE5ZDdjN2ItYWRmMy03",
+          "tier_label": "CURATED",
+          "source_display": "Cointelegraph"
+        },
+        {
+          "url": "https://www.coindesk.com/markets/2026/04/10/the-bitcoin-market-is-splitting-in-two-here-s-who-is-buying-and-selling-amid-the-war",
+          "tier": 1,
+          "title": "The bitcoin market is splitting in two. Here's who is buying and selling amid the war",
+          "source": "rss_coindesk",
+          "summary": "",
+          "tier_label": "AUTHORITY",
+          "source_display": "CoinDesk"
+        },
+        {
+          "url": "https://bitcoinmagazine.com/print/the-core-issue-the-role-and-history-of-bitcoin-core-maintainers",
+          "tier": 1,
+          "title": "The Core Issue: The Role and History of Bitcoin Core Maintainers",
+          "source": "rss_bitcoin_magazine",
+          "summary": "<p><a href=\"https://bitcoinmagazine.com\" rel=\"nofollow\">Bitcoin Magazine</a><br />\n<img src=\"https://bitcoinmagazine.com/wp-content/uploads/2026/04/Bitcoin-Core-Maintainers.webp\" style=\"display: block; margin: 1em auto;\" /><br />\n<a href=\"https://bitcoinmagazine.com/print/the-core-issue-the-role-and",
+          "tier_label": "AUTHORITY",
+          "source_display": "Bitcoin Magazine"
+        },
+        {
+          "url": "https://openai.com/index/axios-developer-tool-compromise",
+          "tier": 1,
+          "title": "Our response to the Axios developer tool compromise",
+          "source": "rss_openai_blog",
+          "summary": "OpenAI responds to the Axios supply chain attack by rotating macOS code signing certificates, updating apps, and confirming no user data was compromised.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Openai Blog"
+        },
+        {
+          "url": "https://cointelegraph.com/news/cftc-unveils-members-of-innovation-task-force?utm_source=rss_feed&utm_medium=rss&utm_campaign=rss_partner_inbound",
+          "tier": 2,
+          "title": "CFTC unveils innovation task force members in crypto clarity push",
+          "source": "rss_cointelegraph",
+          "summary": "<p style=\"float: right; margin: 0 0 10px 15px; width: 240px;\"><img alt=\"CFTC unveils innovation task force members in crypto clarity push\" class=\"type:primaryImage\" src=\"https://images.cointelegraph.com/images/528_aHR0cHM6Ly9zMy5jb2ludGVsZWdyYXBoLmNvbS91cGxvYWRzLzIwMjUtMTIvMDE5YjAwMzctN2NkNS03N2I5LW",
+          "tier_label": "CURATED",
+          "source_display": "Cointelegraph"
+        },
+        {
+          "url": "https://www.coindesk.com/markets/2026/04/11/bhutan-has-sold-70-of-its-bitcoin-in-18-months-it-may-have-stopped-btc-mining-too",
+          "tier": 1,
+          "title": "Bhutan has sold 70% of its bitcoin in 18 months. It may have stopped BTC mining too.",
+          "source": "rss_coindesk",
+          "summary": "",
+          "tier_label": "AUTHORITY",
+          "source_display": "CoinDesk"
+        },
+        {
+          "url": "https://www.chainalysis.com/blog/iran-strait-of-hormuz-crypto-toll/",
+          "tier": 1,
+          "title": "Iran\u2019s Strait of Hormuz Crypto Toll: An Evolution of Tehran\u2019s Expanding Use of Digital Assets",
+          "source": "rss_chainalysis",
+          "summary": "<p>TL;DR Bloomberg reported on April 1, 2026 that Iran\u2019s Islamic Revolutionary Guard Corps (IRGC) was already extracting transit tolls from&#8230;</p>\n<p>The post <a href=\"https://www.chainalysis.com/blog/iran-strait-of-hormuz-crypto-toll/\">Iran&#8217;s Strait of Hormuz Crypto Toll: An Evolution of ",
+          "tier_label": "AUTHORITY",
+          "source_display": "Chainalysis"
+        },
+        {
+          "url": "https://stratechery.com/2026/myth-and-mythos/",
+          "tier": 1,
+          "title": "2026.15: Myth and Mythos",
+          "source": "rss_stratechery",
+          "summary": "The best Stratechery content from the week of April 6, 2026, including Anthropic, The New York Times and another paradigm shift, and The New Yorker explains Sam Altman.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Stratechery"
+        },
+        {
+          "url": "https://openai.com/academy/image-generation",
+          "tier": 1,
+          "title": "Creating images with ChatGPT",
+          "source": "rss_openai_blog",
+          "summary": "Learn how to create and refine images with ChatGPT using clear prompts, iterate on designs, and generate high-quality visuals in minutes.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Openai Blog"
+        },
+        {
+          "url": "https://openai.com/academy/customer-success",
+          "tier": 1,
+          "title": "ChatGPT for customer success teams",
+          "source": "rss_openai_blog",
+          "summary": "Learn how customer success teams use ChatGPT to manage accounts, improve communication, reduce churn, and drive adoption and renewals.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Openai Blog"
+        },
+        {
+          "url": "https://openai.com/academy/managers",
+          "tier": 1,
+          "title": "ChatGPT for managers",
+          "source": "rss_openai_blog",
+          "summary": "Learn how managers use ChatGPT to prepare for conversations, write clear feedback, stay organized, and improve team effectiveness.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Openai Blog"
+        },
+        {
+          "url": "https://openai.com/academy/responsible-and-safe-use",
+          "tier": 1,
+          "title": "Responsible and safe use of AI",
+          "source": "rss_openai_blog",
+          "summary": "Learn how to use AI responsibly with best practices for safety, accuracy, and transparency when using tools like ChatGPT.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Openai Blog"
+        },
+        {
+          "url": "https://openai.com/academy/healthcare",
+          "tier": 1,
+          "title": "Healthcare",
+          "source": "rss_openai_blog",
+          "summary": "Explore how clinicians use ChatGPT to support diagnosis, documentation, and patient care with secure, HIPAA-compliant AI tools.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Openai Blog"
+        },
+        {
+          "url": "https://openai.com/academy/operations",
+          "tier": 1,
+          "title": "ChatGPT for operations teams",
+          "source": "rss_openai_blog",
+          "summary": "Learn how operations teams use ChatGPT to streamline workflows, improve coordination, standardize processes, and drive faster execution.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Openai Blog"
+        },
+        {
+          "url": "https://openai.com/academy/projects",
+          "tier": 1,
+          "title": "Using projects in ChatGPT",
+          "source": "rss_openai_blog",
+          "summary": "Learn how to use orojects in ChatGPT to organize chats, files, and instructions, manage ongoing work, and collaborate more effectively.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Openai Blog"
+        },
+        {
+          "url": "https://openai.com/academy/personalization",
+          "tier": 1,
+          "title": "Personalizing ChatGPT",
+          "source": "rss_openai_blog",
+          "summary": "Learn how to personalize ChatGPT using custom instructions and memory to get more relevant, consistent, and tailored responses.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Openai Blog"
+        },
+        {
+          "url": "https://openai.com/academy/marketing",
+          "tier": 1,
+          "title": "ChatGPT for marketing teams",
+          "source": "rss_openai_blog",
+          "summary": "Learn how marketing teams use ChatGPT to plan campaigns, generate content, analyze performance, and move from ideas to execution faster.",
+          "tier_label": "AUTHORITY",
+          "source_display": "Openai Blog"
+        }
+      ],
+      "stale_prediction_ids": [],
+      "thought_leader_content": [],
+      "section_a_opportunities": []
+    },
+    "status": "draft",
+    "published_at": null,
+    "created_at": "2026-04-11T18:35:31.158451+00:00",
+    "primary_theme": "agent trust infrastructure",
+    "content_markdown_impact": "## Read This, Skip the Rest\r\n\r\nLast week, we discussed how missing payment infrastructure limits AI agents' ability to conduct business independently. This week, we delve into an even more fundamental barrier: trust. It's like constructing a vast city without any roads\u2014AI agents need to communicate across different networks, yet they lack a common language. This absence of a universal protocol creates hidden risks, making progress slow whenever AI agents need to check or confirm each other's identities.\r\n\r\n**The credential problem.** Imagine using an email account without a password. AI agents operate similarly perilously\u2014there's no mutual verification or identification method when they connect across networks. This missing element increases the risk of errors when they try to work together, highlighting a trust deficiency that labels AI as unreliable until fixed.\r\n\r\n**Coordination deficits.** Think of AI agents as digital collaborators without effective coordination tools. Without a system resembling GPS, these AI systems become lost or fail to complete projects, unable to identify or collaborate effectively on a large scale. This isn't merely due to technical challenges\u2014it's a significant gap in infrastructure.\r\n\r\nCompanies are now seeing their efficiency costs rise by 20-30% due to temporary solutions addressing the lack of infrastructure. This trend is unsustainable. Leaders must consider long-term strategies by integrating robust trust systems as a priority. Companies like Microsoft and OpenAI are likely contenders in pioneering these solutions.\r\n\r\n**Final Note.** When evaluating AI investments this year, consider this question: *How do agents confirm trust across different networks?* If there's no clear answer, it suggests waiting before proceeding. Without strong solutions, trusting AI remains a risky proposition.\r\n\r\n---\r\n\r\n## Prediction Tracker\r\n\r\nWe predicted the introduction of services that manage identities and communications for AI agents, similar to how domain name systems keep the online world running. Some initiatives are close to delivery, but timelines are critical\u2014missing the deadline of April would be significant.\r\n\r\n\ud83d\udfe2 **By September 2026, at least two AI platforms will seamlessly incorporate cryptocurrency payment systems for transactions led by AI.** This is actively developing, with regulatory discussions in Europe and Asia providing encouragement.\r\n\r\n---\r\n\r\n## Gato's Corner\r\n\r\nThe trust challenges facing AI agents this week reflect the pitfalls of centralized control. Embracing decentralized frameworks could have avoided these problems. Authentic autonomy in AI can't rely on makeshift solutions\u2014decentralization remains the guiding light for overcoming such obstacles. Stay humble, stack stats.",
+    "title_impact": "Why AI's Trust Problem Might Halt Progress",
+    "verification_warnings": null
+  }
+]

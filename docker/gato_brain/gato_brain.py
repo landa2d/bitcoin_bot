@@ -1824,7 +1824,7 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
         )
 
     # 2c-2. Newsletter preview — set to preview status (visible on web, not distributed)
-    if _msg_lower == "/newsletter_preview":
+    if _msg_lower.startswith("/newsletter_preview"):
         try:
             draft = supabase.table("newsletters")\
                 .select("id, edition_number")\

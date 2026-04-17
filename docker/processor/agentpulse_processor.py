@@ -3559,7 +3559,7 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
             .execute()
         warnings_data = warnings.data or []
 
-        # Recent problem clusters (last 7 days)
+        # Recent problem clusters (last 7 days) with theme diversity penalty
         clusters = supabase.table('problem_clusters')\
             .select('*')\
             .gte('created_at', week_ago)\
@@ -3567,6 +3567,21 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
             .limit(10)\
             .execute()
         clusters_data = clusters.data or []
+
+        # Apply theme diversity penalty to clusters (tiered: 1 word = 0.7x, 2+ words = 0.4x)
+        if avoided_theme_words and clusters_data:
+            for cluster in clusters_data:
+                cluster_theme = (cluster.get('theme') or '').lower()
+                cluster_words = set(cluster_theme.split()) - _theme_stopwords
+                theme_overlap = cluster_words & avoided_theme_words
+                original = cluster.get('opportunity_score', 0)
+                if len(theme_overlap) >= 2:
+                    cluster['opportunity_score'] = round(original * 0.4, 4)
+                    logger.info(f"Cluster theme penalty (heavy): '{cluster_theme[:40]}' overlaps {theme_overlap}, score {original}->{cluster['opportunity_score']}")
+                elif len(theme_overlap) == 1:
+                    cluster['opportunity_score'] = round(original * 0.7, 4)
+                    logger.info(f"Cluster theme penalty (light): '{cluster_theme[:40]}' overlaps {theme_overlap}, score {original}->{cluster['opportunity_score']}")
+            clusters_data.sort(key=lambda c: c.get('opportunity_score', 0), reverse=True)
 
         # ── Section D: Prediction Tracker ──
         # First, auto-expire any predictions whose target_date has passed
@@ -3855,6 +3870,62 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
                 'analyst_notes': analysis.get('analyst_notes'),
                 'theses': theses
             }
+
+        # ── Narrative Context: editorial history for continuity ──
+        try:
+            recent_editions = supabase.table('newsletters')\
+                .select('edition_number, title, title_impact, primary_theme, content_markdown_impact, content_markdown')\
+                .eq('status', 'published')\
+                .order('edition_number', desc=True)\
+                .limit(8)\
+                .execute()
+            previous_editions = []
+            for i, ed in enumerate(recent_editions.data or []):
+                # Use impact title/content if available, fall back to standard
+                title = ed.get('title_impact') or ed.get('title') or ''
+                content = ed.get('content_markdown_impact') or ed.get('content_markdown') or ''
+                previous_editions.append({
+                    'edition_number': ed.get('edition_number'),
+                    'title': title,
+                    'primary_theme': ed.get('primary_theme') or '',
+                    'opening_excerpt': content[:300],
+                    'weeks_ago': i + 1,
+                })
+            # Oldest first so the LLM reads the arc chronologically
+            previous_editions.reverse()
+            # Recent spotlights (last 4 editions) for cooldown awareness
+            recent_spotlights = []
+            try:
+                spotlights = supabase.table('spotlight_history')\
+                    .select('topic_name, issue_number')\
+                    .order('created_at', desc=True)\
+                    .limit(4)\
+                    .execute()
+                recent_spotlights = [
+                    s.get('topic_name', '') for s in (spotlights.data or [])
+                    if s.get('topic_name')
+                ]
+            except Exception as e:
+                logger.warning(f"Recent spotlights fetch failed (non-critical): {e}")
+
+            if previous_editions or recent_spotlights:
+                input_data['narrative_context'] = {
+                    'previous_editions': previous_editions,
+                    'recent_spotlights': recent_spotlights,
+                    'instruction': (
+                        'Use this context to build narrative continuity. '
+                        'Reference previous themes briefly ("Last week we explored X. '
+                        'This week, something shifted:"). Avoid repeating the same lead '
+                        'angle as recent editions. Evolve the story — if you covered the '
+                        'trust problem before, this week cover what changed about it or '
+                        'move to a different facet of the agent economy. '
+                        'Topics in recent_spotlights were deep-dived in recent editions — '
+                        'reference them as previously covered rather than introducing them as new.'
+                    ),
+                }
+                logger.info(f"Narrative context: {len(previous_editions)} edition(s), {len(recent_spotlights)} spotlight(s)")
+        except Exception as e:
+            logger.warning(f"Narrative context assembly failed (non-critical): {e}")
 
         # Create agent_task for the Newsletter agent
         serialized_input = json.loads(json.dumps(input_data, default=str))

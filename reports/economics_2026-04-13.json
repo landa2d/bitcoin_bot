@@ -1,0 +1,249 @@
+{
+  "report_type": "weekly_economics",
+  "period": "2026-04-06 to 2026-04-13",
+  "generated_at": "2026-04-13T08:00:02.213910+00:00",
+  "summary": {
+    "total_cost_sats": 3030,
+    "total_cost_usd": "$2.64",
+    "total_calls": 1000,
+    "trend_vs_last_week": "+136.2%",
+    "refund_count": 0
+  },
+  "agent_breakdown": [
+    {
+      "agent": "newsletter",
+      "spent_sats": 1814,
+      "calls": 40,
+      "primary_model": "deepseek-chat",
+      "avg_cost": 45,
+      "trend": "+22575.0%"
+    },
+    {
+      "agent": "analyst",
+      "spent_sats": 900,
+      "calls": 859,
+      "primary_model": "deepseek-chat",
+      "avg_cost": 1,
+      "trend": "+2.4%"
+    },
+    {
+      "agent": "processor",
+      "spent_sats": 307,
+      "calls": 97,
+      "primary_model": "deepseek-chat",
+      "avg_cost": 3,
+      "trend": "+6.2%"
+    },
+    {
+      "agent": "gato",
+      "spent_sats": 9,
+      "calls": 4,
+      "primary_model": "deepseek-chat",
+      "avg_cost": 2,
+      "trend": "-91.2%"
+    },
+    {
+      "agent": "rivalscope",
+      "spent_sats": 0,
+      "calls": 0,
+      "primary_model": "n/a",
+      "avg_cost": 0,
+      "trend": "-100.0%"
+    }
+  ],
+  "model_usage": {
+    "deepseek-chat": 975,
+    "gpt-4o": 17,
+    "claude-sonnet-4-20250514": 6,
+    "text-embedding-3-large": 1,
+    "gpt-4o-mini": 1
+  },
+  "governance_events": [
+    {
+      "agent": "analyst",
+      "event_type": "balance_exhausted",
+      "count": 195
+    },
+    {
+      "agent": "processor",
+      "event_type": "balance_exhausted",
+      "count": 43
+    },
+    {
+      "agent": "rivalscope",
+      "event_type": "balance_exhausted",
+      "count": 43
+    },
+    {
+      "agent": "newsletter",
+      "event_type": "balance_exhausted",
+      "count": 21
+    },
+    {
+      "agent": "gato",
+      "event_type": "balance_exhausted",
+      "count": 1
+    }
+  ],
+  "anomalies": [
+    "gato: spend decreased 91% vs previous week (102 \u2192 9 sats)",
+    "newsletter: spend increased 22575% vs previous week (8 \u2192 1814 sats)",
+    "rivalscope: went dormant (spent 5 sats last week, 0 this week)",
+    "processor: 43 governance events this week (threshold: 5)",
+    "analyst: 195 governance events this week (threshold: 5)",
+    "rivalscope: 43 governance events this week (threshold: 5)",
+    "newsletter: 21 governance events this week (threshold: 5)"
+  ],
+  "wallet_balances": [
+    {
+      "agent": "gato",
+      "balance": 99851,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "processor",
+      "balance": 99425,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "rivalscope",
+      "balance": 49998,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "newsletter",
+      "balance": 49971,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "research",
+      "balance": 49630,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "analyst",
+      "balance": 41558,
+      "utilization_pct": 844.2
+    },
+    {
+      "agent": "lab_data-provider",
+      "balance": 10297,
+      "utilization_pct": 0.1
+    },
+    {
+      "agent": "lab_rivalscope",
+      "balance": 10000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_security-audit-full",
+      "balance": 10000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_rivalscope-foundation",
+      "balance": 8000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_rivalscope-skills",
+      "balance": 8000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_research-queue-fix",
+      "balance": 5000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_gato-code-engine",
+      "balance": 5000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_gato-code-debugger",
+      "balance": 5000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_531a2ee0",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_44a136ae",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_883ac9da",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_7e388c7b",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_ae077eed",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_97eec0af",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_be479cb1",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_f5f39b1c",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_db381104",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_code-repos-registry",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_f53a674d",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_c9a7dbf3",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_f83dcdb0",
+      "balance": 3000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_be0e5b5f",
+      "balance": 1000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "code_fa0c18a5",
+      "balance": 1000,
+      "utilization_pct": 0.0
+    },
+    {
+      "agent": "lab_hello-lab",
+      "balance": 498,
+      "utilization_pct": 0.0
+    }
+  ]
+}
