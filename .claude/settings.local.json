@@ -71,7 +71,14 @@
       "Bash(docker exec agentpulse-gato-brain python3 -c \":*)",
       "Bash(docker exec agentpulse-processor python3 -c \":*)",
       "Bash(crontab:*)",
-      "Bash(echo \"# Weekly economics report — runs Monday 08:00 UTC, 1h before newsletter prep:*)"
+      "Bash(echo \"# Weekly economics report — runs Monday 08:00 UTC, 1h before newsletter prep:*)",
+      "Bash(find /root/bitcoin_bot -type f -name \"*.py\" -exec grep -l \"\\\\.delete\\(\\)\" {})",
+      "Bash(while read:*)",
+      "Read(//root/bitcoin_bot/docker/**)",
+      "Bash(docker cp:*)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); mounts=d[0].get\\(''''Mounts'''',[]\\); [print\\(m[''''Source''''],''''->'''',m[''''Destination'''']\\) for m in mounts]\")",
+      "Bash(git apply:*)",
+      "Bash(git reset:*)"
     ]
   }
 }
