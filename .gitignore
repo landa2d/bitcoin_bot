@@ -36,3 +36,6 @@ __pycache__/
 # Temporary files
 *.tmp
 *.temp
+
+# Auto-generated reports (weekly economics, etc.)
+reports/
