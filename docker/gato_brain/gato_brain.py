@@ -1578,7 +1578,7 @@ async def wallet_summary(
         raise HTTPException(403, "Agents can only view their own wallet")
 
     # ── Agent exists? ──
-    wallet_res = supabase.table("agent_wallets").select("*").eq("agent_name", agent_name).limit(1).execute()
+    wallet_res = supabase.table("agent_wallets_v2").select("*").eq("agent_name", agent_name).limit(1).execute()
     if not wallet_res.data:
         raise HTTPException(404, f"Agent '{agent_name}' not found")
     wallet = wallet_res.data[0]
@@ -1588,12 +1588,12 @@ async def wallet_summary(
     iso_start = start_dt.isoformat()
     iso_end = end_dt.isoformat()
 
-    # ── Spend in period (from agent_transactions) ──
+    # ── Spend in period (from wallet_transactions v2) ──
     txns = (
-        supabase.table("agent_transactions")
+        supabase.table("wallet_transactions")
         .select("amount_sats")
         .eq("agent_name", agent_name)
-        .eq("transaction_type", "spend")
+        .eq("transaction_type", "llm_call")
         .gte("created_at", iso_start)
         .lte("created_at", iso_end)
         .execute()
@@ -1673,10 +1673,10 @@ async def wallet_summary(
     prev_start = start_dt - period_length
     prev_end = start_dt
     prev_txns = (
-        supabase.table("agent_transactions")
+        supabase.table("wallet_transactions")
         .select("amount_sats")
         .eq("agent_name", agent_name)
-        .eq("transaction_type", "spend")
+        .eq("transaction_type", "llm_call")
         .gte("created_at", prev_start.isoformat())
         .lt("created_at", prev_end.isoformat())
         .execute()

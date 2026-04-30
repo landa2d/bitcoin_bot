@@ -763,18 +763,7 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
             "duration_ms": duration_ms,
         }).execute()
 
-        # Wallet deduction (fire-and-forget)
-        try:
-            wp = get_full_config().get("wallet_pricing", {})
-            sats_cost = wp.get(model, wp.get("default", 10))
-            supabase.rpc("record_agent_spend", {
-                "p_agent_name": agent_name,
-                "p_amount_sats": sats_cost,
-                "p_counterparty": f"api:{model}",
-                "p_description": f"{model} [{task_type}]",
-            }).execute()
-        except Exception:
-            pass  # wallet failures are non-critical
+        # v1 wallet accounting retired — proxy handles via v2 reserve/settle
 
     except Exception as e:
         logger.warning(f"Failed to log LLM call: {e}")
@@ -5935,7 +5924,7 @@ def get_agent_wallets() -> dict:
     if not supabase:
         return {'error': 'Supabase not configured'}
     try:
-        result = supabase.table('agent_wallets').select('*').order('agent_name').execute()
+        result = supabase.table('agent_wallets_v2').select('*').order('agent_name').execute()
         return {'wallets': result.data or []}
     except Exception as e:
         return {'error': str(e)}
@@ -5946,7 +5935,7 @@ def get_agent_ledger(agent_name: str, limit: int = 10) -> dict:
     if not supabase:
         return {'error': 'Supabase not configured'}
     try:
-        result = supabase.table('agent_transactions') \
+        result = supabase.table('wallet_transactions') \
             .select('*') \
             .eq('agent_name', agent_name) \
             .order('created_at', desc=True) \

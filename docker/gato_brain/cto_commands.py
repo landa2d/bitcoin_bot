@@ -239,7 +239,7 @@ def _handle_spend() -> str:
     sb = _get_supabase()
 
     try:
-        wallets = sb.table("agent_wallets").select("agent_name, balance_sats").order("agent_name").execute()
+        wallets = sb.table("agent_wallets_v2").select("agent_name, balance_sats").order("agent_name").execute()
     except Exception as e:
         return f"Wallet query failed: {e}"
 

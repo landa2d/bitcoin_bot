@@ -381,16 +381,18 @@ def reserve_balance(agent_name: str, estimated_sats: int, allow_negative: bool) 
             return row["success"], row["current_balance"]
         return False, 0
     except Exception as e:
-        logger.error(f"Reserve balance failed for {agent_name}: {e}")
-        # For internal agents, allow through on DB error
+        logger.error(f"[WALLET] Reserve RPC FAILED for {agent_name}: {e} — call allowed (allow_negative) but balance tracking is broken" if allow_negative else f"Reserve balance failed for {agent_name}: {e}")
         if allow_negative:
-            return True, 0
+            return True, None  # None sentinel = RPC failed, balance unknown
         return False, 0
 
 
 def settle_balance(agent_name: str, reserved_sats: int, actual_sats: int):
     """Settle the difference between reserved and actual cost."""
     metrics["wallet_ops"] += 1
+    if actual_sats > reserved_sats:
+        logger.info("[WALLET] Settle under-reserve for %s: reserved=%d, actual=%d, extra_debit=%d sats",
+                     agent_name, reserved_sats, actual_sats, actual_sats - reserved_sats)
     try:
         _sb_rpc("settle_agent_balance", {
             "p_agent_name": agent_name,
@@ -756,13 +758,15 @@ async def proxy_openai_compatible(
         )
 
     # Governance checks (spending caps, balance thresholds)
-    gov = check_governance(agent_name, model, balance - estimated_sats)
-    if gov["action"] == "reject":
-        settle_balance(agent_name, estimated_sats, 0)  # refund the reservation
-        return JSONResponse(
-            status_code=429,
-            content={"error": {"message": gov.get("reason", "Governance limit reached"), "type": "governance_error"}},
-        )
+    # Skip governance if balance is None (RPC failed — no reliable balance data)
+    if balance is not None:
+        gov = check_governance(agent_name, model, balance - estimated_sats)
+        if gov["action"] == "reject":
+            settle_balance(agent_name, estimated_sats, 0)  # refund the reservation
+            return JSONResponse(
+                status_code=429,
+                content={"error": {"message": gov.get("reason", "Governance limit reached"), "type": "governance_error"}},
+            )
 
     # Check if streaming
     is_streaming = body.get("stream", False) and endpoint_type == "chat"
@@ -817,7 +821,7 @@ async def proxy_openai_compatible(
                 metrics["latencies_ms"].append(latency_ms)
                 asyncio.create_task(async_log_transaction(
                     agent_name, model, actual_sats, actual_usd_cents,
-                    balance - estimated_sats + (estimated_sats - actual_sats),
+                    (balance - actual_sats) if balance is not None else None,
                     inp, out, latency_ms, route["provider"], endpoint_type, request_id,
                 ))
 
@@ -860,7 +864,7 @@ async def proxy_openai_compatible(
             # Async log
             asyncio.create_task(async_log_transaction(
                 agent_name, model, actual_sats, actual_usd_cents,
-                balance - estimated_sats + (estimated_sats - actual_sats),
+                (balance - actual_sats) if balance is not None else None,
                 input_tokens, output_tokens, latency_ms,
                 route["provider"], endpoint_type, request_id,
             ))
@@ -950,14 +954,15 @@ async def proxy_anthropic(request: Request) -> Response:
             content={"error": {"message": f"Insufficient balance ({balance} sats)", "type": "balance_error"}},
         )
 
-    # Governance checks
-    gov = check_governance(agent_name, model, balance - estimated_sats)
-    if gov["action"] == "reject":
-        settle_balance(agent_name, estimated_sats, 0)
-        return JSONResponse(
-            status_code=429,
-            content={"error": {"message": gov.get("reason", "Governance limit reached"), "type": "governance_error"}},
-        )
+    # Governance checks — skip if balance is None (RPC failed)
+    if balance is not None:
+        gov = check_governance(agent_name, model, balance - estimated_sats)
+        if gov["action"] == "reject":
+            settle_balance(agent_name, estimated_sats, 0)
+            return JSONResponse(
+                status_code=429,
+                content={"error": {"message": gov.get("reason", "Governance limit reached"), "type": "governance_error"}},
+            )
 
     is_streaming = body.get("stream", False)
 
@@ -1005,7 +1010,7 @@ async def proxy_anthropic(request: Request) -> Response:
                 metrics["latencies_ms"].append(latency_ms)
                 asyncio.create_task(async_log_transaction(
                     agent_name, model, actual_sats, actual_usd_cents,
-                    balance - estimated_sats + (estimated_sats - actual_sats),
+                    (balance - actual_sats) if balance is not None else None,
                     inp, out, latency_ms, "anthropic", "anthropic", request_id,
                 ))
 
@@ -1046,7 +1051,7 @@ async def proxy_anthropic(request: Request) -> Response:
 
             asyncio.create_task(async_log_transaction(
                 agent_name, model, actual_sats, actual_usd_cents,
-                balance - estimated_sats + (estimated_sats - actual_sats),
+                (balance - actual_sats) if balance is not None else None,
                 input_tokens, output_tokens, latency_ms,
                 "anthropic", "anthropic", request_id,
             ))
