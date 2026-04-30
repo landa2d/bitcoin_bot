@@ -35,7 +35,7 @@ OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
 AGENT_NAME = os.getenv("AGENT_NAME", "newsletter")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 POLL_INTERVAL = int(os.getenv("NEWSLETTER_POLL_INTERVAL", "30"))
-MODEL = os.getenv("NEWSLETTER_MODEL", "gpt-4o")
+MODEL = os.getenv("NEWSLETTER_MODEL", "claude-sonnet-4-20250514")
 STRATEGIC_MODEL = os.getenv("NEWSLETTER_STRATEGIC_MODEL", "claude-sonnet-4-20250514")
 LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://llm-proxy:8200")
 
@@ -562,6 +562,205 @@ def validate_prediction_dates(content_md: str) -> list[dict]:
     return issues
 
 
+def validate_required_sections(content_md: str, input_data: dict) -> list[dict]:
+    """Check that all required canonical sections are present."""
+    issues = []
+    sections = _extract_sections(content_md)
+    section_names_lower = [k.lower() for k in sections.keys()]
+
+    # "Read This, Skip the Rest" is always required
+    has_read_this = any("read this" in s for s in section_names_lower)
+    if not has_read_this:
+        issues.append({
+            "severity": "critical", "issue": "missing_section",
+            "section": "Read This, Skip the Rest",
+            "detail": "Missing 'Read This, Skip the Rest' section. This is the primary section "
+                      "and MUST be present. Use the ## header: '## Read This, Skip the Rest'."
+        })
+
+    # Spotlight required only if spotlight data is present and not null
+    spotlight = input_data.get('spotlight')
+    if spotlight:
+        has_spotlight = any("spotlight" in s for s in section_names_lower)
+        if not has_spotlight:
+            issues.append({
+                "severity": "critical", "issue": "missing_section",
+                "section": "Spotlight",
+                "detail": "Spotlight data was provided but no Spotlight section was written. "
+                          "Write the full Spotlight section with Thesis, Builder Lens, and Impact Lens."
+            })
+
+    # These sections are always required
+    required = [
+        ("top opportunities", "Top Opportunities"),
+        ("emerging signal", "Emerging Signals"),
+        ("tool radar", "Tool Radar"),
+        ("prediction tracker", "Prediction Tracker"),
+        ("gato", "Gato's Corner"),
+    ]
+    for pattern, label in required:
+        if not any(pattern in s for s in section_names_lower):
+            issues.append({
+                "severity": "critical", "issue": "missing_section",
+                "section": label,
+                "detail": f"Missing '{label}' section. This is a required section in every edition. "
+                          f"Write it using ## header and follow the Canonical Edition Structure."
+            })
+
+    return issues
+
+
+def validate_output_length(content_md: str) -> list[dict]:
+    """Check that the output meets minimum length thresholds."""
+    issues = []
+    word_count = len(content_md.split())
+    if word_count < 300:
+        issues.append({
+            "severity": "critical", "issue": "truncated_output",
+            "section": "Newsletter",
+            "detail": f"Newsletter is only {word_count} words — minimum is 600. "
+                      "The output appears truncated. Write ALL required sections: "
+                      "Read This Skip the Rest, Top Opportunities, Emerging Signals, "
+                      "Tool Radar, Prediction Tracker, Gato's Corner."
+        })
+    elif word_count < 600:
+        issues.append({
+            "severity": "warning", "issue": "short_output",
+            "section": "Newsletter",
+            "detail": f"Newsletter is only {word_count} words — expected 800+. "
+                      "Ensure all sections have substantive content."
+        })
+    return issues
+
+
+def validate_fabrication_signals(content_md: str, input_data: dict) -> list[dict]:
+    """Detect likely fabrications: named entities not present in input data."""
+    issues = []
+    inp_str = json.dumps(input_data, default=str).lower()
+
+    # Check for specific number claims like "eighty-five data points", "137 sources"
+    number_claims = re.findall(
+        r'(?:sourcing|analyzed|across|from)\s+'
+        r'((?:[\w-]+)\s+(?:data points?|sources?|signals?|reports?))',
+        content_md, re.IGNORECASE
+    )
+    for claim in number_claims:
+        # Check if the number word or digit is grounded in stats
+        words = claim.lower().split()
+        number_word = words[0] if words else ""
+        stats = input_data.get('stats', {})
+        stat_values = [str(v) for v in stats.values() if isinstance(v, (int, float))]
+        if number_word not in inp_str and number_word not in stat_values:
+            issues.append({
+                "severity": "warning", "issue": "potential_fabrication",
+                "section": "Newsletter",
+                "detail": f"Claim '{claim}' uses a number/quantity not found in input data. "
+                          "Use actual stats from the data package (e.g. stats.total_posts_all_sources, "
+                          "stats.posts_count) instead of inventing numbers."
+            })
+
+    # Check for capitalized proper nouns that aren't in the input data
+    # (company/product names the LLM might invent)
+    proper_nouns = re.findall(r'\b([A-Z][a-z]{2,15})\b', content_md)
+    # Filter out common English words and known section headers
+    common_words = {
+        "The", "This", "That", "These", "Those", "While", "When", "Where",
+        "What", "Which", "Whether", "Why", "How", "Read", "Skip", "Rest",
+        "Top", "Tool", "Radar", "Prediction", "Tracker", "Emerging",
+        "Signals", "Spotlight", "Builder", "Impact", "Lens", "Corner",
+        "Active", "Rising", "Falling", "Stable", "Confirmed", "Failed",
+        "January", "February", "March", "April", "May", "June", "July",
+        "August", "September", "October", "November", "December",
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+        "Stay", "Bitcoin", "Gato", "AgentPulse", "Pulse",
+    }
+    suspicious = []
+    for noun in set(proper_nouns) - common_words:
+        if noun.lower() not in inp_str and len(noun) > 3:
+            suspicious.append(noun)
+
+    if suspicious:
+        issues.append({
+            "severity": "warning", "issue": "ungrounded_entities",
+            "section": "Newsletter",
+            "detail": f"Proper nouns not found in input data: {', '.join(sorted(suspicious)[:8])}. "
+                      "Verify these are real — do not invent company names, product names, or entities. "
+                      "Only reference sources and entities present in the data package."
+        })
+
+    return issues
+
+
+def qualitative_review(content_md: str, input_data: dict) -> list[dict]:
+    """LLM-based qualitative review: checks grounding, fabrication, tone, structure.
+
+    Uses Claude Sonnet for a fast review pass. Returns list of issue dicts.
+    """
+    if not claude_client:
+        return []
+
+    stats = input_data.get('stats', {})
+    sources = set()
+    for p in input_data.get('premium_source_posts', []):
+        sources.add(p.get('source_display') or p.get('source', ''))
+    clusters = [c.get('theme', '') for c in input_data.get('clusters', [])[:10]]
+    emerging = [s.get('theme', '') for s in input_data.get('section_b_emerging', [])[:10]]
+
+    review_prompt = (
+        "You are a fact-checker for an AI newsletter. Review the draft below against "
+        "the ground truth data summary. Report ONLY concrete problems.\n\n"
+        "GROUND TRUTH SUMMARY:\n"
+        f"- Stats: {json.dumps(stats)}\n"
+        f"- Premium sources: {', '.join(sorted(sources))}\n"
+        f"- Cluster themes: {', '.join(clusters)}\n"
+        f"- Emerging signals: {', '.join(emerging)}\n\n"
+        "CHECK FOR:\n"
+        "1. FABRICATED ENTITIES: Company names, product names, or people not in the data\n"
+        "2. FABRICATED NUMBERS: Statistics, percentages, growth figures not in ground truth\n"
+        "3. MISSING SECTIONS: Required sections are Read This Skip the Rest, Top Opportunities, "
+        "Emerging Signals, Tool Radar, Prediction Tracker, Gato's Corner\n"
+        "4. BANNED PHRASES: 'navigating without a map', 'wake-up call', 'smart businesses are already', "
+        "'it remains to be seen', 'in today's rapidly evolving'\n"
+        "5. VAGUE CLAIMS: Sentences with no specific data point, company name, or evidence\n\n"
+        "Return valid JSON: {\"issues\": [{\"severity\": \"critical\"|\"warning\", "
+        "\"issue\": \"short_label\", \"detail\": \"explanation\"}]}\n"
+        "If no issues found, return {\"issues\": []}"
+    )
+
+    try:
+        logger.info("[QUAL REVIEW] Running qualitative review...")
+        _t0 = time.time()
+        response = claude_client.messages.create(
+            model=STRATEGIC_MODEL,
+            max_tokens=1024,
+            system=review_prompt,
+            messages=[{"role": "user", "content": f"DRAFT:\n{content_md}"}],
+        )
+
+        class _Usage:
+            def __init__(self, inp, out):
+                self.prompt_tokens = inp
+                self.completion_tokens = out
+                self.total_tokens = inp + out
+                self.input_tokens = inp
+                self.output_tokens = out
+        usage = _Usage(response.usage.input_tokens, response.usage.output_tokens)
+        log_llm_call("newsletter", "qualitative_review", response.model, usage, int((time.time() - _t0) * 1000))
+
+        text = response.content[0].text.strip()
+        if text.startswith("```"):
+            text = re.sub(r"^```(?:json)?\s*", "", text)
+            text = re.sub(r"\s*```$", "", text)
+
+        result = json.loads(text)
+        issues = result.get('issues', [])
+        logger.info(f"[QUAL REVIEW] Found {len(issues)} issue(s)")
+        return issues
+    except Exception as e:
+        logger.error(f"[QUAL REVIEW] Failed (non-blocking): {e}")
+        return []
+
+
 def run_quality_checks(result: dict, input_data: dict) -> list[dict]:
     """Run all post-generation quality checks. Returns list of issues."""
     content = result.get('content_markdown', '')
@@ -580,6 +779,13 @@ def run_quality_checks(result: dict, input_data: dict) -> list[dict]:
             "detail": "content_markdown_impact is empty. You MUST generate the impact/strategic "
                       "version. Include it in the JSON as content_markdown_impact."
         })
+
+    # Structural gates — catch truncated/lazy outputs
+    all_issues.extend(validate_output_length(content))
+    all_issues.extend(validate_required_sections(content, input_data))
+
+    # Fabrication detection
+    all_issues.extend(validate_fabrication_signals(content, input_data))
 
     all_issues.extend(validate_stat_repetition(content))
     all_issues.extend(validate_section_echo(content))
@@ -643,6 +849,64 @@ def mark_task_status(task_id: str, status: str, **fields):
     supabase.table("agent_tasks").update(payload).eq("id", task_id).execute()
 
 
+def _track_prepass(input_data: dict, result: dict, headline_lines: list, cluster_lines: list):
+    """Record prepass angle to newsletter_prepass_tracking for Fix 3a monitoring."""
+    try:
+        angle = result.get('chosen_angle', '')
+        edition = input_data.get('edition_number') or input_data.get('narrative_context', {}).get('edition_number')
+
+        # Detect primary named entity
+        big4 = ['Anthropic', 'OpenAI', 'Google', 'Amazon', 'Microsoft', 'Meta']
+        primary_entity = None
+        for entity in big4:
+            if entity.lower() in angle.lower():
+                primary_entity = entity
+                break
+
+        # Classify angle source: does the angle text match a headline or a cluster?
+        angle_lower = angle.lower()
+        from_headline = any(
+            h.split('] ')[-1].split('\n')[0].lower()[:40] in angle_lower
+            for h in headline_lines if '] ' in h
+        ) if headline_lines else False
+        clusters_emphasized = result.get('clusters_to_emphasize', [])
+        from_cluster = bool(clusters_emphasized)
+
+        if from_headline and from_cluster:
+            angle_source = 'mixed'
+        elif from_headline:
+            angle_source = 'headline'
+        elif from_cluster:
+            angle_source = 'cluster'
+        else:
+            angle_source = 'unknown'
+
+        headline_justification = result.get('headline_justification')
+
+        # Flag stale cluster angles (avg_recency_days > 14)
+        stale_cluster = False
+        if angle_source in ('cluster', 'mixed'):
+            clusters = input_data.get('clusters', [])
+            emphasized = [c.lower() for c in clusters_emphasized]
+            for c in clusters:
+                if c.get('theme', '').lower() in emphasized:
+                    if c.get('avg_recency_days', 0) > 14:
+                        stale_cluster = True
+                        break
+
+        supabase.table('newsletter_prepass_tracking').insert({
+            'edition_number': edition,
+            'chosen_angle': angle,
+            'primary_entity': primary_entity,
+            'angle_source': angle_source,
+            'headline_justification': headline_justification,
+            'stale_cluster_flag': stale_cluster,
+        }).execute()
+        logger.info(f"[EDITORIAL] Tracked prepass: entity={primary_entity}, source={angle_source}, stale_cluster={stale_cluster}")
+    except Exception as e:
+        logger.warning(f"[EDITORIAL] Prepass tracking failed (non-blocking): {e}")
+
+
 def editorial_prepass(input_data: dict) -> dict | None:
     """Editor-in-chief pre-pass: choose this week's angle based on editorial history.
 
@@ -681,20 +945,45 @@ def editorial_prepass(input_data: dict) -> dict | None:
 
     avoided = input_data.get('avoided_themes', [])
 
+    # Build headline context from premium source posts
+    premium = input_data.get('premium_source_posts', [])
+    headline_lines = []
+    for p in premium[:15]:
+        src = p.get('source_display') or p.get('source', '?')
+        title = p.get('title', '?')
+        summary = (p.get('summary') or '')[:150].strip()
+        headline_lines.append(f"- [{src}] {title}\n  {summary}")
+
     system_prompt = (
         "You are the editor-in-chief of AgentPulse, a weekly intelligence brief about "
         "the AI agent economy. Your job is to choose THIS WEEK's editorial angle.\n\n"
         "You must pick an angle that:\n"
         "1. Is genuinely different from the last 3 editions' lead themes\n"
-        "2. Draws from the strongest clusters in this week's data\n"
+        "2. Draws from the strongest clusters OR from a specific high-authority headline\n"
         "3. Connects to the ongoing narrative (builds on what readers already know)\n"
         "4. Would make a smart executive stop scrolling\n\n"
+        "If a specific high-authority headline this week is a stronger lead than any "
+        "cluster theme, choose the headline as the angle. The angle should be specific "
+        "and time-bound when the data warrants — a concrete event with named entities "
+        "(\"Anthropic launched an agent-on-agent commerce marketplace this week\") is "
+        "preferable to a generic theme (\"agent coordination challenges\") when both "
+        "are available.\n\n"
+        "Cluster scores are statistical artifacts and should not override a fresh, "
+        "time-bound headline anchor. If you choose a cluster theme, justify why no "
+        "headline this week is a stronger lead.\n\n"
         "Respond with valid JSON only. No markdown, no commentary."
     )
 
     user_msg = (
         f"PREVIOUS EDITIONS (oldest first):\n" + "\n".join(edition_lines) +
-        f"\n\nTHIS WEEK'S CLUSTERS (by score):\n" + "\n".join(cluster_lines) +
+        f"\n\nTHIS WEEK'S CLUSTERS (by score):\n" + "\n".join(cluster_lines)
+    )
+    if headline_lines:
+        user_msg += (
+            f"\n\nRECENT HIGH-AUTHORITY HEADLINES (Tier 1 sources, consider as potential leads):\n"
+            + "\n".join(headline_lines)
+        )
+    user_msg += (
         f"\n\n{spotlight_str}" +
         f"\n\nAVOIDED THEMES (already covered recently): {', '.join(avoided)}" +
         f"\n\nChoose this week's angle. Return JSON:\n"
@@ -703,7 +992,8 @@ def editorial_prepass(input_data: dict) -> dict | None:
         '  "why_fresh": "one sentence explaining why this is different from recent editions",\n'
         '  "clusters_to_emphasize": ["2-3 cluster themes to draw from"],\n'
         '  "clusters_to_avoid": ["cluster themes already well-covered"],\n'
-        '  "narrative_bridge": "one sentence connecting to a previous edition"\n'
+        '  "narrative_bridge": "one sentence connecting to a previous edition",\n'
+        '  "headline_justification": "if cluster-based, explain why no headline was a stronger lead"\n'
         "}"
     )
 
@@ -735,6 +1025,10 @@ def editorial_prepass(input_data: dict) -> dict | None:
         logger.info(f"[EDITORIAL] Why fresh: {result.get('why_fresh', '?')}")
         logger.info(f"[EDITORIAL] Clusters to emphasize: {result.get('clusters_to_emphasize', [])}")
         logger.info(f"[EDITORIAL] Narrative bridge: {result.get('narrative_bridge', '?')}")
+
+        # Fix 3a monitoring: track prepass angle for entity skew + source analysis
+        _track_prepass(input_data, result, headline_lines, cluster_lines)
+
         return result
     except Exception as e:
         logger.error(f"[EDITORIAL] Pre-pass failed (non-blocking): {e}")
@@ -818,9 +1112,10 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         "\n15. TOOL RADAR: Each entry MUST include: name, trajectory (Rising/Falling/Stable),"
         " mention count in past 30 days, average sentiment score, and 1-2 sentence analysis."
         " Entries without quantitative data are a failure."
-        "\n16. PREDICTION TRACKER: Each entry MUST include status emoji"
-        " (🟢 Active / 🟡 At Risk / 🔴 Failed / ✅ Confirmed), prediction text in bold,"
-        " and 1-2 sentences on progress or evidence. Entries without context are a failure."
+        "\n16. PREDICTION TRACKER: Each prediction in input_data has an `emoji_status`"
+        " field (🟢 Active / 🟡 At Risk / 🔴 Failed / ✅ Confirmed). Use this EXACT"
+        " status — do NOT override it. Format: emoji + bold prediction text + 1-2"
+        " sentences on progress or evidence. Entries without context are a failure."
         "\n17. KILL RULES: 'In conclusion'/'In sum' → cut. 'Stakeholders'/'the industry'"
         " without names → replace. Bold inline headers → use proper ## headers."
         " Any generic paragraph → rewrite with specific data."
@@ -898,18 +1193,36 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
     logger.info(f"Calling {MODEL} for {task_type}...")
 
     _t0 = time.time()
-    response = routed_llm_call(
-        MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_msg},
-        ],
-        max_tokens=16000,
-        response_format={"type": "json_object"},
-    )
-    log_llm_call("newsletter", task_type, response.model, response.usage, int((time.time() - _t0) * 1000))
-
-    text = response.choices[0].message.content.strip()
+    if MODEL.startswith("claude") and claude_client:
+        # Use Anthropic client for Claude models
+        response = claude_client.messages.create(
+            model=MODEL,
+            max_tokens=16000,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_msg}],
+        )
+        class _Usage:
+            def __init__(self, inp, out):
+                self.prompt_tokens = inp
+                self.completion_tokens = out
+                self.total_tokens = inp + out
+                self.input_tokens = inp
+                self.output_tokens = out
+        usage = _Usage(response.usage.input_tokens, response.usage.output_tokens)
+        log_llm_call("newsletter", task_type, response.model, usage, int((time.time() - _t0) * 1000))
+        text = response.content[0].text.strip()
+    else:
+        response = routed_llm_call(
+            MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_msg},
+            ],
+            max_tokens=16000,
+            response_format={"type": "json_object"},
+        )
+        log_llm_call("newsletter", task_type, response.model, response.usage, int((time.time() - _t0) * 1000))
+        text = response.choices[0].message.content.strip()
 
     if text.startswith("```"):
         text = re.sub(r"^```(?:json)?\s*", "", text)
@@ -938,37 +1251,33 @@ STRATEGIC_EDITOR_PROMPT = """You are editing an AI-industry intelligence newslet
 
 Your job is to review the draft and apply these transformations. Preserve every insight — change only the packaging.
 
-BEFORE APPLYING ANY RULES BELOW: Gato's Corner must be passed through EXACTLY as written from the input. Do not edit, rewrite, soften, translate, or alter Gato's Corner in any way. Copy it verbatim — same words, same tone, same crypto/Bitcoin jargon, same sentence structure. The only check: confirm it ends with "Stay humble, stack sats." The rules below apply to ALL OTHER SECTIONS only.
+IMPORTANT: Gato's Corner has been removed from this input before sending to you. Do not generate a Gato's Corner section. Do not check for its presence. It will be re-attached verbatim after your edit. Focus only on editing the sections present in the input.
 
 ## Rules
 
-1. **Jargon scan.** Rewrite any term that requires AI/ML, crypto, or software engineering background to understand. If you cannot rewrite it without losing meaning, add a parenthetical explanation of 10 words or fewer. Exception: Gato's Corner is exempt from jargon rewriting. Pass it through unchanged.
+1. **Jargon scan.** Rewrite any term that requires AI/ML, crypto, or software engineering background to understand. If you cannot rewrite it without losing meaning, add a parenthetical explanation of 10 words or fewer.
 
 2. **Metric translation.** Convert all technical metrics to business equivalents:
    - Token counts → dollar costs or human-equivalent time
    - Cluster scores / severity ratings → plain language (high/medium/low risk with one-sentence explanation)
    - GitHub contributor counts → "engineering team size" or "active developer count"
    - On-chain metrics → plain financial equivalents where possible
-   Exception: does not apply to Gato's Corner.
 
-3. **"So what" test.** Every paragraph's first sentence must be understandable by a CFO with no technical background. If not, rewrite the opening sentence. Exception: does not apply to Gato's Corner.
+3. **"So what" test.** Every paragraph's first sentence must be understandable by a CFO with no technical background. If not, rewrite the opening sentence.
 
 4. **Analogy injection.** Where a technical concept has a direct business-world parallel, add it:
    - Agent coordination problems → "like managing a consulting team with no project manager"
    - Settlement layers → "like Visa's network, but for AI agent transactions"
    - Attack vectors → "security vulnerabilities" or "points of failure"
-   Exception: does not apply to Gato's Corner.
 
 5. **Structure check.** Verify:
    - "Read This, Skip the Rest" section exists at the top (## header, not # header — use ##). Zero jargon.
    - Prediction Tracker entries are understandable without technical context
-   - Gato's Corner is present and ends with exactly "Stay humble, stack sats."
 
 6. **PRESERVE (critical):**
    - Any sentence referencing previous editions ("Last week we...", "Two editions ago...") — this is narrative continuity. Do NOT remove or rewrite it.
    - Bold inline markers like **The trust problem.** — these create scannability. If the draft has them, keep them. If it doesn't have at least 3, ADD them to introduce sub-topics within the flowing prose.
-   - The three-section structure: "Read This, Skip the Rest" (main essay), "Prediction Tracker", "Gato's Corner". Do NOT add extra ## sections.
-   - Gato's Corner: copy verbatim from the input. Every word, unchanged.
+   - The two-section structure: "Read This, Skip the Rest" (main essay), "Prediction Tracker". Do NOT add extra ## sections.
 
 7. **Do NOT:**
    - Remove any substantive insight or prediction
@@ -976,8 +1285,8 @@ BEFORE APPLYING ANY RULES BELOW: Gato's Corner must be passed through EXACTLY as
    - Increase word count by more than 15%
    - Remove the Prediction Tracker section
    - Change any prediction wording, timeline, or confidence level
-   - Add "Decision Framework" tables, "Board Brief", "Opportunity Radar", or any other section structure — the impact edition is ONE flowing essay plus predictions and Gato
-   - Edit, rewrite, soften, or translate Gato's Corner in any way
+   - Add "Decision Framework" tables, "Board Brief", "Opportunity Radar", "Gato's Corner", or any other section structure — the impact edition is ONE flowing essay plus predictions
+   - Generate or fabricate any section not present in the input
 
 8. **PREDICTIONS:** Do not rewrite, reformat, or summarize predictions. Use the exact prediction text, dates, status emojis (🟢/🟡/🔴/✅), and status labels from the PREDICTION GROUND TRUTH data provided after the draft. Add a one-sentence plain-language explanation before each prediction for non-technical readers, but preserve the prediction entry itself exactly as provided.
 
@@ -995,10 +1304,18 @@ def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -
     if not content_markdown_impact or not content_markdown_impact.strip():
         return content_markdown_impact
 
-    # Log pre-editor Gato for before/after comparison
-    _gato_pre = re.search(r"## Gato.s Corner.*", content_markdown_impact, re.DOTALL)
-    if _gato_pre:
-        logger.info(f"[GATO PRE-EDIT] {_gato_pre.group(0)[:300]}")
+    # Extract Gato's Corner BEFORE sending to editor — editor never sees it
+    gato_corner_original = None
+    content_for_editor = content_markdown_impact
+    gato_split = re.split(r"(## Gato.s Corner)", content_markdown_impact, maxsplit=1)
+    if len(gato_split) == 3:
+        # gato_split: [before, "## Gato's Corner", after]
+        content_for_editor = gato_split[0].rstrip()
+        gato_corner_original = gato_split[1] + gato_split[2]
+        logger.info(f"[GATO] Extracted Gato's Corner ({len(gato_corner_original)} chars) — will not send to editor")
+        logger.info(f"[GATO PRE-EDIT] {gato_corner_original[:300]}")
+    else:
+        logger.warning("[GATO] No Gato's Corner found in content — nothing to protect")
 
     logger.info("Running strategic editor second pass...")
 
@@ -1056,7 +1373,7 @@ def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -
     )
     user_message = (
         f"Here is the impact edition draft to edit:\n\n"
-        f"{content_markdown_impact}\n\n"
+        f"{content_for_editor}\n\n"
         f"---\n\n"
         f"PREDICTION GROUND TRUTH — use these exact predictions, dates, and status."
         f" Do not invent or modify predictions:\n\n"
@@ -1112,21 +1429,14 @@ def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -
 
     logger.info(f"Strategic editor pass completed ({len(edited)} chars)")
 
-    # Force-restore original Gato's Corner (LLM cannot be trusted to preserve it)
-    _gato_original = re.search(r"(## Gato.s Corner.*)", content_markdown_impact, re.DOTALL)
-    _gato_edited = re.search(r"(## Gato.s Corner.*)", edited, re.DOTALL)
-    if _gato_original and _gato_edited:
-        original_text = _gato_original.group(1).strip()
-        edited_text = _gato_edited.group(1).strip()
-        if original_text != edited_text:
-            edited = edited[:_gato_edited.start(1)] + original_text + "\n"
-            logger.info("[GATO] Restored original Gato's Corner (editor had modified it)")
-        else:
-            logger.info("[GATO] Gato's Corner preserved by editor — no restoration needed")
-    elif _gato_original and not _gato_edited:
-        # Editor dropped Gato entirely — append it
-        edited = edited.rstrip() + "\n\n" + _gato_original.group(1).strip() + "\n"
-        logger.info("[GATO] Editor dropped Gato's Corner — re-appended from original")
+    # Append original Gato's Corner back (editor never saw it, so it's unchanged)
+    if gato_corner_original:
+        if re.search(r"## Gato.s Corner", edited, re.IGNORECASE):
+            logger.warning("[GATO] Editor generated a Gato's Corner despite instructions — stripping before appending original")
+            edited = re.split(r"## Gato.s Corner", edited, maxsplit=1, flags=re.IGNORECASE)[0].rstrip()
+        edited = edited.rstrip() + "\n\n" + gato_corner_original.strip() + "\n"
+        logger.info(f"[GATO POST-EDIT] {gato_corner_original[:300]}")
+        logger.info("[GATO] Appended original Gato's Corner — editor never saw it, zero drift possible")
 
     return edited
 
@@ -1413,19 +1723,6 @@ def log_llm_call(agent_name, task_type, model, usage, duration_ms=0):
             "duration_ms": duration_ms,
         }).execute()
 
-        # Wallet deduction (fire-and-forget)
-        try:
-            wp = _load_wallet_pricing()
-            sats_cost = wp.get(model, wp.get("default", 10))
-            supabase.rpc("record_agent_spend", {
-                "p_agent_name": agent_name,
-                "p_amount_sats": sats_cost,
-                "p_counterparty": f"api:{model}",
-                "p_description": f"{model} [{task_type}]",
-            }).execute()
-        except Exception:
-            pass  # wallet failures are non-critical
-
     except Exception as e:
         logger.warning(f"Failed to log LLM call: {e}")
 
@@ -1532,7 +1829,7 @@ def process_task(task: dict):
             if editorial_brief:
                 input_data['editorial_direction'] = editorial_brief
 
-        # Generate newsletter via OpenAI
+        # Generate newsletter
         raw_result = generate_newsletter(task_type, input_data, budget)
         validated = validate_llm_output(raw_result, NewsletterOutput)
         result = validated.model_dump()
@@ -1574,6 +1871,32 @@ def process_task(task: dict):
         all_warnings = [i["detail"] for i in quality_issues]
         if all_warnings:
             result["quality_warnings"] = all_warnings
+
+        # Qualitative review pass — LLM checks for fabrication, tone, grounding
+        if result.get('content_markdown') and claude_client:
+            try:
+                review = qualitative_review(result['content_markdown'], input_data)
+                if review:
+                    hard_fails = [r for r in review if r.get('severity') == 'critical']
+                    soft_warns = [r for r in review if r.get('severity') == 'warning']
+                    if hard_fails:
+                        logger.warning(f"[QUAL REVIEW] {len(hard_fails)} critical issue(s): {hard_fails}")
+                        retries_left = budget.get('max_retries', 0)
+                        if retries_left > 0:
+                            logger.info("[QUAL REVIEW] Retrying due to critical qualitative issues...")
+                            input_data['_quality_feedback'] = [r['detail'] for r in hard_fails]
+                            budget['max_retries'] = retries_left - 1
+                            raw_result = generate_newsletter(task_type, input_data, budget)
+                            validated = validate_llm_output(raw_result, NewsletterOutput)
+                            result = validated.model_dump()
+                            result = _auto_fix_stat_repetition(result)
+                            result = _auto_fix_empty_sections(result)
+                    if soft_warns:
+                        logger.info(f"[QUAL REVIEW] {len(soft_warns)} warning(s): {soft_warns}")
+                        existing = result.get("quality_warnings", [])
+                        result["quality_warnings"] = existing + [r['detail'] for r in soft_warns]
+            except Exception as e:
+                logger.error(f"[QUAL REVIEW] Review failed (non-blocking): {e}")
 
         # Strategic editor second pass
         if result.get("content_markdown_impact"):

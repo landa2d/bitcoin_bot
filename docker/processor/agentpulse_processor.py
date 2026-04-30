@@ -3269,6 +3269,7 @@ def get_recent_newsletter_themes(editions_back: int = 3) -> list[str]:
     try:
         recent = supabase.table('newsletters')\
             .select('primary_theme, edition_number')\
+            .eq('status', 'published')\
             .not_.is_('primary_theme', 'null')\
             .order('edition_number', desc=True)\
             .limit(editions_back)\
@@ -3795,13 +3796,34 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
                 edition_number = (existing.count or 0) + 1
 
         # ── Premium Source Posts (Tier 1 & 2 RSS for attribution) ──
-        premium_posts = supabase.table('source_posts')\
+        # Fetch wider pool, then cap per-source to avoid arXiv/Cointelegraph floods
+        _MAX_PER_SOURCE = 3
+        premium_pool = supabase.table('source_posts')\
             .select('source, source_tier, title, body, source_url, scraped_at')\
             .in_('source_tier', [1, 2])\
             .gte('scraped_at', week_ago)\
             .order('scraped_at', desc=True)\
-            .limit(20)\
+            .limit(100)\
             .execute()
+        # Apply per-source cap: keep at most _MAX_PER_SOURCE from any single source
+        _source_counts: dict[str, int] = {}
+        capped_posts = []
+        for p in (premium_pool.data or []):
+            src = p.get('source', '')
+            _source_counts[src] = _source_counts.get(src, 0) + 1
+            if _source_counts[src] <= _MAX_PER_SOURCE:
+                capped_posts.append(p)
+        # Take top 20 from the diversified pool (already sorted by scraped_at desc)
+        premium_posts_data = capped_posts[:20]
+        # Monitor: alert if any source exceeds 5 slots (cap should prevent >3)
+        _final_counts: dict[str, int] = {}
+        for p in premium_posts_data:
+            s = p.get('source', '')
+            _final_counts[s] = _final_counts.get(s, 0) + 1
+        for s, cnt in _final_counts.items():
+            if cnt > 5:
+                logger.error(f"[ALERT] premium_source_posts cap failure: {s} has {cnt} slots (max expected: 3)")
+
         _source_display_names = {
             'a16z': 'a16z', 'hbr_tech': 'Harvard Business Review',
             'mit_tech_review': 'MIT Technology Review', 'andrew_ng': 'Andrew Ng (The Batch)',
@@ -3810,9 +3832,20 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
             'ethan_mollick': 'Ethan Mollick', 'bitcoin_magazine': 'Bitcoin Magazine',
             'coindesk': 'CoinDesk', 'tldr_ai': 'TLDR AI', 'tldr_founders': 'TLDR Founders',
             'bens_bites': "Ben's Bites",
+            'arxiv_cs_ai': 'arXiv AI', 'arxiv_cs_cl': 'arXiv NLP',
+            'arxiv_cs_cr': 'arXiv Crypto', 'arxiv_cs_ma': 'arXiv Multi-Agent',
+            'alignment_forum': 'Alignment Forum',
+            'techcrunch_ai': 'TechCrunch AI', 'the_verge_ai': 'The Verge AI',
+            'wired_ai': 'Wired AI', 'decrypt': 'Decrypt', 'unchained': 'Unchained',
+            'cointelegraph': 'Cointelegraph', 'openai_blog': 'OpenAI Blog',
+            'replit_blog': 'Replit Blog', 'vercel_blog': 'Vercel Blog',
+            'huggingface_blog': 'Hugging Face Blog', 'sequoia_blog': 'Sequoia',
+            'cb_insights': 'CB Insights', 'chainalysis': 'Chainalysis',
+            'messari': 'Messari', 'citrini': 'Citrini',
+            'bis_speeches': 'BIS Speeches', 'fsb_publications': 'FSB',
         }
         premium_source_posts = []
-        for p in (premium_posts.data or []):
+        for p in premium_posts_data:
             src = p.get('source', '')
             # Resolve human-readable source name
             display_name = src
