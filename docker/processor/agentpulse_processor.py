@@ -1640,6 +1640,8 @@ def store_problem(problem: dict):
     record = {
         'description': problem['problem_description'],
         'category': problem['category'],
+        'source': problem.get('source', 'unknown'),
+        'max_source_tier': problem.get('max_source_tier', 3),
         'signal_phrases': problem.get('signal_phrases', []),
         'source_post_ids': problem.get('source_post_ids', []),
         'frequency_count': 1,
@@ -1649,7 +1651,7 @@ def store_problem(problem: dict):
             'max_source_tier': problem.get('max_source_tier', 3),
         }
     }
-    
+
     supabase.table('problems').insert(record).execute()
 
 # ============================================================================
@@ -2783,11 +2785,26 @@ def extract_problems_multisource(hours_back: int = 48) -> dict:
         log_pipeline_end(run_id, 'failed', {'error': str(e)})
         return {'error': str(e)}
 
+    # Build lookup for per-problem source attribution
+    post_by_source_id = {p.get('source_id'): p for p in posts.data}
+    post_by_uuid = {p.get('id'): p for p in posts.data}
+
     problems_created = 0
     for problem in problems_data.get('problems', []):
         try:
-            problem.setdefault('source', 'multi')
-            problem['max_source_tier'] = best_tier_in_batch
+            # Resolve source and tier from the problem's source_post_ids
+            src_ids = problem.get('source_post_ids', [])
+            best_tier = 3
+            source_name = 'multi'
+            for sid in src_ids:
+                post = post_by_source_id.get(sid) or post_by_uuid.get(sid)
+                if post:
+                    tier = post.get('source_tier', 3)
+                    if tier < best_tier:
+                        best_tier = tier
+                        source_name = post.get('source', 'multi')
+            problem['source'] = source_name
+            problem['max_source_tier'] = best_tier
             store_problem(problem)
             problems_created += 1
         except Exception as e:
@@ -3357,13 +3374,26 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
         logger.error("Supabase not configured")
         return {'error': 'Not configured'}
 
-    # Guard: skip if a write_newsletter task already exists this week (unless edition_override)
+    # Guard: skip if a write_newsletter task already exists this week AND produced a draft (unless edition_override)
     if not edition_override:
-        week_start = (datetime.now(timezone.utc) - timedelta(days=datetime.now(timezone.utc).weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-        existing = supabase.table('agent_tasks').select('id').eq('task_type', 'write_newsletter').gte('created_at', week_start.isoformat()).execute()
+        # Use Friday-based window: newsletters draft on Friday, so the cycle is Friday-to-Thursday
+        now_utc = datetime.now(timezone.utc)
+        days_since_friday = (now_utc.weekday() - 4) % 7  # Friday=4
+        week_start = (now_utc - timedelta(days=days_since_friday)).replace(hour=0, minute=0, second=0, microsecond=0)
+        existing = supabase.table('agent_tasks').select('id,status').eq('task_type', 'write_newsletter').gte('created_at', week_start.isoformat()).execute()
         if existing.data:
-            logger.info(f"[PIPELINE] Newsletter task already exists this week (task {existing.data[0]['id']}), skipping")
-            return {'status': 'already_exists', 'task_id': existing.data[0]['id']}
+            # Check if any task is still pending/in-progress (don't duplicate)
+            active = [t for t in existing.data if t.get('status') in ('pending', 'in_progress')]
+            if active:
+                logger.info(f"[PIPELINE] Newsletter task in progress this week (task {active[0]['id']}), skipping")
+                return {'status': 'already_exists', 'task_id': active[0]['id']}
+            # Check if a newsletter draft was actually created this week
+            draft = supabase.table('newsletters').select('id').gte('created_at', week_start.isoformat()).execute()
+            if draft.data:
+                logger.info(f"[PIPELINE] Newsletter draft already exists this week (newsletter {draft.data[0]['id']}), skipping")
+                return {'status': 'already_exists', 'task_id': existing.data[0]['id']}
+            # Tasks completed but no draft — allow retry
+            logger.warning(f"[PIPELINE] Found {len(existing.data)} completed newsletter task(s) this week but no draft in newsletters table — allowing retry")
 
     run_id = log_pipeline_start('prepare_newsletter')
     week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
@@ -3573,63 +3603,78 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
             clusters_data.sort(key=lambda c: c.get('opportunity_score', 0), reverse=True)
 
         # ── Section D: Prediction Tracker ──
-        # First, auto-expire any predictions whose target_date has passed
-        # (defense-in-depth: analyst does this too, but processor may run first)
+        # Lifecycle: update prediction statuses based on target_date vs today
         today_str = datetime.now(timezone.utc).date().isoformat()
+        today_date = datetime.now(timezone.utc).date()
         try:
-            overdue = supabase.table('predictions')\
+            lifecycle_preds = supabase.table('predictions')\
                 .select('id, target_date, status')\
-                .in_('status', ['active', 'open', 'developing'])\
+                .in_('status', ['open', 'at_risk'])\
                 .not_.is_('target_date', 'null')\
-                .lt('target_date', today_str)\
                 .execute()
-            for pred in (overdue.data or []):
-                supabase.table('predictions').update({
-                    'status': 'expired',
-                    'resolution_notes': (
-                        f"Auto-expired: target_date "
-                        f"{pred.get('target_date')} passed (today={today_str})"
-                    ),
-                    'resolved_at': datetime.now(timezone.utc).isoformat(),
-                }).eq('id', pred['id']).execute()
-            if overdue.data:
+            failed_count = 0
+            at_risk_count = 0
+            for pred in (lifecycle_preds.data or []):
+                target = pred.get('target_date')
+                if not target:
+                    continue
+                from datetime import date as date_type
+                if isinstance(target, str):
+                    target_d = date_type.fromisoformat(target)
+                else:
+                    target_d = target
+                days_remaining = (target_d - today_date).days
+                if days_remaining < 0:
+                    # Past due → failed
+                    supabase.table('predictions').update({
+                        'status': 'failed',
+                        'resolution_notes': (
+                            f"Auto-failed: target_date {target} passed "
+                            f"with no confirming evidence (today={today_str})"
+                        ),
+                        'resolved_at': datetime.now(timezone.utc).isoformat(),
+                    }).eq('id', pred['id']).execute()
+                    failed_count += 1
+                elif days_remaining <= 14 and pred.get('status') != 'at_risk':
+                    # Due within 14 days → at_risk
+                    supabase.table('predictions').update({
+                        'status': 'at_risk',
+                    }).eq('id', pred['id']).execute()
+                    at_risk_count += 1
+            if failed_count or at_risk_count:
                 logger.info(
-                    f"Auto-expired {len(overdue.data)} overdue "
-                    f"prediction(s) before newsletter prep"
+                    f"Prediction lifecycle: {failed_count} → failed, "
+                    f"{at_risk_count} → at_risk"
                 )
         except Exception as e:
-            logger.warning(f"Inline prediction expiry failed: {e}")
+            logger.warning(f"Prediction lifecycle update failed: {e}")
 
-        # Now fetch predictions (overdue ones already expired above)
-        # Only send active (future) + recently resolved (confirmed/refuted) to the LLM.
-        # Exclude expired — they have past dates and confuse the writer.
+        # Fetch predictions for newsletter (include failed so LLM can write resolutions)
         predictions_result = supabase.table('predictions')\
             .select('*')\
-            .in_('status', ['active', 'open', 'confirmed', 'refuted', 'faded'])\
+            .in_('status', ['open', 'at_risk', 'failed', 'confirmed', 'refuted'])\
             .order('status', desc=False)\
             .order('created_at', desc=True)\
             .limit(10)\
             .execute()
         predictions_data = predictions_result.data or []
 
-        # Safety-net: drop any prediction whose target_date is in the past
-        # and status is still active/open (race condition with expiry above)
+        # Add emoji_status for the newsletter LLM
+        _STATUS_EMOJI = {
+            'open': '🟢 Active',
+            'at_risk': '🟡 At Risk',
+            'failed': '🔴 Failed',
+            'confirmed': '✅ Confirmed',
+            'refuted': '🔴 Failed',
+        }
         stale_prediction_ids = []
-        filtered_predictions = []
         for pred in predictions_data:
-            target = pred.get('target_date')
-            if target and pred.get('status') in ('active', 'open') and str(target) < today_str:
+            pred['emoji_status'] = _STATUS_EMOJI.get(pred.get('status', 'open'), '🟢 Active')
+            if pred.get('status') == 'failed':
                 stale_prediction_ids.append(pred.get('id'))
-                logger.warning(
-                    f"Dropping stale prediction from newsletter data: "
-                    f"{pred.get('title', '?')[:50]} (target_date={target})"
-                )
-                continue
-            filtered_predictions.append(pred)
-        predictions_data = filtered_predictions
 
         if stale_prediction_ids:
-            logger.warning(f"{len(stale_prediction_ids)} stale prediction(s) still in newsletter data")
+            logger.info(f"{len(stale_prediction_ids)} failed prediction(s) flagged as stale for newsletter")
 
         # ── Thought Leader Content ──
         tl_posts = supabase.table('source_posts')\
@@ -8935,6 +8980,15 @@ def scheduled_prepare_newsletter():
     logger.info("[PIPELINE] Running newsletter preparation...")
     try:
         result = prepare_newsletter_data()
+
+        # Guard already handled — don't notify for duplicates
+        if result.get('status') == 'already_exists':
+            logger.info(f"[PIPELINE] Newsletter task already exists (task {result.get('task_id')}), skipping notification")
+            return
+        if result.get('error'):
+            logger.error(f"[PIPELINE] Newsletter prep returned error: {result.get('error')}")
+            return
+
         edition = result.get('edition_number', '?')
         spotlight_present = result.get('input_data', {}).get('spotlight') is not None if isinstance(result.get('input_data'), dict) else False
 
