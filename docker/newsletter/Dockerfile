@@ -16,9 +16,12 @@ WORKDIR /home/openclaw
 COPY --chown=openclaw:openclaw requirements.txt /home/openclaw/requirements.txt
 RUN pip install --no-cache-dir -r /home/openclaw/requirements.txt
 
-# Copy agent script, schemas, and entrypoint
+# Copy agent script, schemas, verification, block pipeline, and entrypoint
 COPY --chown=openclaw:openclaw newsletter_poller.py /home/openclaw/newsletter_poller.py
 COPY --chown=openclaw:openclaw schemas.py /home/openclaw/schemas.py
+COPY --chown=openclaw:openclaw verification.py /home/openclaw/verification.py
+COPY --chown=openclaw:openclaw block_selection.py /home/openclaw/block_selection.py
+COPY --chown=openclaw:openclaw block_pipeline.py /home/openclaw/block_pipeline.py
 COPY --chown=openclaw:openclaw entrypoint.sh /home/openclaw/entrypoint.sh
 RUN chmod +x /home/openclaw/entrypoint.sh
 

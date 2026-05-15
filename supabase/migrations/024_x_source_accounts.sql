@@ -42,7 +42,7 @@ VALUES
     ('blknoiz06',       'Ansem',                'crypto',   'AI agent calls in crypto',                             6),
     -- Curation/Pulse
     ('rowancheung',     'Rowan Cheung',         'curation', 'The Rundown AI newsletter',                            7),
-    ('andrewng',        'Andrew Ng',            'curation', 'Agentic reasoning frameworks',                         9)
+    ('AndrewYNg',       'Andrew Ng',            'curation', 'Agentic reasoning frameworks',                         9)
 ON CONFLICT (x_handle) DO UPDATE SET
     display_name = EXCLUDED.display_name,
     category     = EXCLUDED.category,

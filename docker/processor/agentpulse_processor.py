@@ -97,27 +97,28 @@ X_SUBSCRIBE_URL = os.getenv('X_SUBSCRIBE_URL', 'https://aiagentspulse.com/#/subs
 # RSS Feeds
 RSS_FEEDS = {
     'tldr_ai': {
-        'url': 'https://tldr.tech/ai/rss',
+        'url': 'https://tldr.tech/api/rss/ai',
         'tier': 2,
         'category': 'curated_newsletter'
     },
     'tldr_founders': {
-        'url': 'https://tldr.tech/founders/rss',
+        'url': 'https://tldr.tech/api/rss/founders',
         'tier': 2,
         'category': 'curated_newsletter'
     },
     'bens_bites': {
-        'url': 'https://bensbites.beehiiv.com/feed',
+        'url': 'https://www.bensbites.com/feed',
         'tier': 2,
         'category': 'curated_newsletter'
     },
     'a16z': {
-        'url': 'https://a16z.com/feed/',
+        'url': 'https://www.a16z.news/feed',
         'tier': 1,
-        'category': 'authority'
+        'category': 'authority',
+        'filter_exempt': True,
     },
     'hbr_tech': {
-        'url': 'https://hbr.org/topic/technology/feed',
+        'url': 'http://feeds.harvardbusiness.org/harvardbusiness/',
         'tier': 1,
         'category': 'authority'
     },
@@ -139,22 +140,22 @@ RSS_FEEDS = {
     'latent_space': {
         'url': 'https://www.latent.space/feed',
         'tier': 1,
-        'category': 'thought_leader'
+        'category': 'thought_leader',
+        'filter_exempt': True,
     },
     'swyx': {
         'url': 'https://www.swyx.io/rss.xml',
         'tier': 1,
-        'category': 'thought_leader'
+        'category': 'thought_leader',
+        'filter_exempt': True,
     },
-    'langchain_blog': {
-        'url': 'https://blog.langchain.dev/rss/',
-        'tier': 1,
-        'category': 'thought_leader'
-    },
+    # langchain_blog removed — blog.langchain.dev/rss/ redirects to HTML after
+    # Webflow migration. No working RSS endpoint found. Re-add when/if they restore RSS.
     'ethan_mollick': {
         'url': 'https://www.oneusefulthing.org/feed',
         'tier': 1,
-        'category': 'thought_leader'
+        'category': 'thought_leader',
+        'filter_exempt': True,
     },
     # Bitcoin / Crypto authority sources
     'bitcoin_magazine': {
@@ -194,7 +195,7 @@ RSS_FEEDS = {
         'category': 'authority'
     },
     'venturebeat_ai': {
-        'url': 'https://venturebeat.com/category/ai/feed/',
+        'url': 'https://venturebeat.com/feed',
         'tier': 1,
         'category': 'authority'
     },
@@ -217,7 +218,8 @@ RSS_FEEDS = {
     'openai_blog': {
         'url': 'https://openai.com/blog/rss.xml',
         'tier': 1,
-        'category': 'authority'
+        'category': 'authority',
+        'filter_exempt': True,
     },
     'anthropic_news': {
         'url': 'https://www.anthropic.com/rss.xml',
@@ -227,13 +229,15 @@ RSS_FEEDS = {
     'deepmind_blog': {
         'url': 'https://deepmind.google/blog/rss.xml',
         'tier': 1,
-        'category': 'authority'
+        'category': 'authority',
+        'filter_exempt': True,
     },
     # Financial / Macro research sources
     'citrini': {
         'url': 'https://www.citriniresearch.com/feed',
         'tier': 1,
-        'category': 'macro_research'
+        'category': 'macro_research',
+        'filter_exempt': True,
     },
     'byrne_hobart': {
         'url': 'https://www.thediff.co/feed',
@@ -254,12 +258,14 @@ RSS_FEEDS = {
     'crewai_blog': {
         'url': 'https://blog.crewai.com/feed',
         'tier': 1,
-        'category': 'authority'
+        'category': 'authority',
+        'filter_exempt': True,
     },
     'huggingface_blog': {
         'url': 'https://huggingface.co/blog/feed.xml',
         'tier': 1,
-        'category': 'authority'
+        'category': 'authority',
+        'filter_exempt': True,
     },
     'replit_blog': {
         'url': 'https://blog.replit.com/feed.xml',
@@ -275,7 +281,8 @@ RSS_FEEDS = {
     'sequoia_blog': {
         'url': 'https://www.sequoiacap.com/feed/',
         'tier': 1,
-        'category': 'authority'
+        'category': 'authority',
+        'filter_exempt': True,
     },
     # ── AI safety & governance ─────────────────────────────────────
     'alignment_forum': {
@@ -285,9 +292,10 @@ RSS_FEEDS = {
     },
     # ── Crypto primary data / research ─────────────────────────────
     'messari': {
-        'url': 'https://messari.io/rss',
+        'url': 'https://messari.substack.com/feed',
         'tier': 1,
-        'category': 'authority'
+        'category': 'authority',
+        'filter_exempt': True,
     },
     'chainalysis': {
         'url': 'https://blog.chainalysis.com/feed/',
@@ -339,21 +347,21 @@ RSS_RELEVANCE_KEYWORDS = [
     'multi-agent', 'function call', 'ai startup',
     'foundation model', 'gpt', 'claude', 'anthropic',
     'openai', 'copilot', 'automation', 'ai infrastructure',
-    'rag', 'vector', 'embedding', 'mcp', 'langchain',
+    'vector', 'embedding', 'mcp', 'langchain',
     'orchestration', 'tool use', 'agent protocol',
     # AI safety / governance keywords
     'alignment', 'guardrails', 'red team', 'ai safety',
     'ai governance', 'ai policy', 'ai act',
     # Bitcoin / Crypto keywords
-    'bitcoin', 'btc', 'lightning', 'nostr', 'blockchain',
+    'bitcoin', 'btc', 'nostr', 'blockchain',
     'crypto', 'defi', 'web3', 'smart contract', 'tokenization',
     'ordinals', 'layer 2', 'digital asset', 'on-chain',
-    'tvl', 'protocol', 'stablecoin', 'l2',
+    'tvl', 'stablecoin', 'l2',
     # Regulatory keywords
     'virtual currency', 'distributed ledger', 'fintech',
     'stablecoin regulation', 'money transmission', 'securities offering',
     # Financial / Macro keywords
-    'saas pricing', 'seat based', 'arr', 'net revenue retention',
+    'saas pricing', 'seat based', 'net revenue retention',
     'white collar', 'displacement', 'layoff', 'headcount reduction',
     'interchange', 'payment rail', 'agent commerce',
     'private credit', 'lbo', 'software default',
@@ -362,40 +370,16 @@ RSS_RELEVANCE_KEYWORDS = [
     'compute tax', 'ai regulation', 'intermediation',
 ]
 
-THOUGHT_LEADER_FEEDS = {
-    'deeplearning_ai': {
-        'url': 'https://www.deeplearning.ai/the-batch/feed',
-        'name': 'DeepLearning.AI (Andrew Ng)',
-        'purpose': 'Research-to-practice crossing signals',
-    },
-    'simon_willison': {
-        'url': 'https://simonwillison.net/atom/everything/',
-        'name': 'Simon Willison',
-        'purpose': 'Real-world agent implementation patterns',
-    },
-    'latent_space': {
-        'url': 'https://www.latent.space/feed',
-        'name': 'Latent Space',
-        'purpose': 'Infrastructure-level trends beneath agents',
-    },
-    'swyx': {
-        'url': 'https://www.swyx.io/rss.xml',
-        'name': 'Swyx',
-        'purpose': 'Agent ecosystem analysis, DX trends',
-    },
-    'langchain_blog': {
-        'url': 'https://blog.langchain.dev/rss/',
-        'name': 'LangChain Blog (Harrison Chase)',
-        'purpose': 'Tooling direction signals before obvious',
-    },
-    'ethan_mollick': {
-        'url': 'https://www.oneusefulthing.org/feed',
-        'name': 'Ethan Mollick (One Useful Thing)',
-        'purpose': 'Adoption patterns, non-technical agent usage',
-    },
-}
+# Keywords that need word-boundary matching to avoid false positives
+# (e.g. 'arr' matching 'arrangement', 'protocol' matching 'HTTP protocol')
+_RSS_WORD_BOUNDARY_KEYWORDS = re.compile(
+    r'\b(?:arr|rag|protocol|lightning)\b', re.IGNORECASE
+)
 
-THOUGHT_LEADER_TIER = 1.5
+# THOUGHT_LEADER_FEEDS removed — all 6 feeds were exact URL duplicates of entries
+# in RSS_FEEDS (simon_willison, latent_space, swyx, ethan_mollick, andrew_ng,
+# langchain_blog). The RSS scraper covers them with better tier assignment (tier 1
+# vs the old tier 1.5). Historical thought_leader_* rows remain in source_posts.
 
 # Telegram (for notifications)
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -1146,12 +1130,17 @@ def scrape_rss_feeds() -> dict:
             feed = feedparser.parse(feed_config['url'])
             relevant_count = 0
 
+            is_exempt = feed_config.get('filter_exempt', False)
+
             for entry in feed.entries[:30]:
                 title = entry.get('title', '')
                 summary = entry.get('summary', '')
                 text_lower = (title + ' ' + summary).lower()
 
-                if not any(kw in text_lower for kw in RSS_RELEVANCE_KEYWORDS):
+                if not is_exempt and not (
+                    any(kw in text_lower for kw in RSS_RELEVANCE_KEYWORDS)
+                    or _RSS_WORD_BOUNDARY_KEYWORDS.search(text_lower)
+                ):
                     continue
 
                 post_data = {
@@ -1220,124 +1209,13 @@ def _detect_topics(text: str) -> list:
     return [topic for topic, keywords in topic_map.items() if any(kw in text_lower for kw in keywords)]
 
 
-@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=1, max=10))
-def scrape_thought_leaders() -> dict:
-    """Ingest thought leader RSS feeds as Tier 1.5 sources with topic detection and dedup."""
-    import feedparser
-
-    if not supabase:
-        return {'error': 'Supabase not configured'}
-
-    run_id = log_pipeline_start('scrape_thought_leaders')
-    feeds_scraped = 0
-    results = {}
-
-    existing_urls = set()
-    try:
-        recent = supabase.table('source_posts')\
-            .select('source_url')\
-            .like('source', 'thought_leader_%')\
-            .gte('scraped_at', (datetime.now(timezone.utc) - timedelta(days=14)).isoformat())\
-            .execute()
-        existing_urls = {r['source_url'] for r in (recent.data or []) if r.get('source_url')}
-    except Exception as e:
-        logger.warning(f"Could not pre-fetch existing thought leader URLs: {e}")
-
-    for feed_key, feed_config in THOUGHT_LEADER_FEEDS.items():
-        try:
-            logger.info(f"Thought leader scrape: parsing {feed_config['name']} ({feed_config['url']})")
-            try:
-                with httpx.Client(timeout=15, follow_redirects=True) as client:
-                    resp = client.get(feed_config['url'], headers={'User-Agent': 'AgentPulse/1.0'})
-                feed = feedparser.parse(resp.text)
-            except Exception as fetch_err:
-                logger.warning(f"Feed {feed_key} fetch failed: {fetch_err}")
-                results[feed_key] = {'error': f'Fetch failed: {fetch_err}'}
-                continue
-
-            if feed.bozo and not feed.entries:
-                logger.warning(f"Feed {feed_key} returned errors and no entries — skipping")
-                results[feed_key] = {'error': 'Feed parse failed / empty'}
-                continue
-
-            ingested_count = 0
-
-            for entry in feed.entries[:20]:
-                url = entry.get('link', '')
-                if url in existing_urls:
-                    continue
-
-                title = entry.get('title', '')
-                summary = entry.get('summary', entry.get('description', ''))
-                content = entry.get('content', [{}])[0].get('value', '') if entry.get('content') else ''
-                full_text = f"{title} {summary} {content}"
-
-                published = entry.get('published', entry.get('updated', ''))
-
-                topics = _detect_topics(full_text)
-
-                source_id = entry.get('id') or url
-
-                post_data = {
-                    'source': f'thought_leader_{feed_key}',
-                    'source_id': source_id,
-                    'source_url': url,
-                    'source_tier': 2,
-                    'title': title,
-                    'body': (summary or content)[:2000],
-                    'author': feed_config['name'],
-                    'score': THOUGHT_LEADER_TIER,
-                    'comment_count': 0,
-                    'tags': topics + ['thought_leader', f'tl_{feed_key}'],
-                    'metadata': {
-                        'feed_key': feed_key,
-                        'source_name': feed_config['name'],
-                        'source_tier': 'thought_leader',
-                        'tier_numeric': THOUGHT_LEADER_TIER,
-                        'purpose': feed_config['purpose'],
-                        'published_at': published,
-                        'topics_detected': topics,
-                        'content_summary': (summary or content)[:500],
-                        'feed_url': feed_config['url'],
-                    },
-                }
-
-                try:
-                    supabase.table('source_posts').upsert(
-                        post_data, on_conflict='source,source_id'
-                    ).execute()
-                    existing_urls.add(url)
-                    ingested_count += 1
-                except Exception as e:
-                    logger.error(f"Thought leader upsert error for {feed_key}/{source_id}: {e}")
-
-            results[feed_key] = ingested_count
-            feeds_scraped += 1
-            logger.info(f"Thought leader scrape: {feed_config['name']} — {ingested_count} articles ingested")
-
-        except Exception as e:
-            logger.error(f"Thought leader scrape failed for {feed_key} ({feed_config['name']}): {e}")
-            results[feed_key] = {'error': str(e)}
-
-    total_articles = sum(v for v in results.values() if isinstance(v, int))
-    summary = {
-        'source': 'thought_leaders',
-        'feeds_scraped': feeds_scraped,
-        'total_articles': total_articles,
-        'results': results,
-    }
-    log_pipeline_end(run_id, 'completed', summary)
-    logger.info(f"Thought leader scrape complete: {feeds_scraped}/{len(THOUGHT_LEADER_FEEDS)} feeds, {total_articles} articles")
-    return summary
-
-
 # ============================================================================
 # X/Twitter Source Account Scanning
 # ============================================================================
 
 # Config file path (fallback if DB table not yet created)
 _X_SOURCE_ACCOUNTS_CONFIG = Path(__file__).resolve().parent.parent.parent / 'config' / 'x_source_accounts.json'
-X_SOURCE_ACCOUNT_TIER = 1.5  # Same tier as thought leaders — high-signal individual voices
+X_SOURCE_ACCOUNT_TIER = 2  # Tier 2 (curated) — high-signal individual voices
 
 
 def _load_x_source_accounts() -> list:
@@ -1422,18 +1300,24 @@ def scrape_x_source_accounts() -> dict:
     total_ingested = 0
     results_by_category = {}
 
-    # Batch handles in groups of 5 for efficient OR queries
-    for i in range(0, len(handles), 5):
+    # Batch handles in pairs to prevent prolific posters from starving others
+    handles_seen = set()
+
+    for i in range(0, len(handles), 2):
         if not _check_x_budget():
             logger.info("X API budget exhausted mid-scan — stopping")
             break
 
-        batch = handles[i:i+5]
+        batch = handles[i:i+2]
         query = ' OR '.join(f'from:{h}' for h in batch)
-        # Exclude retweets and replies to get original content only
-        query += ' -is:retweet -is:reply'
+        # Exclude retweets only; replies are allowed but quality-filtered below
+        query += ' -is:retweet'
 
         tweets = _x_api_search(query, max_results=20)
+
+        for tw in tweets:
+            if tw.get('author_username'):
+                handles_seen.add(tw['author_username'].lower())
 
         for tw in tweets:
             tweet_id = tw.get('id', '')
@@ -1445,9 +1329,10 @@ def scrape_x_source_accounts() -> dict:
             category = account_info.get('category', 'uncategorized')
             display_name = account_info.get('display_name', username)
 
-            # Skip very short tweets (likely noise)
+            # Skip low-quality tweets: strip @mentions, require 50+ chars of real content
             text = tw.get('text', '')
-            if len(text) < 30:
+            text_no_mentions = re.sub(r'@\w+', '', text).strip()
+            if len(text_no_mentions) < 50:
                 continue
 
             topics = _detect_topics(text)
@@ -1493,6 +1378,68 @@ def scrape_x_source_accounts() -> dict:
             except Exception as e:
                 logger.error(f"X source post upsert error for {username}/{tweet_id}: {e}")
 
+    # Follow-up pass: individually query handles that got zero results in their batch
+    missed_handles = [h for h in handles if h.lower() not in handles_seen]
+    if missed_handles and _check_x_budget():
+        logger.info(f"X source follow-up: querying {len(missed_handles)} handles individually: {missed_handles}")
+        for h in missed_handles:
+            if not _check_x_budget():
+                break
+            query = f'from:{h} -is:retweet'
+            tweets = _x_api_search(query, max_results=10)
+            for tw in tweets:
+                tweet_id = tw.get('id', '')
+                if tweet_id in existing_ids:
+                    continue
+                username = tw.get('author_username', '').lower()
+                account_info = handle_map.get(username, {})
+                category = account_info.get('category', 'uncategorized')
+                display_name = account_info.get('display_name', username)
+                text = tw.get('text', '')
+                text_no_mentions = re.sub(r'@\w+', '', text).strip()
+                if len(text_no_mentions) < 50:
+                    continue
+                topics = _detect_topics(text)
+                metrics = tw.get('public_metrics', {})
+                post_data = {
+                    'source': f'x_source_{username}',
+                    'source_id': tweet_id,
+                    'source_url': f'https://x.com/{tw.get("author_username", username)}/status/{tweet_id}',
+                    'source_tier': 2,
+                    'title': f'@{tw.get("author_username", username)}: {text[:100]}',
+                    'body': text,
+                    'author': display_name,
+                    'score': X_SOURCE_ACCOUNT_TIER,
+                    'comment_count': metrics.get('reply_count', 0),
+                    'tags': topics + ['x_source', f'x_cat_{category}', f'x_{username}'],
+                    'metadata': {
+                        'x_handle': tw.get('author_username', username),
+                        'display_name': display_name,
+                        'category': category,
+                        'description': account_info.get('description', ''),
+                        'source_tier': 'x_source_account',
+                        'tier_numeric': X_SOURCE_ACCOUNT_TIER,
+                        'tweet_id': tweet_id,
+                        'created_at': tw.get('created_at', ''),
+                        'topics_detected': topics,
+                        'metrics': {
+                            'likes': metrics.get('like_count', 0),
+                            'retweets': metrics.get('retweet_count', 0),
+                            'replies': metrics.get('reply_count', 0),
+                            'quotes': metrics.get('quote_count', 0),
+                        },
+                    },
+                }
+                try:
+                    supabase.table('source_posts').upsert(
+                        post_data, on_conflict='source,source_id'
+                    ).execute()
+                    existing_ids.add(tweet_id)
+                    total_ingested += 1
+                    results_by_category[category] = results_by_category.get(category, 0) + 1
+                except Exception as e:
+                    logger.error(f"X source post upsert error for {username}/{tweet_id}: {e}")
+
     # Update last_scanned_at for accounts in DB
     if supabase and handles:
         try:
@@ -1502,14 +1449,53 @@ def scrape_x_source_accounts() -> dict:
         except Exception:
             pass  # Table may not exist yet
 
+    # Build per-account ingest counts from source_posts written this run
+    results_by_handle = {}
+    try:
+        for a in accounts:
+            h = a['x_handle']
+            count_result = supabase.table('source_posts')\
+                .select('source_id', count='exact')\
+                .eq('source', f'x_source_{h.lower()}')\
+                .gte('scraped_at', (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat())\
+                .execute()
+            results_by_handle[h] = count_result.count or 0
+    except Exception as e:
+        logger.warning(f"Could not build per-handle ingest counts: {e}")
+
+    # Zero-streak alerting: warn if any handle has zero posts across last 3 runs (18h)
+    zero_streak_warnings = []
+    try:
+        cutoff_18h = (datetime.now(timezone.utc) - timedelta(hours=18)).isoformat()
+        for a in accounts:
+            h = a['x_handle']
+            recent = supabase.table('source_posts')\
+                .select('source_id', count='exact')\
+                .eq('source', f'x_source_{h.lower()}')\
+                .gte('scraped_at', cutoff_18h)\
+                .execute()
+            if (recent.count or 0) == 0:
+                zero_streak_warnings.append(h)
+        if zero_streak_warnings:
+            logger.warning(
+                f"X source zero-streak alert: {len(zero_streak_warnings)} handles with 0 posts "
+                f"in last 18h: {zero_streak_warnings}"
+            )
+    except Exception as e:
+        logger.warning(f"Could not check zero-streak alerts: {e}")
+
     summary = {
         'source': 'x_source_accounts',
         'accounts_scanned': len(handles),
         'tweets_ingested': total_ingested,
         'by_category': results_by_category,
+        'by_handle': results_by_handle,
+        'zero_streak_handles': zero_streak_warnings,
     }
     log_pipeline_end(run_id, 'completed', summary)
     logger.info(f"X source account scan complete: {len(handles)} accounts, {total_ingested} tweets ingested")
+    if results_by_handle:
+        logger.info(f"X source per-handle: {results_by_handle}")
     return summary
 
 
@@ -1546,6 +1532,115 @@ Respond ONLY with valid JSON:
 }}
 
 Focus on actionable problems. Ignore general complaints without clear problems."""
+
+MULTISOURCE_EXTRACTION_PROMPT = """You extract structured intelligence from posts about the AI agent economy.
+
+Each post is labeled with a tier: [AUTHORITY], [CURATED], or [COMMUNITY].
+Extraction priorities differ by tier:
+
+── AUTHORITY (tier 1) ──
+These are primary sources: research labs, official blogs, major publications.
+Prioritize EVENT extraction. Preserve named entities, dates, numbers, and product names exactly as stated.
+Events from tier 1 sources should be detailed enough to anchor a newsletter lead paragraph.
+
+── CURATED (tier 2) ──
+These are newsletters, aggregators, and curated feeds.
+Extract a mix of events and problems. Extract what is clearly stated — don't infer beyond the text.
+
+── COMMUNITY (tier 3) ──
+These are forums, social media, and community discussions (Hacker News, GitHub, Reddit).
+Prioritize SIGNAL extraction: sentiment, emerging concerns, attention patterns, recurring frustrations.
+Do not force event extraction from community discussion — extract the signal, not the headline.
+
+─── OUTPUT FORMAT ───
+
+For each record, provide:
+1. description: One clear sentence. For events, state what happened with specifics. For signals, state what the community is expressing.
+2. type: "event" (something happened), "problem" (a gap or pain point), or "signal" (community sentiment/attention pattern)
+3. category: One of [tools, infrastructure, communication, payments, security, data, coordination, identity, regulation, commerce, research, talent, geopolitics, other]
+4. named_entities: Array of specific names, products, companies, dates, or numbers mentioned. Empty array if none.
+5. source_tier: 1, 2, or 3 (from the post's tier label)
+6. anchorable: true if and only if the record contains ALL THREE of: (a) a specific named entity, (b) a specific time anchor (date, week, or "this week"), and (c) enough detail that a reader could verify or follow up. This is independent of tier.
+7. commercial_relevance: "none", "indirect", or "direct" — does this relate to a commercial opportunity in the agent economy?
+
+─── RULES ───
+
+- Extract 1-3 records per source post. For longer analytical pieces (>2000 words) covering multiple distinct topics, extract up to 5.
+- Do NOT shred a single post into many near-duplicate fragments.
+- For tier 1 events: if the post announces "Company X launched Product Y on Date Z", the description MUST include Company X, Product Y, and Date Z. Do not abstract to "A company launched a product."
+- For tier 3 signals: capture the sentiment pattern, not individual complaints. "Multiple HN commenters report agent API rate limits causing production outages" is better than extracting each comment separately.
+- source_post_ids must reference the actual post IDs from the input.
+
+─── EXAMPLES ───
+
+AUTHORITY input:
+[tc-3117968] [AUTHORITY] Stripe updates Link, a digital wallet that autonomous AI agents can use, too
+Link lets users connect cards, banks, and subscriptions, then authorize AI agents to spend securely via approval flows.
+
+Correct extraction:
+{{
+  "description": "Stripe updated its Link digital wallet to support autonomous AI agent spending, with approval flows for agents to use connected cards, banks, and subscriptions.",
+  "type": "event",
+  "category": "payments",
+  "named_entities": ["Stripe", "Link"],
+  "source_tier": 1,
+  "anchorable": true,
+  "commercial_relevance": "direct",
+  "source_post_ids": ["tc-3117968"]
+}}
+
+CURATED input:
+[ct-9924] [CURATED] Tether-backed Oobit rolls out virtual Visa cards for AI agent USDT spending
+The Agent Cards launched to a select group of businesses on Thursday, with a limited number of additional companies set to gain access over the next two months.
+
+Correct extraction:
+{{
+  "description": "Tether-backed Oobit launched virtual Visa debit cards ('Agent Cards') for AI agent USDT spending, rolling out to a select group of businesses with broader access over the next two months.",
+  "type": "event",
+  "category": "payments",
+  "named_entities": ["Oobit", "Tether", "Visa", "USDT"],
+  "source_tier": 2,
+  "anchorable": true,
+  "commercial_relevance": "direct",
+  "source_post_ids": ["ct-9924"]
+}}
+
+COMMUNITY input:
+[47911524] [COMMUNITY] An AI agent deleted our production database. The agent's confession is below
+Railway's GraphQL API allows volume deletion via a single unauthenticated mutation call with no confirmation step. Multiple commenters report similar experiences with agents executing destructive operations. Thread has 847 comments.
+
+Correct extraction:
+{{
+  "description": "HN community reports AI agents executing destructive database operations — Railway's GraphQL API flagged for allowing volume deletion with no confirmation, drawing 847 comments and multiple similar reports.",
+  "type": "signal",
+  "category": "security",
+  "named_entities": ["Railway"],
+  "source_tier": 3,
+  "anchorable": false,
+  "commercial_relevance": "indirect",
+  "source_post_ids": ["47911524"]
+}}
+
+─── POSTS TO ANALYZE ───
+{posts}
+
+Respond ONLY with valid JSON:
+{{
+  "extractions": [
+    {{
+      "description": "...",
+      "type": "event|problem|signal",
+      "category": "...",
+      "named_entities": ["..."],
+      "source_tier": 1,
+      "anchorable": true,
+      "commercial_relevance": "none|indirect|direct",
+      "source_post_ids": ["..."]
+    }}
+  ]
+}}"""
+
+MULTISOURCE_EXTRACTION_SYSTEM_MSG = "You extract structured intelligence from third-party reporting on the agent economy. Output is tier-aware — tier 1 sources produce reportable events, tier 3 sources produce community signals. Preserve specifics. Respond only with valid JSON."
 
 def extract_problems(hours_back: int = 48) -> dict:
     """Extract problems from recent posts."""
@@ -1700,10 +1795,12 @@ def cluster_problems(min_problems: int = 3) -> dict:
 
     run_id = log_pipeline_start('cluster_problems')
 
-    # Fetch unclustered problems
+    # Fetch unclustered problems (limit to 100 most recent to fit LLM context)
     problems = supabase.table('problems')\
         .select('*')\
         .is_('cluster_id', 'null')\
+        .order('first_seen', desc=True)\
+        .limit(100)\
         .execute()
 
     if not problems.data or len(problems.data) < min_problems:
@@ -1737,7 +1834,7 @@ def cluster_problems(min_problems: int = 3) -> dict:
                 {"role": "user", "content": CLUSTERING_PROMPT.format(problems=problems_text)}
             ],
             temperature=0.3,
-            max_tokens=4000
+            max_tokens=8000
         )
         log_llm_call("processor", "clustering", response.model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)  # Rate limiting
@@ -2751,7 +2848,7 @@ def extract_problems_multisource(hours_back: int = 48) -> dict:
         .eq('processed', False)\
         .gte('scraped_at', cutoff)\
         .order('score', desc=True)\
-        .limit(200)\
+        .limit(50)\
         .execute()
 
     if not posts.data:
@@ -2771,11 +2868,11 @@ def extract_problems_multisource(hours_back: int = 48) -> dict:
         response = routed_llm_call(
             extraction_model,
             messages=[
-                {"role": "system", "content": "You extract business problems from text. Respond only with valid JSON."},
-                {"role": "user", "content": PROBLEM_EXTRACTION_PROMPT.format(posts=posts_text)}
+                {"role": "system", "content": MULTISOURCE_EXTRACTION_SYSTEM_MSG},
+                {"role": "user", "content": MULTISOURCE_EXTRACTION_PROMPT.format(posts=posts_text)}
             ],
             temperature=0.3,
-            max_tokens=4000
+            max_tokens=8000
         )
         log_llm_call("processor", "extraction_multisource", response.model, response.usage, int((time.time() - _t0) * 1000))
         time.sleep(2)
@@ -2785,30 +2882,53 @@ def extract_problems_multisource(hours_back: int = 48) -> dict:
         log_pipeline_end(run_id, 'failed', {'error': str(e)})
         return {'error': str(e)}
 
-    # Build lookup for per-problem source attribution
+    # Build lookups for source attribution: source_id → post, uuid → post
     post_by_source_id = {p.get('source_id'): p for p in posts.data}
     post_by_uuid = {p.get('id'): p for p in posts.data}
+    # Map source_id → UUID for the source_post_ids column (uuid[] type)
+    source_id_to_uuid = {p.get('source_id'): p.get('id') for p in posts.data}
+
+    # Handle both new ("extractions") and legacy ("problems") response keys
+    extractions = problems_data.get('extractions') or problems_data.get('problems', [])
 
     problems_created = 0
-    for problem in problems_data.get('problems', []):
+    for item in extractions:
         try:
-            # Resolve source and tier from the problem's source_post_ids
-            src_ids = problem.get('source_post_ids', [])
+            # Resolve source and tier from the item's source_post_ids
+            raw_ids = item.get('source_post_ids', [])
+            resolved_uuids = []
             best_tier = 3
             source_name = 'multi'
-            for sid in src_ids:
+            for sid in raw_ids:
                 post = post_by_source_id.get(sid) or post_by_uuid.get(sid)
                 if post:
+                    resolved_uuids.append(post['id'])
                     tier = post.get('source_tier', 3)
                     if tier < best_tier:
                         best_tier = tier
                         source_name = post.get('source', 'multi')
-            problem['source'] = source_name
-            problem['max_source_tier'] = best_tier
-            store_problem(problem)
+
+            # Normalize: new prompt uses "description", old uses "problem_description"
+            desc = item.get('description') or item.get('problem_description', '')
+            record = {
+                'description': desc,
+                'category': item.get('category', 'other'),
+                'source': source_name,
+                'max_source_tier': best_tier,
+                'signal_phrases': item.get('signal_phrases', []),
+                'keywords': item.get('named_entities', []),
+                'source_post_ids': resolved_uuids,
+                'frequency_count': 1,
+                'metadata': {
+                    'type': item.get('type', 'problem'),
+                    'anchorable': item.get('anchorable', False),
+                    'commercial_relevance': item.get('commercial_relevance', 'none'),
+                }
+            }
+            supabase.table('problems').insert(record).execute()
             problems_created += 1
         except Exception as e:
-            logger.error(f"Error storing problem: {e}")
+            logger.error(f"Error storing extraction: {e}")
 
     post_ids = [p['id'] for p in posts.data]
     for pid in post_ids:
@@ -3677,16 +3797,6 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
         if stale_prediction_ids:
             logger.info(f"{len(stale_prediction_ids)} failed prediction(s) flagged as stale for newsletter")
 
-        # ── Thought Leader Content ──
-        tl_posts = supabase.table('source_posts')\
-            .select('*')\
-            .like('source', 'thought_leader_%')\
-            .gte('scraped_at', week_ago)\
-            .order('scraped_at', desc=True)\
-            .limit(20)\
-            .execute()
-        thought_leader_data = tl_posts.data or []
-
         # ── Topic Evolution ──
         topic_evolution = supabase.table('topic_evolution')\
             .select('*')\
@@ -3734,13 +3844,6 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
             .gte('scraped_at', week_ago)\
             .execute()
         source_stats['rss_premium'] = rss_count.count or 0
-
-        tl_count = supabase.table('source_posts')\
-            .select('id', count='exact')\
-            .like('source', 'thought_leader_%')\
-            .gte('scraped_at', week_ago)\
-            .execute()
-        source_stats['thought_leaders'] = tl_count.count or 0
 
         hn_posts = source_stats.get('hackernews', 0)
         gh_repos = source_stats.get('github', 0)
@@ -3852,8 +3955,6 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
             if src.startswith('rss_'):
                 feed_key = src[4:]
                 display_name = _source_display_names.get(feed_key, feed_key.replace('_', ' ').title())
-            elif src.startswith('thought_leader_'):
-                display_name = src[15:].replace('_', ' ').title()
             tier_label = {1: 'AUTHORITY', 2: 'CURATED'}.get(
                 p.get('source_tier', 3), 'COMMUNITY'
             )
@@ -3893,7 +3994,6 @@ def prepare_newsletter_data(edition_override: int = None) -> dict:
                 'total_posts_all_sources': sum(source_stats.values()),
                 'topic_stages': topic_stages,
             },
-            'thought_leader_content': thought_leader_data,
             'premium_source_posts': premium_source_posts,
             'topic_evolution': topic_evolution_data,
             'radar_topics': radar_topics,
@@ -4473,14 +4573,6 @@ def prepare_analysis_package(hours_back: int = 48) -> dict:
             .gte('scraped_at', cutoff)\
             .execute()
 
-        thought_leader_posts = supabase.table('source_posts')\
-            .select('*')\
-            .like('source', 'thought_leader_%')\
-            .gte('scraped_at', cutoff)\
-            .order('scraped_at', desc=True)\
-            .limit(50)\
-            .execute()
-
         data_package = {
             'timeframe_hours': hours_back,
             'gathered_at': datetime.now(timezone.utc).isoformat(),
@@ -4490,13 +4582,11 @@ def prepare_analysis_package(hours_back: int = 48) -> dict:
             'tool_stats': tool_stats.data or [],
             'existing_opportunities': existing_opps.data or [],
             'previous_run': prev_run.data[0] if prev_run.data else None,
-            'thought_leader_content': thought_leader_posts.data or [],
             'stats': {
                 'posts_in_window': total_posts.count or 0,
                 'problems_in_window': len(problems.data or []),
                 'tools_tracked': len(tool_stats.data or []),
                 'existing_opportunities': len(existing_opps.data or []),
-                'thought_leader_posts': len(thought_leader_posts.data or [])
             }
         }
 
@@ -5496,7 +5586,7 @@ def _compute_source_diversity(topic: dict) -> float:
                         tier_set.add('community')
                 else:
                     # Source not found in DB, infer from name
-                    if src.startswith('rss_') or src.startswith('thought_leader_'):
+                    if src.startswith('rss_') or src.startswith('x_source_'):
                         tier_set.add('authority')
                     else:
                         tier_set.add('community')
@@ -5504,37 +5594,17 @@ def _compute_source_diversity(topic: dict) -> float:
             logger.warning(f"Source diversity DB lookup failed: {e}")
             # Fallback to name-based heuristic
             for src in sources:
-                if src.startswith('rss_') or src.startswith('thought_leader_'):
+                if src.startswith('rss_') or src.startswith('x_source_'):
                     tier_set.add('authority')
                 else:
                     tier_set.add('community')
     else:
         # No DB — fallback to name-based heuristic
         for src in sources:
-            if src.startswith('rss_') or src.startswith('thought_leader_'):
+            if src.startswith('rss_') or src.startswith('x_source_'):
                 tier_set.add('authority')
             else:
                 tier_set.add('community')
-
-    # Also check thought leaders via keyword matching
-    topic_key = topic.get('topic_key', '')
-    keywords = [w for w in topic_key.split('_') if len(w) >= 3]
-    if keywords and supabase:
-        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        try:
-            tl_posts = supabase.table('source_posts')\
-                .select('title, body')\
-                .like('source', 'thought_leader_%')\
-                .gte('scraped_at', week_ago)\
-                .limit(50)\
-                .execute()
-            for p in (tl_posts.data or []):
-                text = ((p.get('title') or '') + ' ' + (p.get('body') or '')).lower()
-                if any(kw in text for kw in keywords):
-                    tier_set.add('thought_leader')
-                    break
-        except Exception as e:
-            logger.warning(f"Source diversity TL lookup skipped: {e}")
 
     return min(len(tier_set) / 3.0, 1.0)
 
@@ -6097,12 +6167,6 @@ def execute_task(task: dict) -> dict:
             results['rss'] = {'error': str(e)}
 
         try:
-            results['thought_leaders'] = scrape_thought_leaders()
-        except Exception as e:
-            logger.error(f"Thought leader scrape failed in pipeline: {e}")
-            results['thought_leaders'] = {'error': str(e)}
-
-        try:
             results['x_source_accounts'] = scrape_x_source_accounts()
         except Exception as e:
             logger.error(f"X source account scan failed in pipeline: {e}")
@@ -6518,20 +6582,6 @@ def execute_task(task: dict) -> dict:
         sources_status['moltbook_legacy'] = {
             'total_posts': legacy_result.count or 0,
         }
-        tl_total = supabase.table('source_posts') \
-            .select('id', count='exact') \
-            .like('source', 'thought_leader_%') \
-            .execute()
-        tl_recent = supabase.table('source_posts') \
-            .select('id', count='exact') \
-            .like('source', 'thought_leader_%') \
-            .gte('scraped_at', day_ago) \
-            .execute()
-        sources_status['thought_leaders'] = {
-            'total_posts': tl_total.count or 0,
-            'last_24h': tl_recent.count or 0,
-            'tier': 1.5,
-        }
         return {'sources': sources_status}
     
     elif task_type == 'create_manual_prediction':
@@ -6559,9 +6609,6 @@ def execute_task(task: dict) -> dict:
     
     elif task_type == 'scrape_rss':
         return scrape_rss_feeds()
-
-    elif task_type == 'scrape_thought_leaders':
-        return scrape_thought_leaders()
 
     elif task_type == 'scrape_x_source_accounts':
         return scrape_x_source_accounts()
@@ -8794,7 +8841,6 @@ def run_full_newsletter_pipeline():
         ("hackernews", scrape_hackernews),
         ("github", scrape_github),
         ("rss", scrape_rss_feeds),
-        ("thought_leaders", scrape_thought_leaders),
     ]:
         try:
             r = fn()
@@ -9250,15 +9296,6 @@ def scheduled_scrape_rss():
         logger.info(f"Scheduled RSS scrape: {result}")
     except Exception as e:
         logger.error(f"Scheduled RSS scrape failed: {e}")
-
-
-def scheduled_scrape_thought_leaders():
-    """Scheduled thought leader feed ingestion."""
-    try:
-        result = scrape_thought_leaders()
-        logger.info(f"Scheduled thought leader scrape: {result}")
-    except Exception as e:
-        logger.error(f"Scheduled thought leader scrape failed: {e}")
 
 
 def scheduled_scrape_x_source_accounts():
@@ -9719,7 +9756,6 @@ def setup_scheduler():
     schedule.every(6).hours.do(scheduled_scrape_hackernews)
     schedule.every(12).hours.do(scheduled_scrape_github)
     schedule.every(6).hours.do(scheduled_scrape_rss)
-    schedule.every(6).hours.do(scheduled_scrape_thought_leaders)
     schedule.every(6).hours.do(scheduled_scrape_x_source_accounts)
     # Newsletter pipeline (times in UTC, CET = UTC+1):
     # GENERATION — Friday (ready by 15:00 CET / 14:00 UTC for weekend review)
@@ -9775,7 +9811,7 @@ def setup_scheduler():
     schedule.every(6).hours.do(log_economics_context)
 
     logger.info(f"Scheduler configured: scrape every {scrape_interval}h, analyze every {analysis_interval}h, cluster every 12h, tool scan every 12h, trending every 12h")
-    logger.info("Multi-source: HN scrape every 6h, GitHub scrape every 12h, RSS scrape every 6h, thought leaders every 6h")
+    logger.info("Multi-source: HN scrape every 6h, GitHub scrape every 12h, RSS scrape every 6h, X sources every 6h")
     logger.info("Daily: tool stats at 06:00, digest at 09:00, cleanup at 03:00 UTC")
     logger.info("Monday pipeline: evolution 06:00, spotlight+predictions 06:30, newsletter 09:00, notify 10:00, auto-publish 13:00 UTC")
     logger.info("Hourly: workspace cache refresh, proactive anomaly scan")
@@ -9825,7 +9861,7 @@ def run_scheduler():
 
 def main():
     parser = argparse.ArgumentParser(description='AgentPulse Processor')
-    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'preview_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'scrape_thought_leaders', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats', 'personal_briefing', 'get_agent_wallets', 'get_agent_ledger', 'topup_agent', 'surface_x_candidates', 'x_approve', 'x_reject', 'x_edit', 'x_draft', 'post_approved_x', 'get_x_plan', 'get_x_posted', 'get_x_budget', 'x_watch', 'x_unwatch', 'x_watchlist', 'health_check'],
+    parser.add_argument('--task', choices=['scrape', 'analyze', 'cluster', 'opportunities', 'extract_tools', 'extract_trending_topics', 'update_tool_stats', 'run_investment_scan', 'prepare_analysis', 'prepare_newsletter', 'preview_newsletter', 'publish_newsletter', 'create_predictions', 'digest', 'cleanup', 'queue', 'watch', 'create_agent_task', 'check_task', 'get_budget_status', 'targeted_scrape', 'can_create_subtask', 'proactive_scan', 'send_alert', 'create_negotiation', 'respond_to_negotiation', 'get_active_negotiations', 'get_recent_alerts', 'deduplicate_opportunities', 'scrape_hackernews', 'scrape_github', 'track_predictions', 'extract_problems_multisource', 'extract_tools_multisource', 'extract_trending_topics_multisource', 'get_predictions', 'get_source_status', 'create_manual_prediction', 'scrape_rss', 'update_topic_evolution', 'get_topic_evolution', 'get_topic_thesis', 'get_freshness_status', 'queue_research', 'get_research_queue', 'get_spotlight', 'get_scorecard', 'get_spotlight_cooldown', 'select_spotlight', 'flag_prediction', 'resolve_prediction', 'run_research', 'run_full_pipeline', 'get_subscriber_stats', 'personal_briefing', 'get_agent_wallets', 'get_agent_ledger', 'topup_agent', 'surface_x_candidates', 'x_approve', 'x_reject', 'x_edit', 'x_draft', 'post_approved_x', 'get_x_plan', 'get_x_posted', 'get_x_budget', 'x_watch', 'x_unwatch', 'x_watchlist', 'health_check'],
                         default='watch', help='Task to run')
     parser.add_argument('--once', action='store_true', help='Run once instead of watching')
     parser.add_argument('--no-schedule', action='store_true', help='Disable scheduled tasks in watch mode')
@@ -9919,10 +9955,6 @@ def main():
         result = scrape_github()
         print(json.dumps(result, default=str, indent=2))
 
-    elif args.task == 'scrape_thought_leaders':
-        result = scrape_thought_leaders()
-        print(json.dumps(result, default=str, indent=2))
-    
     elif args.task == 'track_predictions':
         result = track_predictions()
         print(json.dumps(result, default=str, indent=2))

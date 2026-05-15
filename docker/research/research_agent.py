@@ -361,7 +361,7 @@ def gather_sources(topic_id: str, topic_name: str, context_payload: dict | None 
             if not any(term in text for term in search_terms):
                 continue
             src = p.get("source", "")
-            if src.startswith("thought_leader_") or src.startswith("x_source_"):
+            if src.startswith("x_source_"):
                 continue
             elif src == "github":
                 github_posts.append(p)
@@ -373,23 +373,7 @@ def gather_sources(topic_id: str, topic_name: str, context_payload: dict | None 
     except Exception as e:
         logger.warning(f"General source gathering failed: {e}")
 
-    # Thought leaders + X source accounts (both tier 1.5, 14-day window)
-    try:
-        result = supabase.table("source_posts")\
-            .select("title, body, source, source_url, score, tags, metadata")\
-            .like("source", "thought_leader_%")\
-            .gte("scraped_at", tl_cutoff)\
-            .order("scraped_at", desc=True)\
-            .limit(100)\
-            .execute()
-
-        for p in (result.data or []):
-            text = f"{p.get('title', '')} {p.get('body', '')}".lower()
-            if any(term in text for term in search_terms):
-                tl_posts.append(p)
-    except Exception as e:
-        logger.warning(f"Thought leader source gathering failed: {e}")
-
+    # X source accounts (tier 2, 14-day window)
     try:
         result = supabase.table("source_posts")\
             .select("title, body, source, source_url, score, tags, metadata")\
@@ -425,7 +409,7 @@ def gather_sources(topic_id: str, topic_name: str, context_payload: dict | None 
 
     return {
         "general": general_posts,
-        "thought_leaders": tl_posts,
+        "x_sources": tl_posts,
         "github": github_posts,
         "lifecycle": lifecycle_context,
         "analyst_context": context_payload,
@@ -477,7 +461,7 @@ def gather_synthesis_sources(queue_item: dict) -> dict:
 
     return {
         "general": all_posts[:30],
-        "thought_leaders": [],
+        "x_sources": [],
         "github": [],
         "lifecycle": None,
         "analyst_context": queue_item.get("context_payload"),
@@ -524,7 +508,7 @@ def build_context_window(queue_item: dict, sources: dict) -> str:
 
     char_budget = MAX_SOURCE_TOKENS * 4
 
-    tl_text = _format_source_section("THOUGHT LEADER SOURCES (Tier 1.5)", sources.get("thought_leaders", []))
+    tl_text = _format_source_section("X SOURCE ACCOUNTS (Tier 2)", sources.get("x_sources", []))
     general_text = _format_source_section("GENERAL SOURCES (Tier 2-3)", sources.get("general", []))
     github_text = _format_source_section("GITHUB ACTIVITY (Tier 4)", sources.get("github", []))
 
@@ -556,7 +540,7 @@ def _format_source_section(header: str, posts: list) -> str:
 
 def _count_distinct_sources(sources: dict) -> int:
     all_sources = set()
-    for key in ["general", "thought_leaders", "github"]:
+    for key in ["general", "x_sources", "github"]:
         for p in sources.get(key, []):
             all_sources.add(p.get("source", "unknown"))
     return len(all_sources)
