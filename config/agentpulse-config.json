@@ -110,6 +110,14 @@
     "deepseek-reasoner": {"input": 0.55, "output": 2.19, "provider": "deepseek"},
     "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00, "provider": "anthropic"}
   },
+  "block_pipeline": {
+    "enabled": false,
+    "ab_comparison": false,
+    "model_prepass": "claude-sonnet-4-20250514",
+    "model_structure": "claude-sonnet-4-20250514",
+    "model_prose": "claude-sonnet-4-20250514",
+    "model_voice": "deepseek-chat"
+  },
   "wallet_pricing": {
     "deepseek-chat": 2,
     "deepseek-reasoner": 5,

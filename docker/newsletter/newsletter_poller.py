@@ -1441,8 +1441,8 @@ def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -
     return edited
 
 
-def save_newsletter(result: dict, input_data: dict):
-    """Save newsletter to Supabase and local file."""
+def save_newsletter(result: dict, input_data: dict) -> str | None:
+    """Save newsletter to Supabase and local file. Returns inserted row UUID or None."""
     edition = result.get("edition", input_data.get("edition_number", 0))
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -1458,7 +1458,7 @@ def save_newsletter(result: dict, input_data: dict):
     title_impact = result.get("title_impact", result.get("title", ""))
     content_markdown_impact = result.get("content_markdown_impact", "")
 
-    # Upsert into newsletters table
+    # Insert into newsletters table
     row = {
         "edition_number": edition,
         "title": result.get("title", f"Edition #{edition}"),
@@ -1470,11 +1470,55 @@ def save_newsletter(result: dict, input_data: dict):
         "primary_theme": primary_theme,
         "status": "draft",
     }
+    row_id = None
     try:
-        supabase.table("newsletters").insert(row).execute()
-        logger.info(f"Saved newsletter edition #{edition} to Supabase (status=draft, theme='{primary_theme}')")
+        insert_result = supabase.table("newsletters").insert(row).execute()
+        row_id = insert_result.data[0]['id'] if insert_result.data else None
+        logger.info(f"Saved newsletter edition #{edition} to Supabase (id={row_id}, status=draft, theme='{primary_theme}')")
     except Exception as e:
         logger.error(f"Failed to insert newsletter #{edition} into Supabase: {e}")
+
+    # ── Phase D: Post-generation verification ──
+    try:
+        from verification import verify_draft
+        tech_prose = result.get("content_markdown", "")
+        impact_prose = content_markdown_impact or ""
+
+        tech_report = verify_draft(tech_prose, input_data) if tech_prose else None
+        impact_report = verify_draft(impact_prose, input_data) if impact_prose else None
+
+        verification = {
+            "technical": tech_report,
+            "impact": impact_report,
+            "summary": {
+                "total_ungrounded": (
+                    (tech_report['summary']['ungrounded_count'] if tech_report else 0)
+                    + (impact_report['summary']['ungrounded_count'] if impact_report else 0)
+                ),
+                "technical_count": tech_report['summary']['ungrounded_count'] if tech_report else 0,
+                "impact_count": impact_report['summary']['ungrounded_count'] if impact_report else 0,
+                "technical_tier1": tech_report['summary']['tier1_count'] if tech_report else 0,
+                "impact_tier1": impact_report['summary']['tier1_count'] if impact_report else 0,
+            }
+        }
+
+        # Always write verification report (even when clean)
+        if row_id:
+            supabase.table("newsletters").update({
+                "verification_warnings": verification
+            }).eq("id", row_id).execute()
+
+        tech_u = tech_report['summary']['ungrounded_count'] if tech_report else 0
+        impact_u = impact_report['summary']['ungrounded_count'] if impact_report else 0
+        tech_t1 = tech_report['summary']['tier1_count'] if tech_report else 0
+        impact_t1 = impact_report['summary']['tier1_count'] if impact_report else 0
+        logger.info(
+            f"[VERIFICATION] Edition #{edition}: "
+            f"technical={tech_u} ungrounded (T1={tech_t1}), "
+            f"impact={impact_u} ungrounded (T1={impact_t1})"
+        )
+    except Exception as e:
+        logger.error(f"[VERIFICATION] Failed for edition #{edition}: {e}")
 
     # Save local markdown (builder version)
     md_file = NEWSLETTERS_DIR / f"brief_{edition}_{date_str}.md"
@@ -1492,6 +1536,8 @@ def save_newsletter(result: dict, input_data: dict):
             logger.info(f"Saved impact file: {impact_file.name}")
         except OSError as e:
             logger.error(f"Failed to write impact file {impact_file}: {e}")
+
+    return row_id
 
 
 # ---------------------------------------------------------------------------
@@ -1823,109 +1869,183 @@ def process_task(task: dict):
     logger.info(f"Budget for {task_type}: {budget}")
 
     try:
-        # Editorial pre-pass: choose this week's angle
-        if task_type == 'write_newsletter':
-            editorial_brief = editorial_prepass(input_data)
-            if editorial_brief:
-                input_data['editorial_direction'] = editorial_brief
+        # ── Check block pipeline feature flag ──
+        import json as _json
+        _bp_config_path = Path(OPENCLAW_DATA_DIR) / "config" / "agentpulse-config.json"
+        _bp_config = {}
+        if _bp_config_path.exists():
+            _bp_config = _json.loads(_bp_config_path.read_text()).get('block_pipeline', {})
+        _use_block_pipeline = _bp_config.get('enabled', False) and task_type == 'write_newsletter'
 
-        # Generate newsletter
-        raw_result = generate_newsletter(task_type, input_data, budget)
-        validated = validate_llm_output(raw_result, NewsletterOutput)
-        result = validated.model_dump()
+        if _use_block_pipeline:
+            # ══════════════════════════════════════════════════════════
+            # Block-based pipeline (primary generation path)
+            # ══════════════════════════════════════════════════════════
+            logger.info("[BLOCK PIPELINE] Running as primary generation path...")
+            from block_selection import select_blocks
+            from block_pipeline import generate_from_blocks, editorial_prepass_from_blocks
 
-        # ── Post-generation quality checks ──
-        quality_issues = run_quality_checks(result, input_data)
-        critical_issues = [i for i in quality_issues if i["severity"] == "critical"]
-        warning_issues = [i for i in quality_issues if i["severity"] == "warning"]
+            # Phase A: select blocks (no angle constraint)
+            blocks_data = select_blocks(supabase, llm_client=deepseek_client)
 
-        if critical_issues:
-            logger.warning(
-                f"Newsletter has {len(critical_issues)} critical quality issue(s): "
-                f"{critical_issues}"
+            # Block-aware prepass: pick angle FROM the blocks
+            prepass_model = _bp_config.get('model_prepass', 'claude-sonnet-4-20250514')
+            prepass_client = claude_client if prepass_model.startswith('claude') else deepseek_client
+            block_editorial = editorial_prepass_from_blocks(
+                blocks_data,
+                narrative_context=input_data.get('narrative_context'),
+                avoided_themes=input_data.get('avoided_themes', []),
+                llm_client=prepass_client,
+                model=prepass_model,
             )
-            retries = budget.get('max_retries', 2)
-            if retries > 0:
-                logger.info("Retrying newsletter generation due to critical quality issues...")
-                input_data['_quality_feedback'] = [i["detail"] for i in critical_issues]
-                budget['max_retries'] = retries - 1
-                raw_result = generate_newsletter(task_type, input_data, budget)
-                validated = validate_llm_output(raw_result, NewsletterOutput)
-                result = validated.model_dump()
-                quality_issues = run_quality_checks(result, input_data)
-                critical_issues = [i for i in quality_issues if i["severity"] == "critical"]
-                warning_issues = [i for i in quality_issues if i["severity"] == "warning"]
-                if critical_issues:
-                    logger.warning(f"Critical issues persist after retry: {critical_issues}")
+            block_angle = (block_editorial or {}).get('chosen_angle', '')
+            if not block_angle:
+                # Fallback: run the original prepass for angle
+                editorial_brief = editorial_prepass(input_data)
+                block_angle = (editorial_brief or {}).get('chosen_angle', '')
+                logger.warning(f"[BLOCK PIPELINE] Block prepass failed, using single-pass angle: {block_angle[:80]}")
 
-        if warning_issues:
-            logger.info(f"Newsletter quality warnings: {warning_issues}")
+            # Phase B + C + E
+            prose_model = _bp_config.get('model_prose', 'claude-sonnet-4-20250514')
+            prose_client = claude_client if prose_model.startswith('claude') else deepseek_client
+            bp_result = generate_from_blocks(
+                blocks_data,
+                angle=block_angle,
+                llm_client=prose_client,
+                model_structure=_bp_config.get('model_structure', 'deepseek-chat'),
+                model_prose=prose_model,
+                model_voice=_bp_config.get('model_voice', 'deepseek-chat'),
+            )
 
-        # Auto-fix: strip duplicate stats where possible
-        result = _auto_fix_stat_repetition(result)
-
-        # Auto-fix: strip sections that only contain "N/A" or are empty
-        result = _auto_fix_empty_sections(result)
-
-        # Store quality warnings in result
-        all_warnings = [i["detail"] for i in quality_issues]
-        if all_warnings:
-            result["quality_warnings"] = all_warnings
-
-        # Qualitative review pass — LLM checks for fabrication, tone, grounding
-        if result.get('content_markdown') and claude_client:
-            try:
-                review = qualitative_review(result['content_markdown'], input_data)
-                if review:
-                    hard_fails = [r for r in review if r.get('severity') == 'critical']
-                    soft_warns = [r for r in review if r.get('severity') == 'warning']
-                    if hard_fails:
-                        logger.warning(f"[QUAL REVIEW] {len(hard_fails)} critical issue(s): {hard_fails}")
-                        retries_left = budget.get('max_retries', 0)
-                        if retries_left > 0:
-                            logger.info("[QUAL REVIEW] Retrying due to critical qualitative issues...")
-                            input_data['_quality_feedback'] = [r['detail'] for r in hard_fails]
-                            budget['max_retries'] = retries_left - 1
-                            raw_result = generate_newsletter(task_type, input_data, budget)
-                            validated = validate_llm_output(raw_result, NewsletterOutput)
-                            result = validated.model_dump()
-                            result = _auto_fix_stat_repetition(result)
-                            result = _auto_fix_empty_sections(result)
-                    if soft_warns:
-                        logger.info(f"[QUAL REVIEW] {len(soft_warns)} warning(s): {soft_warns}")
-                        existing = result.get("quality_warnings", [])
-                        result["quality_warnings"] = existing + [r['detail'] for r in soft_warns]
-            except Exception as e:
-                logger.error(f"[QUAL REVIEW] Review failed (non-blocking): {e}")
-
-        # Strategic editor second pass
-        if result.get("content_markdown_impact"):
-            try:
-                edited_impact = edit_strategic_mode(result["content_markdown_impact"], input_data)
-                result["content_markdown_impact"] = edited_impact
-                logger.info("Strategic editor pass applied to content_markdown_impact")
-            except Exception as e:
-                logger.error(f"Strategic editor pass failed, using original: {e}")
-
-        # ── Impact edition quality checks (log-only) ──
-        impact_content = result.get("content_markdown_impact", "")
-        if impact_content:
-            # Check narrative continuity bridge
-            continuity_phrases = ["last week", "last edition", "previously", "edition #", "editions ago"]
-            has_continuity = any(p in impact_content.lower() for p in continuity_phrases)
-            if not has_continuity:
-                logger.warning("QUALITY: Missing narrative continuity bridge in impact edition")
+            if bp_result.get('error'):
+                logger.error(f"[BLOCK PIPELINE] Failed: {bp_result['error']}. Falling back to single-pass.")
+                _use_block_pipeline = False
             else:
-                logger.info("QUALITY: Narrative continuity bridge detected")
+                # Build result dict matching NewsletterOutput schema
+                edition = input_data.get('edition_number') or input_data.get('narrative_context', {}).get('edition_number', 0)
+                result = {
+                    'edition': edition,
+                    'title': f"AgentPulse #{edition}",
+                    'title_impact': f"AgentPulse #{edition}",
+                    'content_markdown': bp_result.get('content_markdown', ''),
+                    'content_markdown_impact': bp_result.get('content_markdown_impact', ''),
+                    'content_telegram': '',
+                    'data_snapshot': {
+                        'pipeline_version': 'block_v1',
+                        'voice_score': bp_result.get('voice_score', {}),
+                        'block_summary': blocks_data.get('summary', {}),
+                        'block_prepass': block_editorial,
+                    },
+                }
+                logger.info(f"[BLOCK PIPELINE] Generation complete. Tech: {len(result['content_markdown'])} chars, "
+                            f"Impact: {len(result['content_markdown_impact'])} chars")
 
-            # Check bold inline markers (**Text.**)
-            bold_marker_count = len(re.findall(r'\*\*[A-Z][^*]{3,60}\.\*\*', impact_content))
-            if bold_marker_count < 2:
-                logger.warning(f"QUALITY: Missing bold inline markers in impact edition (found {bold_marker_count}, need ≥2)")
-            else:
-                logger.info(f"QUALITY: Found {bold_marker_count} bold inline markers")
-        elif input_data.get('narrative_context'):
-            logger.warning("QUALITY: content_markdown_impact is empty — impact edition not generated")
+        if not _use_block_pipeline:
+            # ══════════════════════════════════════════════════════════
+            # Single-pass pipeline (original generation path)
+            # ══════════════════════════════════════════════════════════
+
+            # Editorial pre-pass: choose this week's angle
+            if task_type == 'write_newsletter':
+                editorial_brief = editorial_prepass(input_data)
+                if editorial_brief:
+                    input_data['editorial_direction'] = editorial_brief
+
+            # Generate newsletter
+            raw_result = generate_newsletter(task_type, input_data, budget)
+            validated = validate_llm_output(raw_result, NewsletterOutput)
+            result = validated.model_dump()
+
+        # ── Post-generation quality checks (single-pass only) ──
+        if not _use_block_pipeline:
+            quality_issues = run_quality_checks(result, input_data)
+            critical_issues = [i for i in quality_issues if i["severity"] == "critical"]
+            warning_issues = [i for i in quality_issues if i["severity"] == "warning"]
+
+            if critical_issues:
+                logger.warning(
+                    f"Newsletter has {len(critical_issues)} critical quality issue(s): "
+                    f"{critical_issues}"
+                )
+                retries = budget.get('max_retries', 2)
+                if retries > 0:
+                    logger.info("Retrying newsletter generation due to critical quality issues...")
+                    input_data['_quality_feedback'] = [i["detail"] for i in critical_issues]
+                    budget['max_retries'] = retries - 1
+                    raw_result = generate_newsletter(task_type, input_data, budget)
+                    validated = validate_llm_output(raw_result, NewsletterOutput)
+                    result = validated.model_dump()
+                    quality_issues = run_quality_checks(result, input_data)
+                    critical_issues = [i for i in quality_issues if i["severity"] == "critical"]
+                    warning_issues = [i for i in quality_issues if i["severity"] == "warning"]
+                    if critical_issues:
+                        logger.warning(f"Critical issues persist after retry: {critical_issues}")
+
+            if warning_issues:
+                logger.info(f"Newsletter quality warnings: {warning_issues}")
+
+            # Auto-fix: strip duplicate stats where possible
+            result = _auto_fix_stat_repetition(result)
+
+            # Auto-fix: strip sections that only contain "N/A" or are empty
+            result = _auto_fix_empty_sections(result)
+
+            # Store quality warnings in result
+            all_warnings = [i["detail"] for i in quality_issues]
+            if all_warnings:
+                result["quality_warnings"] = all_warnings
+
+            # Qualitative review pass — LLM checks for fabrication, tone, grounding
+            if result.get('content_markdown') and claude_client:
+                try:
+                    review = qualitative_review(result['content_markdown'], input_data)
+                    if review:
+                        hard_fails = [r for r in review if r.get('severity') == 'critical']
+                        soft_warns = [r for r in review if r.get('severity') == 'warning']
+                        if hard_fails:
+                            logger.warning(f"[QUAL REVIEW] {len(hard_fails)} critical issue(s): {hard_fails}")
+                            retries_left = budget.get('max_retries', 0)
+                            if retries_left > 0:
+                                logger.info("[QUAL REVIEW] Retrying due to critical qualitative issues...")
+                                input_data['_quality_feedback'] = [r['detail'] for r in hard_fails]
+                                budget['max_retries'] = retries_left - 1
+                                raw_result = generate_newsletter(task_type, input_data, budget)
+                                validated = validate_llm_output(raw_result, NewsletterOutput)
+                                result = validated.model_dump()
+                                result = _auto_fix_stat_repetition(result)
+                                result = _auto_fix_empty_sections(result)
+                        if soft_warns:
+                            logger.info(f"[QUAL REVIEW] {len(soft_warns)} warning(s): {soft_warns}")
+                            existing = result.get("quality_warnings", [])
+                            result["quality_warnings"] = existing + [r['detail'] for r in soft_warns]
+                except Exception as e:
+                    logger.error(f"[QUAL REVIEW] Review failed (non-blocking): {e}")
+
+            # Strategic editor second pass
+            if result.get("content_markdown_impact"):
+                try:
+                    edited_impact = edit_strategic_mode(result["content_markdown_impact"], input_data)
+                    result["content_markdown_impact"] = edited_impact
+                    logger.info("Strategic editor pass applied to content_markdown_impact")
+                except Exception as e:
+                    logger.error(f"Strategic editor pass failed, using original: {e}")
+
+            # ── Impact edition quality checks (log-only) ──
+            impact_content = result.get("content_markdown_impact", "")
+            if impact_content:
+                continuity_phrases = ["last week", "last edition", "previously", "edition #", "editions ago"]
+                has_continuity = any(p in impact_content.lower() for p in continuity_phrases)
+                if not has_continuity:
+                    logger.warning("QUALITY: Missing narrative continuity bridge in impact edition")
+                else:
+                    logger.info("QUALITY: Narrative continuity bridge detected")
+                bold_marker_count = len(re.findall(r'\*\*[A-Z][^*]{3,60}\.\*\*', impact_content))
+                if bold_marker_count < 2:
+                    logger.warning(f"QUALITY: Missing bold inline markers in impact edition (found {bold_marker_count}, need ≥2)")
+                else:
+                    logger.info(f"QUALITY: Found {bold_marker_count} bold inline markers")
+            elif input_data.get('narrative_context'):
+                logger.warning("QUALITY: content_markdown_impact is empty — impact edition not generated")
 
         # Generate scorecard (Looking Back) if resolved predictions exist
         edition = result.get("edition", input_data.get("edition_number", 0))
@@ -1945,6 +2065,73 @@ def process_task(task: dict):
 
         # Save to Supabase + local file
         save_newsletter(result, input_data)
+
+        # ── A/B comparison: block-based pipeline (only when single-pass is primary) ──
+        try:
+            if not _use_block_pipeline and _bp_config.get('ab_comparison'):
+                logger.info("[A/B] Running block-based pipeline for comparison...")
+                from block_selection import select_blocks
+                from block_pipeline import generate_from_blocks, editorial_prepass_from_blocks
+
+                # Phase A: select blocks (NO angle constraint — blocks first)
+                blocks_data = select_blocks(
+                    supabase, llm_client=deepseek_client,
+                )
+
+                # Block-aware prepass: pick angle FROM the blocks
+                prepass_model = bp_config.get('model_prepass', 'claude-sonnet-4-20250514')
+                prepass_client = claude_client if prepass_model.startswith('claude') else deepseek_client
+                block_editorial = editorial_prepass_from_blocks(
+                    blocks_data,
+                    narrative_context=input_data.get('narrative_context'),
+                    avoided_themes=input_data.get('avoided_themes', []),
+                    llm_client=prepass_client,
+                    model=prepass_model,
+                )
+                block_angle = (block_editorial or {}).get('chosen_angle', '')
+                if not block_angle:
+                    # Fallback: use the single-pass prepass angle
+                    block_angle = input_data.get('editorial_direction', {}).get('chosen_angle', '')
+                    logger.warning(f"[A/B] Block prepass failed, falling back to single-pass angle: {block_angle[:80]}")
+
+                # Determine which client to use for prose
+                prose_model = bp_config.get('model_prose', 'claude-sonnet-4-20250514')
+                prose_client = claude_client if prose_model.startswith('claude') else deepseek_client
+
+                # Phase B + C + E
+                bp_result = generate_from_blocks(
+                    blocks_data,
+                    angle=block_angle,
+                    llm_client=prose_client,
+                    model_structure=bp_config.get('model_structure', 'deepseek-chat'),
+                    model_prose=prose_model,
+                    model_voice=bp_config.get('model_voice', 'deepseek-chat'),
+                )
+
+                if not bp_result.get('error'):
+                    # Save as a separate held edition for comparison
+                    bp_row = {
+                        "edition_number": edition,
+                        "title": f"[BLOCK PIPELINE A/B] {result.get('title', '')}",
+                        "title_impact": f"[BLOCK PIPELINE A/B] {result.get('title_impact', '')}",
+                        "content_markdown": bp_result.get('content_markdown', ''),
+                        "content_markdown_impact": bp_result.get('content_markdown_impact', ''),
+                        "status": "held",
+                        "data_snapshot": {
+                            "do_not_publish": True,
+                            "ab_comparison": True,
+                            "pipeline_version": "block_v1",
+                            "voice_score": bp_result.get('voice_score', {}),
+                            "block_summary": blocks_data.get('summary', {}),
+                            "block_prepass": block_editorial,
+                        },
+                    }
+                    supabase.table("newsletters").insert(bp_row).execute()
+                    logger.info(f"[A/B] Block pipeline comparison saved for edition #{edition}")
+                else:
+                    logger.warning(f"[A/B] Block pipeline failed: {bp_result.get('error')}")
+        except Exception as e:
+            logger.error(f"[A/B] Block pipeline comparison failed (non-blocking): {e}")
 
         # Handle negotiation requests (e.g. enrichment from Analyst)
         handle_negotiation_request(result, task_id)
