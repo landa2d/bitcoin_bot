@@ -2113,7 +2113,7 @@ def process_task(task: dict):
                 )
 
                 # Block-aware prepass: pick angle FROM the blocks
-                prepass_model = bp_config.get('model_prepass', 'claude-sonnet-4-20250514')
+                prepass_model = _bp_config.get('model_prepass', 'claude-sonnet-4-20250514')
                 prepass_client = claude_client if prepass_model.startswith('claude') else deepseek_client
                 block_editorial = editorial_prepass_from_blocks(
                     blocks_data,
@@ -2129,7 +2129,7 @@ def process_task(task: dict):
                     logger.warning(f"[A/B] Block prepass failed, falling back to single-pass angle: {block_angle[:80]}")
 
                 # Determine which client to use for prose
-                prose_model = bp_config.get('model_prose', 'claude-sonnet-4-20250514')
+                prose_model = _bp_config.get('model_prose', 'claude-sonnet-4-20250514')
                 prose_client = claude_client if prose_model.startswith('claude') else deepseek_client
 
                 # Phase B + C + E
@@ -2137,12 +2137,41 @@ def process_task(task: dict):
                     blocks_data,
                     angle=block_angle,
                     llm_client=prose_client,
-                    model_structure=bp_config.get('model_structure', 'deepseek-chat'),
+                    model_structure=_bp_config.get('model_structure', 'deepseek-chat'),
                     model_prose=prose_model,
-                    model_voice=bp_config.get('model_voice', 'deepseek-chat'),
+                    model_voice=_bp_config.get('model_voice', 'deepseek-chat'),
                 )
 
                 if not bp_result.get('error'):
+                    # Phase D verification on block pipeline output
+                    from verification import verify_draft as _ab_verify
+                    ab_verification_input = {
+                        'blocks': blocks_data['blocks'],
+                        'tracked_entity_signals': blocks_data.get('tracked_entity_signals', []),
+                        'trending_tools': blocks_data.get('tool_stats', []),
+                        'predictions': blocks_data.get('predictions', []),
+                    }
+                    ab_tech_report = _ab_verify(bp_result.get('content_markdown', ''), ab_verification_input)
+                    ab_impact_report = _ab_verify(bp_result.get('content_markdown_impact', ''), ab_verification_input)
+                    ab_verification = {
+                        "technical": ab_tech_report,
+                        "impact": ab_impact_report,
+                        "fact_base_source": "blocks",
+                        "fact_base_size": len(blocks_data['blocks']),
+                        "summary": {
+                            "total_ungrounded": (
+                                ab_tech_report['summary']['ungrounded_count']
+                                + ab_impact_report['summary']['ungrounded_count']
+                            ),
+                            "technical_tier1": ab_tech_report['summary']['tier1_count'],
+                            "impact_tier1": ab_impact_report['summary']['tier1_count'],
+                        }
+                    }
+                    logger.info(
+                        f"[A/B] Verification: T1={ab_tech_report['summary']['tier1_count']}/{ab_impact_report['summary']['tier1_count']}, "
+                        f"fact_base=blocks ({len(blocks_data['blocks'])} items)"
+                    )
+
                     # Save as a separate held edition for comparison
                     bp_row = {
                         "edition_number": edition,
@@ -2155,10 +2184,12 @@ def process_task(task: dict):
                             "do_not_publish": True,
                             "ab_comparison": True,
                             "pipeline_version": "block_v1",
+                            "angle": block_angle,
                             "voice_score": bp_result.get('voice_score', {}),
                             "block_summary": blocks_data.get('summary', {}),
                             "block_prepass": block_editorial,
                         },
+                        "verification_warnings": ab_verification,
                     }
                     supabase.table("newsletters").insert(bp_row).execute()
                     logger.info(f"[A/B] Block pipeline comparison saved for edition #{edition}")
