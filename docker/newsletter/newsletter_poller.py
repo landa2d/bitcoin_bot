@@ -1441,8 +1441,14 @@ def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -
     return edited
 
 
-def save_newsletter(result: dict, input_data: dict) -> str | None:
-    """Save newsletter to Supabase and local file. Returns inserted row UUID or None."""
+def save_newsletter(result: dict, input_data: dict, blocks_data: dict | None = None) -> str | None:
+    """Save newsletter to Supabase and local file. Returns inserted row UUID or None.
+
+    Args:
+        result: Generated newsletter content (title, content_markdown, etc.)
+        input_data: Original task input from processor
+        blocks_data: If block pipeline was used, the Phase A output for Phase D verification
+    """
     edition = result.get("edition", input_data.get("edition_number", 0))
     date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
@@ -1466,7 +1472,7 @@ def save_newsletter(result: dict, input_data: dict) -> str | None:
         "content_markdown": result.get("content_markdown", ""),
         "content_markdown_impact": content_markdown_impact,
         "content_telegram": result.get("content_telegram", ""),
-        "data_snapshot": input_data,
+        "data_snapshot": {**input_data, **(result.get('data_snapshot') or {})},
         "primary_theme": primary_theme,
         "status": "draft",
     }
@@ -1484,12 +1490,37 @@ def save_newsletter(result: dict, input_data: dict) -> str | None:
         tech_prose = result.get("content_markdown", "")
         impact_prose = content_markdown_impact or ""
 
-        tech_report = verify_draft(tech_prose, input_data) if tech_prose else None
-        impact_report = verify_draft(impact_prose, input_data) if impact_prose else None
+        # Build the fact base for verification.
+        # Block pipeline path: pass blocks directly (Option B — verify against
+        # exactly what the writer was given, not a reconstruction).
+        # Single-pass path: use input_data as before.
+        if blocks_data and blocks_data.get('blocks'):
+            verification_input = {
+                'blocks': blocks_data['blocks'],
+                'tracked_entity_signals': blocks_data.get('tracked_entity_signals', []),
+                'trending_tools': blocks_data.get('tool_stats', []),
+                'predictions': blocks_data.get('predictions', []),
+            }
+            fact_base_source = 'blocks'
+            fact_base_size = len(blocks_data['blocks'])
+        else:
+            verification_input = input_data
+            fact_base_source = 'input_data'
+            fact_base_size = len(input_data.get('premium_source_posts', []))
+
+        logger.info(
+            f"[VERIFICATION] Fact base: {fact_base_source} "
+            f"({fact_base_size} items)"
+        )
+
+        tech_report = verify_draft(tech_prose, verification_input) if tech_prose else None
+        impact_report = verify_draft(impact_prose, verification_input) if impact_prose else None
 
         verification = {
             "technical": tech_report,
             "impact": impact_report,
+            "fact_base_source": fact_base_source,
+            "fact_base_size": fact_base_size,
             "summary": {
                 "total_ungrounded": (
                     (tech_report['summary']['ungrounded_count'] if tech_report else 0)
@@ -1514,6 +1545,7 @@ def save_newsletter(result: dict, input_data: dict) -> str | None:
         impact_t1 = impact_report['summary']['tier1_count'] if impact_report else 0
         logger.info(
             f"[VERIFICATION] Edition #{edition}: "
+            f"fact_base={fact_base_source} ({fact_base_size} items), "
             f"technical={tech_u} ungrounded (T1={tech_t1}), "
             f"impact={impact_u} ungrounded (T1={impact_t1})"
         )
@@ -1876,6 +1908,7 @@ def process_task(task: dict):
         if _bp_config_path.exists():
             _bp_config = _json.loads(_bp_config_path.read_text()).get('block_pipeline', {})
         _use_block_pipeline = _bp_config.get('enabled', False) and task_type == 'write_newsletter'
+        _blocks_data = None  # Set by block pipeline path, passed to save_newsletter
 
         if _use_block_pipeline:
             # ══════════════════════════════════════════════════════════
@@ -1887,6 +1920,7 @@ def process_task(task: dict):
 
             # Phase A: select blocks (no angle constraint)
             blocks_data = select_blocks(supabase, llm_client=deepseek_client)
+            _blocks_data = blocks_data
 
             # Block-aware prepass: pick angle FROM the blocks
             prepass_model = _bp_config.get('model_prepass', 'claude-sonnet-4-20250514')
@@ -2064,7 +2098,7 @@ def process_task(task: dict):
             logger.error(f"Scorecard generation failed (non-blocking): {e}")
 
         # Save to Supabase + local file
-        save_newsletter(result, input_data)
+        save_newsletter(result, input_data, blocks_data=_blocks_data)
 
         # ── A/B comparison: block-based pipeline (only when single-pass is primary) ──
         try:

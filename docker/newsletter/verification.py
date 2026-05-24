@@ -301,67 +301,107 @@ def _build_block_list(input_data: dict) -> dict[str, set[str]]:
 
     Returns dict with keys: entities, statistics, dates, quotes.
     Each value is a set of strings that are considered grounded.
+
+    If input_data contains 'blocks' (from the block pipeline), entities
+    are extracted directly from block descriptions and named_entities.
+    This is Option B: verify against exactly what the writer was given.
     """
     entities: set[str] = set()
     statistics: set[str] = set()
     dates: set[str] = set()
     quotes: set[str] = set()
 
-    # ── Premium source posts ──
-    for post in input_data.get('premium_source_posts', []):
-        title = post.get('title', '')
-        summary = post.get('summary', '')
-        source_display = post.get('source_display', '')
-        text = f"{title} {summary} {source_display}"
+    # ── Block pipeline path: extract from blocks directly ──
+    blocks = input_data.get('blocks', [])
+    if blocks:
+        for block in blocks:
+            # Named entities are the primary fact base — add directly
+            for ent in (block.get('named_entities') or []):
+                if len(ent) >= 2:
+                    entities.add(ent)
 
-        # Extract proper nouns from source text
-        for match in _PROPER_NOUN_MULTI.finditer(text):
-            entities.add(match.group(1).strip())
-        for match in _PROPER_NOUN_SINGLE.finditer(text):
-            candidate = match.group(1).strip()
-            if len(candidate) >= 3 and candidate.lower() not in _STOP_WORDS:
-                entities.add(candidate)
-        for match in _ACRONYM.finditer(text):
-            if match.group(1) not in {'THE', 'AND', 'API', 'SDK'}:
-                entities.add(match.group(1))
+            # Also extract entities and stats from description text
+            desc = block.get('description', '')
+            for match in _PROPER_NOUN_MULTI.finditer(desc):
+                entities.add(match.group(1).strip())
+            for match in _PROPER_NOUN_SINGLE.finditer(desc):
+                candidate = match.group(1).strip()
+                if len(candidate) >= 3 and candidate.lower() not in _STOP_WORDS:
+                    entities.add(candidate)
+            for match in _ACRONYM.finditer(desc):
+                if match.group(1) not in {'THE', 'AND', 'API', 'SDK'}:
+                    entities.add(match.group(1))
+            for match in _STATISTIC.finditer(desc):
+                statistics.add(match.group(0).strip())
+            for match in _DATE.finditer(desc):
+                dates.add(match.group(0).strip())
+            for match in _QUOTED.finditer(desc):
+                quotes.add(match.group(1).strip())
 
-        # Extract numbers and dates from source text
-        for match in _STATISTIC.finditer(text):
-            statistics.add(match.group(0).strip())
-        for match in _DATE.finditer(text):
-            dates.add(match.group(0).strip())
-        for match in _QUOTED.finditer(text):
-            quotes.add(match.group(1).strip())
-
-    # ── Emerging signals / clusters ──
-    for signal in input_data.get('section_b_emerging', []):
-        theme = signal.get('theme', '')
-        desc = signal.get('description', '')
-        text = f"{theme} {desc}"
-        for match in _PROPER_NOUN_MULTI.finditer(text):
-            entities.add(match.group(1).strip())
-        for match in _PROPER_NOUN_SINGLE.finditer(text):
-            candidate = match.group(1).strip()
-            if len(candidate) >= 3 and candidate.lower() not in _STOP_WORDS:
-                entities.add(candidate)
-        # Problem IDs in clusters may reference extraction descriptions
-        for pid_desc in signal.get('problem_descriptions', []):
-            for match in _PROPER_NOUN_SINGLE.finditer(str(pid_desc)):
+        # Tracked entity signals (same shape as blocks)
+        for signal in input_data.get('tracked_entity_signals', []):
+            for ent in (signal.get('named_entities') or []):
+                if len(ent) >= 2:
+                    entities.add(ent)
+            desc = signal.get('description', '')
+            for match in _PROPER_NOUN_SINGLE.finditer(desc):
                 candidate = match.group(1).strip()
                 if len(candidate) >= 3 and candidate.lower() not in _STOP_WORDS:
                     entities.add(candidate)
 
-    # ── Clusters ──
-    for cluster in input_data.get('clusters', []):
-        theme = cluster.get('theme', '')
-        desc = cluster.get('description', '')
-        text = f"{theme} {desc}"
-        for match in _PROPER_NOUN_MULTI.finditer(text):
-            entities.add(match.group(1).strip())
-        for match in _PROPER_NOUN_SINGLE.finditer(text):
-            candidate = match.group(1).strip()
-            if len(candidate) >= 3 and candidate.lower() not in _STOP_WORDS:
-                entities.add(candidate)
+    else:
+        # ── Single-pass path: extract from premium_source_posts ──
+        for post in input_data.get('premium_source_posts', []):
+            title = post.get('title', '')
+            summary = post.get('summary', '')
+            source_display = post.get('source_display', '')
+            text = f"{title} {summary} {source_display}"
+
+            for match in _PROPER_NOUN_MULTI.finditer(text):
+                entities.add(match.group(1).strip())
+            for match in _PROPER_NOUN_SINGLE.finditer(text):
+                candidate = match.group(1).strip()
+                if len(candidate) >= 3 and candidate.lower() not in _STOP_WORDS:
+                    entities.add(candidate)
+            for match in _ACRONYM.finditer(text):
+                if match.group(1) not in {'THE', 'AND', 'API', 'SDK'}:
+                    entities.add(match.group(1))
+
+            for match in _STATISTIC.finditer(text):
+                statistics.add(match.group(0).strip())
+            for match in _DATE.finditer(text):
+                dates.add(match.group(0).strip())
+            for match in _QUOTED.finditer(text):
+                quotes.add(match.group(1).strip())
+
+        # ── Emerging signals / clusters ──
+        for signal in input_data.get('section_b_emerging', []):
+            theme = signal.get('theme', '')
+            desc = signal.get('description', '')
+            text = f"{theme} {desc}"
+            for match in _PROPER_NOUN_MULTI.finditer(text):
+                entities.add(match.group(1).strip())
+            for match in _PROPER_NOUN_SINGLE.finditer(text):
+                candidate = match.group(1).strip()
+                if len(candidate) >= 3 and candidate.lower() not in _STOP_WORDS:
+                    entities.add(candidate)
+            for pid_desc in signal.get('problem_descriptions', []):
+                for match in _PROPER_NOUN_SINGLE.finditer(str(pid_desc)):
+                    candidate = match.group(1).strip()
+                    if len(candidate) >= 3 and candidate.lower() not in _STOP_WORDS:
+                        entities.add(candidate)
+
+        # ── Clusters ──
+        for cluster in input_data.get('clusters', []):
+            theme = cluster.get('theme', '')
+            desc = cluster.get('description', '')
+            text = f"{theme} {desc}"
+            for match in _PROPER_NOUN_MULTI.finditer(text):
+                entities.add(match.group(1).strip())
+            for match in _PROPER_NOUN_SINGLE.finditer(text):
+                candidate = match.group(1).strip()
+                if len(candidate) >= 3 and candidate.lower() not in _STOP_WORDS:
+                    entities.add(candidate)
 
     # ── Tool stats ──
     for tool in input_data.get('trending_tools', []):
