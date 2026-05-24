@@ -526,7 +526,7 @@ def editorial_prepass_from_blocks(
     try:
         logger.info("[BLOCK PREPASS] Running block-aware editorial prepass...")
         text = _llm_call(llm_client, model, BLOCK_PREPASS_SYSTEM, prompt,
-                         temperature=0.3, max_tokens=512)
+                         temperature=0.1, max_tokens=512)
 
         if text.startswith('```'):
             text = text.split('```')[1]
