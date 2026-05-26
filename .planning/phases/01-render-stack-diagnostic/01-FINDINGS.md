@@ -112,3 +112,67 @@ function getRoute() {
 hash change. Combined with Caddy's `try_files {path} /index.html`, deep hash
 URLs like `aiagentspulse.com/#/edition/34` deliver `index.html` unconditionally
 and the hash is processed client-side — Caddy never sees the hash.
+
+## 2. Publish Mechanism (DIAG-02)
+
+The most important conceptual finding of this phase: there is **no per-page publish step**. New edition "pages" are not files emitted to disk by any
+process; they are **rows inserted/updated in the Supabase `newsletters` table
+with `status='published'` (or `'preview'`)**. The SPA reads those rows on every
+page load and renders whatever it finds. The publish-path question for a new
+edition page therefore reduces to "what writes to the `newsletters` table?" —
+the newsletter pipeline (`docker/newsletter/`), not anything in `docker/web/`.
+
+**The discovery query.** `loadList()` in `docker/web/site/app.js` is the entire
+"publish discovery" path:
+
+```js
+var { data, error } = await sb
+    .from('newsletters')
+    .select('*')
+    .in('status', ['published', 'preview'])
+    .order('edition_number', { ascending: false });
+```
+
+(`app.js` lines 137–141.) `loadEdition(N)` is the per-edition read (`app.js`
+lines 176–181) — same table, same anon-key client, filtered by
+`edition_number`.
+
+**File write path:** none. The act of publishing an edition is a DB write
+performed by the newsletter pipeline, not a write to `docker/web/site/`. The
+static SPA shell (`index.html`, `app.js`, `style-shared.css`) is baked into the
+container image at build time and only changes when SPA code itself is modified.
+
+**Cache invalidation:** none required by the SPA pattern. The Caddyfile contains
+no `Cache-Control` directives (`docker/web/Caddyfile` lines 1–21, full file); the
+client fetches Supabase data on every navigation. Supabase / network-layer
+caching exists but is out-of-scope here and does not depend on a publish step.
+
+**Deploy trigger (SPA shell changes only).** `scripts/deploy.sh` detects
+modifications under `docker/web/` via its service-map rule:
+
+```bash
+map_service 'docker/web/'                            web
+```
+
+(`scripts/deploy.sh` line 101.) When triggered, the script SSHes to the Hetzner
+host and runs:
+
+```bash
+ssh_cmd "cd $REMOTE_DIR/docker && docker compose build $SERVICES && docker compose up -d $SERVICES"
+```
+
+(`scripts/deploy.sh` line 141.) For the `web` service specifically, the
+substituted commands are `docker compose build web` followed by
+`docker compose up -d web`. This rebuilds the Caddy image with the new
+`site/` baked in and restarts the `web` container. **This deploy trigger is
+only relevant when the SPA shell itself changes — publishing a new edition to
+the live site requires zero deploy actions.**
+
+**Implication for Phase 9 (`/map-approve`).** The autonomy-boundary "publish"
+action for a block body is not a file write or container rebuild; it is the
+atomic Postgres transaction defined in build spec v2 §3.2 (flip
+`block_body_versions.status` to `published`, supersede prior, update
+`blocks.current_body_version_id` and `blocks.maturity`). The next SPA page load
+reads the new state. This is the same architectural shape as edition
+publishing — DB write upstream, SPA read on next load downstream — applied to a
+different table.
