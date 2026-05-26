@@ -131,17 +131,68 @@ Explicitly excluded. Documented to prevent scope creep.
 
 ## Traceability
 
-Empty pending roadmap creation; the gsd-roadmapper agent will populate this section by mapping each requirement to exactly one phase.
+Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (To be populated by roadmapper) | | |
+| DIAG-01 | Phase 1 | Pending |
+| DIAG-02 | Phase 1 | Pending |
+| DIAG-03 | Phase 1 | Pending |
+| DIAG-04 | Phase 1 | Pending |
+| SCHM-01 | Phase 2 | Pending |
+| SCHM-02 | Phase 2 | Pending |
+| SCHM-03 | Phase 2 | Pending |
+| SCHM-04 | Phase 2 | Pending |
+| SCHM-05 | Phase 2 | Pending |
+| SCHM-06 | Phase 2 | Pending |
+| SCHM-07 | Phase 2 | Pending |
+| SCHM-08 | Phase 2 | Pending |
+| TOKN-01 | Phase 3 | Pending |
+| TOKN-02 | Phase 3 | Pending |
+| TOKN-03 | Phase 3 | Pending |
+| TOKN-04 | Phase 3 | Pending |
+| RNDR-01 | Phase 4 | Pending |
+| RNDR-02 | Phase 4 | Pending |
+| RNDR-03 | Phase 4 | Pending |
+| RNDR-04 | Phase 4 | Pending |
+| RNDR-05 | Phase 4 | Pending |
+| RNDR-06 | Phase 4 | Pending |
+| RNDR-07 | Phase 4 | Pending |
+| INTK-01 | Phase 5 | Pending |
+| INTK-02 | Phase 5 | Pending |
+| INTK-03 | Phase 5 | Pending |
+| INTK-04 | Phase 5 | Pending |
+| INTK-05 | Phase 5 | Pending |
+| CMD-01 | Phase 6 | Pending |
+| CMD-02 | Phase 6 | Pending |
+| SYNT-01 | Phase 7 | Pending |
+| SYNT-02 | Phase 7 | Pending |
+| SYNT-03 | Phase 7 | Pending |
+| SYNT-04 | Phase 7 | Pending |
+| SYNT-05 | Phase 7 | Pending |
+| SYNT-06 | Phase 7 | Pending |
+| VLDT-01 | Phase 8 | Pending |
+| VLDT-02 | Phase 8 | Pending |
+| VLDT-03 | Phase 8 | Pending |
+| VLDT-04 | Phase 8 | Pending |
+| VLDT-05 | Phase 8 | Pending |
+| VLDT-06 | Phase 8 | Pending |
+| GATE-01 | Phase 9 | Pending |
+| GATE-02 | Phase 9 | Pending |
+| GATE-03 | Phase 9 | Pending |
+| GATE-04 | Phase 9 | Pending |
+| CMD-03 | Phase 9 | Pending |
+| CMD-04 | Phase 9 | Pending |
+| CMD-05 | Phase 10 | Pending |
+| CMD-06 | Phase 10 | Pending |
+| CMD-07 | Phase 10 | Pending |
+| CMD-08 | Phase 10 | Pending |
 
 **Coverage:**
 - v1 requirements: 52 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 52 ⚠️ (will resolve after roadmap)
+- Mapped to phases: 52 ✓
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-05-26*
-*Last updated: 2026-05-26 after initial definition (build spec v2)*
+*Last updated: 2026-05-26 — traceability populated by gsd-roadmapper (10 phases, FINE granularity)*
