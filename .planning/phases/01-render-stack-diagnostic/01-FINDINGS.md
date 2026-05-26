@@ -233,3 +233,69 @@ Per CONTEXT.md D-06, the following are **Phase 4's** decisions, not Phase 1's:
 
 Phase 4's `discuss-phase` and `plan-phase` own those choices. This finding names
 the path; it does not sketch the implementation.
+
+## 4. Known Unknowns (flagged for Phase 2)
+
+This phase is describe-only (D-03). The following items are **flagged**, not
+validated — Phase 2 (`economy_map` Schema) owns the live validation when it
+lands the real schema and seed data. No live commands or scripts are proposed
+here; the build spec also defers all live-behavior checks to that phase.
+
+### 4.1 Anon-role read of non-public schema via Accept-Profile
+
+The supabase-js client supports `.schema('<name>').from(...)` which sets the
+`Accept-Profile: <name>` header on the underlying PostgREST request. The build
+spec (§3 of `economy-map-build-spec-v2.md`) asserts that the anon role can read
+`economy_map` tables via this mechanism, mirroring the `eu_ai_act` pattern.
+**Live behavior with the browser anon key is unverified.** **Phase 2 will
+validate** — once the schema, RLS policies, and seed rows exist, a browser
+session against the deployed `web` container will exercise the read path and
+confirm rows come back (and that RLS allows what's intended).
+
+### 4.2 Caddy CSP coverage for schema-isolated PostgREST
+
+The existing Caddyfile CSP (`docker/web/Caddyfile` line 19) includes:
+
+```
+connect-src https://*.supabase.co
+```
+
+PostgREST calls to `economy_map` go to the same `*.supabase.co` host that
+existing `newsletters` queries hit — `Accept-Profile` is a request header, not a
+new origin — so the CSP **likely** already covers the schema-isolated calls.
+Unverified from the browser context. **Phase 2 will validate** when block-page
+renderer probes are run end-to-end against a live `economy_map` table.
+
+### 4.3 Hash-route deep-link / SEO behavior for `#/map/<slug>`
+
+Hash-routed deep links such as `aiagentspulse.com/#/map/payments-settlement`
+work for the SPA — the hash drives `getRoute()` and the page renders — but they
+are not crawlable by search engines and they do not produce rich-link previews
+(the hash never reaches the server, so server-rendered metadata is the shell's
+metadata regardless of slug). Acceptable for v1 per build spec §8 ("substance
+over design"). **Flagged for Phase 4** so the renderer planner is aware;
+**out of v1 scope** per the deferred-ideas section of CONTEXT.md — revisit only
+if a v2 design pass requires crawlability or share-card fidelity.
+
+### 4.4 In-tree precedent for the `eu_ai_act` isolation pattern
+
+The build spec, `.planning/PROJECT.md`, and `CLAUDE.md` all reference
+`eu_ai_act` as the **precedent** for schema isolation via `Accept-Profile`.
+A scan of `supabase/migrations/` (files `001_initial_schema.sql` through
+`032_prepass_tracking_justification_and_staleness.sql` as of 2026-05-26)
+shows **no `eu_ai_act` migration in this repo**. The pattern exists in
+*specification form* (CLAUDE.md / PROJECT.md / build spec) but it has not yet
+landed as actual SQL in `supabase/migrations/`. **Phase 2 will establish the
+in-tree precedent** when it adds the `economy_map` migration — there is no prior
+isolated-schema migration to copy from; the migration itself becomes the first
+canonical example.
+
+### 4.5 Supabase exposed-schemas allowlist (Phase 2 prerequisite)
+
+Per CONTEXT.md §"Specific Ideas", a non-`public` Postgres schema must be on
+Supabase's PostgREST **exposed-schemas allowlist** for browser-side reads to
+succeed even with a valid `Accept-Profile` header. This is a one-time settings
+change in the Supabase Dashboard (project ref `zxzaaqfowtqvmsbitqpu` —
+Settings → API → Exposed schemas), not a SQL migration. **Phase 2 prerequisite,
+not a Phase 1 blocker** — flagged here so it isn't forgotten when Phase 2 lands
+the schema and tries to read it from the browser for the first time.
