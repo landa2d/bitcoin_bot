@@ -299,3 +299,64 @@ change in the Supabase Dashboard (project ref `zxzaaqfowtqvmsbitqpu` —
 Settings → API → Exposed schemas), not a SQL migration. **Phase 2 prerequisite,
 not a Phase 1 blocker** — flagged here so it isn't forgotten when Phase 2 lands
 the schema and tries to read it from the browser for the first time.
+
+## 5. Implications for Phase 4 (bridge — not a design)
+
+This section bridges to Phase 4 (Hub, Block, and Status Renderer) without
+prescribing its implementation. Per CONTEXT.md D-06, Phase 4 owns the file
+diffs; Phase 1 names the boundary.
+
+### What Phase 4 can assume (locked by this phase)
+
+- **Architecture:** block, hub, and status pages are added as new hash routes
+  in `docker/web/site/app.js`. No new Caddy site, no new container, no SSR
+  service.
+- **Data path:** queries go through `supabase-js` `.schema('economy_map')`
+  against the existing anon-key client (`sb`). Whatever live-validation
+  surprises Phase 2 surfaces about Accept-Profile / RLS / the exposed-schemas
+  allowlist (§4.1, §4.2, §4.5) are resolved before Phase 4 ships — Phase 4
+  inherits a working read path.
+- **Re-render trigger (RNDR-06):** the spec's "live data on timeline-entry
+  insert" requirement maps to "the next user navigation queries Supabase and
+  gets fresh data." If Phase 4 chooses to add Supabase Realtime subscriptions
+  for instant Evolution updates without a navigation, that is an **additive**
+  choice within this architecture — not a deviation from this finding.
+- **Deploy trigger:** unchanged — `scripts/deploy.sh` already detects
+  `docker/web/` changes via `map_service 'docker/web/' web` and rebuilds the
+  `web` service. Phase 4 deploys ride that existing rule.
+- **Publish-path reuse (RNDR-05):** confirmed reusable per §3.
+
+### What Phase 4 owns (NOT locked here)
+
+- Exact code changes to `app.js` (new view functions, new `getRoute()` branches,
+  new `route()` cases).
+- DOM container structure inside `index.html` (new view containers for hub,
+  block, status; how they coexist with the existing `#list-view` and
+  `#reader-view`).
+- CSS / token integration. This depends on **Phase 3 (Design Tokens)** landing
+  first — Phase 3 ships the maturity pill component and tier accent CSS
+  variables; Phase 4 consumes them.
+- Whether to use Supabase Realtime subscriptions for instant re-render vs.
+  relying on next-navigation reads (RNDR-06 is satisfied either way).
+- Hub URL choice — build spec §6 offers `/` or `/map`. Phase 4 picks based on
+  whether the existing edition-list home page is retained or replaced.
+
+### What Phase 4 must check first
+
+- **Phase 2 prerequisites:** `economy_map` schema landed, atomic publish
+  transaction exercised manually, exposed-schemas allowlist updated, anon-role
+  read path confirmed end-to-end (§4.1, §4.5). If these aren't true, Phase 4
+  queries will return empty from the browser regardless of code correctness.
+- **Phase 3 token availability:** the shared maturity pill component and tier
+  accent CSS variables are available to consume — Phase 4 does not re-build
+  them.
+
+### Bridge to build spec §6
+
+See `.planning/docs/economy-map-build-spec-v2.md` §6 for the renderer contract
+this findings doc informs. That section is annotated to reference this document
+by name (per D-01, DIAG-04).
+
+---
+
+*Phase 1 findings complete. Diagnostic-only — zero application code changes.*
