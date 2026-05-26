@@ -176,3 +176,60 @@ atomic Postgres transaction defined in build spec v2 §3.2 (flip
 reads the new state. This is the same architectural shape as edition
 publishing — DB write upstream, SPA read on next load downstream — applied to a
 different table.
+
+## 3. Block-Page Publish Path Recommendation (DIAG-03)
+
+**Recommendation: the existing publish path is fully reusable for block, hub,
+and status pages. No sibling route is needed.** Phase 4 (Renderer) extends the
+existing SPA in-place.
+
+### Named path
+
+- **New hash routes** added to the existing `docker/web/site/app.js` hash router:
+  `#/map`, `#/map/<slug>`, `#/status`. (Build spec §6 offers `/` or `/map` as
+  the hub URL — Phase 4 picks one.) The pattern is identical to the existing
+  `#/edition/N` and `#/unsubscribe` routes — a new `if (hash.startsWith('#/map'))`
+  branch in `getRoute()` and a corresponding case in `route()`.
+- **Queries** against the `economy_map` schema via the **same** `supabase-js`
+  anon-key client that is already wired (`sb` at `app.js` line 7). The library
+  exposes `.schema('economy_map')` for schema-isolated calls
+  (e.g. `sb.schema('economy_map').from('blocks').select(...)`); under the hood
+  this sets the `Accept-Profile: economy_map` header on PostgREST requests —
+  the supabase-js equivalent of the direct-PostgREST pattern mandated by
+  `CLAUDE.md` / `PROJECT.md` for backend services.
+- **No Caddy changes.** `try_files {path} /index.html` (`Caddyfile` line 12)
+  already routes every URL to the SPA shell; hash routes are processed
+  client-side and never reach Caddy. The CSP `connect-src https://*.supabase.co`
+  already permits the supabase-js network traffic (same host, regardless of
+  `Accept-Profile`).
+- **No new container.** The existing `web` service serves the new pages.
+- **No new deploy path.** `scripts/deploy.sh`'s existing `map_service
+  'docker/web/' web` rule (line 101) already handles SPA-shell changes when
+  Phase 4 modifies `app.js` / `index.html`.
+
+### Rationale
+
+- The SPA-only pattern means the "publish step" is already a DB write (per §2).
+  Block bodies become rows in `economy_map.block_body_versions`; the SPA reads
+  them on the next page load. This is **identical** to how editions work — same
+  architectural shape, different table.
+- A sibling route (e.g., a separate Caddy site, a server-rendered service, or
+  static-file generation per slug) would introduce new infrastructure without
+  solving anything the SPA pattern doesn't already solve.
+- Build spec §8 ("substance over design") explicitly defers crawlable URLs,
+  SEO, and SSR to v2. Hash-routed deep links are the v1-appropriate choice.
+
+### Out of scope for this recommendation
+
+Per CONTEXT.md D-06, the following are **Phase 4's** decisions, not Phase 1's:
+
+- Exact code changes to `app.js` (new view functions, new `getRoute()` branches,
+  new `route()` cases).
+- DOM container structure in `index.html` (new view containers for map / block /
+  status views).
+- CSS / token integration (depends on Phase 3 — Design Tokens — landing first).
+- Whether to use Supabase Realtime subscriptions for instant Evolution re-render
+  vs. relying on next-navigation reads.
+
+Phase 4's `discuss-phase` and `plan-phase` own those choices. This finding names
+the path; it does not sketch the implementation.
