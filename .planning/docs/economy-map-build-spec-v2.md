@@ -230,6 +230,14 @@ Both the synthesizer's output and the renderer assume this order:
 
 ## 6. Renderer contract (shape confirmed in Phase 0)
 
+> **Phase 1 findings (2026-05-26):** This section's "shape confirmed in Phase 0"
+> clause is fulfilled by `.planning/phases/01-render-stack-diagnostic/01-FINDINGS.md`.
+> Findings confirm: block pages reuse the existing publish path via new hash routes
+> in `docker/web/site/app.js`; no sibling route is needed; the publish-path for
+> block bodies is a DB write to `economy_map.block_body_versions` (same pattern as
+> newsletter editions). See `01-FINDINGS.md` §3 for the recommendation and §4 for
+> known unknowns deferred to Phase 2.
+
 Given a block slug, assemble: `blocks` row + current published `body_md` + all
 `timeline_entries` for the slug + maturity. Emit a page following the section-5.3
 skeleton, reusing the existing site's publish path (per Phase 0 findings).
