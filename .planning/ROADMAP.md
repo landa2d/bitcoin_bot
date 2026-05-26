@@ -33,7 +33,9 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
   3. A clear recommendation exists on whether block pages reuse the existing publish path (preferred) or require a sibling route, with rationale
   4. Section 6 of the build spec is filled with the findings before any renderer work begins
   5. Zero application code changes were made during this phase (diagnostic-only confirmed)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 01-01-PLAN.md — Render-Stack Findings (describe-only diagnostic): produce `01-FINDINGS.md` + by-reference annotation to build spec §6
 **UI hint**: yes
 
 ### Phase 2: `economy_map` Schema + Seven-Block Seed
@@ -151,7 +153,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Render-Stack Diagnostic | 0/TBD | Not started | - |
+| 1. Render-Stack Diagnostic | 0/1 | Plans drafted | - |
 | 2. `economy_map` Schema + Seven-Block Seed | 0/TBD | Not started | - |
 | 3. Design Tokens | 0/TBD | Not started | - |
 | 4. Hub, Block, and Status Renderer | 0/TBD | Not started | - |
