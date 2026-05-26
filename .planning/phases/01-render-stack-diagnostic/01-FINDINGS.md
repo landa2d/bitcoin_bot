@@ -360,3 +360,5 @@ by name (per D-01, DIAG-04).
 ---
 
 *Phase 1 findings complete. Diagnostic-only — zero application code changes.*
+
+*Verified: git diff --name-only 36894de (Phase 1 start) returns only files under `.planning/` — zero application code changes outside the planning tree.*
