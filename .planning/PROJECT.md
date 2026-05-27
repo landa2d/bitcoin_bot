@@ -135,4 +135,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-26 after initialization (milestone: The Agent Economy — living reference articles, build spec v2)*
+*Last updated: 2026-05-27 — Phase 2 complete (economy_map schema + 7-block seed + atomic publish RPC + append-only triggers landed; downstream phases 3, 5, 7, 9 inherit a structurally-sound data layer)*
