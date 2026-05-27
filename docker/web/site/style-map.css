@@ -1,0 +1,43 @@
+/* === AgentPulse — Economy-Map Design Tokens === */
+/* Layered onto style-shared.css. Activates only inside elements
+   carrying data-accent="teal|purple|coral|gray". Pages without
+   data-accent see no change (edition pages are unaffected — D-06).
+
+   Markup contract (emitted by Phase 4):
+     <div data-accent="teal" data-stage="3"> ... </div>      — block wrapper
+     <span class="seg"></span> × 5                            — pill segments
+     <article class="timeline-entry" data-source="https://..."> ... </article>
+
+   Tier accent mapping (per blocks.accent column, Phase 2 D-23):
+     payments-settlement, identity-trust, memory-context → teal
+     autonomy-control, governance-accountability         → purple
+     psychology-disposition                              → coral (deliberate)
+     regulation-legal                                    → gray
+*/
+
+:root {
+    /* Base hex — TOKN-01, calibrated for white/light surfaces */
+    --accent-teal-base:   #0F6E56;  /* substrate (identity-trust, memory-context, payments-settlement) */
+    --accent-purple-base: #534AB7;  /* behavior (autonomy-control, governance-accountability) */
+    --accent-coral-base:  #993C1D;  /* psychology (deliberate distinction — build spec §1) */
+    --accent-gray-base:   #5F5E5A;  /* frame (regulation-legal) */
+
+    /* On-dark variants — WCAG AA against #0a0a0f (technical-mode bg).
+       Pinned-hue family preserved; measured contrast ratios per planner audit. */
+    --accent-teal-on-dark:   #4FCBA8;  /* contrast 9.99:1 — passes AA text (4.5:1) and non-text (3:1) */
+    --accent-purple-on-dark: #9D95E8;  /* contrast 7.37:1 — passes AA text and non-text */
+    --accent-coral-on-dark:  #E89072;  /* contrast 7.45:1 — passes AA text and non-text */
+    --accent-gray-on-dark:   #B0AEA8;  /* contrast 9.10:1 — passes AA text and non-text */
+}
+
+/* Strategic (light) mode — pinned-base hex on every data-accent value */
+body.strategic [data-accent="teal"]   { --accent-tier: var(--accent-teal-base);   }
+body.strategic [data-accent="purple"] { --accent-tier: var(--accent-purple-base); }
+body.strategic [data-accent="coral"]  { --accent-tier: var(--accent-coral-base);  }
+body.strategic [data-accent="gray"]   { --accent-tier: var(--accent-gray-base);   }
+
+/* Technical (dark) mode — on-dark variants on every data-accent value */
+body.technical [data-accent="teal"]   { --accent-tier: var(--accent-teal-on-dark);   }
+body.technical [data-accent="purple"] { --accent-tier: var(--accent-purple-on-dark); }
+body.technical [data-accent="coral"]  { --accent-tier: var(--accent-coral-on-dark);  }
+body.technical [data-accent="gray"]   { --accent-tier: var(--accent-gray-on-dark);   }
