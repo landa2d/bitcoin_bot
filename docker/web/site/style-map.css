@@ -41,3 +41,108 @@ body.technical [data-accent="teal"]   { --accent-tier: var(--accent-teal-on-dark
 body.technical [data-accent="purple"] { --accent-tier: var(--accent-purple-on-dark); }
 body.technical [data-accent="coral"]  { --accent-tier: var(--accent-coral-on-dark);  }
 body.technical [data-accent="gray"]   { --accent-tier: var(--accent-gray-on-dark);   }
+
+/* ── Maturity Pill ──────────────────────────────────────────── */
+/* Markup contract:
+   <div class="maturity-pill" data-accent="teal" data-stage="3"
+        aria-label="Maturity: contested (3 of 5)">
+     <span class="seg"></span> × 5
+   </div>
+   Single source of truth across hub / block / status (TOKN-02).
+   Informational only — no hover / interactive states.
+*/
+
+.maturity-pill {
+    display: inline-flex;
+    gap: 2px;
+    vertical-align: middle;
+}
+
+.maturity-pill .seg {
+    display: inline-block;
+    width: 18px;
+    height: 8px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+}
+
+/* Left-to-right fill by stage. data-stage="N" fills first N segments. */
+.maturity-pill[data-stage="1"] .seg:nth-child(-n+1) { background: var(--accent-tier); border-color: var(--accent-tier); }
+.maturity-pill[data-stage="2"] .seg:nth-child(-n+2) { background: var(--accent-tier); border-color: var(--accent-tier); }
+.maturity-pill[data-stage="3"] .seg:nth-child(-n+3) { background: var(--accent-tier); border-color: var(--accent-tier); }
+.maturity-pill[data-stage="4"] .seg:nth-child(-n+4) { background: var(--accent-tier); border-color: var(--accent-tier); }
+.maturity-pill[data-stage="5"] .seg:nth-child(-n+5) { background: var(--accent-tier); border-color: var(--accent-tier); }
+
+/* ── Timeline Entry (TOKN-03) ───────────────────────────────── */
+/* Markup contract (Phase 4 emits):
+   <article class="timeline-entry" data-source="https://...">
+     <div class="timeline-line1">
+       <time class="timeline-date">2026-05-15</time>
+       <span class="timeline-sep">·</span>
+       <span class="timeline-what">What shifted goes here</span>
+     </div>
+     <div class="timeline-line2">
+       <span class="timeline-why">Why it mattered, one line.</span>
+       <a class="timeline-source" href="https://...">source ↗</a>
+     </div>
+   </article>
+
+   Empty-source variant: omit data-source attribute and the
+   <a class="timeline-source"> element from markup entirely. The
+   :not([data-source]) rule below is defensive/documentary.
+*/
+
+.timeline-entry {
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+
+.timeline-entry .timeline-line1 {
+    font-size: 15px;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.timeline-entry .timeline-date {
+    color: var(--text-secondary);
+}
+
+.timeline-entry .timeline-sep {
+    color: var(--text-hint);
+    margin: 0 6px;
+}
+
+.timeline-entry .timeline-what {
+    color: var(--text-primary);
+}
+
+.timeline-entry .timeline-line2 {
+    font-size: 14px;
+    color: var(--text-body);
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.timeline-entry .timeline-why {
+    flex: 1;
+}
+
+.timeline-entry .timeline-source {
+    color: var(--accent-tier, var(--accent));
+    text-decoration: none;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.timeline-entry .timeline-source:hover {
+    text-decoration: underline;
+}
+
+/* Empty-source graceful degradation — defensive rule. Phase 4 omits
+   the <a class="timeline-source"> from markup when source_url is null;
+   this rule ensures it stays hidden if the wrapper is reused. */
+.timeline-entry:not([data-source]) .timeline-source {
+    display: none;
+}
