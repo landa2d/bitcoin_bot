@@ -56,9 +56,9 @@ A multi-agent intelligence platform for the AI agent economy: eight cooperating 
 - [ ] **REQ-CMD-TENSION**: `/map-tension <block_slug> <text>` — update a block's `live_tension` (the editorial framing reserved for humans)
 - [ ] **REQ-SCHEMA-ISOLATE**: All map tables live in `economy_map` schema; access via direct PostgREST with `Accept-Profile: economy_map`
 - [ ] **REQ-SEED-BLOCKS**: Seven blocks seeded — three Substrate (identity-trust, memory-context, payments-settlement), three Behavior (autonomy-control, governance-accountability, psychology-disposition), one Frame (regulation-legal); negotiation-coordination starts as a section inside payments-settlement
-- [ ] **REQ-TOKENS-TIER**: Three tier accent colors pinned (teal/purple/coral/gray); applied via CSS custom properties
-- [ ] **REQ-TOKENS-PILL**: Maturity pill component — five segments (nascent→emerging→contested→consolidating→mature), tier-accented fill, shared across hub/block/status
-- [ ] **REQ-TOKENS-TIMELINE**: Timeline entry format pinned — `<event_date> · <what_shifted> / <why_it_mattered> [source ↗]` — consistent across all blocks
+- [x] **REQ-TOKENS-TIER**: Three tier accent colors pinned (teal/purple/coral/gray); applied via CSS custom properties — **Validated in Phase 3: design-tokens** (shipped 4 base + 4 on-dark variants in `docker/web/site/style-map.css`, WCAG AA against `#0a0a0f`)
+- [x] **REQ-TOKENS-PILL**: Maturity pill component — five segments (nascent→emerging→contested→consolidating→mature), tier-accented fill, shared across hub/block/status — **Validated in Phase 3: design-tokens** (`.maturity-pill` + `[data-stage="N"] .seg:nth-child(-n+N)` rules in `style-map.css`)
+- [x] **REQ-TOKENS-TIMELINE**: Timeline entry format pinned — `<event_date> · <what_shifted> / <why_it_mattered> [source ↗]` — consistent across all blocks — **Validated in Phase 3: design-tokens** (`.timeline-entry` two-line CSS contract with literal `↗` glyph)
 - [ ] **REQ-PHASE0-DIAGNOSTIC**: Render-stack diagnostic delivered FIRST (no code changes) — confirms `aiagentspulse.com` publish mechanism before renderer design
 
 ### Out of Scope
@@ -135,4 +135,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-27 — Phase 2 complete (economy_map schema + 7-block seed + atomic publish RPC + append-only triggers landed; downstream phases 3, 5, 7, 9 inherit a structurally-sound data layer)*
+*Last updated: 2026-05-27 — Phase 3 complete (design tokens shipped: tier-accent CSS custom properties, maturity-pill component contract, timeline-entry format with literal `↗` glyph; live at aiagentspulse.com/tokens-preview.html; zero typography rules introduced so existing site defaults stay authoritative)*
