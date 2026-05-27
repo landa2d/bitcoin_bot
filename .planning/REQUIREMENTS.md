@@ -80,10 +80,10 @@
 
 ### Design tokens (v1 — only what encodes information)
 
-- [ ] **TOKN-01**: Tier accent colors as CSS custom properties — `--accent-teal: #0F6E56` (substrate), `--accent-purple: #534AB7` (behavior), `--accent-coral: #993C1D` (psychology), `--accent-gray: #5F5E5A` (regulation/frame)
-- [ ] **TOKN-02**: Maturity pill component — five segments (nascent→emerging→contested→consolidating→mature), left-to-right fill using tier accent; same component on hub/block/status (single source of truth)
-- [ ] **TOKN-03**: Timeline entry format — `<event_date> · <what_shifted>` line, `<why_it_mattered> [source ↗]` line; fixed across all blocks
-- [ ] **TOKN-04**: Body font, page width, spacing, nav chrome inherit existing site / system default — no bespoke typography v1
+- [x] **TOKN-01**: Tier accent colors as CSS custom properties — `--accent-teal: #0F6E56` (substrate), `--accent-purple: #534AB7` (behavior), `--accent-coral: #993C1D` (psychology), `--accent-gray: #5F5E5A` (regulation/frame)
+- [x] **TOKN-02**: Maturity pill component — five segments (nascent→emerging→contested→consolidating→mature), left-to-right fill using tier accent; same component on hub/block/status (single source of truth)
+- [x] **TOKN-03**: Timeline entry format — `<event_date> · <what_shifted>` line, `<why_it_mattered> [source ↗]` line; fixed across all blocks
+- [x] **TOKN-04**: Body font, page width, spacing, nav chrome inherit existing site / system default — no bespoke typography v1
 
 ## v2 Requirements
 
@@ -147,10 +147,10 @@ Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 | SCHM-06 | Phase 2 | Complete |
 | SCHM-07 | Phase 2 | Complete |
 | SCHM-08 | Phase 2 | Complete |
-| TOKN-01 | Phase 3 | Pending |
-| TOKN-02 | Phase 3 | Pending |
-| TOKN-03 | Phase 3 | Pending |
-| TOKN-04 | Phase 3 | Pending |
+| TOKN-01 | Phase 3 | Complete |
+| TOKN-02 | Phase 3 | Complete |
+| TOKN-03 | Phase 3 | Complete |
+| TOKN-04 | Phase 3 | Complete |
 | RNDR-01 | Phase 4 | Pending |
 | RNDR-02 | Phase 4 | Pending |
 | RNDR-03 | Phase 4 | Pending |
