@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentPulse — Design Tokens Preview</title>
+    <link rel="stylesheet" href="/style-shared.css">
+    <link rel="stylesheet" href="/style-map.css">
+    <style>
+        /* Preview-only layout helpers — not part of the shipped token surface. */
+        .preview-section { margin: 40px 0; }
+        .preview-section h2 { font-family: Georgia, serif; font-size: 20px; margin-bottom: 16px; }
+        .preview-section h3 { font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-secondary); margin: 24px 0 8px 0; }
+        .swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .swatch { padding: 16px; border: 1px solid var(--border); border-radius: 6px; }
+        .swatch-tile { width: 100%; height: 48px; border-radius: 4px; margin-bottom: 8px; }
+        .swatch-label { font-family: 'Courier New', monospace; font-size: 12px; color: var(--text-secondary); }
+        .pill-grid { display: grid; grid-template-columns: 80px repeat(5, 1fr); gap: 12px; align-items: center; }
+        .pill-grid .pill-row-label { font-family: 'Courier New', monospace; font-size: 13px; color: var(--text-secondary); }
+        .pill-grid .pill-col-label { font-family: 'Courier New', monospace; font-size: 11px; color: var(--text-hint); text-align: center; text-transform: uppercase; }
+    </style>
+</head>
+<body class="technical">
+  <div class="container">
+    <header style="padding: 24px 0;">
+      <h1 style="font-family: Georgia, serif; font-size: 28px; margin-bottom: 16px;">Design Tokens Preview</h1>
+      <p style="font-family: 'Courier New', monospace; font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+        Phase 3 deliverable — TOKN-01..04 verification surface. Toggle modes to verify on-dark contrast variants.
+      </p>
+      <div class="mode-toggle">
+        <button class="toggle-btn active" id="btn-technical" onclick="setMode('technical')">Technical</button>
+        <button class="toggle-btn" id="btn-strategic" onclick="setMode('strategic')">Strategic</button>
+      </div>
+    </header>
+
+    <main id="preview-main">
+      <!-- ═══════ SECTION 1: Tier Accent Swatches ═══════ -->
+      <section class="preview-section">
+        <h2>Tier Accent Swatches</h2>
+        <p style="font-family: 'Courier New', monospace; font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Four accents × two modes. Toggle Technical/Strategic above to flip between pinned-base hex (light) and on-dark variants (dark).
+        </p>
+        <div class="swatch-grid">
+          <div class="swatch" data-accent="teal">
+            <div class="swatch-tile" style="background: var(--accent-tier);"></div>
+            <div class="swatch-label">teal — substrate<br>base #0F6E56 / on-dark #4FCBA8</div>
+          </div>
+          <div class="swatch" data-accent="purple">
+            <div class="swatch-tile" style="background: var(--accent-tier);"></div>
+            <div class="swatch-label">purple — behavior<br>base #534AB7 / on-dark #9D95E8</div>
+          </div>
+          <div class="swatch" data-accent="coral">
+            <div class="swatch-tile" style="background: var(--accent-tier);"></div>
+            <div class="swatch-label">coral — psychology<br>base #993C1D / on-dark #E89072</div>
+          </div>
+          <div class="swatch" data-accent="gray">
+            <div class="swatch-tile" style="background: var(--accent-tier);"></div>
+            <div class="swatch-label">gray — frame<br>base #5F5E5A / on-dark #B0AEA8</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ═══════ SECTION 2: Maturity Pills (4 accents × 5 stages = 20) ═══════ -->
+      <section class="preview-section">
+        <h2>Maturity Pills — 4 accents × 5 stages</h2>
+        <p style="font-family: 'Courier New', monospace; font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Single source of truth across hub / block / status (TOKN-02). Left-to-right fill keyed off <code>data-stage</code>.
+        </p>
+        <div class="pill-grid">
+          <span></span>
+          <span class="pill-col-label">nascent (1)</span>
+          <span class="pill-col-label">emerging (2)</span>
+          <span class="pill-col-label">contested (3)</span>
+          <span class="pill-col-label">consolidating (4)</span>
+          <span class="pill-col-label">mature (5)</span>
+
+          <span class="pill-row-label">teal</span>
+          <div class="maturity-pill" data-accent="teal" data-stage="1" aria-label="Maturity: nascent (1 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="teal" data-stage="2" aria-label="Maturity: emerging (2 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="teal" data-stage="3" aria-label="Maturity: contested (3 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="teal" data-stage="4" aria-label="Maturity: consolidating (4 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="teal" data-stage="5" aria-label="Maturity: mature (5 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+
+          <span class="pill-row-label">purple</span>
+          <div class="maturity-pill" data-accent="purple" data-stage="1" aria-label="Maturity: nascent (1 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="purple" data-stage="2" aria-label="Maturity: emerging (2 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="purple" data-stage="3" aria-label="Maturity: contested (3 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="purple" data-stage="4" aria-label="Maturity: consolidating (4 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="purple" data-stage="5" aria-label="Maturity: mature (5 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+
+          <span class="pill-row-label">coral</span>
+          <div class="maturity-pill" data-accent="coral" data-stage="1" aria-label="Maturity: nascent (1 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="coral" data-stage="2" aria-label="Maturity: emerging (2 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="coral" data-stage="3" aria-label="Maturity: contested (3 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="coral" data-stage="4" aria-label="Maturity: consolidating (4 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="coral" data-stage="5" aria-label="Maturity: mature (5 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+
+          <span class="pill-row-label">gray</span>
+          <div class="maturity-pill" data-accent="gray" data-stage="1" aria-label="Maturity: nascent (1 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="gray" data-stage="2" aria-label="Maturity: emerging (2 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="gray" data-stage="3" aria-label="Maturity: contested (3 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="gray" data-stage="4" aria-label="Maturity: consolidating (4 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+          <div class="maturity-pill" data-accent="gray" data-stage="5" aria-label="Maturity: mature (5 of 5)"><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span></div>
+        </div>
+      </section>
+
+      <!-- ═══════ SECTION 3: Timeline Entries (3 samples — normal, source-null, long-text) ═══════ -->
+      <section class="preview-section" data-accent="teal">
+        <h2>Timeline Entries — TOKN-03 format</h2>
+        <p style="font-family: 'Courier New', monospace; font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+          Fixed two-line format: <code>&lt;event_date&gt; · &lt;what_shifted&gt;</code> then <code>&lt;why_it_mattered&gt; [source ↗]</code>. Wrapped in <code>data-accent="teal"</code> so source-link tints.
+        </p>
+
+        <h3>Normal (source present)</h3>
+        <article class="timeline-entry" data-source="https://example.com/post">
+          <div class="timeline-line1">
+            <time class="timeline-date">2026-05-15</time>
+            <span class="timeline-sep">·</span>
+            <span class="timeline-what">Anthropic publishes Constitutional AI v2 framework</span>
+          </div>
+          <div class="timeline-line2">
+            <span class="timeline-why">Shifts the alignment conversation from oversight to training-time constraints.</span>
+            <a class="timeline-source" href="https://example.com/post">source ↗</a>
+          </div>
+        </article>
+
+        <h3>Source-null (empty-source graceful degradation)</h3>
+        <article class="timeline-entry">
+          <div class="timeline-line1">
+            <time class="timeline-date">2026-05-12</time>
+            <span class="timeline-sep">·</span>
+            <span class="timeline-what">Operator marks a draft as superseded without external reference</span>
+          </div>
+          <div class="timeline-line2">
+            <span class="timeline-why">No source URL — why-it-mattered occupies the full second line, no [source ↗] link rendered.</span>
+          </div>
+        </article>
+
+        <h3>Long-text wrap (why-it-mattered exceeds one line)</h3>
+        <article class="timeline-entry" data-source="https://example.com/long">
+          <div class="timeline-line1">
+            <time class="timeline-date">2026-05-08</time>
+            <span class="timeline-sep">·</span>
+            <span class="timeline-what">Coordinated bid-ask behavior observed across three independent agent runtimes simultaneously</span>
+          </div>
+          <div class="timeline-line2">
+            <span class="timeline-why">This is the first concrete signal that negotiation-coordination might graduate from a section inside payments-settlement to its own block, but the sample size remains small and the pattern could be coincidental — operator should watch for similar signals across the next four weeks before drawing conclusions or queuing a backfill of relevant payments entries into the new block.</span>
+            <a class="timeline-source" href="https://example.com/long">source ↗</a>
+          </div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    /* Minimal setMode — body-class swap only. No localStorage, no URL param,
+       no re-render. The CSS variable cascade in style-shared.css + style-map.css
+       handles every visible change automatically via `body.technical [data-accent]`
+       and `body.strategic [data-accent]` rules. */
+    function setMode(mode) {
+      if (mode !== 'technical' && mode !== 'strategic') return;
+      document.body.classList.remove('technical', 'strategic');
+      document.body.classList.add(mode);
+      document.getElementById('btn-technical').classList.toggle('active', mode === 'technical');
+      document.getElementById('btn-strategic').classList.toggle('active', mode === 'strategic');
+    }
+  </script>
+</body>
+</html>
