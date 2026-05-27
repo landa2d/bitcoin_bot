@@ -12,7 +12,7 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
 - [x] **Phase 1: Render-Stack Diagnostic** - Audit how `aiagentspulse.com` is served and how new pages reach production; no code changes (completed 2026-05-26)
-- [ ] **Phase 2: `economy_map` Schema + Seven-Block Seed** - Isolated schema with append-only timeline and version tables, seven blocks seeded
+- [x] **Phase 2: `economy_map` Schema + Seven-Block Seed** - Isolated schema with append-only timeline and version tables, seven blocks seeded (completed 2026-05-27)
 - [ ] **Phase 3: Design Tokens** - Tier accent CSS variables, maturity pill component, fixed timeline entry format
 - [ ] **Phase 4: Hub, Block, and Status Renderer** - Six-part block pages, hub with seven-block visual, status page, live-on-insert re-render
 - [ ] **Phase 5: Intake Classifier + `unsorted` Handling** - Newsletter pipeline emits classified, traceable timeline entries via LLM proxy
@@ -64,7 +64,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02-PLAN.md — Verification exercise: author `02-VERIFY.sql`, execute every D-25 bullet against live project, run anon-key Accept-Profile probes via curl, produce `02-VERIFY-RESULTS.md` proving all 5 ROADMAP success criteria
+- [x] 02-02-PLAN.md — Verification exercise: author `02-VERIFY.sql`, execute every D-25 bullet against live project, run anon-key Accept-Profile probes via curl, produce `02-VERIFY-RESULTS.md` proving all 5 ROADMAP success criteria
 
 ### Phase 3: Design Tokens
 
@@ -194,7 +194,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Render-Stack Diagnostic | 1/1 | Complete   | 2026-05-26 |
-| 2. `economy_map` Schema + Seven-Block Seed | 1/2 | In Progress|  |
+| 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete   | 2026-05-27 |
 | 3. Design Tokens | 0/TBD | Not started | - |
 | 4. Hub, Block, and Status Renderer | 0/TBD | Not started | - |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
