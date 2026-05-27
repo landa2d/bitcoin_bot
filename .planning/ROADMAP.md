@@ -13,7 +13,7 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
 
 - [x] **Phase 1: Render-Stack Diagnostic** - Audit how `aiagentspulse.com` is served and how new pages reach production; no code changes (completed 2026-05-26)
 - [x] **Phase 2: `economy_map` Schema + Seven-Block Seed** - Isolated schema with append-only timeline and version tables, seven blocks seeded (completed 2026-05-27)
-- [ ] **Phase 3: Design Tokens** - Tier accent CSS variables, maturity pill component, fixed timeline entry format
+- [x] **Phase 3: Design Tokens** - Tier accent CSS variables, maturity pill component, fixed timeline entry format (completed 2026-05-27)
 - [ ] **Phase 4: Hub, Block, and Status Renderer** - Six-part block pages, hub with seven-block visual, status page, live-on-insert re-render
 - [ ] **Phase 5: Intake Classifier + `unsorted` Handling** - Newsletter pipeline emits classified, traceable timeline entries via LLM proxy
 - [ ] **Phase 6: Telegram Read-Only Scaffolding** - `/map-status` and `/map-pending` give operator situational awareness
@@ -87,8 +87,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 03-02-PLAN.md — Author standalone `docker/web/site/tokens-preview.html`: 8 swatches (4 accents × 2 modes), 20 maturity pills (4 accents × 5 stages), 3 timeline samples (normal / source-null / long-text), inline mode toggle (no SPA wiring) — verification artifact for ROADMAP SC#1
-- [ ] 03-03-PLAN.md — Wire `/style-map.css` into `docker/web/site/index.html` via one-line `<link>` insertion, rebuild `web` Docker container, operator-verify live preview at `aiagentspulse.com/tokens-preview.html` across both modes (human-verify checkpoint)
+- [x] 03-02-PLAN.md — Author standalone `docker/web/site/tokens-preview.html`: 8 swatches (4 accents × 2 modes), 20 maturity pills (4 accents × 5 stages), 3 timeline samples (normal / source-null / long-text), inline mode toggle (no SPA wiring) — verification artifact for ROADMAP SC#1
+- [x] 03-03-PLAN.md — Wire `/style-map.css` into `docker/web/site/index.html` via one-line `<link>` insertion, rebuild `web` Docker container, operator-verify live preview at `aiagentspulse.com/tokens-preview.html` across both modes (human-verify checkpoint)
 
 **UI hint**: yes
 
@@ -206,7 +206,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Render-Stack Diagnostic | 1/1 | Complete   | 2026-05-26 |
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
-| 3. Design Tokens | 1/3 | In Progress|  |
+| 3. Design Tokens | 3/3 | Complete   | 2026-05-27 |
 | 4. Hub, Block, and Status Renderer | 0/TBD | Not started | - |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |

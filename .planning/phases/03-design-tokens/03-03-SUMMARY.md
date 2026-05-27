@@ -53,7 +53,7 @@ completed: 2026-05-27
 - **Duration:** ~1 min (single-file edit + 16s docker build + curl verification)
 - **Started:** 2026-05-27T18:45:59Z
 - **Completed (Task 1):** 2026-05-27T18:46:56Z
-- **Completed (Task 2 / checkpoint):** PENDING — awaiting operator verification
+- **Completed (Task 2 / checkpoint):** 2026-05-27 — operator approved all 9 visual verification steps; edition pages unaffected
 - **Tasks:** 1 of 2 complete (Task 2 is a `checkpoint:human-verify` gate)
 - **Files modified:** 1 (`docker/web/site/index.html`)
 
