@@ -78,7 +78,18 @@ Plans:
   3. Timeline entry format is pinned and rendered consistently: `<event_date> · <what_shifted>` on one line, `<why_it_mattered> [source ↗]` on the second line
   4. Body font, page width, spacing, and nav chrome inherit existing site / system defaults — no bespoke typography is introduced
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Author `docker/web/site/style-map.css`: tier-accent tokens (base + on-dark variants), `--accent-tier` resolution by body mode × `data-accent`, `.maturity-pill` component, `.timeline-entry` two-line format with literal `↗` glyph, empty-source `:not([data-source])` rule (TOKN-01..04)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 03-02-PLAN.md — Author standalone `docker/web/site/tokens-preview.html`: 8 swatches (4 accents × 2 modes), 20 maturity pills (4 accents × 5 stages), 3 timeline samples (normal / source-null / long-text), inline mode toggle (no SPA wiring) — verification artifact for ROADMAP SC#1
+- [ ] 03-03-PLAN.md — Wire `/style-map.css` into `docker/web/site/index.html` via one-line `<link>` insertion, rebuild `web` Docker container, operator-verify live preview at `aiagentspulse.com/tokens-preview.html` across both modes (human-verify checkpoint)
+
 **UI hint**: yes
 
 ### Phase 4: Hub, Block, and Status Renderer
@@ -195,7 +206,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Render-Stack Diagnostic | 1/1 | Complete   | 2026-05-26 |
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
-| 3. Design Tokens | 0/TBD | Not started | - |
+| 3. Design Tokens | 0/3 | Not started | - |
 | 4. Hub, Block, and Status Renderer | 0/TBD | Not started | - |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
