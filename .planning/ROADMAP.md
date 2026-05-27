@@ -83,7 +83,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Author `docker/web/site/style-map.css`: tier-accent tokens (base + on-dark variants), `--accent-tier` resolution by body mode × `data-accent`, `.maturity-pill` component, `.timeline-entry` two-line format with literal `↗` glyph, empty-source `:not([data-source])` rule (TOKN-01..04)
+- [x] 03-01-PLAN.md — Author `docker/web/site/style-map.css`: tier-accent tokens (base + on-dark variants), `--accent-tier` resolution by body mode × `data-accent`, `.maturity-pill` component, `.timeline-entry` two-line format with literal `↗` glyph, empty-source `:not([data-source])` rule (TOKN-01..04)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -206,7 +206,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 |-------|----------------|--------|-----------|
 | 1. Render-Stack Diagnostic | 1/1 | Complete   | 2026-05-26 |
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
-| 3. Design Tokens | 0/3 | Not started | - |
+| 3. Design Tokens | 1/3 | In Progress|  |
 | 4. Hub, Block, and Status Renderer | 0/TBD | Not started | - |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
