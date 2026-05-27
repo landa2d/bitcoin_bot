@@ -15,14 +15,14 @@
 
 ### Schema (`economy_map`)
 
-- [ ] **SCHM-01**: Create isolated `economy_map` schema following the `eu_ai_act` pattern; access via direct PostgREST with `Accept-Profile: economy_map`
-- [ ] **SCHM-02**: `blocks` table — identity, current maturity, `current_body_version_id` FK; never holds body text
-- [ ] **SCHM-03**: `block_body_versions` table — append-only canonical body history with `draft`/`published`/`superseded` status, `validator_report` jsonb, `proposed_maturity`
-- [ ] **SCHM-04**: `timeline_entries` table — append-only narrative ledger with `block_slug`, `event_date`, `what_shifted`, `why_it_mattered`, `source_url`, `source_edition_id`, `tag_confidence`
-- [ ] **SCHM-05**: Maturity enum: `nascent` → `emerging` → `contested` → `consolidating` → `mature`
-- [ ] **SCHM-06**: Atomic publish transaction — flip version status, supersede prior, update `blocks.current_body_version_id` and `blocks.maturity` in one transaction
-- [ ] **SCHM-07**: Seed seven blocks with `live_tension`, `subtitle`, `tier`, `accent`, `sort_order` — three Substrate, three Behavior, one Frame (regulation-legal)
-- [ ] **SCHM-08**: `unsorted` is a valid `block_slug` for low-confidence timeline entries
+- [x] **SCHM-01**: Create isolated `economy_map` schema following the `eu_ai_act` pattern; access via direct PostgREST with `Accept-Profile: economy_map`
+- [x] **SCHM-02**: `blocks` table — identity, current maturity, `current_body_version_id` FK; never holds body text
+- [x] **SCHM-03**: `block_body_versions` table — append-only canonical body history with `draft`/`published`/`superseded` status, `validator_report` jsonb, `proposed_maturity`
+- [x] **SCHM-04**: `timeline_entries` table — append-only narrative ledger with `block_slug`, `event_date`, `what_shifted`, `why_it_mattered`, `source_url`, `source_edition_id`, `tag_confidence`
+- [x] **SCHM-05**: Maturity enum: `nascent` → `emerging` → `contested` → `consolidating` → `mature`
+- [x] **SCHM-06**: Atomic publish transaction — flip version status, supersede prior, update `blocks.current_body_version_id` and `blocks.maturity` in one transaction
+- [x] **SCHM-07**: Seed seven blocks with `live_tension`, `subtitle`, `tier`, `accent`, `sort_order` — three Substrate, three Behavior, one Frame (regulation-legal)
+- [x] **SCHM-08**: `unsorted` is a valid `block_slug` for low-confidence timeline entries
 
 ### Intake (autonomous)
 
@@ -139,14 +139,14 @@ Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 | DIAG-02 | Phase 1 | Pending |
 | DIAG-03 | Phase 1 | Pending |
 | DIAG-04 | Phase 1 | Pending |
-| SCHM-01 | Phase 2 | Pending |
-| SCHM-02 | Phase 2 | Pending |
-| SCHM-03 | Phase 2 | Pending |
-| SCHM-04 | Phase 2 | Pending |
-| SCHM-05 | Phase 2 | Pending |
-| SCHM-06 | Phase 2 | Pending |
-| SCHM-07 | Phase 2 | Pending |
-| SCHM-08 | Phase 2 | Pending |
+| SCHM-01 | Phase 2 | Complete |
+| SCHM-02 | Phase 2 | Complete |
+| SCHM-03 | Phase 2 | Complete |
+| SCHM-04 | Phase 2 | Complete |
+| SCHM-05 | Phase 2 | Complete |
+| SCHM-06 | Phase 2 | Complete |
+| SCHM-07 | Phase 2 | Complete |
+| SCHM-08 | Phase 2 | Complete |
 | TOKN-01 | Phase 3 | Pending |
 | TOKN-02 | Phase 3 | Pending |
 | TOKN-03 | Phase 3 | Pending |
@@ -189,6 +189,7 @@ Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 | CMD-08 | Phase 10 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 52 total
 - Mapped to phases: 52 ✓
 - Unmapped: 0 ✓
