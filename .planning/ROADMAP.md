@@ -105,7 +105,35 @@ Plans:
   4. Inserting a new `timeline_entries` row causes the affected block page's Evolution section to re-render without waiting for the next synthesis (verified by manual insert + page check)
   5. Block pages publish via the existing `aiagentspulse.com` path identified in Phase 1 (no sibling route was introduced unless Phase 1 required it)
 
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+
+*(Plans 02-05 all modify `docker/web/site/app.js`. To honor the "no `files_modified` overlap within a wave" rule, plans serialize across six waves rather than parallelizing in Wave 2. Wave breakdown below.)*
+
+**Wave 1**
+
+- [ ] 04-01-shared-infra-and-shell-PLAN.md — Shared infra: index.html view containers + nav Map link; style-map.css 9 new layout selectors; app.js module constants (HUB_STORYLINE, MATURITY_STAGE, TIER_LABELS, LIVE_TENSION_PLACEHOLDER, STATUS_PAGE_HEADER) + router branches + showView extension + stub loaders (RNDR-01/02/03 scaffolding)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 04-02-hub-renderer-PLAN.md — Hub: loadHub + renderHub; single blocks query; three tier sections; seven anchor-tiles with title/subtitle/pill (RNDR-01, RNDR-04 hub half)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 04-03-block-renderer-PLAN.md — Block page: loadBlock + renderBlock + renderTimelineEntries + expandTimeline; Promise.all over 3 economy_map tables; empty-state hide for tension+body; Evolution newest-first 30-cap + Show all (RNDR-02, RNDR-07)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 04-04-status-renderer-PLAN.md — Status: loadStatus + renderStatus; same blocks query shape as hub (RNDR-04 source evidence); seven non-clickable snapshot rows (RNDR-03, RNDR-04 status half)
+
+**Wave 5** *(blocked on Wave 3)*
+
+- [ ] 04-05-idle-poll-lifecycle-PLAN.md — Visibility-aware 60s idle poll on block pages; timeline_entries only; hashchange cleanup; respects expand-state (RNDR-06)
+
+**Wave 6** *(blocked on Waves 1-5)*
+
+- [ ] 04-06-deploy-and-verify-PLAN.md — scripts/deploy.sh web rule deploy + five-criterion end-to-end verification on aiagentspulse.com; produces 04-06-VERIFY.md (RNDR-04 runtime cross-surface check, RNDR-05)
+
 **UI hint**: yes
 
 ### Phase 5: Intake Classifier + `unsorted` Handling
@@ -207,7 +235,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Render-Stack Diagnostic | 1/1 | Complete   | 2026-05-26 |
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
-| 4. Hub, Block, and Status Renderer | 0/TBD | Not started | - |
+| 4. Hub, Block, and Status Renderer | 0/6 | Not started | - |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
