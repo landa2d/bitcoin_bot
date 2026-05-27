@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgentPulse — Design Tokens Preview</title>
+    <link rel="stylesheet" href="/style-shared.css">
+    <link rel="stylesheet" href="/style-map.css">
+    <style>
+        /* Preview-only layout helpers — not part of the shipped token surface. */
+        .preview-section { margin: 40px 0; }
+        .preview-section h2 { font-family: Georgia, serif; font-size: 20px; margin-bottom: 16px; }
+        .preview-section h3 { font-family: 'Courier New', monospace; font-size: 13px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-secondary); margin: 24px 0 8px 0; }
+        .swatch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .swatch { padding: 16px; border: 1px solid var(--border); border-radius: 6px; }
+        .swatch-tile { width: 100%; height: 48px; border-radius: 4px; margin-bottom: 8px; }
+        .swatch-label { font-family: 'Courier New', monospace; font-size: 12px; color: var(--text-secondary); }
+        .pill-grid { display: grid; grid-template-columns: 80px repeat(5, 1fr); gap: 12px; align-items: center; }
+        .pill-grid .pill-row-label { font-family: 'Courier New', monospace; font-size: 13px; color: var(--text-secondary); }
+        .pill-grid .pill-col-label { font-family: 'Courier New', monospace; font-size: 11px; color: var(--text-hint); text-align: center; text-transform: uppercase; }
+    </style>
+</head>
+<body class="technical">
+  <div class="container">
+    <header style="padding: 24px 0;">
+      <h1 style="font-family: Georgia, serif; font-size: 28px; margin-bottom: 16px;">Design Tokens Preview</h1>
+      <p style="font-family: 'Courier New', monospace; font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+        Phase 3 deliverable — TOKN-01..04 verification surface. Toggle modes to verify on-dark contrast variants.
+      </p>
+      <div class="mode-toggle">
+        <button class="toggle-btn active" id="btn-technical" onclick="setMode('technical')">Technical</button>
+        <button class="toggle-btn" id="btn-strategic" onclick="setMode('strategic')">Strategic</button>
+      </div>
+    </header>
+
+    <!-- Preview sections (added by Task 2) -->
+    <main id="preview-main"></main>
+  </div>
+
+  <script>
+    /* Minimal setMode — body-class swap only. No localStorage, no URL param,
+       no re-render. The CSS variable cascade in style-shared.css + style-map.css
+       handles every visible change automatically via `body.technical [data-accent]`
+       and `body.strategic [data-accent]` rules. */
+    function setMode(mode) {
+      if (mode !== 'technical' && mode !== 'strategic') return;
+      document.body.classList.remove('technical', 'strategic');
+      document.body.classList.add(mode);
+      document.getElementById('btn-technical').classList.toggle('active', mode === 'technical');
+      document.getElementById('btn-strategic').classList.toggle('active', mode === 'strategic');
+    }
+  </script>
+</body>
+</html>
