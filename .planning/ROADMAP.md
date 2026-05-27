@@ -60,7 +60,7 @@ Plans:
 **Plans**: 2 plansPlans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — economy_map migration: write `supabase/migrations/033_economy_map_schema.sql` (schema, maturity enum, three tables, append-only triggers, two SECURITY DEFINER RPCs, RLS, idempotent seven-block seed), apply via Supabase MCP, update exposed-schemas allowlist (SCHM-01..08; resolves Phase 1 §4.5)
+- [x] 02-01-PLAN.md — economy_map migration: write `supabase/migrations/033_economy_map_schema.sql` (schema, maturity enum, three tables, append-only triggers, two SECURITY DEFINER RPCs, RLS, idempotent seven-block seed), apply via Supabase MCP, update exposed-schemas allowlist (SCHM-01..08; resolves Phase 1 §4.5)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -194,7 +194,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Render-Stack Diagnostic | 1/1 | Complete   | 2026-05-26 |
-| 2. `economy_map` Schema + Seven-Block Seed | 0/2 | Not started | - |
+| 2. `economy_map` Schema + Seven-Block Seed | 1/2 | In Progress|  |
 | 3. Design Tokens | 0/TBD | Not started | - |
 | 4. Hub, Block, and Status Renderer | 0/TBD | Not started | - |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
