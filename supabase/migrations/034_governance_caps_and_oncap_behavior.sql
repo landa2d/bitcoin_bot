@@ -161,9 +161,13 @@ END $$;
 -- 'model_downgrade' type (already in the list below), so no new type is needed for that.
 --
 -- governance_events may have been created by either 020 (no event_type CHECK) or
--- 023 (closed CHECK list). We DROP the 023 CHECK if present and re-add it including all
--- six original values PLUS 'cap_missing'. Guarded so re-running is safe (drop IF EXISTS,
--- re-add only if absent).
+-- 023 (closed CHECK list). The LIVE prod CHECK (verified 2026-05-28 against project
+-- zxzaaqfowtqvmsbitqpu) carries SEVEN values — the 023 six PLUS 'system_audit' (added by
+-- later prod drift; 2 existing rows use it, last seen 2026-04-30). We DROP the existing
+-- CHECK and re-add it preserving ALL seven live values PLUS the new 'cap_missing'. Dropping
+-- 'system_audit' would (a) fail this ALTER outright (existing rows violate the new CHECK)
+-- and (b) silently reject future system_audit inserts — re-creating the silent-failure
+-- class this phase exists to kill. Guarded so re-running is safe (drop existing, re-add only if absent).
 DO $$
 DECLARE
     v_constraint_name TEXT;
@@ -191,6 +195,7 @@ BEGIN
                 'balance_low',
                 'balance_exhausted',
                 'fallback_triggered',
+                'system_audit',
                 'cap_missing'
             ));
     EXCEPTION WHEN duplicate_object THEN
