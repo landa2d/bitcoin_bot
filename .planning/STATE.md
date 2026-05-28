@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 04.1-01-PLAN.md (repo-side governance unit; no prod mutation)
-last_updated: "2026-05-28T13:12:29.335Z"
+stopped_at: Phase 5 context gathered
+last_updated: "2026-05-28T17:14:12.611Z"
 last_activity: 2026-05-28
 progress:
   total_phases: 11
@@ -93,6 +93,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-05-28T13:40:00Z
-Stopped at: Search_path RPC class fixed (migration 037 applied+verified to prod; drift-check RPC section clean — lab-data-provider/D-07 is the only remaining drift line). Pushed local work to origin/main. Next = Phase 5.
-Resume file: .planning/.continue-here.md
+Last session: 2026-05-28T17:14:12.607Z
+Stopped at: Phase 5 context gathered
+Resume file: .planning/phases/05-intake-classifier-unsorted-handling/05-CONTEXT.md
