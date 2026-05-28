@@ -15,7 +15,7 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
 - [x] **Phase 2: `economy_map` Schema + Seven-Block Seed** - Isolated schema with append-only timeline and version tables, seven blocks seeded (completed 2026-05-27)
 - [x] **Phase 3: Design Tokens** - Tier accent CSS variables, maturity pill component, fixed timeline entry format (completed 2026-05-27)
 - [x] **Phase 4: Hub, Block, and Status Renderer** - Six-part block pages, hub with seven-block visual, status page, live-on-insert re-render (completed 2026-05-28)
-- [ ] **Phase 4.1: Prod↔Main Reconciliation + LLM-Proxy Governance Migration** - Infra interstitial: bring prod current with main, ship the file→DB governance migration atomically + fail-loud, establish a clean deploy baseline before Phase 5
+- [x] **Phase 4.1: Prod↔Main Reconciliation + LLM-Proxy Governance Migration** - Infra interstitial: bring prod current with main, ship the file→DB governance migration atomically + fail-loud, establish a clean deploy baseline before Phase 5 (completed 2026-05-28)
 - [ ] **Phase 5: Intake Classifier + `unsorted` Handling** - Newsletter pipeline emits classified, traceable timeline entries via LLM proxy
 - [ ] **Phase 6: Telegram Read-Only Scaffolding** - `/map-status` and `/map-pending` give operator situational awareness
 - [ ] **Phase 7: Synthesis Loop Core** - Trigger evaluation, input assembly, Sonnet generation with hot-reloadable identity, draft writes
@@ -144,7 +144,7 @@ Plans:
 **Goal:** Production matches `main` with no untracked drift, and per-agent spending governance is enforced from `agent_wallets_v2` — shipped as ONE atomic schema/data-then-code unit, with `proxy.py` failing loudly (refusing to serve) rather than silently running ungoverned if caps are absent ("the wallet bug all over again").
 **Requirements**: Infra phase — no formal REQ-IDs. Coverage contract is the locked decisions D-01..D-09 (see `04.1-CONTEXT.md`); every decision is traceable to a plan below.
 **Depends on:** Phase 4
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 
@@ -158,7 +158,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 canary PASS)*
 
-- [ ] 04.1-03-PLAN.md — Staged per-service deploy of accumulated drift (NOT autonomous): gato_brain → newsletter → processor → analyst → research → gato, one scoped `--force-rebuild <svc>` at a time with health gate between, lab-data-provider excluded; close the source todo + record the reconciled baseline (D-06, D-07)
+- [x] 04.1-03-PLAN.md — Staged per-service deploy of accumulated drift (NOT autonomous): gato_brain → newsletter → processor → analyst → research → gato, one scoped `--force-rebuild <svc>` at a time with health gate between, lab-data-provider excluded; close the source todo + record the reconciled baseline (D-06, D-07)
 
 ### Phase 5: Intake Classifier + `unsorted` Handling
 
@@ -260,7 +260,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
 | 4. Hub, Block, and Status Renderer | 6/6 | Complete    | 2026-05-28 |
-| 4.1. Prod↔Main Reconciliation + Governance Migration | 2/3 | In Progress|  |
+| 4.1. Prod↔Main Reconciliation + Governance Migration | 3/3 | Complete    | 2026-05-28 |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |

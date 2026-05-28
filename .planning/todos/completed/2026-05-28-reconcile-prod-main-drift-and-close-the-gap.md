@@ -1,6 +1,7 @@
 ---
 created: 2026-05-28T08:39:23Z
-updated: 2026-05-28T08:55:00Z
+updated: 2026-05-28T13:10:00Z
+status: resolved (Phase 04.1, 2026-05-28)
 title: Reconcile prod↔main drift and close the gap
 area: tooling
 phase_candidate: true
@@ -9,6 +10,24 @@ files:
   - docker/llm-proxy/proxy.py
   - docker/llm-proxy/governance_config.json
   - supabase/migrations/023_llm_proxy_tables.sql
+---
+
+## RESOLVED — Phase 04.1 (2026-05-28)
+
+Executed as Phase 04.1. Evidence: `.planning/phases/04.1-prod-main-reconciliation-llm-proxy-governance-migration-brin/04.1-03-DEPLOY-LOG.md` (+ 04.1-0{1,2,3}-SUMMARY.md, 04.1-02-CANARY-RESULTS.md).
+
+- **Governance migration (atomic, fail-loud):** migration 034 applied to live `agent_wallets_v2` (exact caps from governance_config.json; analyst→28000; gato downgrade preserved; `uncapped` opt-in + structural CHECK; fail-loud on missing/unknown caps). New DB-only `proxy.py` deployed; canary PASS (accepted — caps are soft via pre-existing `allow_negative=true`, operator-accepted).
+- **Code reconcile:** gato_brain, analyst, research, gato rebuilt to current main + governed-cycle verified (gato via real Telegram round-trip). newsletter/processor already current. prod == main for all in-scope services.
+- **Guardrails:** `scripts/drift-check.sh` + migration 036 `gsd_drift_audit()` — standing pre-deploy drift detection (code / RPC search_path / migration).
+
+**Carried forward (NOT done here — tracked as separate todos / decisions):**
+- `lab-data-provider` deploy — deferred (D-07).
+- `rivalscope` negative balance (~ -251922 sats) — separate investigation.
+- RPC `search_path` class (8 functions, some load-bearing) — surfaced by drift-check; see the audit todo.
+- pay-500 (transfer_between_agents), analyst `predictions.title`, research trigger perms, optional soft-cap hardening.
+
+**Topology correction:** prod runs from `/root/bitcoin_bot/docker` on this host — NOT `hetzner:/opt/bitcoin_bot` as stated below. `/opt/bitcoin_bot` is a stale Mar-15 checkout; deploy.sh's remote-rsync model is obsolete (deploys are local rebuilds).
+
 ---
 
 ## Problem
