@@ -116,7 +116,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 04-02-hub-renderer-PLAN.md — Hub: loadHub + renderHub; single blocks query; three tier sections; seven anchor-tiles with title/subtitle/pill (RNDR-01, RNDR-04 hub half)
+- [x] 04-02-hub-renderer-PLAN.md — Hub: loadHub + renderHub; single blocks query; three tier sections; seven anchor-tiles with title/subtitle/pill (RNDR-01, RNDR-04 hub half)
 
 **Wave 3** *(blocked on Wave 2)*
 
@@ -235,7 +235,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Render-Stack Diagnostic | 1/1 | Complete   | 2026-05-26 |
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
-| 4. Hub, Block, and Status Renderer | 1/6 | In Progress|  |
+| 4. Hub, Block, and Status Renderer | 2/6 | In Progress|  |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
