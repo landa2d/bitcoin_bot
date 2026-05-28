@@ -62,6 +62,9 @@ var currentMode = getInitialMode();
 // D-11: whether Show all was clicked; reset on each loadBlock() entry; read by the Wave 3 idle poll.
 var timelineExpanded = false;
 
+// Interval handle for the block-page Evolution refresh poll (D-05, D-06, D-07).
+var evolutionPollHandle = null;
+
 function setMode(mode) {
     if (!MODES[mode]) return;
     currentMode = mode;
@@ -481,6 +484,11 @@ async function loadBlock(slug) {
 
     renderBlock(blockRes.data, bodyMd, timelineEntries);
     window.scrollTo(0, 0);
+
+    // Wave 3 (plan 04-05): start the visibility-aware 60s Evolution idle poll
+    // (D-05/D-06/D-07). The block-not-found branch above returns BEFORE here, so
+    // the poll only starts on the success path.
+    startEvolutionPoll(slug);
 }
 
 // Six-part block-page composition (D-08): Title → tension → body → Evolution.
@@ -653,6 +661,69 @@ function renderStatus(data) {
     window.scrollTo(0, 0);
 }
 
+// ─── Evolution Idle Poll (Phase 4 plan 04-05) ─────────────────────────────────
+
+// Visibility-aware 60s idle poll that refreshes ONLY the Evolution section on a
+// block page (D-05 no Realtime, D-06 timeline-only, D-07 60s + visibility-aware,
+// D-11 respects timelineExpanded). RNDR-06: a new timeline_entries insert appears
+// within ~60s while the operator stays on the block page.
+
+// Clear any active poll. Idempotent — safe to call when no handle is set.
+function stopEvolutionPoll() {
+    if (evolutionPollHandle !== null) {
+        clearInterval(evolutionPollHandle);
+        evolutionPollHandle = null;
+    }
+}
+
+// Re-query timeline_entries for the given slug and repaint #evolution-entries
+// (matches the renderArticle/renderList innerHTML-replace idiom — PATTERNS
+// §"No analog found" mitigation row 3). Async; the interval callback fires it
+// fire-and-forget. Guards: visibility (D-07) and a hash/slug re-check (race —
+// the operator may have navigated away between the tick and this fn running).
+async function pollEvolution(slug) {
+    if (document.visibilityState !== 'visible') return;  // D-07 visibility guard
+    if (!window.location.hash.startsWith('#/map/' + slug)) return;  // race re-check
+    // D-06: re-query ONLY timeline_entries — never blocks / block_body_versions.
+    var query = sb.schema('economy_map').from('timeline_entries')
+        .select('block_slug,event_date,what_shifted,why_it_mattered,source_url')
+        .eq('block_slug', slug)
+        .order('event_date', { ascending: false });
+    if (!timelineExpanded) query = query.limit(30);  // D-11 — respect expand-state
+    var { data, error } = await query;
+    if (error || !data) return;  // graceful no-op on transient error
+    window.currentTimelineEntries = data;
+    var container = document.getElementById('evolution-entries');
+    if (container) container.innerHTML = renderTimelineEntries(data, timelineExpanded);
+    // Keep the Show-all button in sync with the (possibly changed) result. When
+    // collapsed and the cap is hit but no button exists, append one; when
+    // expanded, remove any leftover button (matches expandTimeline's one-shot).
+    var btn = document.querySelector('.timeline-show-all');
+    if (!timelineExpanded && data.length === 30 && !btn) {
+        var evolutionSection = document.querySelector('.evolution');
+        if (evolutionSection) {
+            var newBtn = document.createElement('button');
+            newBtn.className = 'timeline-show-all';
+            newBtn.setAttribute('onclick', 'expandTimeline()');
+            newBtn.innerHTML = 'Show all (' + data.length + ' or more) ↓';
+            evolutionSection.appendChild(newBtn);
+        }
+    }
+    if (timelineExpanded && btn) {
+        btn.remove();
+    }
+}
+
+// Start a fresh 60s poll for the given slug. Defensively stops any prior handle so
+// navigating between blocks never leaks a stale interval (T-04-05-01 / -04). The
+// inner callback is non-async and fires-and-forgets the async pollEvolution.
+function startEvolutionPoll(slug) {
+    stopEvolutionPoll();  // defensive — ensure no stale handle
+    evolutionPollHandle = setInterval(function() {
+        pollEvolution(slug);
+    }, 60000);  // D-07 cadence floor
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 function route() {
@@ -674,3 +745,28 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 window.addEventListener('hashchange', route);
+
+// Idle-poll cleanup — a SIBLING listener to the routing one above (kept separate
+// per PATTERNS §"#8 Init"). Fires after route() (registration order). Stops the
+// Evolution poll whenever the new hash leaves the #/map/<slug> space (e.g. to
+// #/map, #/status, #/). Navigating to a DIFFERENT block keeps the '#/map/' prefix
+// match, so this does NOT stop it — but the subsequent loadBlock() → startEvolutionPoll()
+// defensively stops the prior handle and starts a fresh one for the new slug.
+window.addEventListener('hashchange', function() {
+    if (!window.location.hash.startsWith('#/map/')) {
+        stopEvolutionPoll();
+    }
+});
+
+// Optional (D-07): trigger an immediate refresh when the tab becomes visible so
+// the operator does not wait up to 60s for the next tick after returning. The
+// poll's inner visibility guard already short-circuits ticks while hidden; this
+// only adds a one-shot catch-up. The 60s cadence floor is unchanged.
+window.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible'
+        && evolutionPollHandle !== null
+        && window.currentBlock
+        && window.location.hash.startsWith('#/map/')) {
+        pollEvolution(window.currentBlock.slug);
+    }
+});
