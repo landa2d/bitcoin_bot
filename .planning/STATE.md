@@ -93,6 +93,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-05-28T09:59:10Z
-Stopped at: Completed 04.1-01-PLAN.md (repo-side governance unit; no prod mutation)
-Resume file: .planning/phases/04.1-prod-main-reconciliation-llm-proxy-governance-migration-brin/04.1-02-PLAN.md
+Last session: 2026-05-28T13:40:00Z
+Stopped at: Search_path RPC class fixed (migration 037 applied+verified to prod; drift-check RPC section clean — lab-data-provider/D-07 is the only remaining drift line). Pushed local work to origin/main. Next = Phase 5.
+Resume file: .planning/.continue-here.md

@@ -11,6 +11,15 @@ files:
   - supabase/migrations/
 ---
 
+## STATUS (2026-05-28): RPC root cause FIXED in migration 037 — residual is activation-time E2E only
+
+The structural blocker is cleared: migration 037 (`037_fix_rpc_search_paths`) applied
+`ALTER FUNCTION public.transfer_between_agents(text, text, bigint, text, uuid) SET search_path = pg_catalog, public;`
+to prod (verified: function now carries a non-empty search_path; drift-check RPC section clean).
+The ONLY thing left on this todo is the activation-time acceptance check — verify `/v1/proxy/pay → 200`
+plus a real `wallet_transactions` transfer — which can only be exercised once agent→agent payments
+are actually turned on. Kept in pending purely as that activation reminder; not outstanding work today.
+
 ## Severity: blocker-on-activation — NOT urgent, NOT currently breaking anything
 
 The agent→agent payment rail is **structurally broken**, but **agent payments are not in use

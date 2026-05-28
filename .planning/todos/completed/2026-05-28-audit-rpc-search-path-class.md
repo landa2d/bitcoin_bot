@@ -9,6 +9,16 @@ files:
   - supabase/migrations/
 ---
 
+## RESOLVED (2026-05-28) — migration 037
+
+All 8 inventoried functions fixed via `037_fix_rpc_search_paths` (one
+`ALTER FUNCTION … SET search_path = pg_catalog, public` each; all non-SECURITY-DEFINER, the
+migration-035 pattern). Bodies were inspected first: 7 referenced unqualified tables (live-broken;
+`get_scrape_stats` confirmed 42P01 → now returns rows), `compute_opportunity_score` was benign
+(pg_catalog-only) but fixed for consistency. `scripts/drift-check.sh` RPC section now reports
+"no public function has an empty search_path". Detection (drift-check + `gsd_drift_audit()`) stays
+standing so the class is caught structurally going forward.
+
 ## Problem
 
 The `claim_research_task` drift (fixed in migration 035) is the **third+ instance of one
