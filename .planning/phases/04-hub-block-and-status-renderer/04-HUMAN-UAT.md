@@ -18,14 +18,14 @@ result: [pending — blocked on Phase 7 synthesis; all 7 blocks currently have c
 
 ### 2. CR-01 (source_url XSS vector) tracked for remediation
 expected: A follow-up task exists to add safeHttpUrl() scheme validation before href/data-source emit in renderTimelineEntries(). Until then, no javascript:/data: URLs should reach timeline_entries.source_url.
-result: [tracked — see .planning/todos/pending/cr-01-source-url-scheme-validation.md; must be resolved before Phase 5 intake ships]
+result: RESOLVED — fixed in commit 2e20612 (safeHttpUrl() http(s) allowlist gates href + data-source), re-reviewed clean (04-REVIEW.md critical: 0), redeployed to prod. Todo moved to .planning/todos/completed/.
 
 ## Summary
 
 total: 2
-passed: 0
+passed: 1
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 
