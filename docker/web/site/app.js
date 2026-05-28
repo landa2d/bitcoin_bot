@@ -25,6 +25,26 @@ const MODES = {
     }
 };
 
+// ─── Economy-Map Constants (Phase 4) ──────────────────────────────────────────
+
+// Editorial: edit this string + PR + redeploy to update (D-12). Wave 2 plan 02
+// may revise. Keep under 200 chars; tone matches PROJECT.md core value.
+const HUB_STORYLINE = 'Synthesis with editorial integrity. Eight blocks, seven shipped, one deferred — the agent economy as a living map.';
+
+// Editorial: hardcoded #/status header (specifics §"Editorial copy"). PR + redeploy.
+const STATUS_PAGE_HEADER = 'Maturity Snapshot';
+
+// blocks.maturity enum → 1..5 stage for the maturity pill data-stage attribute.
+const MATURITY_STAGE = { nascent: 1, emerging: 2, contested: 3, consolidating: 4, mature: 5 };
+
+// Tier headings for the hub + status tier grouping (D-13). Hardcoded uppercase.
+const TIER_LABELS = { substrate: 'SUBSTRATE', behavior: 'BEHAVIOR', frame: 'FRAME' };
+
+// Exact-string-match contract (Phase 2 D-21 seed). Wave 2 plan 03 hides the
+// tension card when blocks.live_tension === this value. Em-dash MUST match the
+// seed exactly — do not substitute a hyphen.
+const LIVE_TENSION_PLACEHOLDER = 'TBD — set via /map-tension';
+
 // Resolve initial mode: URL param > localStorage > default 'technical'
 function getInitialMode() {
     var urlMode = new URL(window.location).searchParams.get('mode');
@@ -88,6 +108,15 @@ function updateHero(title, dateText) {
 
 function getRoute() {
     var hash = window.location.hash || '#/';
+    if (hash.startsWith('#/map/')) {
+        return { view: 'block', slug: hash.split('/')[2] };
+    }
+    if (hash.startsWith('#/map')) {
+        return { view: 'map' };
+    }
+    if (hash.startsWith('#/status')) {
+        return { view: 'status' };
+    }
     if (hash.startsWith('#/edition/')) {
         return { view: 'reader', edition: parseInt(hash.split('/')[2]) };
     }
@@ -100,6 +129,18 @@ function getRoute() {
 function showView(viewName) {
     document.getElementById('list-view').style.display = viewName === 'list' ? 'block' : 'none';
     document.getElementById('reader-view').style.display = viewName === 'reader' ? 'block' : 'none';
+    document.getElementById('map-view').style.display = viewName === 'map' ? 'block' : 'none';
+    document.getElementById('block-view').style.display = viewName === 'block' ? 'block' : 'none';
+    document.getElementById('status-view').style.display = viewName === 'status' ? 'block' : 'none';
+
+    // Hide the technical/strategic mode toggle on map routes (D-03). The body
+    // class stays so the --accent-tier cascade still resolves; only the toggle
+    // UI and its subtitle are hidden. Defensive null-checks per PATTERNS §3.
+    var isMapRoute = (viewName === 'map' || viewName === 'block' || viewName === 'status');
+    var toggle = document.querySelector('.mode-toggle');
+    if (toggle) toggle.style.display = isMapRoute ? 'none' : 'inline-flex';
+    var subtitle = document.getElementById('mode-subtitle');
+    if (subtitle) subtitle.style.display = isMapRoute ? 'none' : 'block';
 }
 
 // ─── List View ───────────────────────────────────────────────────────────────
@@ -294,6 +335,26 @@ function getModeContent(data) {
     return data.content_markdown || '';
 }
 
+// ─── Map Loaders (Phase 4 — stubs; renderers ship in Wave 2) ──────────────────
+
+// Stub loaders so route() resolves without ReferenceError. Each flips view
+// visibility via showView() so the shell works before the Wave 2 renderers
+// plug in the data + markup.
+async function loadHub() {
+    showView('map');
+    /* renderer in Wave 2 plan 02 */
+}
+
+async function loadBlock(slug) {
+    showView('block');
+    /* renderer in Wave 2 plan 03 */
+}
+
+async function loadStatus() {
+    showView('status');
+    /* renderer in Wave 2 plan 04 */
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 function route() {
@@ -303,6 +364,9 @@ function route() {
         case 'list': loadList(); break;
         case 'reader': loadEdition(r.edition); break;
         case 'unsubscribe': handleUnsubscribe(); break;
+        case 'map': loadHub(); break;
+        case 'block': loadBlock(r.slug); break;
+        case 'status': loadStatus(); break;
     }
 }
 
