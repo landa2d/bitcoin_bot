@@ -42,6 +42,12 @@ sys.path.insert(0, str(_ROOT / "docker" / "processor"))
 
 import agentpulse_processor as proc  # noqa: E402
 
+# Prime the model-routing cache from the repo config so get_model("extraction")
+# resolves to deepseek-chat exactly as it does in the deployed processor (the
+# processor hardcodes a /home/openclaw path that is absent in CI/test).
+_REPO_CONFIG = json.loads((_ROOT / "config" / "agentpulse-config.json").read_text())
+proc._model_config_cache = _REPO_CONFIG.get("models", {})
+
 
 ALLOWED_SLUGS = [
     "identity-trust", "memory-context", "payments-settlement",
