@@ -273,23 +273,24 @@ def _run_edition_with_classifier(classifier_stub):
     """Call classify_intake_for_edition with classify_intake_event stubbed and the
     INSERT helper captured. Returns the list of INSERT payloads handed to the helper.
 
-    economy_map_edition_already_emitted is stubbed False so the edition is processed
-    offline (no live read); classify_intake_event is replaced by classifier_stub.
+    economy_map_emitted_event_keys is stubbed to an empty set so the edition is
+    processed offline (no live read) with no events considered already-emitted;
+    classify_intake_event is replaced by classifier_stub.
     """
     captured: list[dict] = []
     saved = {
         "classify": proc.classify_intake_event,
-        "already": proc.economy_map_edition_already_emitted,
+        "keys": proc.economy_map_emitted_event_keys,
         "insert": proc.economy_map_insert_timeline_entry,
     }
     proc.classify_intake_event = classifier_stub
-    proc.economy_map_edition_already_emitted = lambda _eid: False
+    proc.economy_map_emitted_event_keys = lambda _eid: set()
     proc.economy_map_insert_timeline_entry = lambda entry: captured.append(dict(entry)) or {"id": "captured"}
     try:
         proc.classify_intake_for_edition(_synthetic_edition(), ALLOWED_SLUGS, FLOOR)
     finally:
         proc.classify_intake_event = saved["classify"]
-        proc.economy_map_edition_already_emitted = saved["already"]
+        proc.economy_map_emitted_event_keys = saved["keys"]
         proc.economy_map_insert_timeline_entry = saved["insert"]
     return captured
 
@@ -342,6 +343,97 @@ def test_classifier_error_routes_to_unsorted_with_null_confidence():
     # The event content still survives (not silently dropped).
     assert entry["what_shifted"] == EVENT["title"]
     assert entry["source_edition_id"], "source_edition_id must be set even on error path"
+
+
+# ===========================================================================
+# Test B2 — out-of-range confidence is untrusted (WR-01 regression)
+# ===========================================================================
+def test_out_of_range_confidence_routes_unsorted_null():
+    """WR-01: an out-of-range tag_confidence (e.g. a percentage 91 instead of 0.91)
+    must NOT overflow NUMERIC(3,2) / spuriously clear the floor. The event is preserved
+    (never dropped) but routed to 'unsorted' with NULL confidence — the malformed score
+    is treated as untrusted, not fabricated into a clamped/confident value."""
+
+    def stub(event, allowed_slugs):
+        # A valid named slug but a junk confidence (percentage style) — out of [0,1].
+        return {"block_slug": "payments-settlement", "tag_confidence": 91}
+
+    captured = _run_edition_with_classifier(stub)
+    assert len(captured) == 1, f"out-of-range confidence must NOT drop the event, got {len(captured)}"
+    entry = captured[0]
+    assert entry["block_slug"] == "unsorted", (
+        f"out-of-range confidence must route to 'unsorted', got {entry['block_slug']!r}"
+    )
+    assert entry["tag_confidence"] is None, (
+        f"out-of-range confidence must be recorded as NULL (untrusted), got {entry['tag_confidence']!r}"
+    )
+
+
+# ===========================================================================
+# Test C2 — partial-emit fails loud then retry completes (CR-01 regression)
+# ===========================================================================
+def test_partial_insert_failure_fails_loud_then_retry_completes():
+    """CR-01: a transient insert failure mid-edition must (a) fail loud (raise) so the
+    edition is NOT silently marked done, and (b) on a later run, per-event idempotency
+    skips the rows that already landed and retries ONLY the failed event — the event is
+    eventually emitted, never lost, and never duplicated on the append-only table."""
+    ev1 = {"tier": 1, "title": "Event one", "summary": "S1", "url": "https://example.com/1"}
+    ev2 = {"tier": 1, "title": "Event two", "summary": "S2", "url": "https://example.com/2"}
+    edition = {
+        "id": f"test-edition-{uuid.uuid4()}",
+        "published_at": "2026-05-28T11:00:00+00:00",
+        "data_snapshot": {"premium_source_posts": [ev1, ev2]},
+    }
+    saved = {
+        "classify": proc.classify_intake_event,
+        "keys": proc.economy_map_emitted_event_keys,
+        "insert": proc.economy_map_insert_timeline_entry,
+    }
+    landed: list[dict] = []  # rows that "made it into" the append-only table
+
+    # Idempotency reads back exactly what landed (keyed on source_url, else what_shifted).
+    proc.economy_map_emitted_event_keys = lambda _eid: {
+        (r.get("source_url") or r.get("what_shifted")) for r in landed
+    }
+    proc.classify_intake_event = lambda e, slugs: {"block_slug": "unsorted", "tag_confidence": 0.1}
+    try:
+        # Run 1: ev1 inserts; ev2's insert raises a transient error.
+        def insert_run1(entry):
+            if entry["source_url"] == ev2["url"]:
+                raise RuntimeError("simulated transient PostgREST 503")
+            landed.append(dict(entry))
+            return {"id": "ok"}
+        proc.economy_map_insert_timeline_entry = insert_run1
+
+        raised = False
+        try:
+            proc.classify_intake_for_edition(edition, ALLOWED_SLUGS, FLOOR)
+        except RuntimeError:
+            raised = True
+        assert raised, "partial insert failure must fail loud (raise), not return silently"
+        assert [r["source_url"] for r in landed] == [ev1["url"]], (
+            f"only ev1 should have landed in run 1, got {landed!r}"
+        )
+
+        # Run 2 (retry): inserts now succeed. Per-event idempotency must skip ev1 and
+        # emit ONLY ev2 — no duplicate of ev1, and the previously-failed event completes.
+        attempted: list[str] = []
+        def insert_run2(entry):
+            attempted.append(entry["source_url"])
+            landed.append(dict(entry))
+            return {"id": "ok"}
+        proc.economy_map_insert_timeline_entry = insert_run2
+        proc.classify_intake_for_edition(edition, ALLOWED_SLUGS, FLOOR)
+        assert attempted == [ev2["url"]], (
+            f"retry must insert ONLY the previously-failed event, got {attempted!r}"
+        )
+        assert sorted(r["source_url"] for r in landed) == [ev1["url"], ev2["url"]], (
+            "both events must end up emitted exactly once after retry (never dropped, never duped)"
+        )
+    finally:
+        proc.classify_intake_event = saved["classify"]
+        proc.economy_map_emitted_event_keys = saved["keys"]
+        proc.economy_map_insert_timeline_entry = saved["insert"]
 
 
 # ===========================================================================
@@ -433,6 +525,8 @@ def _run_all():
         test_append_only_live_update_and_delete_fail,
         test_below_floor_routes_to_unsorted_with_recorded_confidence,
         test_classifier_error_routes_to_unsorted_with_null_confidence,
+        test_out_of_range_confidence_routes_unsorted_null,
+        test_partial_insert_failure_fails_loud_then_retry_completes,
         test_live_classifier_leaves_proxy_routing_evidence,
     ]
     failures = []

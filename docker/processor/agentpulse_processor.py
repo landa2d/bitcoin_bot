@@ -626,6 +626,40 @@ def economy_map_edition_already_emitted(source_edition_id: str) -> bool:
     return bool(isinstance(rows, list) and rows)
 
 
+def economy_map_emitted_event_keys(source_edition_id: str) -> set[str]:
+    """Return the per-event identity keys already emitted for an edition.
+
+    Per-event idempotency: keyed on source_url when present, else what_shifted. The
+    timeline_entries table is append-only, so rows that already landed during a
+    partially-failed run cannot be removed — re-emission must skip exactly those and
+    retry the rest, letting a partial edition COMPLETE on a later run instead of being
+    skipped wholesale. Uses the service key + schema-READ header. Raises on non-2xx so
+    a read failure is never mistaken for "nothing emitted" (which would risk duplicates).
+    """
+    resp = httpx.get(
+        f"{SUPABASE_URL}/rest/v1/timeline_entries",
+        params={
+            "source_edition_id": f"eq.{source_edition_id}",
+            "select": "source_url,what_shifted",
+        },
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Accept-Profile": "economy_map",
+        },
+        timeout=10,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"economy_map timeline_entries key fetch failed ({resp.status_code}): {resp.text}"
+        )
+    keys: set[str] = set()
+    for r in (resp.json() or []):
+        keys.add((r.get('source_url') or '').strip() or (r.get('what_shifted') or '').strip())
+    keys.discard('')
+    return keys
+
+
 # ============================================================================
 # Budget Enforcement System
 # ============================================================================
@@ -3060,11 +3094,13 @@ def classify_intake_for_edition(edition: dict, allowed_slugs: list[str], floor: 
     edition_id = str(edition.get('id'))
     counts = {'emitted': 0, 'unsorted': 0, 'errors': 0, 'skipped_events': 0}
 
-    # D-08 idempotency: skip the whole edition if already emitted.
-    if economy_map_edition_already_emitted(edition_id):
-        logger.info(f"[INTAKE] edition {edition_id} already emitted — skipping (D-08)")
-        counts['already_emitted'] = True
-        return counts
+    # D-08 / CR-01 idempotency: fetch the per-event keys already emitted for this
+    # edition. Per-event (not edition-level) so a partially-emitted edition COMPLETES
+    # on a later run instead of being skipped forever — a transient mid-edition insert
+    # failure leaves some rows behind, and the append-only table cannot delete them, so
+    # re-emission must skip exactly the events that landed and retry the rest. Fail loud
+    # on a read error (never treat "unknown" as "nothing emitted" — that risks dupes).
+    already_emitted_keys = economy_map_emitted_event_keys(edition_id)
 
     # D-04: derive event_date from the edition (events carry no date). Use the
     # published_at date, fall back to created_at, then to today (UTC).
@@ -3077,7 +3113,21 @@ def classify_intake_for_edition(edition: dict, allowed_slugs: list[str], floor: 
     premium_source_posts = snapshot.get('premium_source_posts') or []
     tier1_events = [e for e in premium_source_posts if e.get('tier') == 1]
 
-    for event in tier1_events:
+    # Pending = events not already emitted (keyed on url, else title — mirrors the
+    # source_url/what_shifted stored on each row). If every tier-1 event is already
+    # present, the edition is fully done: mark it emitted so the poller's fast-path
+    # accounting (skipped_editions) is preserved and no LLM cost is re-spent.
+    def _event_key(e: dict) -> str:
+        return (e.get('url') or '').strip() or (e.get('title') or '').strip()
+
+    pending_events = [e for e in tier1_events if _event_key(e) not in already_emitted_keys]
+    if tier1_events and not pending_events:
+        logger.info(f"[INTAKE] edition {edition_id} already fully emitted — skipping (D-08)")
+        counts['already_emitted'] = True
+        return counts
+
+    insert_failures = 0
+    for event in pending_events:
         # what_shifted / why_it_mattered are NOT NULL — skip only if both prose
         # fields are empty (cannot satisfy the schema); otherwise MUST emit a row.
         title = (event.get('title') or '').strip()
@@ -3096,8 +3146,30 @@ def classify_intake_for_edition(edition: dict, allowed_slugs: list[str], floor: 
             parsed = classify_intake_event(event, allowed_slugs)
             elapsed_ms = int((time.time() - t0) * 1000)
             slug = parsed.get('block_slug')
-            conf = parsed.get('tag_confidence')
-            conf = float(conf) if conf is not None else None
+            # WR-01: the LLM confidence is untrusted. The column is NUMERIC(3,2)
+            # (magnitude < 10) and a valid confidence is in [0,1]; a model that returns
+            # a percentage (91) or junk would otherwise overflow the column on INSERT and
+            # silently drop the event. Parse defensively and clamp to [0,1] so a bad value
+            # routes the event to 'unsorted' rather than dropping it.
+            raw_conf = parsed.get('tag_confidence')
+            conf = None
+            if raw_conf is not None:
+                try:
+                    conf = float(raw_conf)
+                except (TypeError, ValueError):
+                    conf = None
+                # A valid confidence is a probability in [0,1]. The column is
+                # NUMERIC(3,2) (magnitude < 10), so a value like a percentage (91) would
+                # overflow on INSERT and drop the event; a value like 5.0 would also
+                # spuriously clear the floor. An out-of-range value is malformed model
+                # output, not a real score — treat it as untrusted (route to 'unsorted',
+                # record NULL) rather than fabricating a clamped confidence.
+                if conf is not None and not (0.0 <= conf <= 1.0):
+                    logger.warning(
+                        f"[INTAKE] edition {edition_id}: out-of-range tag_confidence "
+                        f"{raw_conf!r} from classifier — treating as untrusted (unsorted, NULL)"
+                    )
+                    conf = None
             # Record confidence even when below floor (D-05 flagged-not-dropped).
             tag_confidence = conf
             # T-05-05: accept the slug ONLY if it clears the floor AND is allow-listed;
@@ -3135,7 +3207,7 @@ def classify_intake_for_edition(edition: dict, allowed_slugs: list[str], floor: 
             economy_map_insert_timeline_entry(entry)
             counts['emitted'] += 1
         except Exception as e:
-            # An INSERT failure for one event must not abort the edition.
+            insert_failures += 1
             logger.error(
                 f"[INTAKE] insert failed for edition {edition_id} "
                 f"(slug={target_slug}): {e}"
@@ -3144,8 +3216,18 @@ def classify_intake_for_edition(edition: dict, allowed_slugs: list[str], floor: 
     logger.info(
         f"[INTAKE] edition {edition_id}: {counts['emitted']} emitted "
         f"({counts['unsorted']} unsorted, {counts['errors']} classify errors) "
-        f"from {len(tier1_events)} tier-1 events"
+        f"from {len(pending_events)} pending / {len(tier1_events)} tier-1 events"
     )
+
+    # CR-01: a partially-emitted edition must NOT be treated as done. Fail loud so the
+    # run is recorded as failed and the operator sees it; the next poll retries via the
+    # per-event idempotency above (the rows that landed are skipped, the failed ones
+    # are re-attempted) instead of the whole edition being silently skipped forever.
+    if insert_failures:
+        raise RuntimeError(
+            f"edition {edition_id}: {insert_failures}/{len(pending_events)} timeline "
+            "inserts failed; edition is partially emitted — failing loud to force retry"
+        )
     return counts
 
 
@@ -3169,6 +3251,18 @@ def classify_intake_poller() -> dict:
 
     run_id = log_pipeline_start('classify_intake')
     totals = {'editions': 0, 'emitted': 0, 'unsorted': 0, 'errors': 0, 'skipped_editions': 0}
+
+    # WR-03 / fail-loud governance: a missing agent key makes EVERY classify call 401
+    # and would silently dump all events into 'unsorted' (then mark editions done).
+    # Halt the run loudly rather than degrading the classifier to a silent no-op.
+    if not _get_agent_api_key():
+        logger.error(
+            "[INTAKE] processor agent API key unavailable — aborting run "
+            "(would route all events to 'unsorted'); failing loud, not a silent no-op"
+        )
+        log_pipeline_end(run_id, 'failed', {'error': 'missing agent api key'})
+        return {'error': 'missing agent api key'}
+
     try:
         # D-02: 'published' is the ONLY finalized value (exclude draft/pending/preview/held).
         editions = supabase.table('newsletters')\
