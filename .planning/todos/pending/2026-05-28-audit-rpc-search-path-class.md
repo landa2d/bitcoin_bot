@@ -30,22 +30,36 @@ Operator asked to audit "every SECURITY DEFINER RPC for SET search_path". Eviden
 function with `proconfig` containing `search_path=""` (or any search_path that omits the schema
 its body references)** — secdef and non-secdef alike.
 
-## How to audit
+## CONFIRMED INVENTORY (2026-05-28, via scripts/drift-check.sh / gsd_drift_audit RPC)
 
-```sql
-SELECT n.nspname, p.proname, p.prosecdef, p.proconfig,
-       pg_get_function_identity_arguments(p.oid) AS args
-FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-WHERE n.nspname IN ('public')
-  AND p.proconfig IS NOT NULL
-  AND EXISTS (SELECT 1 FROM unnest(p.proconfig) c WHERE c LIKE 'search_path=%')
-ORDER BY p.proname;
-```
+The class is **8 public functions with empty `search_path`** (all non-SECURITY DEFINER), not the
+2 we tripped over. `claim_research_task` is NOT here (fixed in migration 035). For each, the
+empty search_path is a **latent failure** — it breaks ONLY if the body references unqualified
+objects (tables/types). Table-touching ones are almost certainly broken NOW; pure functions may
+be benign. **Each needs body inspection (`pg_get_functiondef`) to confirm live-broken vs benign.**
 
-For each: either `SET search_path = pg_catalog, public` (non-secdef, safe) or schema-qualify all
-object references in the body (preserves hardening for secdef). Ship corrections as tracked
-migrations. Then add a **standing pre-deploy check** (see the prod==main reconcile closeout) so
-the next drift is caught structurally, not by tripping over it in prod.
+| Function | Likely live-broken? (assess) | Notes |
+|----------|------------------------------|-------|
+| `transfer_between_agents(text,text,bigint,text,uuid)` | YES — confirmed | pay-500; agent→agent payments. See pay-500 todo. |
+| `record_agent_spend(text,bigint,text,text,text)` | LIKELY — **load-bearing** | agent spend logging — core to wallet/economy. If broken, spend tracking may be silently wrong (possibly related to the rivalscope negative-balance anomaly). Assess first. |
+| `search_corpus(vector,int,date,text[],int)` | LIKELY — **load-bearing** | pgvector knowledge-base search (gato_brain corpus probe, newsletter). |
+| `topup_agent_wallet(text,bigint)` | LIKELY — **load-bearing** | wallet top-ups. |
+| `next_newsletter_edition()` | LIKELY | newsletter edition numbering. |
+| `increment_problem_frequency(uuid,uuid[])` | LIKELY | economy_map / problem tracking. |
+| `get_scrape_stats()` | LIKELY | scraper stats. |
+| `compute_opportunity_score(int,int,timestamptz,text,text)` | MAYBE benign | may be pure math (no table refs) — check. |
+
+## How to audit / remediate
+
+Detection is now automated — `scripts/drift-check.sh` (RPC section) lists them on demand.
+For each function: confirm live-broken via `pg_get_functiondef`, then fix with either
+`ALTER FUNCTION … SET search_path = pg_catalog, public` (non-secdef, safe — the migration-035
+pattern) or schema-qualify all object references in the body (preserves hardening for secdef).
+Ship corrections as tracked migrations, re-run drift-check.sh to confirm zero remain.
+
+**Standing check now EXISTS** (`scripts/drift-check.sh` + migration 036 `gsd_drift_audit()`),
+built during the 04.1 closeout — run it before every deploy. Remediating the 8 is separate
+from detection.
 
 ## Why this matters
 
