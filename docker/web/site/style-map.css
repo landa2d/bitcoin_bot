@@ -146,3 +146,203 @@ body.technical [data-accent="gray"]   { --accent-tier: var(--accent-gray-on-dark
 .timeline-entry:not([data-source]) .timeline-source {
     display: none;
 }
+
+/* ── Phase 4 layout selectors — hub / block / status ────────── */
+/* Extend in place (D-19 / PATTERNS §4 — no style-hub.css split).
+   Layout only: flex / spacing / borders. TOKN-04 still in force — no
+   new font families/sizes outside the palette, no per-tier hex. Tier
+   accent resolves via var(--accent-tier) through the body.technical/
+   body.strategic × [data-accent] cascade (lines 33-43). */
+
+/* ── Nav Map Link (D-04) ────────────────────────────────────── */
+/* Markup contract: <a href="#/map" class="nav-map-link">Map</a> inside
+   .nav-left. Quiet text link, NOT a button, no active-state (v2). */
+.nav-map-link {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-decoration: none;
+    margin-left: 16px;
+}
+
+.nav-map-link:hover {
+    color: var(--text-primary);
+}
+
+/* ── Tier Label (D-13) ──────────────────────────────────────── */
+/* Markup contract: <h2 class="tier-label">SUBSTRATE</h2> — uppercase
+   tier heading above each group of tiles (hub + status). */
+.tier-label {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin: 32px 0 16px 0;
+}
+
+.tier-label:first-of-type {
+    margin-top: 8px;
+}
+
+/* ── Block Tile (D-14) ──────────────────────────────────────── */
+/* Markup contract: <a href="#/map/{slug}" data-accent="teal" class="block-tile">
+   <h3 class="tile-title">.. <p class="tile-subtitle">.. .maturity-pill</a>.
+   Whole anchor is the link target; tier accent = left-border stripe
+   via var(--accent-tier). No link underline. */
+.block-tile {
+    display: block;
+    padding: 16px 20px 16px 24px;
+    margin-bottom: 12px;
+    border-left: 3px solid var(--accent-tier);
+    text-decoration: none;
+    color: inherit;
+}
+
+.block-tile:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.block-tile .tile-title {
+    font-family: Georgia, serif;
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+}
+
+.block-tile .tile-subtitle {
+    font-family: 'Courier New', monospace;
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--text-body);
+    line-height: 1.5;
+}
+
+.block-tile .maturity-pill {
+    margin-top: 8px;
+    display: inline-flex;
+}
+
+/* ── Block Header (D-09) ────────────────────────────────────── */
+/* Markup contract: <header class="block-header" data-accent="teal">
+   <h1>{title}</h1> .maturity-pill</header>. Inline pill right-aligned;
+   <h1> inherits site H1 (Georgia 29px, TOKN-04); only margin pinned.
+   data-accent drives --accent-tier for the pill child. */
+.block-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.block-header h1 {
+    margin: 0;
+}
+
+/* ── Block Tension (D-10) ───────────────────────────────────── */
+/* Markup contract: <section class="block-tension">{escaped live_tension}
+   </section>. Editorial hook; rendered only when live_tension is not the
+   seed placeholder (Wave 2 plan 03 gates it). Accent via --accent-tier. */
+.block-tension {
+    padding: 16px 20px;
+    margin-bottom: 32px;
+    border-left: 3px solid var(--accent-tier);
+    font-family: Georgia, serif;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    font-style: italic;
+}
+
+/* ── Block Body (D-10) ──────────────────────────────────────── */
+/* Markup contract: <section class="block-body">{marked.parse(body_md)}
+   </section>. Synthesized prose; rendered only when current_body_version_id
+   is non-null (Wave 2 plan 03 gates it). Scopes site defaults (TOKN-04). */
+.block-body {
+    margin-bottom: 48px;
+    line-height: 1.7;
+}
+
+.block-body h2 {
+    font-family: Georgia, serif;
+    font-size: 21px;
+    margin: 32px 0 12px;
+}
+
+.block-body p {
+    margin-bottom: 14px;
+}
+
+/* ── Evolution (D-08, D-11) ─────────────────────────────────── */
+/* Markup contract: <section class="evolution"><h2>Evolution</h2>
+   <div id="evolution-entries">.timeline-entry...</div>.timeline-show-all
+   </section>. Timeline entries styled above (lines 96-141). */
+.evolution {
+    margin-top: 32px;
+}
+
+.evolution > h2 {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin: 0 0 16px 0;
+}
+
+/* ── Timeline Show-All (D-11) ───────────────────────────────── */
+/* Markup contract: <button class="timeline-show-all">Show all (N entries) ↓
+   </button>. One-shot expand when the capped query returns 30 rows. */
+.timeline-show-all {
+    display: block;
+    margin: 16px 0 0 0;
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--accent-tier, var(--text-secondary));
+    cursor: pointer;
+}
+
+.timeline-show-all:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+/* ── Status Row (D-15) ──────────────────────────────────────── */
+/* Markup contract: <div class="status-row" data-accent="teal">.maturity-pill
+   .status-title .status-subtitle <time class="status-synth"></div>. One-line
+   snapshot per block; accent left-border via var(--accent-tier); no link (v1). */
+.status-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 20px 12px 24px;
+    margin-bottom: 8px;
+    border-left: 3px solid var(--accent-tier);
+}
+
+.status-row .status-title {
+    font-family: Georgia, serif;
+    font-size: 17px;
+    color: var(--text-primary);
+}
+
+.status-row .status-subtitle {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    color: var(--text-body);
+    flex: 1;
+}
+
+.status-row .status-synth {
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
