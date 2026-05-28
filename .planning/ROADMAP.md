@@ -15,6 +15,7 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
 - [x] **Phase 2: `economy_map` Schema + Seven-Block Seed** - Isolated schema with append-only timeline and version tables, seven blocks seeded (completed 2026-05-27)
 - [x] **Phase 3: Design Tokens** - Tier accent CSS variables, maturity pill component, fixed timeline entry format (completed 2026-05-27)
 - [x] **Phase 4: Hub, Block, and Status Renderer** - Six-part block pages, hub with seven-block visual, status page, live-on-insert re-render (completed 2026-05-28)
+- [ ] **Phase 4.1: Prod↔Main Reconciliation + LLM-Proxy Governance Migration** - Infra interstitial: bring prod current with main, ship the file→DB governance migration atomically + fail-loud, establish a clean deploy baseline before Phase 5
 - [ ] **Phase 5: Intake Classifier + `unsorted` Handling** - Newsletter pipeline emits classified, traceable timeline entries via LLM proxy
 - [ ] **Phase 6: Telegram Read-Only Scaffolding** - `/map-status` and `/map-pending` give operator situational awareness
 - [ ] **Phase 7: Synthesis Loop Core** - Trigger evaluation, input assembly, Sonnet generation with hot-reloadable identity, draft writes
@@ -135,6 +136,19 @@ Plans:
 - [x] 04-06-deploy-and-verify-PLAN.md — scripts/deploy.sh web rule deploy + five-criterion end-to-end verification on aiagentspulse.com; produces 04-06-VERIFY.md (RNDR-04 runtime cross-surface check, RNDR-05)
 
 **UI hint**: yes
+
+### Phase 04.1: Prod↔Main Reconciliation + LLM-Proxy Governance Migration
+
+> **Deliberate infrastructure interstitial — NOT Phase-4 gap-closure.** Slotted after Phase 4 / before Phase 5 so a clean, reconciled deploy baseline exists before more feature code ships to prod. Driven by drift discovered during the Phase 4 deploy (see `.planning/todos/pending/2026-05-28-reconcile-prod-main-drift-and-close-the-gap.md`).
+
+**Goal:** Production matches `main` with no untracked drift, and per-agent spending governance is enforced from `agent_wallets_v2` — shipped as ONE atomic schema/data-then-code unit, with `proxy.py` failing loudly (refusing to serve) rather than silently running ungoverned if caps are absent ("the wallet bug all over again").
+**Requirements**: TBD (infra — define in discuss/plan: backfill `agent_wallets_v2` caps from `governance_config.json`, atomic governance migration, staged per-service deploy of accumulated drift, deploy guardrails)
+**Depends on:** Phase 4
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 04.1 to break down)
 
 ### Phase 5: Intake Classifier + `unsorted` Handling
 
