@@ -142,13 +142,23 @@ Plans:
 > **Deliberate infrastructure interstitial — NOT Phase-4 gap-closure.** Slotted after Phase 4 / before Phase 5 so a clean, reconciled deploy baseline exists before more feature code ships to prod. Driven by drift discovered during the Phase 4 deploy (see `.planning/todos/pending/2026-05-28-reconcile-prod-main-drift-and-close-the-gap.md`).
 
 **Goal:** Production matches `main` with no untracked drift, and per-agent spending governance is enforced from `agent_wallets_v2` — shipped as ONE atomic schema/data-then-code unit, with `proxy.py` failing loudly (refusing to serve) rather than silently running ungoverned if caps are absent ("the wallet bug all over again").
-**Requirements**: TBD (infra — define in discuss/plan: backfill `agent_wallets_v2` caps from `governance_config.json`, atomic governance migration, staged per-service deploy of accumulated drift, deploy guardrails)
+**Requirements**: Infra phase — no formal REQ-IDs. Coverage contract is the locked decisions D-01..D-09 (see `04.1-CONTEXT.md`); every decision is traceable to a plan below.
 **Depends on:** Phase 4
-**Plans:** 0 plans
+**Plans:** 3 plans
 
 Plans:
 
-- [ ] TBD (run /gsd-plan-phase 04.1 to break down)
+**Wave 1**
+
+- [ ] 04.1-01-PLAN.md — Build the governance unit (repo-side, autonomous): write migration `034_governance_caps_and_oncap_behavior.sql` (uncapped/on_cap_behavior/downgrade_map columns + event_type CHECK extension + exact D-01 cap backfill + uncapped sweep) and edit `proxy.py` for the D-03 fail-loud three-way cap contract + the D-02 downgrade action at both call sites; author `04.1-CANARY.md` (D-01..D-04, D-09)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 04.1-02-PLAN.md — Governance atomic cutover on PROD (NOT autonomous): apply migration 034 to live Supabase → deploy proxy.py via scoped `--force-rebuild llm-proxy` → run the canary gate (reject + gato downgrade + zero-behavior-change) BEFORE any other deploy; fixed D-08 order, D-05 gate (D-01, D-05, D-08)
+
+**Wave 3** *(blocked on Wave 2 canary PASS)*
+
+- [ ] 04.1-03-PLAN.md — Staged per-service deploy of accumulated drift (NOT autonomous): gato_brain → newsletter → processor → analyst → research → gato, one scoped `--force-rebuild <svc>` at a time with health gate between, lab-data-provider excluded; close the source todo + record the reconciled baseline (D-06, D-07)
 
 ### Phase 5: Intake Classifier + `unsorted` Handling
 
@@ -250,6 +260,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
 | 4. Hub, Block, and Status Renderer | 6/6 | Complete    | 2026-05-28 |
+| 4.1. Prod↔Main Reconciliation + Governance Migration | 0/3 | Not started | - |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
