@@ -14,7 +14,7 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
 - [x] **Phase 1: Render-Stack Diagnostic** - Audit how `aiagentspulse.com` is served and how new pages reach production; no code changes (completed 2026-05-26)
 - [x] **Phase 2: `economy_map` Schema + Seven-Block Seed** - Isolated schema with append-only timeline and version tables, seven blocks seeded (completed 2026-05-27)
 - [x] **Phase 3: Design Tokens** - Tier accent CSS variables, maturity pill component, fixed timeline entry format (completed 2026-05-27)
-- [ ] **Phase 4: Hub, Block, and Status Renderer** - Six-part block pages, hub with seven-block visual, status page, live-on-insert re-render
+- [x] **Phase 4: Hub, Block, and Status Renderer** - Six-part block pages, hub with seven-block visual, status page, live-on-insert re-render (completed 2026-05-28)
 - [ ] **Phase 5: Intake Classifier + `unsorted` Handling** - Newsletter pipeline emits classified, traceable timeline entries via LLM proxy
 - [ ] **Phase 6: Telegram Read-Only Scaffolding** - `/map-status` and `/map-pending` give operator situational awareness
 - [ ] **Phase 7: Synthesis Loop Core** - Trigger evaluation, input assembly, Sonnet generation with hot-reloadable identity, draft writes
@@ -132,7 +132,7 @@ Plans:
 
 **Wave 6** *(blocked on Waves 1-5)*
 
-- [ ] 04-06-deploy-and-verify-PLAN.md — scripts/deploy.sh web rule deploy + five-criterion end-to-end verification on aiagentspulse.com; produces 04-06-VERIFY.md (RNDR-04 runtime cross-surface check, RNDR-05)
+- [x] 04-06-deploy-and-verify-PLAN.md — scripts/deploy.sh web rule deploy + five-criterion end-to-end verification on aiagentspulse.com; produces 04-06-VERIFY.md (RNDR-04 runtime cross-surface check, RNDR-05)
 
 **UI hint**: yes
 
@@ -235,7 +235,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Render-Stack Diagnostic | 1/1 | Complete   | 2026-05-26 |
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
-| 4. Hub, Block, and Status Renderer | 5/6 | In Progress|  |
+| 4. Hub, Block, and Status Renderer | 6/6 | Complete   | 2026-05-28 |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
