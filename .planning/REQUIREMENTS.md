@@ -26,11 +26,11 @@
 
 ### Intake (autonomous)
 
-- [ ] **INTK-01**: Newsletter pipeline emits timeline candidates at the point an edition's events/clusters are finalized (each finalized tier-1 event)
-- [ ] **INTK-02**: Classifier (DeepSeek V3, routed via `llm-proxy:8200`) assigns `block_slug` and `tag_confidence` to each event
-- [ ] **INTK-03**: `tag_confidence ≥ 0.6` → write directly to that block's timeline; below → write to `unsorted`
-- [ ] **INTK-04**: Every entry carries `source_edition_id` for traceability
-- [ ] **INTK-05**: Append-only enforcement — corrections are new entries, never mutations of prior rows
+- [x] **INTK-01**: Newsletter pipeline emits timeline candidates at the point an edition's events/clusters are finalized (each finalized tier-1 event)
+- [x] **INTK-02**: Classifier (DeepSeek V3, routed via `llm-proxy:8200`) assigns `block_slug` and `tag_confidence` to each event
+- [x] **INTK-03**: `tag_confidence ≥ 0.6` → write directly to that block's timeline; below → write to `unsorted`
+- [x] **INTK-04**: Every entry carries `source_edition_id` for traceability
+- [x] **INTK-05**: Append-only enforcement — corrections are new entries, never mutations of prior rows
 
 ### Synthesis loop (per block, the autonomous core)
 
@@ -158,11 +158,11 @@ Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 | RNDR-05 | Phase 4 | Complete |
 | RNDR-06 | Phase 4 | Complete |
 | RNDR-07 | Phase 4 | Complete |
-| INTK-01 | Phase 5 | Pending |
-| INTK-02 | Phase 5 | Pending |
-| INTK-03 | Phase 5 | Pending |
-| INTK-04 | Phase 5 | Pending |
-| INTK-05 | Phase 5 | Pending |
+| INTK-01 | Phase 5 | Complete |
+| INTK-02 | Phase 5 | Complete |
+| INTK-03 | Phase 5 | Complete |
+| INTK-04 | Phase 5 | Complete |
+| INTK-05 | Phase 5 | Complete |
 | CMD-01 | Phase 6 | Pending |
 | CMD-02 | Phase 6 | Pending |
 | SYNT-01 | Phase 7 | Pending |

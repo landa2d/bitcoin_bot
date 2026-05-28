@@ -271,7 +271,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
 | 4. Hub, Block, and Status Renderer | 6/6 | Complete    | 2026-05-28 |
 | 4.1. Prod↔Main Reconciliation + Governance Migration | 3/3 | Complete    | 2026-05-28 |
-| 5. Intake Classifier + `unsorted` Handling | 3/3 | Complete   | 2026-05-28 |
+| 5. Intake Classifier + `unsorted` Handling | 3/3 | Complete    | 2026-05-28 |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
 | 8. Validation Sentinels | 0/TBD | Not started | - |
