@@ -9737,6 +9737,20 @@ def scheduled_surface_x_candidates():
         logger.error(f"X candidate surfacing failed: {e}")
 
 
+def scheduled_classify_intake():
+    """Intake classifier poll — emit timeline candidates for newly published editions.
+
+    Thin try/except wrapper around classify_intake_poller() (Plan 05-02). Runs in the
+    processor (D-01), not inline in the newsletter service. The poller's per-edition
+    idempotency skip (D-08) makes frequent polling cheap.
+    """
+    try:
+        result = classify_intake_poller()
+        logger.info(f"Intake classification: {result}")
+    except Exception as e:
+        logger.error(f"Intake classification failed: {e}")
+
+
 def scheduled_post_approved_x():
     """Poll for approved X content and post it."""
     try:
@@ -10150,6 +10164,9 @@ def setup_scheduler():
     schedule.every().friday.at("12:00").do(scheduled_notify_newsletter)
     schedule.every().monday.at("11:00").do(scheduled_auto_publish_newsletter)
     schedule.every().monday.at("11:15").do(lambda: retry_failed_emails())
+    # INTAKE — after publish, emit economy_map timeline candidates per published edition (Plan 05-02, D-01).
+    #   Every 30 min: editions publish weekly, and the per-edition idempotency skip (D-08) makes frequent polling cheap.
+    schedule.every(30).minutes.do(scheduled_classify_intake)
 
     # Recurring analysis & extraction
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
