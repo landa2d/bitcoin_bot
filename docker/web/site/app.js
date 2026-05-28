@@ -576,9 +576,81 @@ async function expandTimeline() {
     if (btn) btn.remove();  // one-shot per D-11
 }
 
+// Status page — the maturity snapshot surface (RNDR-03). Reads the SAME
+// economy_map.blocks source as the hub (RNDR-04 one source of truth), trimmed to
+// the columns a status row needs (drops live_tension + current_body_version_id
+// vs loadHub). Per D-15 rows are non-clickable divs; per D-17 NO defensive
+// .eq('status', ...) filter — RLS is the boundary.
 async function loadStatus() {
     showView('status');
-    /* renderer in Wave 2 plan 04 */
+
+    var { data, error } = await sb
+        .schema('economy_map')
+        .from('blocks')
+        .select('slug,title,subtitle,accent,tier,sort_order,maturity,last_synthesized_at')
+        .order('sort_order', { ascending: true });
+
+    if (error || !data || data.length === 0) {
+        document.getElementById('status-content').innerHTML = '<p style="color:var(--text-secondary);font-size:15px;padding:20px 24px;">Status data unavailable.</p>';
+        updateHero(STATUS_PAGE_HEADER, '');
+        console.error('loadStatus error:', error);
+        return;
+    }
+
+    // Stash for symmetry with the other loaders (status has no re-render hooks in
+    // v1 — no setMode dependency, no poll — but the assignment matches the pattern).
+    window.currentStatusBlocks = data;
+
+    // Hero per D-02: STATUS_PAGE_HEADER + 'updated <NOW>'. If the operator finds
+    // the "updated NOW" affordance noisy, that is a CSS-only follow-up.
+    updateHero(STATUS_PAGE_HEADER, 'updated ' + formatDate(new Date().toISOString()));
+
+    renderStatus(data);
+}
+
+// Status renderer — one snapshot row per block, tier-grouped (D-15). Same three
+// sections as the hub. Rows are <div>s, NOT links (status is the snapshot
+// surface; the hub is navigation). Reuses the module-scoped renderMaturityPill.
+function renderStatus(data) {
+    // Group by tier the same way renderHub does. The query is already
+    // sort_order-ascending, so each filtered array preserves seed order.
+    var substrateBlocks = data.filter(function(b) { return b.tier === 'substrate'; });
+    var behaviorBlocks = data.filter(function(b) { return b.tier === 'behavior'; });
+    var frameBlocks = data.filter(function(b) { return b.tier === 'frame'; });
+
+    // Single row (D-15): pill + title + (optional) subtitle + synth timestamp.
+    // data-accent drives the left-border stripe via the --accent-tier cascade.
+    // Every DB string and the computed synthText passes through escapeHtml.
+    function renderStatusRow(b) {
+        var synthText = b.last_synthesized_at
+            ? 'synthesized ' + formatDate(b.last_synthesized_at)
+            : 'never synthesized';
+        return '<div class="status-row" data-accent="' + escapeHtml(b.accent) + '">' +
+                   renderMaturityPill(b) +
+                   '<div class="status-title">' + escapeHtml(b.title) + '</div>' +
+                   (b.subtitle ? '<div class="status-subtitle">' + escapeHtml(b.subtitle) + '</div>' : '') +
+                   '<time class="status-synth">' + escapeHtml(synthText) + '</time>' +
+               '</div>';
+    }
+
+    // Tier section wrapper — <section class="tier-section"> with a
+    // <h2 class="tier-label"> heading, same as renderHub. Skip empty arrays
+    // (defensive — the seed always fills all three tiers).
+    function tierSection(label, blocks) {
+        if (!blocks.length) return '';
+        return '<section class="tier-section">' +
+                   '<h2 class="tier-label">' + label + '</h2>' +
+                   blocks.map(renderStatusRow).join('') +
+               '</section>';
+    }
+
+    var html =
+        tierSection(TIER_LABELS.substrate, substrateBlocks) +
+        tierSection(TIER_LABELS.behavior, behaviorBlocks) +
+        tierSection(TIER_LABELS.frame, frameBlocks);
+
+    document.getElementById('status-content').innerHTML = html;
+    window.scrollTo(0, 0);
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
