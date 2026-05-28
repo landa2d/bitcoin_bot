@@ -112,7 +112,7 @@
   },
   "block_pipeline": {
     "enabled": false,
-    "ab_comparison": false,
+    "ab_comparison": true,
     "model_prepass": "claude-sonnet-4-20250514",
     "model_structure": "claude-sonnet-4-20250514",
     "model_prose": "claude-sonnet-4-20250514",
