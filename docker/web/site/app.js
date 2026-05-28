@@ -59,6 +59,9 @@ function getInitialMode() {
 
 var currentMode = getInitialMode();
 
+// D-11: whether Show all was clicked; reset on each loadBlock() entry; read by the Wave 3 idle poll.
+var timelineExpanded = false;
+
 function setMode(mode) {
     if (!MODES[mode]) return;
     currentMode = mode;
@@ -335,6 +338,18 @@ function getModeContent(data) {
     return data.content_markdown || '';
 }
 
+// Maturity pill — canonical tokens-preview.html markup (lines 78-82): ALWAYS
+// exactly 5 seg children; CSS keys the fill off data-stage. MATURITY_STAGE
+// resolves the enum; || 1 guards an unexpected value (renders as nascent).
+// Module-scoped so renderHub() (plan 04-02) and renderBlock() (plan 04-03)
+// share one definition — the only Phase-4-owned pill token site.
+function renderMaturityPill(b) {
+    var stage = MATURITY_STAGE[b.maturity] || 1;
+    return '<div class="maturity-pill" data-accent="' + escapeHtml(b.accent) + '" data-stage="' + stage + '" aria-label="Maturity: ' + escapeHtml(b.maturity) + ' (' + stage + ' of 5)">' +
+               '<span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>' +
+           '</div>';
+}
+
 // ─── Map Loaders (Phase 4 — stubs; renderers ship in Wave 2) ──────────────────
 
 // Stub loaders so route() resolves without ReferenceError. Each flips view
@@ -389,15 +404,8 @@ function renderHub(data) {
                '</a>';
     }
 
-    // 4. Maturity pill — canonical tokens-preview.html markup: ALWAYS exactly 5
-    //    seg children; CSS keys the fill off data-stage. MATURITY_STAGE resolves
-    //    the enum; || 1 guards an unexpected value (renders as nascent).
-    function renderMaturityPill(b) {
-        var stage = MATURITY_STAGE[b.maturity] || 1;
-        return '<div class="maturity-pill" data-accent="' + escapeHtml(b.accent) + '" data-stage="' + stage + '" aria-label="Maturity: ' + escapeHtml(b.maturity) + ' (' + stage + ' of 5)">' +
-                   '<span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>' +
-               '</div>';
-    }
+    // 4. Maturity pill is now a module-scoped helper (renderMaturityPill, defined
+    //    near escapeHtml/formatDate) shared by renderHub + renderBlock (plan 04-03).
 
     // 5. Tier section wrapper — emits a <section class="tier-section"> with a
     //    <h2 class="tier-label"> heading followed by the joined tiles. Skips an
@@ -425,7 +433,147 @@ function renderHub(data) {
 
 async function loadBlock(slug) {
     showView('block');
-    /* renderer in Wave 2 plan 03 */
+
+    // D-11: reset expand state on every entry into a block page. The Wave 3
+    // idle poll (plan 04-05) reads this flag to choose limit(30) vs unbounded.
+    timelineExpanded = false;
+
+    // Fire the blocks-row + timeline-entries queries in parallel (D-16). Per
+    // D-17 NO defensive filters: no .eq('status', 'published') on blocks, no
+    // .neq('block_slug', 'unsorted') on timeline — RLS is the boundary. The
+    // .eq('block_slug', slug) filter is functional scoping, not security.
+    var blockRes, timelineRes;
+    var pair = await Promise.all([
+        sb.schema('economy_map').from('blocks').select('*').eq('slug', slug).single(),
+        sb.schema('economy_map').from('timeline_entries').select('block_slug,event_date,what_shifted,why_it_mattered,source_url').eq('block_slug', slug).order('event_date', { ascending: false }).limit(30)
+    ]);
+    blockRes = pair[0];
+    timelineRes = pair[1];
+
+    if (blockRes.error || !blockRes.data) {
+        document.getElementById('block-content').innerHTML = '<p style="color:var(--text-secondary);">Block not found.</p>';
+        updateHero('Block Not Found', '');
+        console.error('loadBlock error:', blockRes.error);
+        return;
+    }
+
+    // Timeline query failures degrade gracefully — the block still renders, just
+    // without Evolution entries.
+    var timelineEntries = (timelineRes.error || !timelineRes.data) ? [] : timelineRes.data;
+
+    // Conditionally fetch the published body (D-10 / D-17). Per D-17 NO
+    // .eq('status', 'published') — RLS only exposes published versions to anon.
+    // If the FK target doesn't satisfy RLS, this returns null and we fall through
+    // to the body-hidden path.
+    var bodyMd = null;
+    if (blockRes.data.current_body_version_id) {
+        var bodyRes = await sb.schema('economy_map').from('block_body_versions').select('body_md').eq('id', blockRes.data.current_body_version_id).single();
+        if (!bodyRes.error && bodyRes.data) bodyMd = bodyRes.data.body_md;
+    }
+
+    // Stash for the Wave 3 idle poll (plan 04-05).
+    window.currentBlock = blockRes.data;
+    window.currentTimelineEntries = timelineEntries;
+
+    // Hero per D-02: title + ('synthesized ' + date) when non-null, else no date.
+    var dateText = blockRes.data.last_synthesized_at ? 'synthesized ' + formatDate(blockRes.data.last_synthesized_at) : '';
+    updateHero(blockRes.data.title, dateText);
+
+    renderBlock(blockRes.data, bodyMd, timelineEntries);
+    window.scrollTo(0, 0);
+}
+
+// Six-part block-page composition (D-08): Title → tension → body → Evolution.
+function renderBlock(block, bodyMd, entries) {
+    // A. Header — always renders. D-09 inline pill, right-aligned (CSS). The
+    //    header carries data-accent so the cascade resolves --accent-tier for
+    //    the pill child.
+    var headerHtml =
+        '<header class="block-header" data-accent="' + escapeHtml(block.accent) + '">' +
+            '<h1>' + escapeHtml(block.title) + '</h1>' +
+            renderMaturityPill(block) +
+        '</header>';
+
+    // B. Tension — D-10 quiet hide when the seed placeholder. Exact-string match
+    //    against LIVE_TENSION_PLACEHOLDER (Phase 2 D-21 em-dash U+2014).
+    var tensionHtml = '';
+    if (block.live_tension && block.live_tension !== LIVE_TENSION_PLACEHOLDER) {
+        tensionHtml = '<section class="block-tension">' + escapeHtml(block.live_tension) + '</section>';
+    }
+
+    // C. Body — D-10 hide when null/missing; D-18 marked.parse (the only path
+    //    that bypasses escapeHtml — same precedent as renderArticle()). Residual
+    //    XSS-via-markdown accepted under threat T-04-03-01; the Phase 9 publish
+    //    gate (operator approval) is the compensating control.
+    var bodyHtml = '';
+    if (bodyMd) {
+        bodyHtml = '<section class="block-body">' + marked.parse(bodyMd) + '</section>';
+    }
+
+    // D. Evolution — always renders (even with zero entries). Newest-first per
+    //    RNDR-07 (the .order() clause already sorted the array). 30-cap +
+    //    show-all per D-11: the button appears only when the result hit the cap
+    //    and we are not already expanded.
+    var evolutionHtml =
+        '<section class="evolution">' +
+            '<h2>Evolution</h2>' +
+            '<div id="evolution-entries">' + renderTimelineEntries(entries, timelineExpanded) + '</div>' +
+            (entries.length === 30 && !timelineExpanded
+                ? '<button class="timeline-show-all" onclick="expandTimeline()">Show all (' + entries.length + ' or more) ↓</button>'
+                : '') +
+        '</section>';
+
+    // E. Compose. The ← Map back-link lives in the static plan-04-01 markup
+    //    (sibling to #block-content), so the renderer does not emit it.
+    document.getElementById('block-content').innerHTML = headerHtml + tensionHtml + bodyHtml + evolutionHtml;
+}
+
+// Evolution entry list — matches tokens-preview.html lines 114-125 (with source)
+// and 128-137 (without source). Newest-first ordering is already in the array.
+// Factored out so the Wave 3 idle poll (plan 04-05) can re-use it.
+function renderTimelineEntries(entries, expanded) {
+    if (!entries || entries.length === 0) {
+        // Graceful empty state — distinct from D-10 hide-section; Evolution always
+        // renders per D-08, just with this message when there are no entries yet.
+        return '<p style="color:var(--text-secondary);">No timeline entries yet.</p>';
+    }
+    return entries.map(function(e) {
+        var hasSource = (typeof e.source_url === 'string' && e.source_url.length > 0);
+        // event_date already goes through formatDate; defensively escapeHtml the
+        // result. what_shifted / why_it_mattered / source_url all escaped.
+        var dateText = escapeHtml(formatDate(e.event_date));
+        var line1 =
+            '<div class="timeline-line1">' +
+                '<time class="timeline-date">' + dateText + '</time>' +
+                '<span class="timeline-sep">·</span>' +
+                '<span class="timeline-what">' + escapeHtml(e.what_shifted) + '</span>' +
+            '</div>';
+        var line2Inner = '<span class="timeline-why">' + escapeHtml(e.why_it_mattered) + '</span>';
+        if (hasSource) {
+            line2Inner += '<a class="timeline-source" href="' + escapeHtml(e.source_url) + '" target="_blank" rel="noopener noreferrer">source ↗</a>';
+        }
+        var line2 = '<div class="timeline-line2">' + line2Inner + '</div>';
+        // Source-null variant omits the data-source attribute entirely (T-04-03-03;
+        // style-map.css lines 91-94 contract).
+        var open = hasSource
+            ? '<article class="timeline-entry" data-source="' + escapeHtml(e.source_url) + '">'
+            : '<article class="timeline-entry">';
+        return open + line1 + line2 + '</article>';
+    }).join('');
+}
+
+// Show-all expand (D-11) — one-shot. Top-level declaration so the inline
+// onclick="expandTimeline()" can reach it (matches scrollToSubscribe pattern).
+async function expandTimeline() {
+    if (!window.currentBlock) return;
+    timelineExpanded = true;
+    var slug = window.currentBlock.slug;
+    var res = await sb.schema('economy_map').from('timeline_entries').select('block_slug,event_date,what_shifted,why_it_mattered,source_url').eq('block_slug', slug).order('event_date', { ascending: false });
+    if (res.error || !res.data) return;
+    window.currentTimelineEntries = res.data;
+    document.getElementById('evolution-entries').innerHTML = renderTimelineEntries(res.data, true);
+    var btn = document.querySelector('.timeline-show-all');
+    if (btn) btn.remove();  // one-shot per D-11
 }
 
 async function loadStatus() {
