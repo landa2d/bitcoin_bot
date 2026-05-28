@@ -178,7 +178,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Foundation contracts: config confidence floor (D-06); `economy_map` PostgREST insert/existence-check helpers (no Python analog); proxy-routed `classify_intake_event()` + `INTAKE_CLASSIFIER_PROMPT` returning `block_slug` + `tag_confidence` via `http://llm-proxy:8200` (INTK-02)
+- [x] 05-01-PLAN.md — Foundation contracts: config confidence floor (D-06); `economy_map` PostgREST insert/existence-check helpers (no Python analog); proxy-routed `classify_intake_event()` + `INTAKE_CLASSIFIER_PROMPT` returning `block_slug` + `tag_confidence` via `http://llm-proxy:8200` (INTK-02)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -271,7 +271,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
 | 4. Hub, Block, and Status Renderer | 6/6 | Complete    | 2026-05-28 |
 | 4.1. Prod↔Main Reconciliation + Governance Migration | 3/3 | Complete    | 2026-05-28 |
-| 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
+| 5. Intake Classifier + `unsorted` Handling | 1/3 | In Progress|  |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
 | 8. Validation Sentinels | 0/TBD | Not started | - |
