@@ -1,10 +1,13 @@
 ---
 id: cr-01-source-url-scheme-validation
 created: 2026-05-28
+resolved: 2026-05-28
+status: resolved
 severity: critical
 source: 04-REVIEW.md (CR-01)
-resolves_phase: 5
+resolves_phase: 4
 tags: [security, xss, frontend]
+resolution: "Fixed in commit 2e20612 — added safeHttpUrl() http(s) allowlist; renderTimelineEntries gates href + data-source on it. Re-review confirms critical: 0. Deployed to prod web container."
 ---
 
 # CR-01: Validate timeline_entries.source_url scheme before rendering
