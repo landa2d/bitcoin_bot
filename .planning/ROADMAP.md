@@ -128,7 +128,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 3)*
 
-- [ ] 04-05-idle-poll-lifecycle-PLAN.md — Visibility-aware 60s idle poll on block pages; timeline_entries only; hashchange cleanup; respects expand-state (RNDR-06)
+- [x] 04-05-idle-poll-lifecycle-PLAN.md — Visibility-aware 60s idle poll on block pages; timeline_entries only; hashchange cleanup; respects expand-state (RNDR-06)
 
 **Wave 6** *(blocked on Waves 1-5)*
 
@@ -235,7 +235,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 1. Render-Stack Diagnostic | 1/1 | Complete   | 2026-05-26 |
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
-| 4. Hub, Block, and Status Renderer | 4/6 | In Progress|  |
+| 4. Hub, Block, and Status Renderer | 5/6 | In Progress|  |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
