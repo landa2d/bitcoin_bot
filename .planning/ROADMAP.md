@@ -150,7 +150,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 04.1-01-PLAN.md — Build the governance unit (repo-side, autonomous): write migration `034_governance_caps_and_oncap_behavior.sql` (uncapped/on_cap_behavior/downgrade_map columns + event_type CHECK extension + exact D-01 cap backfill + uncapped sweep) and edit `proxy.py` for the D-03 fail-loud three-way cap contract + the D-02 downgrade action at both call sites; author `04.1-CANARY.md` (D-01..D-04, D-09)
+- [x] 04.1-01-PLAN.md — Build the governance unit (repo-side, autonomous): write migration `034_governance_caps_and_oncap_behavior.sql` (uncapped/on_cap_behavior/downgrade_map columns + event_type CHECK extension + exact D-01 cap backfill + uncapped sweep) and edit `proxy.py` for the D-03 fail-loud three-way cap contract + the D-02 downgrade action at both call sites; author `04.1-CANARY.md` (D-01..D-04, D-09) ✅ 2026-05-28 (SUMMARY: 04.1-01-SUMMARY.md)
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -260,7 +260,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
 | 4. Hub, Block, and Status Renderer | 6/6 | Complete    | 2026-05-28 |
-| 4.1. Prod↔Main Reconciliation + Governance Migration | 0/3 | Not started | - |
+| 4.1. Prod↔Main Reconciliation + Governance Migration | 1/3 | In progress | - |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
