@@ -323,12 +323,29 @@ def _get_spending_window_total(agent_name: str, window: str) -> int:
 def check_governance(agent_name: str, model: str, balance_after: int) -> dict:
     """
     Run governance checks AFTER reserve_balance succeeds.
-    Returns dict with 'action' key: 'allow', 'reject', or 'downgrade'.
-    Governance events fire regardless of action.
+    Returns dict with 'action' key, one of:
+      - 'allow':     proceed unchanged.
+      - 'reject':    refuse the call (fail-loud) — caller refunds the reservation
+                     and returns a 429 governance_error.
+      - 'downgrade': re-route to {'new_model': <model>} (gato sonnet->deepseek on cap).
+
+    FAIL-LOUD CONTRACT (D-03/D-04): a null/absent/zero spending_cap_sats that is NOT
+    explicitly uncapped=TRUE is illegal — it returns 'reject' and emits a loud
+    'cap_missing' governance_event. We NEVER fall through to 'allow' for a missing cap
+    or an unknown agent. The ONLY legal uncapped path is the explicit uncapped column.
+    Governance events fire regardless of action. (Governance is DB-only — there is no
+    static-file fallback; agent_wallets_v2 is the sole source of truth, per D-09.)
     """
     wallet = _get_wallet(agent_name)
+    # (A) D-03: an unknown agent (no wallet row) is the illegal-ambiguous case, not a
+    # silent allow. Reject + emit the loud fail-loud event. Event_type 'cap_missing'
+    # MUST match migration 034's whitelisted CHECK value or the insert is silently dropped.
     if not wallet:
-        return {"action": "allow"}
+        _emit_governance_event(agent_name, "cap_missing", {
+            "reason": "unknown agent — no wallet row",
+            "model": model,
+        })
+        return {"action": "reject", "reason": f"No wallet/governance record for agent {agent_name}"}
 
     total_deposited = wallet.get("total_deposited_sats", 0)
 
@@ -345,10 +362,16 @@ def check_governance(agent_name: str, model: str, balance_after: int) -> dict:
             "total_deposited_sats": total_deposited,
         })
 
-    # --- Spending cap check ---
+    # --- Spending cap check (D-03/D-04 three-way contract) ---
     cap_sats = wallet.get("spending_cap_sats")
     cap_window = wallet.get("spending_cap_window", "daily")
-    if cap_sats and cap_sats > 0:
+
+    # (B.1) Explicit uncapped opt-in (D-04) — the only legal uncapped path. Allow, no event.
+    if wallet.get("uncapped", False):
+        return {"action": "allow"}
+
+    # (B.2) A real positive cap — enforce exactly as before, with the downgrade branch added.
+    if isinstance(cap_sats, int) and cap_sats > 0:
         window_total = _get_spending_window_total(agent_name, cap_window)
         if window_total >= cap_sats:
             _emit_governance_event(agent_name, "cap_hit", {
@@ -357,12 +380,45 @@ def check_governance(agent_name: str, model: str, balance_after: int) -> dict:
                 "window_total_sats": window_total,
                 "model": model,
             })
-            # For internal agents (allow_negative), alert but don't reject
+            # (C) Downgrade action (D-02): if this agent is configured to downgrade on cap
+            # and the current model maps to a valid downgrade target, re-route instead of
+            # rejecting. gato is the only agent with on_cap_behavior='downgrade'.
+            on_cap_behavior = wallet.get("on_cap_behavior", "reject")
+            downgrade_map = wallet.get("downgrade_map") or {}
+            if on_cap_behavior == "downgrade":
+                target = downgrade_map.get(model)
+                if target and target in MODEL_ROUTES:
+                    _emit_governance_event(agent_name, "model_downgrade", {
+                        "from_model": model,
+                        "to_model": target,
+                        "spending_cap_sats": cap_sats,
+                        "window": cap_window,
+                        "window_total_sats": window_total,
+                    })
+                    return {
+                        "action": "downgrade",
+                        "new_model": target,
+                        "reason": f"Spending cap exceeded ({window_total}/{cap_sats} sats in {cap_window} window) — downgraded {model} -> {target}",
+                    }
+                # downgrade configured but no valid target for this model -> fall through to reject.
+            # For internal agents (allow_negative), alert but don't reject — ONLY inside this
+            # real-cap branch (B.3 below must NOT re-open the missing-cap hole via allow_negative).
             if not wallet.get("allow_negative", False):
                 return {"action": "reject", "reason": f"Spending cap exceeded ({window_total}/{cap_sats} sats in {cap_window} window)"}
-            # Internal agents: log but allow through
+            # Internal agents on a real cap: log but allow through.
+        return {"action": "allow"}
 
-    return {"action": "allow"}
+    # (B.3) D-03 FAIL-LOUD: cap is None/0/absent AND not uncapped -> reject + loud event.
+    # This is the line-351 silent no-op killed. allow_negative does NOT rescue this case.
+    _emit_governance_event(agent_name, "cap_missing", {
+        "reason": "missing spending cap and not uncapped",
+        "model": model,
+        "spending_cap_sats": cap_sats,
+    })
+    return {
+        "action": "reject",
+        "reason": f"Agent {agent_name} has no spending cap and is not marked uncapped — refusing to serve (fail-loud)",
+    }
 
 
 # ─── Wallet operations ───────────────────────────────────────────────────────
@@ -767,6 +823,49 @@ async def proxy_openai_compatible(
                 status_code=429,
                 content={"error": {"message": gov.get("reason", "Governance limit reached"), "type": "governance_error"}},
             )
+        elif gov["action"] == "downgrade":
+            # D-02 downgrade. Both deepseek and openai providers share the OpenAI-compatible
+            # /chat/completions shape, so a downgrade target on this path can be served inline.
+            # Rebind the locals BEFORE building the upstream request, then re-run the
+            # allowed-models + provider-key checks against the NEW model.
+            new_model = gov["new_model"]
+            new_route = MODEL_ROUTES.get(new_model)
+            if not new_route:
+                settle_balance(agent_name, estimated_sats, 0)  # refund
+                return JSONResponse(
+                    status_code=502,
+                    content={"error": {"message": f"Downgrade target {new_model} has no route", "type": "proxy_error"}},
+                )
+            if allowed and new_model not in allowed:
+                settle_balance(agent_name, estimated_sats, 0)  # refund
+                return JSONResponse(
+                    status_code=403,
+                    content={"error": {"message": f"Downgrade target {new_model} not allowed for agent {agent_name}", "type": "permission_error"}},
+                )
+            new_provider_key = _get_provider_key(new_route["env_key"])
+            if not new_provider_key:
+                settle_balance(agent_name, estimated_sats, 0)  # refund
+                return JSONResponse(
+                    status_code=502,
+                    content={"error": {"message": f"Provider key not configured for {new_route['provider']}", "type": "proxy_error"}},
+                )
+            # Reservation reconciliation: governance runs AFTER reserve_balance, so the
+            # reservation was made at the OLD model's estimate. Refund the old reservation
+            # fully (settle at 0) and reserve fresh at the new model's estimate so the wallet
+            # is charged for what is actually served. Simplest correct reconciliation.
+            settle_balance(agent_name, estimated_sats, 0)  # refund old-model reservation
+            new_estimated = ESTIMATED_COST_SATS.get(new_model, 5)
+            success, balance = reserve_balance(agent_name, new_estimated, allow_negative)
+            if not success:
+                return JSONResponse(
+                    status_code=402,
+                    content={"error": {"message": f"Insufficient balance ({balance} sats) after downgrade", "type": "balance_error"}},
+                )
+            model = new_model
+            route = new_route
+            provider_key = new_provider_key
+            estimated_sats = new_estimated
+            body["model"] = new_model
 
     # Check if streaming
     is_streaming = body.get("stream", False) and endpoint_type == "chat"
@@ -963,6 +1062,59 @@ async def proxy_anthropic(request: Request) -> Response:
                 status_code=429,
                 content={"error": {"message": gov.get("reason", "Governance limit reached"), "type": "governance_error"}},
             )
+        elif gov["action"] == "downgrade":
+            # E) CROSS-PROVIDER/ENDPOINT HAZARD (D-02). gato's only downgrade is
+            # claude-sonnet-4-20250514 (anthropic, /v1/messages, anthropic body) ->
+            # deepseek-chat (deepseek, /chat/completions, OpenAI body). We CANNOT rebind
+            # `route` and keep posting the anthropic body to a deepseek URL. A clean
+            # anthropic->OpenAI body translation is out of scope here, so we take the
+            # typed-redirect option: refund the reservation, surface the model_downgrade
+            # (already emitted by check_governance so it is auditable), and return a typed
+            # 429 telling the caller to retry the downgraded model on the chat endpoint.
+            # This is NOT a silent sonnet pass-through and NOT a plain reject — the canary
+            # (Plan 02) observes the model_downgrade event + the redirect.
+            new_model = gov["new_model"]
+            new_route = MODEL_ROUTES.get(new_model)
+            settle_balance(agent_name, estimated_sats, 0)  # refund — request is not served here
+            same_provider = bool(new_route) and new_route.get("provider") == route.get("provider")
+            if same_provider:
+                # Defensive: if a future downgrade target is itself an anthropic model,
+                # rebind inline (same endpoint/body shape) instead of redirecting.
+                new_provider_key = _get_provider_key(new_route["env_key"])
+                if (not allowed or new_model in allowed) and new_provider_key:
+                    new_estimated = ESTIMATED_COST_SATS.get(new_model, 80)
+                    success, balance = reserve_balance(agent_name, new_estimated, allow_negative)
+                    if not success:
+                        return JSONResponse(
+                            status_code=402,
+                            content={"error": {"message": f"Insufficient balance ({balance} sats) after downgrade", "type": "balance_error"}},
+                        )
+                    model = new_model
+                    route = new_route
+                    provider_key = new_provider_key
+                    estimated_sats = new_estimated
+                    body["model"] = new_model
+                else:
+                    return JSONResponse(
+                        status_code=429,
+                        content={"error": {
+                            "message": gov.get("reason", "Model downgraded"),
+                            "type": "governance_downgrade",
+                            "new_model": new_model,
+                            "retry_endpoint": "/v1/chat/completions",
+                        }},
+                    )
+            else:
+                # Cross-provider downgrade (the gato sonnet->deepseek case): typed redirect.
+                return JSONResponse(
+                    status_code=429,
+                    content={"error": {
+                        "message": gov.get("reason", "Model downgraded — retry on the chat endpoint"),
+                        "type": "governance_downgrade",
+                        "new_model": new_model,
+                        "retry_endpoint": "/v1/chat/completions",
+                    }},
+                )
 
     is_streaming = body.get("stream", False)
 
@@ -1269,9 +1421,18 @@ def _wallet_summary_sync(agent_name: str, start, end, period_label: str) -> dict
     cap_sats = wallet.get("spending_cap_sats")
     cap_window = wallet.get("spending_cap_window")
     utilization = None
-    if cap_sats and cap_sats > 0:
+    # Reporting only (not enforcement): surface the new governance state instead of
+    # silently leaving utilization = None for a null cap. A null cap that is explicitly
+    # uncapped reports "uncapped"; a null cap that is NOT uncapped is MISCONFIGURED
+    # (the fail-loud state the proxy now rejects).
+    cap_status = "capped"
+    if isinstance(cap_sats, int) and cap_sats > 0:
         window_spent = _get_spending_window_total(agent_name, cap_window or "daily")
         utilization = round((window_spent / cap_sats) * 100, 1)
+    elif wallet.get("uncapped", False):
+        cap_status = "uncapped"
+    else:
+        cap_status = "MISCONFIGURED"
 
     # Governance event counts
     gov_total = len(gov_result)
@@ -1293,6 +1454,7 @@ def _wallet_summary_sync(agent_name: str, start, end, period_label: str) -> dict
         "avg_cost_per_call_sats": avg_cost,
         "models_used": dict(models_used.most_common()),
         "budget_utilization_pct": utilization,
+        "cap_status": cap_status,
         "spending_cap_sats": cap_sats,
         "spending_cap_window": cap_window,
         "cap_hits_in_period": cap_hits,
