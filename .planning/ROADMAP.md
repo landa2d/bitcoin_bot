@@ -182,7 +182,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 05-02-PLAN.md — Intake poller: read `published` editions → tier-1 `premium_source_posts` events → classify → route by floor (`>=0.6` block / below → `unsorted`; error → `unsorted` NULL confidence) → INSERT with `source_edition_id`; idempotent per edition; registered on the processor schedule (INTK-01, INTK-03, INTK-04)
+- [x] 05-02-PLAN.md — Intake poller: read `published` editions → tier-1 `premium_source_posts` events → classify → route by floor (`>=0.6` block / below → `unsorted`; error → `unsorted` NULL confidence) → INSERT with `source_edition_id`; idempotent per edition; registered on the processor schedule (INTK-01, INTK-03, INTK-04)
 - [ ] 05-03-PLAN.md — Verification tests: prove `timeline_entries` UPDATE+DELETE fail (INTK-05 / append-only trigger still holds), below-floor → `unsorted` with recorded confidence, classifier-error → `unsorted` with NULL confidence (D-05)
 
 ### Phase 6: Telegram Read-Only Scaffolding
@@ -271,7 +271,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
 | 4. Hub, Block, and Status Renderer | 6/6 | Complete    | 2026-05-28 |
 | 4.1. Prod↔Main Reconciliation + Governance Migration | 3/3 | Complete    | 2026-05-28 |
-| 5. Intake Classifier + `unsorted` Handling | 1/3 | In Progress|  |
+| 5. Intake Classifier + `unsorted` Handling | 2/3 | In Progress|  |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
 | 8. Validation Sentinels | 0/TBD | Not started | - |
