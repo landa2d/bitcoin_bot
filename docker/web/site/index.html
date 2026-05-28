@@ -14,6 +14,7 @@
         <div class="nav-left">
             <span class="nav-dot"></span>
             <span class="nav-logo">AGENTPULSE</span>
+            <a href="#/map" class="nav-map-link">Map</a>
         </div>
         <button class="btn-subscribe-primary" onclick="scrollToSubscribe()">SUBSCRIBE</button>
     </nav>
@@ -42,6 +43,24 @@
                 <a href="#/" class="back-link">&larr; All editions</a>
                 <article id="newsletter-content"></article>
             </div>
+        </div>
+
+        <!-- Map (hub) view -->
+        <div id="map-view" style="display:none">
+            <div class="content-area"></div>
+        </div>
+
+        <!-- Block (single-block page) view -->
+        <div id="block-view" style="display:none">
+            <div class="content-area">
+                <a href="#/map" class="back-link">&larr; Map</a>
+                <div id="block-content"></div>
+            </div>
+        </div>
+
+        <!-- Status (maturity snapshot) view -->
+        <div id="status-view" style="display:none">
+            <div class="content-area" id="status-content"></div>
         </div>
     </main>
 
