@@ -98,6 +98,10 @@
     "min_source_tiers": 1,
     "max_queue_items": 1
   },
+  "intake_classifier": {
+    "enabled": true,
+    "confidence_floor": 0.6
+  },
   "analysis": {
     "model": "gpt-4o",
     "max_tokens": 4000,
