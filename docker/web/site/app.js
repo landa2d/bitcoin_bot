@@ -342,7 +342,85 @@ function getModeContent(data) {
 // plug in the data + markup.
 async function loadHub() {
     showView('map');
-    /* renderer in Wave 2 plan 02 */
+
+    // Single query — read all seven blocks ordered by sort_order. Per D-16 use
+    // sb.schema('economy_map') so supabase-js sets Accept-Profile automatically.
+    // Per D-17 NO defensive .eq('status', ...) filter — RLS is the boundary.
+    var { data, error } = await sb
+        .schema('economy_map')
+        .from('blocks')
+        .select('slug,title,subtitle,accent,tier,sort_order,maturity,live_tension,current_body_version_id,last_synthesized_at')
+        .order('sort_order', { ascending: true });
+
+    if (error || !data || data.length === 0) {
+        console.error('loadHub error:', error);
+        document.getElementById('map-view').querySelector('.content-area').innerHTML =
+            '<p style="color:var(--text-secondary);font-size:15px;padding:20px 24px;">Map data unavailable.</p>';
+        updateHero(HUB_STORYLINE, '');
+        return;
+    }
+
+    window.currentBlocks = data;
+    renderHub(data);
+}
+
+function renderHub(data) {
+    // 1. Hero — use the latest last_synthesized_at across all blocks as the
+    //    "updated" stamp (D-02). ISO string-sort works for ordering; omit the
+    //    date entirely if every block has a null last_synthesized_at (v1 state).
+    var latest = data.map(function(b) { return b.last_synthesized_at; }).filter(Boolean).sort().pop();
+    var dateText = latest ? 'updated ' + formatDate(latest) : '';
+    updateHero(HUB_STORYLINE, dateText);
+
+    // 2. Group by tier. The query is already sort_order-ascending, so each
+    //    filtered array preserves the seed order (Phase 2 D-23): substrate 1-3,
+    //    behavior 4-6, frame 7.
+    var substrateBlocks = data.filter(function(b) { return b.tier === 'substrate'; });
+    var behaviorBlocks = data.filter(function(b) { return b.tier === 'behavior'; });
+    var frameBlocks = data.filter(function(b) { return b.tier === 'frame'; });
+
+    // 3. Single tile — whole <a> is the click target (D-14). encodeURIComponent
+    //    on the slug is defense-in-depth; every DB string is escapeHtml'd.
+    function renderTile(b) {
+        return '<a href="#/map/' + encodeURIComponent(b.slug) + '" data-accent="' + escapeHtml(b.accent) + '" class="block-tile">' +
+                   '<h3 class="tile-title">' + escapeHtml(b.title) + '</h3>' +
+                   '<p class="tile-subtitle">' + escapeHtml(b.subtitle) + '</p>' +
+                   renderMaturityPill(b) +
+               '</a>';
+    }
+
+    // 4. Maturity pill — canonical tokens-preview.html markup: ALWAYS exactly 5
+    //    seg children; CSS keys the fill off data-stage. MATURITY_STAGE resolves
+    //    the enum; || 1 guards an unexpected value (renders as nascent).
+    function renderMaturityPill(b) {
+        var stage = MATURITY_STAGE[b.maturity] || 1;
+        return '<div class="maturity-pill" data-accent="' + escapeHtml(b.accent) + '" data-stage="' + stage + '" aria-label="Maturity: ' + escapeHtml(b.maturity) + ' (' + stage + ' of 5)">' +
+                   '<span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>' +
+               '</div>';
+    }
+
+    // 5. Tier section wrapper — emits a <section class="tier-section"> with a
+    //    <h2 class="tier-label"> heading followed by the joined tiles. Skips an
+    //    empty array so no dangling heading appears (defensive; the seed always
+    //    fills all three tiers).
+    function tierSection(label, blocks) {
+        if (!blocks.length) return '';
+        return '<section class="tier-section">' +
+                   '<h2 class="tier-label">' + label + '</h2>' +
+                   blocks.map(renderTile).join('') +
+               '</section>';
+    }
+
+    // 6. Storyline preface + three tier sections, written to the #map-view's
+    //    .content-area container (provided by plan 04-01 Task 1).
+    var html =
+        '<div class="hub-storyline">' + escapeHtml(HUB_STORYLINE) + '</div>' +
+        tierSection(TIER_LABELS.substrate, substrateBlocks) +
+        tierSection(TIER_LABELS.behavior, behaviorBlocks) +
+        tierSection(TIER_LABELS.frame, frameBlocks);
+
+    document.getElementById('map-view').querySelector('.content-area').innerHTML = html;
+    window.scrollTo(0, 0);
 }
 
 async function loadBlock(slug) {
