@@ -2979,6 +2979,237 @@ def classify_intake_event(event: dict, allowed_slugs: list[str]) -> dict:
     return json.loads(_clean_json_response(content))
 
 
+# ============================================================================
+# Intake classifier poller (Plan 05-02) — autonomous timeline emission
+# ============================================================================
+# Reads finalized (status == 'published') newsletter editions, pulls each
+# edition's tier-1 events, classifies each via the proxy-routed
+# classify_intake_event() (Plan 01), routes by the config confidence floor, and
+# INSERTs one economy_map.timeline_entries row per event via the PostgREST helper
+# (Plan 01) — idempotent per edition (D-08), source-traceable (INTK-04), and
+# fail-loud "never drop an event" (D-05: error/below-floor → 'unsorted').
+
+# The seven seeded block slugs (migration 033 §13). Fallback list if the live
+# economy_map.blocks fetch fails; 'unsorted' is a valid write target but is NOT
+# offered to the classifier as a label.
+INTAKE_BLOCK_SLUGS_FALLBACK = [
+    'identity-trust',
+    'memory-context',
+    'payments-settlement',
+    'autonomy-control',
+    'governance-accountability',
+    'psychology-disposition',
+    'regulation-legal',
+]
+
+# Cap how many recent editions a single run will scan so a backlog can't blow it up.
+INTAKE_EDITION_BATCH = 10
+
+
+def _fetch_economy_map_block_slugs() -> list[str]:
+    """Fetch the allowed block slugs live from economy_map.blocks via PostgREST.
+
+    Returns the seven seeded slugs (Accept-Profile: economy_map read). Falls back
+    to the hard-coded seven-slug list on any failure so the poller never stalls on
+    a transient read error. 'unsorted' is never in this set.
+    """
+    try:
+        resp = httpx.get(
+            f"{SUPABASE_URL}/rest/v1/blocks",
+            params={"select": "slug"},
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Accept-Profile": "economy_map",
+            },
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            slugs = [r.get('slug') for r in resp.json() if r.get('slug')]
+            if slugs:
+                return slugs
+        logger.warning(
+            f"[INTAKE] block slug fetch returned {resp.status_code}; using fallback list"
+        )
+    except Exception as e:
+        logger.warning(f"[INTAKE] block slug fetch failed ({e}); using fallback list")
+    return list(INTAKE_BLOCK_SLUGS_FALLBACK)
+
+
+def classify_intake_for_edition(edition: dict, allowed_slugs: list[str], floor: float) -> dict:
+    """Emit one timeline_entries row per tier-1 event of a single published edition.
+
+    Idempotency (D-08): skips the whole edition if any timeline_entries row already
+    carries this edition's id as source_edition_id.
+
+    Per tier-1 event (from data_snapshot['premium_source_posts'] where tier == 1):
+      - field mapping (D-04): what_shifted <- title, why_it_mattered <- summary,
+        source_url <- url, event_date <- the edition's published_at/created_at date
+        (premium_source_posts carry no date; event_date is DATE NOT NULL).
+      - classify + route (INTK-03, D-05, D-07): classify_intake_event() inside
+        try/except. On success, accept block_slug ONLY if tag_confidence >= floor
+        AND block_slug is in the allow-list (T-05-05); otherwise route to 'unsorted'
+        with the confidence still recorded (flagged-not-dropped). On ANY exception
+        (incl. DeepSeek circuit-break), route to 'unsorted' with tag_confidence = NULL
+        — the event is recorded, never silently lost (D-05). The below-floor best-guess
+        slug is NOT persisted (D-07).
+      - INSERT (INTK-04): every entry carries source_edition_id = str(edition['id']).
+
+    Returns a per-edition counts dict.
+    """
+    edition_id = str(edition.get('id'))
+    counts = {'emitted': 0, 'unsorted': 0, 'errors': 0, 'skipped_events': 0}
+
+    # D-08 idempotency: skip the whole edition if already emitted.
+    if economy_map_edition_already_emitted(edition_id):
+        logger.info(f"[INTAKE] edition {edition_id} already emitted — skipping (D-08)")
+        counts['already_emitted'] = True
+        return counts
+
+    # D-04: derive event_date from the edition (events carry no date). Use the
+    # published_at date, fall back to created_at, then to today (UTC).
+    raw_date = edition.get('published_at') or edition.get('created_at') or ''
+    event_date = (raw_date.split('T')[0] if isinstance(raw_date, str) and raw_date
+                  else datetime.now(timezone.utc).date().isoformat())
+
+    # D-03: tier-1 events from premium_source_posts (NOT block max_source_tier objects).
+    snapshot = edition.get('data_snapshot') or {}
+    premium_source_posts = snapshot.get('premium_source_posts') or []
+    tier1_events = [e for e in premium_source_posts if e.get('tier') == 1]
+
+    for event in tier1_events:
+        # what_shifted / why_it_mattered are NOT NULL — skip only if both prose
+        # fields are empty (cannot satisfy the schema); otherwise MUST emit a row.
+        title = (event.get('title') or '').strip()
+        summary = (event.get('summary') or '').strip()
+        if not title or not summary:
+            logger.warning(
+                f"[INTAKE] edition {edition_id}: skipping event with empty title/summary"
+            )
+            counts['skipped_events'] += 1
+            continue
+
+        target_slug = 'unsorted'
+        tag_confidence = None
+        try:
+            t0 = time.time()
+            parsed = classify_intake_event(event, allowed_slugs)
+            elapsed_ms = int((time.time() - t0) * 1000)
+            slug = parsed.get('block_slug')
+            conf = parsed.get('tag_confidence')
+            conf = float(conf) if conf is not None else None
+            # Record confidence even when below floor (D-05 flagged-not-dropped).
+            tag_confidence = conf
+            # T-05-05: accept the slug ONLY if it clears the floor AND is allow-listed;
+            # an injected/unknown slug or below-floor fit routes to 'unsorted' (D-07:
+            # the below-floor best-guess slug is NOT persisted).
+            if conf is not None and conf >= floor and slug in allowed_slugs:
+                target_slug = slug
+            else:
+                target_slug = 'unsorted'
+                counts['unsorted'] += 1
+            # Cost tracking (the proxy also records a wallet_transactions row).
+            try:
+                log_llm_call("processor", "intake_classify", get_model("extraction"), None, elapsed_ms)
+            except Exception:
+                pass
+        except Exception as e:
+            # D-05: any classify failure (incl. circuit-break) → 'unsorted', NULL
+            # confidence. NEVER skip the event.
+            logger.error(f"[INTAKE] classify failed for edition {edition_id} event: {e}")
+            target_slug = 'unsorted'
+            tag_confidence = None
+            counts['errors'] += 1
+            counts['unsorted'] += 1
+
+        entry = {
+            'block_slug': target_slug,
+            'event_date': event_date,
+            'what_shifted': title,
+            'why_it_mattered': summary,
+            'source_url': (event.get('url') or None),
+            'source_edition_id': edition_id,
+            'tag_confidence': tag_confidence,
+        }
+        try:
+            economy_map_insert_timeline_entry(entry)
+            counts['emitted'] += 1
+        except Exception as e:
+            # An INSERT failure for one event must not abort the edition.
+            logger.error(
+                f"[INTAKE] insert failed for edition {edition_id} "
+                f"(slug={target_slug}): {e}"
+            )
+
+    logger.info(
+        f"[INTAKE] edition {edition_id}: {counts['emitted']} emitted "
+        f"({counts['unsorted']} unsorted, {counts['errors']} classify errors) "
+        f"from {len(tier1_events)} tier-1 events"
+    )
+    return counts
+
+
+def classify_intake_poller() -> dict:
+    """Scan recent published editions and emit timeline candidates for each.
+
+    Orchestrator mirroring surface_x_content_candidates(): guard on supabase + the
+    intake_classifier.enabled flag, read finalized editions, fetch the allowed slug
+    set, then classify_intake_for_edition() per edition. Per-edition try/except so a
+    single bad edition does not abort the run.
+    """
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    cfg = get_full_config().get('intake_classifier', {})
+    if not cfg.get('enabled', True):
+        logger.info("[INTAKE] classifier disabled via config — skipping")
+        return {'disabled': True}
+
+    floor = cfg.get('confidence_floor', 0.6)
+
+    run_id = log_pipeline_start('classify_intake')
+    totals = {'editions': 0, 'emitted': 0, 'unsorted': 0, 'errors': 0, 'skipped_editions': 0}
+    try:
+        # D-02: 'published' is the ONLY finalized value (exclude draft/pending/preview/held).
+        editions = supabase.table('newsletters')\
+            .select('id, published_at, created_at, data_snapshot')\
+            .eq('status', 'published')\
+            .order('published_at', desc=True)\
+            .limit(INTAKE_EDITION_BATCH)\
+            .execute()
+        rows = editions.data or []
+
+        allowed_slugs = _fetch_economy_map_block_slugs()
+
+        for edition in rows:
+            try:
+                counts = classify_intake_for_edition(edition, allowed_slugs, floor)
+                if counts.get('already_emitted'):
+                    totals['skipped_editions'] += 1
+                    continue
+                totals['editions'] += 1
+                totals['emitted'] += counts.get('emitted', 0)
+                totals['unsorted'] += counts.get('unsorted', 0)
+                totals['errors'] += counts.get('errors', 0)
+            except Exception as e:
+                logger.error(
+                    f"[INTAKE] edition {edition.get('id')} failed: {e}", exc_info=True
+                )
+
+        log_pipeline_end(run_id, 'completed', totals)
+    except Exception as e:
+        logger.error(f"[INTAKE] poller run failed: {e}", exc_info=True)
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+    logger.info(
+        f"[INTAKE] poll complete: {totals['emitted']} entries from "
+        f"{totals['editions']} edition(s) ({totals['skipped_editions']} skipped, "
+        f"{totals['unsorted']} unsorted, {totals['errors']} classify errors)"
+    )
+    return totals
+
+
 def extract_problems_multisource(hours_back: int = 48) -> dict:
     """Extract problems from all sources in source_posts."""
     if not supabase or not openai_client:
