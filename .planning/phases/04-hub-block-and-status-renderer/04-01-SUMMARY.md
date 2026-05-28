@@ -124,6 +124,11 @@ None — no external service configuration required. The new view containers are
 - Wave 2 renderers (plans 02 hub / 03 block / 04 status) can run in parallel: each plugs its query+render into one stub loader, emits markup matching its assigned CSS selectors and view container, and consumes the relevant module constants. None touches the same code region as another (loaders are separate functions; CSS selectors are distinct; view containers are distinct).
 - No blockers. The data path (`sb.schema('economy_map').from(...)`) is a Phase 2 prerequisite, untouched by this plan.
 
+## Self-Check: PASSED
+
+- Files verified present: index.html, style-map.css, app.js, 04-01-SUMMARY.md
+- Commits verified in git: 19238c6, 2f5b144, 82b9f64, 79dcd1d
+
 ---
 *Phase: 04-hub-block-and-status-renderer*
 *Completed: 2026-05-28*
