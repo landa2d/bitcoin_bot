@@ -48,7 +48,10 @@ ssh_cmd() { ssh $SSH_OPTS "${REMOTE_USER}@${REMOTE_HOST}" "$@"; }
 rsync_dir() {
     local src="$1" dest="$2"
     shift 2
-    local flags=(-avz --delete --checksum -e "ssh $SSH_OPTS" "$@")
+    # Never sync local-only build artifacts / editor backups (#prod-drift cleanup):
+    # __pycache__/*.pyc are gitignored but live in the working tree; *.save are stray
+    # editor backups. Excluding them keeps deploys to real, tracked source only.
+    local flags=(-avz --delete --checksum --exclude='*.pyc' --exclude='__pycache__/' --exclude='*.save' -e "ssh $SSH_OPTS" "$@")
     if $DRY_RUN; then
         flags+=(--dry-run)
     fi

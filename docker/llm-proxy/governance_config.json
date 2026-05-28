@@ -1,0 +1,43 @@
+{
+    "analyst": {
+        "spending_cap_sats": 28000,
+        "spending_cap_window": "daily",
+        "max_calls_per_minute": 10,
+        "allowed_models": ["deepseek-chat"],
+        "on_cap_exceeded": "reject",
+        "alert_at_pct": 80
+    },
+    "processor": {
+        "spending_cap_sats": 1000,
+        "spending_cap_window": "daily",
+        "max_calls_per_minute": 20,
+        "allowed_models": ["deepseek-chat"],
+        "on_cap_exceeded": "reject",
+        "alert_at_pct": 90
+    },
+    "research": {
+        "spending_cap_sats": 5000,
+        "spending_cap_window": "weekly",
+        "max_calls_per_minute": 5,
+        "allowed_models": ["claude-sonnet-4-20250514"],
+        "on_cap_exceeded": "reject",
+        "alert_at_pct": 90
+    },
+    "newsletter": {
+        "spending_cap_sats": 2000,
+        "spending_cap_window": "weekly",
+        "max_calls_per_minute": 10,
+        "allowed_models": ["gpt-4o", "gpt-4o-mini", "deepseek-chat"],
+        "on_cap_exceeded": "reject",
+        "alert_at_pct": 90
+    },
+    "gato": {
+        "spending_cap_sats": 50000,
+        "spending_cap_window": "daily",
+        "max_calls_per_minute": 30,
+        "allowed_models": ["claude-sonnet-4-20250514", "deepseek-chat", "text-embedding-3-large"],
+        "on_cap_exceeded": "downgrade_model",
+        "downgrade_map": {"claude-sonnet-4-20250514": "deepseek-chat"},
+        "alert_at_pct": 70
+    }
+}
