@@ -561,6 +561,72 @@ def get_full_config() -> dict:
 
 
 # ============================================================================
+# economy_map PostgREST helpers (direct HTTP — Content/Accept-Profile)
+# ============================================================================
+# The economy_map schema is isolated; supabase-py .schema()/.in_() silently fail
+# against it (PROJECT.md constraint), so these helpers go straight to PostgREST
+# with the schema-profile headers. service_role (SUPABASE_KEY == SUPABASE_SERVICE_KEY)
+# bypasses RLS by design (migration 033 §11); the append-only trigger — not RLS —
+# still binds writes. Both helpers are scoped to ONLY timeline_entries — no generic
+# schema-agnostic writer, to keep the service_role write surface tight (threat T-05-02).
+
+def economy_map_insert_timeline_entry(entry: dict) -> dict:
+    """INSERT a single row into economy_map.timeline_entries via direct PostgREST.
+
+    Uses the service key and the schema-WRITE header (Content-Profile: economy_map).
+    Raises on any non-2xx so the caller (Plan 02) can route the failure rather than
+    silently dropping the event. Returns the parsed representation row on success.
+    """
+    resp = httpx.post(
+        f"{SUPABASE_URL}/rest/v1/timeline_entries",
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+            "Content-Profile": "economy_map",
+        },
+        json=entry,
+        timeout=10,
+    )
+    if resp.status_code not in (200, 201):
+        raise RuntimeError(
+            f"economy_map timeline_entries insert failed ({resp.status_code}): {resp.text}"
+        )
+    rows = resp.json()
+    return rows[0] if isinstance(rows, list) and rows else rows
+
+
+def economy_map_edition_already_emitted(source_edition_id: str) -> bool:
+    """Return True if any timeline_entries row already carries this source_edition_id.
+
+    The D-08 pre-emit idempotency check. Uses the service key and the schema-READ
+    header (Accept-Profile: economy_map). Raises on non-2xx so a read failure is not
+    mistaken for "not emitted" (which would risk a duplicate emit).
+    """
+    resp = httpx.get(
+        f"{SUPABASE_URL}/rest/v1/timeline_entries",
+        params={
+            "source_edition_id": f"eq.{source_edition_id}",
+            "select": "id",
+            "limit": 1,
+        },
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Accept-Profile": "economy_map",
+        },
+        timeout=10,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"economy_map timeline_entries existence check failed ({resp.status_code}): {resp.text}"
+        )
+    rows = resp.json()
+    return bool(isinstance(rows, list) and rows)
+
+
+# ============================================================================
 # Budget Enforcement System
 # ============================================================================
 
