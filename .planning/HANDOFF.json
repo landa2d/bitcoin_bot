@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-05-28T13:23:03.392Z",
+  "phase": "post-04.1",
+  "phase_name": "Follow-up: RPC search_path class fix -> push -> Phase 5",
+  "phase_dir": ".planning/phases/04.1-prod-main-reconciliation-llm-proxy-governance-migration-brin",
+  "status": "paused",
+  "completed_this_session": [
+    {"item": "Phase 04.1 planned + executed + CLOSED", "detail": "governance cutover (migration 034 applied to prod, fail-loud+downgrade proxy.py deployed, canary PASS accepted); staged deploy of gato_brain/analyst/research/gato verified via governed cycles; migration 035 fixed claim_research_task search_path; VERIFICATION status:passed; source drift todo resolved -> completed/"},
+    {"item": "Built standing drift check", "detail": "scripts/drift-check.sh + migration 036 gsd_drift_audit() (SECURITY DEFINER, correctly hardened). Detects code/RPC-search_path/migration drift."},
+    {"item": "Filed 5 follow-up todos", "detail": ".planning/todos/pending/ — pay-500, predictions.title, search_path audit (P3), research trigger perms, soft-cap hardening"}
+  ],
+  "remaining_tasks": [
+    {"id": 1, "name": "Batch-fix the 8 empty-search_path RPC functions (migration 037)", "status": "approved, not_started", "detail": "User said yes. Confirm each function body (pg_get_functiondef), then ALTER FUNCTION ... SET search_path = pg_catalog, public (all 8 are non-SECURITY-DEFINER so this is safe; the migration-035 pattern). Apply via the approved-cutover flow, then re-run scripts/drift-check.sh until RPC section is clean."},
+    {"id": 2, "name": "Push 102 unpushed commits to origin/main", "status": "not_started", "detail": "main is 102 ahead of origin/main; nothing backed up to remote. Remote configured (github.com/landa2d/bitcoin_bot). Durability risk."},
+    {"id": 3, "name": "Start Phase 5 (intake-classifier + `unsorted` handling)", "status": "not_started", "detail": "Build on the now-clean foundation."}
+  ],
+  "blockers": [],
+  "human_actions_pending": [
+    {"action": "Approve each prod DDL (migration 037 apply)", "context": "operator wants per-step approval on prod mutations", "blocking": false},
+    {"action": "Decide when to push 102 commits to remote", "context": "durability — work exists only on this box", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Fix the search_path class BEFORE Phase 5", "rationale": "It is a CONFIRMED live prod outage, not latent risk: get_scrape_stats() errors 42P01 (relation moltbook_posts does not exist). search_corpus (gato_brain corpus probe) + topup_agent_wallet (processor) are actively-used-and-broken. Building Phase 5 on a foundation where corpus search + wallet ops silently fail = building on sand."},
+    {"decision": "record_agent_spend is broken-but-harmless", "rationale": "no caller in codebase; spend logging uses a different path"},
+    {"decision": "Soft caps (allow_negative=true on 5 agents) accepted as intended", "rationale": "operator decision during 04.1 canary; caps=monitoring, fail-loud-on-missing is the hard guarantee"}
+  ],
+  "uncommitted_files": [
+    ".planning/config.json (auto_advance flipped to false this session + pre-session changes — review before committing)",
+    ".claude/settings.local.json (pre-existing, not ours)",
+    "config/agentpulse-config.json (pre-existing, not ours)"
+  ],
+  "next_action": "Run `SELECT pg_get_functiondef(oid) ...` or read each of the 8 functions, build migration 037 (ALTER FUNCTION ... SET search_path = pg_catalog, public for each), apply to prod (zxzaaqfowtqvmsbitqpu) under approval, then `./scripts/drift-check.sh` and confirm the RPC section is clean (exit 0 once lab-data-provider is the only remaining item, which is D-07-deferred).",
+  "context_notes": "Phase 04.1 is DONE and verified. The search_path class is the recurring failure signature on this project (wallet bug -> system_audit CHECK -> claim_research_task -> these 8). drift-check.sh + gsd_drift_audit() now detect it; remediation of the 8 is the immediate next work, approved by the operator. Prod IS this host (/root/bitcoin_bot/docker); deploys are local scoped rebuilds (use --no-deps). Operator wants evidence-backed, per-step-approved prod changes — see memory feedback-prod-cutover-discipline."
+}
