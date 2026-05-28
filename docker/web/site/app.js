@@ -324,6 +324,14 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
+// CR-01: escapeHtml only HTML-entity-encodes — it does NOT block dangerous URL
+// schemes. A javascript:/data: source_url survives escaping and would execute in
+// an href. Gate every URL sink through this http(s)-only allowlist before render.
+function safeHttpUrl(url) {
+    if (typeof url !== 'string') return null;
+    return /^https?:\/\//i.test(url.trim()) ? url : null;
+}
+
 function formatDate(isoStr) {
     if (!isoStr) return '';
     return new Date(isoStr).toLocaleDateString('en-US', {
@@ -546,9 +554,14 @@ function renderTimelineEntries(entries, expanded) {
         return '<p style="color:var(--text-secondary);">No timeline entries yet.</p>';
     }
     return entries.map(function(e) {
-        var hasSource = (typeof e.source_url === 'string' && e.source_url.length > 0);
-        // event_date already goes through formatDate; defensively escapeHtml the
-        // result. what_shifted / why_it_mattered / source_url all escaped.
+        // CR-01: only render the source link/attr when the URL is http(s). A
+        // javascript:/data: URL fails safeHttpUrl and is dropped (no href, no
+        // data-source) — escapeHtml alone would NOT make those schemes safe.
+        var safeUrl = safeHttpUrl(e.source_url);
+        var hasSource = safeUrl !== null;
+        // event_date goes through formatDate; escapeHtml the result defensively.
+        // what_shifted / why_it_mattered are HTML-escaped; source_url is both
+        // scheme-validated (safeHttpUrl) and HTML-escaped.
         var dateText = escapeHtml(formatDate(e.event_date));
         var line1 =
             '<div class="timeline-line1">' +
@@ -558,13 +571,13 @@ function renderTimelineEntries(entries, expanded) {
             '</div>';
         var line2Inner = '<span class="timeline-why">' + escapeHtml(e.why_it_mattered) + '</span>';
         if (hasSource) {
-            line2Inner += '<a class="timeline-source" href="' + escapeHtml(e.source_url) + '" target="_blank" rel="noopener noreferrer">source ↗</a>';
+            line2Inner += '<a class="timeline-source" href="' + escapeHtml(safeUrl) + '" target="_blank" rel="noopener noreferrer">source ↗</a>';
         }
         var line2 = '<div class="timeline-line2">' + line2Inner + '</div>';
-        // Source-null variant omits the data-source attribute entirely (T-04-03-03;
-        // style-map.css lines 91-94 contract).
+        // Source-null (or unsafe-scheme) variant omits the data-source attribute
+        // entirely (T-04-03-03; style-map.css lines 91-94 contract).
         var open = hasSource
-            ? '<article class="timeline-entry" data-source="' + escapeHtml(e.source_url) + '">'
+            ? '<article class="timeline-entry" data-source="' + escapeHtml(safeUrl) + '">'
             : '<article class="timeline-entry">';
         return open + line1 + line2 + '</article>';
     }).join('');
