@@ -40,12 +40,12 @@ A multi-agent intelligence platform for the AI agent economy: eight cooperating 
 - [ ] **REQ-GATE-DRAFT**: Synthesized bodies always land as `draft` versions; Telegram card surfaces flags; nothing goes live without `/map-approve`
 - [ ] **REQ-PUBLISH-ATOMIC**: Approving a version flips its status, supersedes prior, updates `blocks.current_body_version_id` and `blocks.maturity` in one transaction
 - [ ] **REQ-VERSION-IMMUTABLE**: `block_body_versions` is append-only — re-synthesis inserts; rejected drafts are superseded, not deleted
-- [ ] **REQ-RENDER-HUB**: Hub page (`/map`) shows storyline header + seven-block visual + maturity pills with links to block pages
-- [ ] **REQ-RENDER-BLOCK**: Block page (`/map/<slug>`) renders six-part skeleton (What it is → Why hard → Live tension → Where it stands → Evolution → Maturity)
-- [ ] **REQ-RENDER-STATUS**: Status page (`/status`) shows all blocks' maturity at a glance — same source as hub pills
-- [ ] **REQ-RENDER-LIVE**: New timeline entry triggers re-render of the Evolution section without waiting for next synthesis
-- [ ] **REQ-RENDER-REUSE**: Block pages publish via the existing `aiagentspulse.com` publish path (per Phase 0 findings)
-- [ ] **REQ-TIMELINE-NEWEST**: Evolution section renders newest-first across all blocks (controlled vocabulary, consistent default)
+- [x] **REQ-RENDER-HUB** (RNDR-01): Hub page (`/map`) shows storyline header + seven-block visual + maturity pills with links to block pages — **Validated in Phase 4: hub-block-and-status-renderer** (`loadHub`/`renderHub` in `app.js`; live + operator-verified at aiagentspulse.com/#/map)
+- [x] **REQ-RENDER-BLOCK** (RNDR-02): Block page (`/map/<slug>`) renders six-part skeleton (What it is → Why hard → Live tension → Where it stands → Evolution → Maturity) — **Validated in Phase 4** (renderer structurally complete; the six body headings come from synthesis `body_md` — full visual confirmation deferred to Phase 7, tracked in 04-HUMAN-UAT.md)
+- [x] **REQ-RENDER-STATUS** (RNDR-03): Status page (`/status`) shows all blocks' maturity at a glance — same source as hub pills — **Validated in Phase 4** (`loadStatus`/`renderStatus`, identical `economy_map.blocks` query shape as hub)
+- [x] **REQ-RENDER-LIVE** (RNDR-06): New timeline entry triggers re-render of the Evolution section without waiting for next synthesis — **Validated in Phase 4** (60s visibility-aware idle poll; operator-verified live insert appeared within 60s)
+- [x] **REQ-RENDER-REUSE** (RNDR-05): Block pages publish via the existing `aiagentspulse.com` publish path (per Phase 0 findings) — **Validated in Phase 4** (scoped web rebuild, single `agentpulse-web` container, no new infra)
+- [x] **REQ-TIMELINE-NEWEST** (RNDR-07): Evolution section renders newest-first across all blocks (controlled vocabulary, consistent default) — **Validated in Phase 4** (`.order('event_date', { ascending: false })` across all three query sites)
 - [ ] **REQ-CMD-STATUS**: `/map-status` — all blocks, tier, maturity pill, unabsorbed entry count, pending draft count
 - [ ] **REQ-CMD-PENDING**: `/map-pending` — drafts awaiting approval + `unsorted` entries awaiting assignment
 - [ ] **REQ-CMD-APPROVE**: `/map-approve <version_id>` — publish a draft via atomic transaction
@@ -135,4 +135,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-27 — Phase 3 complete (design tokens shipped: tier-accent CSS custom properties, maturity-pill component contract, timeline-entry format with literal `↗` glyph; live at aiagentspulse.com/tokens-preview.html; zero typography rules introduced so existing site defaults stay authoritative)*
+*Last updated: 2026-05-28 — Phase 4 complete (hub/block/status renderers live at aiagentspulse.com: `#/map`, `#/map/<slug>`, `#/status` read `economy_map` via anon PostgREST with a 60s visibility-aware Evolution poll; RNDR-01..07 validated end-to-end; deploy also exposed the `economy_map` schema in prod PostgREST — the missing prerequisite — and fixed CR-01, a `source_url` scheme-validation XSS gap. Block-page body content awaits Phase 7 synthesis. Next: Phase 5 — intake classifier + `unsorted` handling)*
