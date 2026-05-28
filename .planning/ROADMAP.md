@@ -173,7 +173,17 @@ Plans:
   4. Every emitted entry carries `source_edition_id` populated with the originating newsletter edition's id, enabling traceback (verifiable by SQL join on `newsletter_editions`)
   5. Attempting to UPDATE a prior timeline entry row's content fails; corrections require new INSERTs (append-only enforced)
 
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — Foundation contracts: config confidence floor (D-06); `economy_map` PostgREST insert/existence-check helpers (no Python analog); proxy-routed `classify_intake_event()` + `INTAKE_CLASSIFIER_PROMPT` returning `block_slug` + `tag_confidence` via `http://llm-proxy:8200` (INTK-02)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 05-02-PLAN.md — Intake poller: read `published` editions → tier-1 `premium_source_posts` events → classify → route by floor (`>=0.6` block / below → `unsorted`; error → `unsorted` NULL confidence) → INSERT with `source_edition_id`; idempotent per edition; registered on the processor schedule (INTK-01, INTK-03, INTK-04)
+- [ ] 05-03-PLAN.md — Verification tests: prove `timeline_entries` UPDATE+DELETE fail (INTK-05 / append-only trigger still holds), below-floor → `unsorted` with recorded confidence, classifier-error → `unsorted` with NULL confidence (D-05)
 
 ### Phase 6: Telegram Read-Only Scaffolding
 
