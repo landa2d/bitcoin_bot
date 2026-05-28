@@ -144,7 +144,7 @@ Plans:
 **Goal:** Production matches `main` with no untracked drift, and per-agent spending governance is enforced from `agent_wallets_v2` — shipped as ONE atomic schema/data-then-code unit, with `proxy.py` failing loudly (refusing to serve) rather than silently running ungoverned if caps are absent ("the wallet bug all over again").
 **Requirements**: Infra phase — no formal REQ-IDs. Coverage contract is the locked decisions D-01..D-09 (see `04.1-CONTEXT.md`); every decision is traceable to a plan below.
 **Depends on:** Phase 4
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 
 Plans:
 
@@ -154,7 +154,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 04.1-02-PLAN.md — Governance atomic cutover on PROD (NOT autonomous): apply migration 034 to live Supabase → deploy proxy.py via scoped `--force-rebuild llm-proxy` → run the canary gate (reject + gato downgrade + zero-behavior-change) BEFORE any other deploy; fixed D-08 order, D-05 gate (D-01, D-05, D-08)
+- [x] 04.1-02-PLAN.md — Governance atomic cutover on PROD (NOT autonomous): apply migration 034 to live Supabase → deploy proxy.py via scoped `--force-rebuild llm-proxy` → run the canary gate (reject + gato downgrade + zero-behavior-change) BEFORE any other deploy; fixed D-08 order, D-05 gate (D-01, D-05, D-08)
 
 **Wave 3** *(blocked on Wave 2 canary PASS)*
 
@@ -260,7 +260,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 2. `economy_map` Schema + Seven-Block Seed | 2/2 | Complete    | 2026-05-27 |
 | 3. Design Tokens | 3/3 | Complete    | 2026-05-27 |
 | 4. Hub, Block, and Status Renderer | 6/6 | Complete    | 2026-05-28 |
-| 4.1. Prod↔Main Reconciliation + Governance Migration | 1/3 | In progress | - |
+| 4.1. Prod↔Main Reconciliation + Governance Migration | 2/3 | In Progress|  |
 | 5. Intake Classifier + `unsorted` Handling | 0/TBD | Not started | - |
 | 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
