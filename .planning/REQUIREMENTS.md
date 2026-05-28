@@ -59,13 +59,13 @@
 
 ### Renderer (per Phase 0 findings)
 
-- [ ] **RNDR-01**: Hub page (`/map` or `/`) — storyline header + seven-block visual + per-block maturity pill linking to block pages
-- [ ] **RNDR-02**: Block page (`/map/<slug>`) — six-part skeleton: (1) What it is, (2) Why it's hard, (3) The live tension, (4) Where it stands today (synthesized body), (5) Evolution (timeline entries, newest-first), (6) Maturity indicator
-- [ ] **RNDR-03**: Status page (`/status`) — all blocks' maturity at a glance, same data source as hub pills
-- [ ] **RNDR-04**: Hub and status read the same maturity source (one source of truth)
-- [ ] **RNDR-05**: Block pages reuse the existing `aiagentspulse.com` publish path (per Phase 0)
-- [ ] **RNDR-06**: Re-render is triggered by both a publish (4.6) AND a timeline entry insert — Evolution section is live data
-- [ ] **RNDR-07**: Evolution section default order is newest-first across all blocks
+- [x] **RNDR-01**: Hub page (`/map` or `/`) — storyline header + seven-block visual + per-block maturity pill linking to block pages
+- [x] **RNDR-02**: Block page (`/map/<slug>`) — six-part skeleton: (1) What it is, (2) Why it's hard, (3) The live tension, (4) Where it stands today (synthesized body), (5) Evolution (timeline entries, newest-first), (6) Maturity indicator
+- [x] **RNDR-03**: Status page (`/status`) — all blocks' maturity at a glance, same data source as hub pills
+- [x] **RNDR-04**: Hub and status read the same maturity source (one source of truth)
+- [x] **RNDR-05**: Block pages reuse the existing `aiagentspulse.com` publish path (per Phase 0)
+- [x] **RNDR-06**: Re-render is triggered by both a publish (4.6) AND a timeline entry insert — Evolution section is live data
+- [x] **RNDR-07**: Evolution section default order is newest-first across all blocks
 
 ### Telegram control surface (`/map-*`)
 
@@ -151,13 +151,13 @@ Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 | TOKN-02 | Phase 3 | Complete |
 | TOKN-03 | Phase 3 | Complete |
 | TOKN-04 | Phase 3 | Complete |
-| RNDR-01 | Phase 4 | Pending |
-| RNDR-02 | Phase 4 | Pending |
-| RNDR-03 | Phase 4 | Pending |
-| RNDR-04 | Phase 4 | Pending |
-| RNDR-05 | Phase 4 | Pending |
-| RNDR-06 | Phase 4 | Pending |
-| RNDR-07 | Phase 4 | Pending |
+| RNDR-01 | Phase 4 | Complete |
+| RNDR-02 | Phase 4 | Complete |
+| RNDR-03 | Phase 4 | Complete |
+| RNDR-04 | Phase 4 | Complete |
+| RNDR-05 | Phase 4 | Complete |
+| RNDR-06 | Phase 4 | Complete |
+| RNDR-07 | Phase 4 | Complete |
 | INTK-01 | Phase 5 | Pending |
 | INTK-02 | Phase 5 | Pending |
 | INTK-03 | Phase 5 | Pending |
