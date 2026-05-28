@@ -1,9 +1,9 @@
 ---
 created: 2026-05-28T11:54:47Z
-updated: 2026-05-28T11:54:47Z
-title: /v1/proxy/pay returns 500 — transfer_between_agents RPC search_path="" (active in prod)
+updated: 2026-05-28T12:06:00Z
+title: transfer_between_agents RPC broken (search_path="", class instance #4) — blocker BEFORE enabling agent→agent payments
 area: tooling
-priority: P1
+priority: P2
 phase_candidate: false
 files:
   - docker/llm-proxy/proxy.py
@@ -11,13 +11,20 @@ files:
   - supabase/migrations/
 ---
 
+## Severity: blocker-on-activation — NOT urgent, NOT currently breaking anything
+
+The agent→agent payment rail is **structurally broken**, but **agent payments are not in use
+yet.** The only caller observed — research (`research_agent.py:265`, paying `lab_data-provider`
+for web research) — was an **experiment, not a flow anyone depends on.** So the 500s harm nothing
+today: research uses the data anyway and logs the failure non-fatally. Do NOT read this as
+"P1, actively breaking payments" — that would mislead. The accurate framing: **the rail is
+broken and MUST be fixed before agent→agent payments are ever turned on for real** (a
+blocker-on-activation), and it is instance #4 of the silent-RPC `search_path` class.
+
 ## Problem
 
-`POST /v1/proxy/pay` is returning **500 Internal Server Error** in production, actively.
-The `research` agent is the only caller (`research_agent.py:265`, paying `lab_data-provider`
-for web research). Observed 5/5 calls → 500 in a 3h window on 2026-05-28, and the rate will
-rise now that research's poll queue was just unblocked (see the claim_research_task fix,
-migration 035).
+`POST /v1/proxy/pay` returns **500 Internal Server Error**. The handler (proxy.py:1513) calls
+the `transfer_between_agents` RPC, which raises.
 
 ## Root cause (confirmed) — same silent-RPC class
 
@@ -28,15 +35,8 @@ the RPC raises → the handler returns an unhandled 500. This is the **same sign
 `claim_research_task` drift fixed in migration 035 (and conceptually the same class as the
 governance "wallet bug" and the `system_audit` CHECK drift).
 
-## Impact
+## Fix direction (do before enabling agent→agent payments)
 
-Agent-to-agent payments are broken: research is NOT paying lab_data-provider for data. Research
-itself continues (it uses the data anyway — the failure is logged non-fatally), so no functional
-outage, but the agent-economy payment integrity is silently broken. For an "AI agent economy"
-platform this is a real correctness gap, just not a crash.
-
-## Fix direction
-
-- Mirror migration 035: `ALTER FUNCTION public.transfer_between_agents(text, text, bigint, text, uuid) SET search_path = pg_catalog, public;` (or schema-qualify the body). Ship as a tracked migration + apply to prod under approval.
-- Then confirm a real research run produces a `/v1/proxy/pay → 200` and a `wallet_transactions` transfer.
-- **Do this as part of, or alongside, the RPC search_path audit (see the audit todo) — this is instance #4 of the class.**
+- Mirror migration 035: `ALTER FUNCTION public.transfer_between_agents(text, text, bigint, text, uuid) SET search_path = pg_catalog, public;` (or schema-qualify the body). Ship as a tracked migration + apply under approval.
+- Verify with a `/v1/proxy/pay → 200` + a `wallet_transactions` transfer once payments are actually exercised.
+- Fold into the RPC `search_path` audit (see that todo) — this is class instance #4. The audit matters regardless of whether any single instance is currently load-bearing.
