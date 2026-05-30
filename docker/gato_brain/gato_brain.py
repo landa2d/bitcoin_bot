@@ -1525,6 +1525,201 @@ def handle_x_command(message: str) -> str:
         return f"Command failed: {e}"
 
 
+# ─── economy_map READ-ONLY surface (/map-* commands, Phase 6) ──────────
+#
+# D-09 read-only-by-construction boundary: this surface exposes ONLY GET
+# methods against economy_map. There is intentionally NO insert/update/delete
+# method, NO httpx.post/patch/delete call, and NO Content-Profile (schema-WRITE)
+# header anywhere below. The ONLY economy_map verb used is httpx.get with the
+# schema-READ header Accept-Profile: economy_map. The processor's
+# economy_map_insert_timeline_entry (Content-Profile + httpx.post) is the
+# anti-example this surface must never mirror. A DB-level read-only role is
+# deferred to Phase 9 (D-09); until then the wrapper enforces read-only by
+# construction and a code-review gate (Task 4) proves zero write verbs.
+#
+# gato_brain holds the service_role key (SUPABASE_KEY, :38) which bypasses RLS.
+# This is mandatory here: the anon RLS policy hides block_slug='unsorted' and
+# non-published drafts (033:373-376), both of which /map-pending must read. The
+# service_role read path is confined to these gated /map-* handlers.
+
+# Canonical maturity enum order (033:46-52) → 5-segment pill stage. Mirrors the
+# web renderer's MATURITY_STAGE map (app.js:38); RNDR-04 — blocks.maturity is the
+# one source of truth, never recomputed here.
+MATURITY_STAGE = {
+    "nascent": 1,
+    "emerging": 2,
+    "contested": 3,
+    "consolidating": 4,
+    "mature": 5,
+}
+
+# Tier headers for /map-status grouping (mirrors app.js:41 TIER_LABELS, D-01).
+TIER_LABELS = {
+    "substrate": "SUBSTRATE",
+    "behavior": "BEHAVIOR",
+    "frame": "FRAME",
+}
+
+# Maturity pill glyphs (D-02): 5-segment fill + word label. These are the exact
+# glyphs in the operator-approved /map-status preview (06-CONTEXT.md D-01/D-02).
+# The locked contract is the 5-segment fill + word label, not the glyph bytes.
+_PILL_FILLED = "◉"  # ◉
+_PILL_EMPTY = "○"   # ○
+
+
+def maturity_pill(maturity: str) -> str:
+    """Render a maturity enum value as a 5-segment fill pill + word label (D-02).
+
+    e.g. maturity_pill("emerging") -> "◉◉○○○ emerging". Mirrors the web pill:
+    stage = MATURITY_STAGE.get(maturity, 1) (the `|| 1` guard for an unknown enum,
+    app.js:38) — an unrecognised value renders as a stage-1 pill, never raises.
+    """
+    stage = MATURITY_STAGE.get(maturity, 1)
+    pill = _PILL_FILLED * stage + _PILL_EMPTY * (5 - stage)
+    return f"{pill} {maturity}"
+
+
+def _economy_map_get(table: str, params: dict, *, count_exact: bool = False) -> httpx.Response:
+    """Issue a single GET against economy_map via PostgREST (read-only by construction).
+
+    Sets the service_role headers (apikey + Authorization: Bearer = SUPABASE_KEY)
+    and the schema-READ header Accept-Profile: economy_map. Filter values are passed
+    through `params` (URL-encoded by httpx) — never f-string-interpolated into the
+    query path (threat T-06-04). When count_exact is set, requests an exact count via
+    the Prefer header + Content-Range response. This is the ONLY economy_map verb in
+    the /map-* surface: httpx.get. No post/patch/delete, no Content-Profile.
+    """
+    headers = {
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Accept-Profile": "economy_map",
+    }
+    if count_exact:
+        headers["Prefer"] = "count=exact"
+    return httpx.get(
+        f"{SUPABASE_URL}/rest/v1/{table}",
+        params=params,
+        headers=headers,
+        timeout=10,
+    )
+
+
+def _economy_map_count(table: str, params: dict) -> int:
+    """Return an exact row count for a filtered economy_map GET via Content-Range.
+
+    Requests a HEAD-style count (select=id, limit=1, Prefer: count=exact) and parses
+    the total from the Content-Range header (PostgREST format `0-0/N` or `*/N`).
+    Raises RuntimeError on any non-2xx (fail-loud read — a read failure must never be
+    mistaken for a zero count, which would silently hide drafts/unsorted backlog).
+    """
+    count_params = dict(params)
+    count_params.setdefault("select", "id")
+    count_params.setdefault("limit", "1")
+    resp = _economy_map_get(table, count_params, count_exact=True)
+    if resp.status_code not in (200, 206):
+        raise RuntimeError(
+            f"economy_map {table} count failed ({resp.status_code}): {resp.text}"
+        )
+    content_range = resp.headers.get("Content-Range", "")
+    # Format: "<start>-<end>/<total>" or "*/<total>"
+    if "/" in content_range:
+        total = content_range.rsplit("/", 1)[-1].strip()
+        if total.isdigit():
+            return int(total)
+    # Fallback: count returned rows (limit=1 makes this a poor count, so prefer
+    # the header; this path only triggers on a malformed Content-Range).
+    rows = resp.json() if resp.content else []
+    return len(rows) if isinstance(rows, list) else 0
+
+
+def get_blocks() -> list[dict]:
+    """GET the seven economy_map.blocks (slug, tier, sort_order, maturity, watermark).
+
+    Ordered by sort_order ascending. Raises RuntimeError on non-2xx (fail-loud).
+    """
+    resp = _economy_map_get(
+        "blocks",
+        {
+            "select": "slug,tier,sort_order,maturity,last_synthesized_at",
+            "order": "sort_order.asc",
+        },
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"economy_map blocks read failed ({resp.status_code}): {resp.text}"
+        )
+    rows = resp.json()
+    return rows if isinstance(rows, list) else []
+
+
+def get_draft_versions() -> list[dict]:
+    """GET all draft block_body_versions (id, block_slug) via the partial draft index.
+
+    status=eq.draft (uses the partial index built for /map-pending, 033:109-110).
+    Raises RuntimeError on non-2xx (fail-loud — a read failure must not read as
+    "no drafts pending", silently hiding the approval backlog).
+    """
+    resp = _economy_map_get(
+        "block_body_versions",
+        {
+            "select": "id,block_slug",
+            "status": "eq.draft",
+        },
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"economy_map block_body_versions read failed ({resp.status_code}): {resp.text}"
+        )
+    rows = resp.json()
+    return rows if isinstance(rows, list) else []
+
+
+def get_unsorted_entries() -> list[dict]:
+    """GET timeline_entries awaiting assignment (block_slug='unsorted'), newest-first.
+
+    Service_role read is mandatory: anon RLS hides 'unsorted' (033:373-376).
+    Raises RuntimeError on non-2xx (fail-loud — a read failure must not read as
+    "nothing awaiting assignment").
+    """
+    resp = _economy_map_get(
+        "timeline_entries",
+        {
+            "select": "id,what_shifted,tag_confidence,created_at,event_date",
+            "block_slug": "eq.unsorted",
+            "order": "created_at.desc",
+        },
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"economy_map timeline_entries (unsorted) read failed ({resp.status_code}): {resp.text}"
+        )
+    rows = resp.json()
+    return rows if isinstance(rows, list) else []
+
+
+def get_unsorted_count() -> int:
+    """Exact count of timeline_entries WHERE block_slug='unsorted' (D-06 footer)."""
+    return _economy_map_count(
+        "timeline_entries",
+        {"block_slug": "eq.unsorted"},
+    )
+
+
+def get_unabsorbed_count(block_slug: str, last_synthesized_at: str | None) -> int:
+    """Count timeline_entries for a block that the next synthesis will absorb (D-05).
+
+    "Unabsorbed" = entries newer than the block's last_synthesized_at; when the
+    block has never been synthesized (last_synthesized_at IS NULL) ALL its entries
+    count. Comparison column is created_at (D-05 default: absorption is ingestion-time,
+    consistent with Phase 7 SYNT-01 windowing). Filter values pass through params=
+    (URL-encoded), never interpolated into the path. Raises on non-2xx (fail-loud).
+    """
+    params = {"block_slug": f"eq.{block_slug}"}
+    if last_synthesized_at:
+        params["created_at"] = f"gt.{last_synthesized_at}"
+    return _economy_map_count("timeline_entries", params)
+
+
 # ─── Agent Wallet Summary ─────────────────────────────────────────
 
 def _resolve_api_key(authorization: str | None) -> dict | None:
