@@ -1720,6 +1720,116 @@ def get_unabsorbed_count(block_slug: str, last_synthesized_at: str | None) -> in
     return _economy_map_count("timeline_entries", params)
 
 
+# ─── /map-* render handlers (Phase 6) ─────────────────────────────────
+
+# Tier display order for /map-status (D-01). Within a tier, blocks are ordered
+# by sort_order (the get_blocks() query already returns sort_order.asc).
+_MAP_TIER_ORDER = ("substrate", "behavior", "frame")
+
+
+def handle_map_status() -> str:
+    """Render /map-status (CMD-01): tier-grouped block maturity + counts + footer.
+
+    Per D-01/D-02/D-03/D-06: group the seven blocks into SUBSTRATE/BEHAVIOR/FRAME,
+    each block line = left-padded slug + maturity pill + "·N new" (unabsorbed,
+    always shown) + "·N draft" (omitted when zero). Body wrapped in a Markdown code
+    fence for monospace column alignment. Footer = "unsorted: N awaiting" (D-06).
+    economy_map data sourced exclusively through the GET wrapper (never supabase.table).
+    """
+    blocks = get_blocks()
+    draft_versions = get_draft_versions()
+    unsorted_total = get_unsorted_count()
+
+    # Per-block draft counts (D-04): group draft versions by block_slug.
+    draft_counts: dict[str, int] = {}
+    for v in draft_versions:
+        slug = v.get("block_slug")
+        if slug:
+            draft_counts[slug] = draft_counts.get(slug, 0) + 1
+
+    # Column width: pad slugs to the longest slug for monospace alignment (D-01).
+    slug_width = max((len(b.get("slug") or "") for b in blocks), default=0)
+
+    lines = ["Economy Map — status", "```"]
+    for tier in _MAP_TIER_ORDER:
+        tier_blocks = [b for b in blocks if b.get("tier") == tier]
+        if not tier_blocks:
+            continue
+        lines.append(TIER_LABELS.get(tier, tier.upper()))
+        for b in tier_blocks:
+            slug = b.get("slug") or "?"
+            pill = maturity_pill(b.get("maturity") or "nascent")
+            unabsorbed = get_unabsorbed_count(slug, b.get("last_synthesized_at"))
+            drafts = draft_counts.get(slug, 0)
+            segment = f"  {slug.ljust(slug_width)}  {pill}  ·{unabsorbed} new"
+            if drafts:
+                segment += f" ·{drafts} draft"
+            lines.append(segment)
+    lines.append("```")
+    lines.append(f"unsorted: {unsorted_total} awaiting")
+    return "\n".join(lines)
+
+
+def handle_map_pending() -> str:
+    """Render /map-pending (CMD-02): drafts awaiting approval + unsorted awaiting assignment.
+
+    Per D-07/D-08/D-08a: two sections. DRAFTS AWAITING APPROVAL lists each draft's
+    FULL raw block_body_versions.id verbatim with a pre-filled "/map-approve <uuid>"
+    forward-contract line (Phase 9 command). UNSORTED AWAITING ASSIGNMENT lists each
+    entry's snippet + "conf:<tag_confidence>" + FULL raw timeline_entries.id verbatim
+    with a pre-filled "/map-assign <uuid> <slug>" line (Phase 10 command). FULL UUIDs,
+    stateless — NO ephemeral per-listing short-index (D-07 anti-example: an ephemeral
+    index can go stale between listing and acting, the silent-mismatch class). Empty
+    states are explicit, in words (D-08a, fail-loud). A CHAR_BUDGET truncation safety
+    net guards against an unexpectedly large unsorted backlog (downstream Gato/Node
+    layer still does the 4000-char split + Markdown/plain-text fallback).
+    """
+    CHAR_BUDGET = 3600
+    draft_versions = get_draft_versions()
+    unsorted_entries = get_unsorted_entries()
+
+    lines: list[str] = ["DRAFTS AWAITING APPROVAL"]
+    if not draft_versions:
+        lines.append(" Nothing awaiting approval.")
+    else:
+        # Group drafts by block_slug for a readable listing.
+        by_slug: dict[str, list[dict]] = {}
+        for v in draft_versions:
+            by_slug.setdefault(v.get("block_slug") or "?", []).append(v)
+        for slug in sorted(by_slug):
+            lines.append(f" · {slug}")
+            for v in by_slug[slug]:
+                vid = v.get("id") or "?"
+                lines.append(f"   version: {vid}  →  /map-approve {vid}")
+
+    lines.append("")
+    lines.append("UNSORTED AWAITING ASSIGNMENT")
+    if not unsorted_entries:
+        lines.append(" Nothing awaiting assignment.")
+    else:
+        omitted = 0
+        for e in unsorted_entries:
+            eid = e.get("id") or "?"
+            snippet = (e.get("what_shifted") or "").strip()
+            if len(snippet) > 60:
+                snippet = snippet[:60] + "…"
+            conf = e.get("tag_confidence")
+            conf_str = f"conf:{conf}" if conf is not None else "conf:—"
+            entry_lines = [
+                f" · '{snippet}'  {conf_str}",
+                f"   entry: {eid}   →  /map-assign {eid} <slug>",
+            ]
+            # Truncation safety net: stop adding rows past the budget, count the rest.
+            if sum(len(x) + 1 for x in lines) + sum(len(x) + 1 for x in entry_lines) > CHAR_BUDGET:
+                omitted += 1
+                continue
+            lines.extend(entry_lines)
+        if omitted:
+            lines.append(f"   …and {omitted} more (truncated)")
+
+    return "\n".join(lines)
+
+
 # ─── Agent Wallet Summary ─────────────────────────────────────────
 
 def _resolve_api_key(authorization: str | None) -> dict | None:
