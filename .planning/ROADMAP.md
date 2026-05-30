@@ -17,7 +17,7 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
 - [x] **Phase 4: Hub, Block, and Status Renderer** - Six-part block pages, hub with seven-block visual, status page, live-on-insert re-render (completed 2026-05-28)
 - [x] **Phase 4.1: Prod↔Main Reconciliation + LLM-Proxy Governance Migration** - Infra interstitial: bring prod current with main, ship the file→DB governance migration atomically + fail-loud, establish a clean deploy baseline before Phase 5 (completed 2026-05-28)
 - [x] **Phase 5: Intake Classifier + `unsorted` Handling** - Newsletter pipeline emits classified, traceable timeline entries via LLM proxy (completed 2026-05-28)
-- [ ] **Phase 6: Telegram Read-Only Scaffolding** - `/map-status` and `/map-pending` give operator situational awareness
+- [x] **Phase 6: Telegram Read-Only Scaffolding** - `/map-status` and `/map-pending` give operator situational awareness (completed 2026-05-30)
 - [ ] **Phase 7: Synthesis Loop Core** - Trigger evaluation, input assembly, Sonnet generation with hot-reloadable identity, draft writes
 - [ ] **Phase 8: Validation Sentinels** - Tension/length/maturity/structure flags annotate drafts without blocking; visible on Telegram cards
 - [ ] **Phase 9: Gated Publishing + Approval Commands** - Atomic publish transaction wired to `/map-approve` and `/map-reject`
@@ -204,7 +204,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06-02-PLAN.md — Operator-approved scoped gato_brain rebuild + live /map-status & /map-pending smoke check (CMD-01, CMD-02)
+- [x] 06-02-PLAN.md — Operator-approved scoped gato_brain rebuild + live /map-status & /map-pending smoke check (CMD-01, CMD-02)
 
 ### Phase 7: Synthesis Loop Core
 
@@ -279,7 +279,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. Hub, Block, and Status Renderer | 6/6 | Complete    | 2026-05-28 |
 | 4.1. Prod↔Main Reconciliation + Governance Migration | 3/3 | Complete    | 2026-05-28 |
 | 5. Intake Classifier + `unsorted` Handling | 3/3 | Complete    | 2026-05-28 |
-| 6. Telegram Read-Only Scaffolding | 1/2 | In Progress|  |
+| 6. Telegram Read-Only Scaffolding | 2/2 | Complete   | 2026-05-30 |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
 | 8. Validation Sentinels | 0/TBD | Not started | - |
 | 9. Gated Publishing + Approval Commands | 0/TBD | Not started | - |
