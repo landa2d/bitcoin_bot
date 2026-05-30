@@ -69,8 +69,8 @@
 
 ### Telegram control surface (`/map-*`)
 
-- [ ] **CMD-01**: `/map-status` — all blocks, tier, maturity pill, count of unabsorbed timeline entries, count of pending drafts
-- [ ] **CMD-02**: `/map-pending` — drafts awaiting approval + `unsorted` entries awaiting assignment
+- [x] **CMD-01**: `/map-status` — all blocks, tier, maturity pill, count of unabsorbed timeline entries, count of pending drafts
+- [x] **CMD-02**: `/map-pending` — drafts awaiting approval + `unsorted` entries awaiting assignment
 - [ ] **CMD-03**: `/map-approve <version_id>` — publish draft body via atomic transaction
 - [ ] **CMD-04**: `/map-reject <version_id>` — supersede draft, no live change
 - [ ] **CMD-05**: `/map-assign <entry_id> <block_slug>` — move `unsorted` entry to a block
@@ -163,8 +163,8 @@ Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 | INTK-03 | Phase 5 | Complete |
 | INTK-04 | Phase 5 | Complete |
 | INTK-05 | Phase 5 | Complete |
-| CMD-01 | Phase 6 | Pending |
-| CMD-02 | Phase 6 | Pending |
+| CMD-01 | Phase 6 | Complete |
+| CMD-02 | Phase 6 | Complete |
 | SYNT-01 | Phase 7 | Pending |
 | SYNT-02 | Phase 7 | Pending |
 | SYNT-03 | Phase 7 | Pending |

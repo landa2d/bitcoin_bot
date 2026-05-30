@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 6 context gathered
-last_updated: "2026-05-30T20:11:18.475Z"
-last_activity: 2026-05-30 -- Phase 6 planning complete
+last_updated: "2026-05-30T21:00:51.959Z"
+last_activity: 2026-05-30
 progress:
   total_phases: 11
   completed_phases: 6
   total_plans: 20
-  completed_plans: 18
+  completed_plans: 19
   percent: 55
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-26)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 06 — Telegram Read-Only Scaffolding (`/map-status`, `/map-pending`)
+**Current focus:** Phase 06 — telegram-read-only-scaffolding
 
 ## Current Position
 
-Phase: 6 of 11 — Telegram Read-Only Scaffolding
-Plan: Not started (no CONTEXT.md yet)
+Phase: 06 (telegram-read-only-scaffolding) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-05-30 -- Phase 6 planning complete
+Last activity: 2026-05-30
 
 Progress: [█████░░░░░] 55%
 
@@ -56,6 +56,7 @@ Progress: [█████░░░░░] 55%
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 06 P01 | 18min | 4 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,7 @@ Recent decisions affecting current work:
 - 04.1-01: Fail-loud governance event_type = `'cap_missing'` (new type, added to governance_events CHECK in migration 034); downgrade reuses existing `'model_downgrade'`
 - 04.1-01: Downgrade reservation reconciliation = full refund of old-model reservation + fresh reserve at new-model estimate (governance runs after reserve_balance)
 - 04.1-01: Cross-provider downgrade (anthropic sonnet → deepseek) = typed 429 `governance_downgrade` redirect to `/v1/chat/completions` + `model_downgrade` event (no body translation, no silent sonnet pass-through); chat path does inline translate-and-dispatch
+- [Phase ?]: 06-01: economy_map read surface is GET-only by construction (httpx.get + Accept-Profile only, zero write verb/Content-Profile) per D-09; DB-level read-only role deferred to Phase 9
 
 ### Pending Todos
 
@@ -94,6 +96,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-05-30T19:56:05.678Z
+Last session: 2026-05-30T21:00:23.150Z
 Stopped at: Phase 6 context gathered
-Resume file: .planning/phases/06-telegram-read-only-scaffolding/06-CONTEXT.md
+Resume file: None

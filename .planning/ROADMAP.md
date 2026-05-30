@@ -200,7 +200,7 @@ Plans:
 **Plans**: 2 plans
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Read-only economy_map GET wrapper + maturity pill renderer, /map-status & /map-pending handlers, /map- dispatch wiring, read-only-by-construction code-review gate (CMD-01, CMD-02)
+- [x] 06-01-PLAN.md — Read-only economy_map GET wrapper + maturity pill renderer, /map-status & /map-pending handlers, /map- dispatch wiring, read-only-by-construction code-review gate (CMD-01, CMD-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -279,7 +279,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4. Hub, Block, and Status Renderer | 6/6 | Complete    | 2026-05-28 |
 | 4.1. Prod↔Main Reconciliation + Governance Migration | 3/3 | Complete    | 2026-05-28 |
 | 5. Intake Classifier + `unsorted` Handling | 3/3 | Complete    | 2026-05-28 |
-| 6. Telegram Read-Only Scaffolding | 0/TBD | Not started | - |
+| 6. Telegram Read-Only Scaffolding | 1/2 | In Progress|  |
 | 7. Synthesis Loop Core | 0/TBD | Not started | - |
 | 8. Validation Sentinels | 0/TBD | Not started | - |
 | 9. Gated Publishing + Approval Commands | 0/TBD | Not started | - |
