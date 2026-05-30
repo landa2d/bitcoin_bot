@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Session resumed — Phase 5 planned (3 plans), ready to execute
-last_updated: "2026-05-28T19:52:47.119Z"
-last_activity: 2026-05-28
+status: verifying
+stopped_at: Phase 6 context gathered
+last_updated: "2026-05-30T19:56:05.683Z"
+last_activity: 2026-05-30
 progress:
   total_phases: 11
   completed_phases: 6
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-26)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 05 — intake-classifier-unsorted-handling
+**Current focus:** Phase 06 — Telegram Read-Only Scaffolding (`/map-status`, `/map-pending`)
 
 ## Current Position
 
-Phase: 6
-Plan: Not started
-Status: Executing Phase 05
-Last activity: 2026-05-28
+Phase: 6 of 11 — Telegram Read-Only Scaffolding
+Plan: Not started (no CONTEXT.md yet)
+Status: Phase 05 complete + verified; ready to start Phase 06
+Last activity: 2026-05-30
 
-Progress: [███░░░░░░░] 33%
+Progress: [█████░░░░░] 55%
 
 ## Performance Metrics
 
@@ -94,6 +94,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-05-28T17:47:09.268Z
-Stopped at: Session resumed — Phase 5 planned (3 plans), ready to execute
-Resume file: .planning/phases/05-intake-classifier-unsorted-handling/ (05-01/02/03-PLAN.md)
+Last session: 2026-05-30T19:56:05.678Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-telegram-read-only-scaffolding/06-CONTEXT.md
