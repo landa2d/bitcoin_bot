@@ -1529,11 +1529,11 @@ def handle_x_command(message: str) -> str:
 #
 # D-09 read-only-by-construction boundary: this surface exposes ONLY GET
 # methods against economy_map. There is intentionally NO insert/update/delete
-# method, NO httpx.post/patch/delete call, and NO Content-Profile (schema-WRITE)
-# header anywhere below. The ONLY economy_map verb used is httpx.get with the
-# schema-READ header Accept-Profile: economy_map. The processor's
-# economy_map_insert_timeline_entry (Content-Profile + httpx.post) is the
-# anti-example this surface must never mirror. A DB-level read-only role is
+# method, NO httpx write call, and NO schema-WRITE profile header anywhere
+# below. The ONLY economy_map verb used is httpx.get with the schema-READ
+# header Accept-Profile: economy_map. The processor's
+# economy_map_insert_timeline_entry (schema-WRITE profile + httpx write verb) is
+# the anti-example this surface must never mirror. A DB-level read-only role is
 # deferred to Phase 9 (D-09); until then the wrapper enforces read-only by
 # construction and a code-review gate (Task 4) proves zero write verbs.
 #
@@ -1587,7 +1587,7 @@ def _economy_map_get(table: str, params: dict, *, count_exact: bool = False) -> 
     through `params` (URL-encoded by httpx) — never f-string-interpolated into the
     query path (threat T-06-04). When count_exact is set, requests an exact count via
     the Prefer header + Content-Range response. This is the ONLY economy_map verb in
-    the /map-* surface: httpx.get. No post/patch/delete, no Content-Profile.
+    the /map-* surface: httpx.get only. No write verb, no schema-WRITE profile.
     """
     headers = {
         "apikey": SUPABASE_KEY,
