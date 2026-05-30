@@ -197,7 +197,10 @@ Plans:
   3. Both commands route through Gato → Gato Brain in the same pattern as the existing `/x-*` family (no parallel infrastructure)
   4. Neither command can mutate `economy_map` data (read-only verified by code review)
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+- [ ] 06-01-PLAN.md — Read-only economy_map GET wrapper + maturity pill renderer, /map-status & /map-pending handlers, /map- dispatch wiring, read-only-by-construction code-review gate (CMD-01, CMD-02)
+- [ ] 06-02-PLAN.md — Operator-approved scoped gato_brain rebuild + live /map-status & /map-pending smoke check (CMD-01, CMD-02)
 
 ### Phase 7: Synthesis Loop Core
 
