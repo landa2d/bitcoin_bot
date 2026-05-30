@@ -46,8 +46,8 @@ A multi-agent intelligence platform for the AI agent economy: eight cooperating 
 - [x] **REQ-RENDER-LIVE** (RNDR-06): New timeline entry triggers re-render of the Evolution section without waiting for next synthesis — **Validated in Phase 4** (60s visibility-aware idle poll; operator-verified live insert appeared within 60s)
 - [x] **REQ-RENDER-REUSE** (RNDR-05): Block pages publish via the existing `aiagentspulse.com` publish path (per Phase 0 findings) — **Validated in Phase 4** (scoped web rebuild, single `agentpulse-web` container, no new infra)
 - [x] **REQ-TIMELINE-NEWEST** (RNDR-07): Evolution section renders newest-first across all blocks (controlled vocabulary, consistent default) — **Validated in Phase 4** (`.order('event_date', { ascending: false })` across all three query sites)
-- [ ] **REQ-CMD-STATUS**: `/map-status` — all blocks, tier, maturity pill, unabsorbed entry count, pending draft count
-- [ ] **REQ-CMD-PENDING**: `/map-pending` — drafts awaiting approval + `unsorted` entries awaiting assignment
+- [x] **REQ-CMD-STATUS** (CMD-01): `/map-status` — all blocks, tier, maturity pill, unabsorbed entry count, pending draft count — **Validated in Phase 6: telegram-read-only-scaffolding** (`handle_map_status` in `gato_brain.py`; live + smoke-verified against seeded seven-block data after scoped rebuild)
+- [x] **REQ-CMD-PENDING** (CMD-02): `/map-pending` — drafts awaiting approval + `unsorted` entries awaiting assignment — **Validated in Phase 6** (`handle_map_pending`; full UUIDs + pre-filled write lines + explicit empty states; read-only by construction, code-review-confirmed)
 - [ ] **REQ-CMD-APPROVE**: `/map-approve <version_id>` — publish a draft via atomic transaction
 - [ ] **REQ-CMD-REJECT**: `/map-reject <version_id>` — supersede a draft, leave entries unabsorbed
 - [ ] **REQ-CMD-ASSIGN**: `/map-assign <entry_id> <block_slug>` — move `unsorted` entry to a block
