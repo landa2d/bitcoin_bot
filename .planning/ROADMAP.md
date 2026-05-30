@@ -198,8 +198,12 @@ Plans:
   4. Neither command can mutate `economy_map` data (read-only verified by code review)
 
 **Plans**: 2 plans
+**Wave 1**
 
 - [ ] 06-01-PLAN.md — Read-only economy_map GET wrapper + maturity pill renderer, /map-status & /map-pending handlers, /map- dispatch wiring, read-only-by-construction code-review gate (CMD-01, CMD-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 06-02-PLAN.md — Operator-approved scoped gato_brain rebuild + live /map-status & /map-pending smoke check (CMD-01, CMD-02)
 
 ### Phase 7: Synthesis Loop Core
