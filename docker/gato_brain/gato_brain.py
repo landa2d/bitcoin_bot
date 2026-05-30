@@ -1830,6 +1830,30 @@ def handle_map_pending() -> str:
     return "\n".join(lines)
 
 
+def handle_map_command(message: str) -> str:
+    """Dispatch /map-* commands to their handlers (mirrors handle_x_command, D-10).
+
+    SYNC def returning a string; one top-level try/except Exception that logs and
+    returns a human-readable failure string (fail-loud — a read failure surfaces as
+    "Command failed: <e>" rather than a false-empty state). Read-only: dispatches only
+    to the GET-backed renderers; there is no write branch.
+    """
+    msg = message.strip()
+    parts = msg.split(None, 1)
+    cmd = parts[0].lower()
+
+    try:
+        if cmd == "/map-status":
+            return handle_map_status()
+        elif cmd == "/map-pending":
+            return handle_map_pending()
+        else:
+            return f"Unknown map command: {cmd}\nAvailable: /map-status, /map-pending"
+    except Exception as e:
+        logger.error(f"Map command failed: {cmd} — {e}")
+        return f"Command failed: {e}"
+
+
 # ─── Agent Wallet Summary ─────────────────────────────────────────
 
 def _resolve_api_key(authorization: str | None) -> dict | None:
@@ -2164,6 +2188,16 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
             response=x_response,
             session_id="",
             intent="X_COMMAND",
+            metadata={},
+        )
+
+    # 2c-map. Economy Map read-only commands — handle directly, skip intent router
+    if _msg_lower.startswith("/map-"):
+        map_response = handle_map_command(req.message)
+        return ChatResponse(
+            response=map_response,
+            session_id="",
+            intent="MAP_COMMAND",
             metadata={},
         )
 
