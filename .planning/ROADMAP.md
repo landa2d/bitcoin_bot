@@ -219,7 +219,17 @@ Plans:
   4. Editing `economy_map/synth_identity.md` on disk changes the next synthesis call's system prompt without a service restart (mtime-based hot reload verified by file touch + observed prompt change)
   5. Every successful synthesis writes one new `block_body_versions` row with status `draft`, a populated `body_md`, and a `proposed_maturity`; nothing about the live `published` row changes yet
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+
+**Wave 1**
+
+- [ ] 07-01-PLAN.md — Foundations: `synthesis` config block + working-default `synth_identity.md`; processor helpers (mtime identity loader, economy_map block/draft/entries/body reads, purpose-scoped draft-INSERT, eligibility predicate, input assembly+cap, output parser, single Sonnet call via `/anthropic/v1/messages`); Wave-0 unit harness (SYNT-01/03/04/05/06)
+
+**Wave 2** *(blocked on Wave 1 — both modify `agentpulse_processor.py` + the test file)*
+
+- [ ] 07-02-PLAN.md — Orchestrator: `synthesize_block` + `synthesize_blocks_poller` (fail-loud, draft-only/GATE-01), `scheduled_synthesize_blocks` wrapper + `schedule` registration; end-to-end poller tests proving one-draft-per-eligible-block, no-draft guard, fail-loud identity/key aborts, per-block isolation (SYNT-01/02/03/04/05/06)
 
 ### Phase 8: Validation Sentinels
 
