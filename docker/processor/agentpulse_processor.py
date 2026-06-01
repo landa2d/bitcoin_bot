@@ -3331,8 +3331,10 @@ def parse_synthesis_output(text: str) -> dict:
 
     Expects structured JSON {body_md, proposed_maturity}. Reuses _clean_json_response to strip
     markdown fences. Raises ValueError on empty body_md, on a proposed_maturity outside the
-    five-value enum, or on a missing/empty proposed_maturity — the caller logs and SKIPS this
-    block's INSERT (never defaults a maturity, never writes an empty body — D-12/SYNT-06).
+    five-value enum, on a missing/empty proposed_maturity, OR on a body_md missing any of the
+    six required RNDR-02 skeleton sections — the caller logs and SKIPS this block's INSERT
+    (never defaults a maturity, never writes an empty OR structurally-malformed body that the
+    renderer/operator would have to catch downstream — D-12/SYNT-06/WR-02).
     """
     parsed = json.loads(_clean_json_response(text))
     body_md = (parsed.get("body_md") or "").strip()
@@ -3343,6 +3345,12 @@ def parse_synthesis_output(text: str) -> dict:
         raise ValueError(
             f"invalid proposed_maturity {maturity!r} — must be one of {sorted(SYNTH_MATURITY_ENUM)}"
         )
+    # The six-part skeleton is a hard output contract (synth_identity.md + RNDR-02); a body that
+    # drops or renames headings must be skipped, not drafted malformed for the operator to catch.
+    _body_lower = body_md.lower()
+    missing = [h for h in SYNTH_SKELETON_HEADINGS if h.lower() not in _body_lower]
+    if missing:
+        raise ValueError(f"body_md missing required skeleton sections: {missing}")
     return {"body_md": body_md, "proposed_maturity": maturity}
 
 
@@ -3379,7 +3387,14 @@ def synthesis_sonnet_call(system_prompt: str, user_prompt: str, cfg: dict) -> st
         raise RuntimeError(
             f"synthesis Sonnet call failed ({resp.status_code}): {resp.text}"
         )
-    return resp.json()["content"][0]["text"]
+    # A 2xx can still carry an empty/refusal `content` (stop_reason != end_turn, tool/refusal
+    # states) or a proxy-shaped body without `content`. Index defensively so an empty completion
+    # surfaces as a descriptive error, not an opaque KeyError/IndexError (WR-03).
+    data = resp.json()
+    content = data.get("content") or []
+    if not content or not (content[0] or {}).get("text"):
+        raise RuntimeError(f"synthesis Sonnet returned no content: {data!r}")
+    return content[0]["text"]
 
 
 # ============================================================================
@@ -3394,6 +3409,17 @@ def synthesis_sonnet_call(system_prompt: str, user_prompt: str, cfg: dict) -> st
 # blocks.current_body_version_id, or a published row. Each successful synthesis
 # writes exactly one status='draft' block_body_versions row (status omitted →
 # DB default), which Phase 8 (sentinels) and Phase 9 (/map-approve) consume.
+
+
+class BlockSynthesisError(RuntimeError):
+    """An *eligible* block failed mid-synthesis (post-eligibility: Sonnet/parse/insert).
+
+    Carries `eligible = True` so the poller can count this block eligible-but-failed
+    rather than letting `eligible` track only successes — the run record must be able to
+    show "N eligible, M failed" (WR-04). Pre-eligibility read failures raise the plain
+    underlying exception instead, so eligibility is never claimed before it was determined.
+    """
+    eligible = True
 
 
 def synthesize_block(block: dict, cfg: dict, identity_text: str) -> dict:
@@ -3437,19 +3463,25 @@ def synthesize_block(block: dict, cfg: dict, identity_text: str) -> dict:
         }
 
     # Eligible: assemble, call Sonnet ONCE, parse, and write exactly one draft row.
-    prior_body_md = fetch_current_block_body(block.get("current_body_version_id"))
-    assembled = assemble_synthesis_input(block, new_entries, prior_body_md, cfg)
-    raw = synthesis_sonnet_call(identity_text, assembled["prompt"], cfg)
-    parsed = parse_synthesis_output(raw)
+    # Wrap the post-eligibility work so any failure surfaces as BlockSynthesisError
+    # (eligible=True) — the poller counts it eligible-but-failed, never silently == synthesized
+    # (WR-04). Reads above this point raise plain exceptions (eligibility not yet established).
+    try:
+        prior_body_md = fetch_current_block_body(block.get("current_body_version_id"))
+        assembled = assemble_synthesis_input(block, new_entries, prior_body_md, cfg)
+        raw = synthesis_sonnet_call(identity_text, assembled["prompt"], cfg)
+        parsed = parse_synthesis_output(raw)
 
-    # synthesized_from_through is the RUN wall-clock, NOT the newest entry date (Pitfall 5).
-    run_through = datetime.now(timezone.utc).isoformat()
-    inserted = economy_map_insert_block_body_version({
-        "block_slug": slug,
-        "body_md": parsed["body_md"],
-        "proposed_maturity": parsed["proposed_maturity"],
-        "synthesized_from_through": run_through,
-    })
+        # synthesized_from_through is the RUN wall-clock, NOT the newest entry date (Pitfall 5).
+        run_through = datetime.now(timezone.utc).isoformat()
+        inserted = economy_map_insert_block_body_version({
+            "block_slug": slug,
+            "body_md": parsed["body_md"],
+            "proposed_maturity": parsed["proposed_maturity"],
+            "synthesized_from_through": run_through,
+        })
+    except Exception as e:
+        raise BlockSynthesisError(str(e)) from e
 
     return {
         "slug": slug,
@@ -3488,18 +3520,21 @@ def synthesize_blocks_poller() -> dict:
         logger.info("[SYNTH] synthesis disabled via config — skipping")
         return {'disabled': True}
 
-    # Fail-loud (D-11/SYNT-05): never synthesize voiceless. Identity gate runs BEFORE
-    # log_pipeline_start so a misconfigured deploy is a loud no-run, not a 'failed' run row
-    # — but we still log the run as failed if the key is missing (below) for visibility.
+    # Both fail-loud gates run AFTER log_pipeline_start so each governance halt leaves a durable,
+    # queryable 'failed' run row — a persistently-missing identity file (config drift that
+    # silences the whole synthesis spine) must be as visible in pipeline_runs as the missing-key
+    # case, not just a loud log line (WR-05; MEMORY: fail-loud governance).
+    run_id = log_pipeline_start('synthesize_blocks')
+
+    # Fail-loud (D-11/SYNT-05): never synthesize voiceless.
     identity_text = load_synth_identity()
     if identity_text is None:
         logger.error(
             "[SYNTH] synth_identity.md unavailable — aborting synthesis cycle "
             "(never synthesize voiceless); failing loud (D-11)"
         )
+        log_pipeline_end(run_id, 'failed', {'error': 'synth_identity unavailable'})
         return {'error': 'synth_identity unavailable'}
-
-    run_id = log_pipeline_start('synthesize_blocks')
 
     # Fail-loud (MEMORY: fail-loud governance): a missing agent key would 401 every Sonnet
     # call — abort the run loudly rather than degrade to a silent no-op.
@@ -3531,6 +3566,11 @@ def synthesize_blocks_poller() -> dict:
                     totals['skipped'] += 1
             except Exception as e:
                 totals['failed'] += 1
+                # An eligible block that failed mid-synthesis still counts toward 'eligible'
+                # so the run record can show "eligible but failed" (WR-04). Pre-eligibility
+                # read failures raise plain exceptions and are NOT counted eligible.
+                if getattr(e, 'eligible', False):
+                    totals['eligible'] += 1
                 logger.error(
                     f"[SYNTH] block {slug} failed: {e}", exc_info=True
                 )

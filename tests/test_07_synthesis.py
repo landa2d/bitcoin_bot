@@ -58,6 +58,10 @@ proc._model_config_cache = _REPO_CONFIG.get("models", {})
 # The synthesis config block as shipped (used for assembly cap + Sonnet call config).
 SYNTH_CFG = _REPO_CONFIG.get("synthesis", {})
 
+# A body_md carrying all six required RNDR-02 skeleton headings — parse_synthesis_output now
+# rejects bodies missing any section (WR-02), so poller/parse fixtures must use a full skeleton.
+_FULL_SKELETON_BODY = "\n\n".join(f"## {h}\nbody for {h}." for h in proc.SYNTH_SKELETON_HEADINGS)
+
 
 class _FakeResponse:
     """Anthropic Messages-shaped response: json() -> {'content': [{'type','text'}]}."""
@@ -144,6 +148,22 @@ def test_sonnet_call_non_2xx_raises():
     finally:
         _restore_post(monkey)
     assert raised, "synthesis_sonnet_call must raise on non-2xx proxy response"
+
+
+def test_sonnet_call_raises_on_empty_content():
+    """A 200 whose `content` is empty (refusal / stop_reason != end_turn) must raise a
+    descriptive error, not an opaque IndexError/KeyError (WR-03)."""
+    monkey = {}
+    _install_post_stub(monkey, _FakeResponse(200, {"content": [], "stop_reason": "max_tokens"}))
+    try:
+        raised = False
+        try:
+            proc.synthesis_sonnet_call("S", "U", SYNTH_CFG)
+        except RuntimeError as e:
+            raised = "no content" in str(e)
+    finally:
+        _restore_post(monkey)
+    assert raised, "must raise a descriptive 'no content' error on an empty 200 body"
 
 
 # ===========================================================================
@@ -287,16 +307,29 @@ def test_assembly_over_cap_keeps_newest_and_notes_omission():
 # SYNT-06 / D-12 — output parse + maturity-enum validation
 # ===========================================================================
 def test_parse_output_valid():
-    text = json.dumps({"body_md": "## What it is\nstuff", "proposed_maturity": "contested"})
+    text = json.dumps({"body_md": _FULL_SKELETON_BODY, "proposed_maturity": "contested"})
     out = proc.parse_synthesis_output(text)
     assert out["body_md"].startswith("## What it is")
     assert out["proposed_maturity"] == "contested"
 
 
 def test_parse_output_fence_wrapped():
-    text = "```json\n" + json.dumps({"body_md": "b", "proposed_maturity": "mature"}) + "\n```"
+    text = "```json\n" + json.dumps({"body_md": _FULL_SKELETON_BODY,
+                                     "proposed_maturity": "mature"}) + "\n```"
     out = proc.parse_synthesis_output(text)
     assert out["proposed_maturity"] == "mature"
+
+
+def test_parse_output_raises_on_missing_skeleton():
+    """A valid maturity + non-empty body that drops skeleton sections must raise (WR-02) —
+    a structurally-malformed body is skipped, never drafted for the operator to catch."""
+    raised = False
+    try:
+        proc.parse_synthesis_output(json.dumps(
+            {"body_md": "## What it is\nonly one section", "proposed_maturity": "emerging"}))
+    except ValueError:
+        raised = True
+    assert raised, "must raise when body_md is missing required skeleton sections"
 
 
 def test_parse_output_raises_on_empty_body():
@@ -447,7 +480,7 @@ def _install_poller_stubs(monkey, *, blocks, get_router=None, sonnet_payload=Non
         captured["posts"].append({"url": url, "headers": headers or {},
                                   "body": json or {}})
         if url.endswith("/anthropic/v1/messages"):
-            payload = sonnet_payload or _anthropic_payload(body_md="## What it is\nx",
+            payload = sonnet_payload or _anthropic_payload(body_md=_FULL_SKELETON_BODY,
                                                            maturity="emerging")
             return _FakeResponse(200, payload)
         # block_body_versions INSERT
@@ -591,22 +624,47 @@ def test_poller_isolates_one_failing_block():
     assert len(sonnet_posts) == 1, "only the good block reaches the Sonnet call"
 
 
+def test_poller_eligible_block_failure_counts_eligible():
+    """An eligible block that fails mid-synthesis (Sonnet non-2xx) is counted failed AND
+    eligible — 'eligible' tracks the decision, not just successes, so the run record can
+    show 'eligible but failed' (WR-04)."""
+    def post_router_502(url, headers=None, json=None, timeout=None, **kw):
+        # Sonnet call fails; this is post-eligibility, so the block is eligible-but-failed.
+        return _FakeResponse(502, None, text="bad gateway")
+
+    monkey = {}
+    captured = _install_poller_stubs(monkey, blocks=_one_block())
+    # Override the post stub so the (eligible) block's Sonnet call returns non-2xx.
+    proc.httpx.post = post_router_502
+    try:
+        totals = proc.synthesize_blocks_poller()
+    finally:
+        _restore_poller(monkey)
+
+    assert totals["failed"] == 1, totals
+    assert totals["eligible"] == 1, f"eligible must count the decision, not the outcome: {totals}"
+    assert totals["synthesized"] == 0, totals
+
+
 def _run_all():
     tests = [
         test_sonnet_call_routes_through_anthropic_messages,
         test_sonnet_call_non_2xx_raises,
+        test_sonnet_call_raises_on_empty_content,
         test_identity_loads_and_hot_reloads,
         test_eligibility_truth_table,
         test_assembly_orders_newest_first_and_under_cap,
         test_assembly_over_cap_keeps_newest_and_notes_omission,
         test_parse_output_valid,
         test_parse_output_fence_wrapped,
+        test_parse_output_raises_on_missing_skeleton,
         test_parse_output_raises_on_empty_body,
         test_parse_output_raises_on_invalid_maturity,
         test_parse_output_raises_on_missing_maturity,
         test_insert_block_body_version_shape,
         test_insert_block_body_version_non_2xx_raises,
         test_poller_eligible_block_drafts_one_row_no_published_write,
+        test_poller_eligible_block_failure_counts_eligible,
         test_poller_open_draft_block_makes_zero_calls,
         test_poller_aborts_loud_on_none_identity,
         test_poller_aborts_loud_on_missing_key,
