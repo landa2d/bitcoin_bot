@@ -225,7 +225,7 @@ Plans:
 
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — Foundations: `synthesis` config block + working-default `synth_identity.md`; processor helpers (mtime identity loader, economy_map block/draft/entries/body reads, purpose-scoped draft-INSERT, eligibility predicate, input assembly+cap, output parser, single Sonnet call via `/anthropic/v1/messages`); Wave-0 unit harness (SYNT-01/03/04/05/06)
+- [x] 07-01-PLAN.md — Foundations: `synthesis` config block + working-default `synth_identity.md`; processor helpers (mtime identity loader, economy_map block/draft/entries/body reads, purpose-scoped draft-INSERT, eligibility predicate, input assembly+cap, output parser, single Sonnet call via `/anthropic/v1/messages`); Wave-0 unit harness (SYNT-01/03/04/05/06)
 
 **Wave 2** *(blocked on Wave 1 — both modify `agentpulse_processor.py` + the test file)*
 
@@ -290,7 +290,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4.1. Prod↔Main Reconciliation + Governance Migration | 3/3 | Complete    | 2026-05-28 |
 | 5. Intake Classifier + `unsorted` Handling | 3/3 | Complete    | 2026-05-28 |
 | 6. Telegram Read-Only Scaffolding | 2/2 | Complete    | 2026-05-30 |
-| 7. Synthesis Loop Core | 0/TBD | Not started | - |
+| 7. Synthesis Loop Core | 1/2 | In Progress|  |
 | 8. Validation Sentinels | 0/TBD | Not started | - |
 | 9. Gated Publishing + Approval Commands | 0/TBD | Not started | - |
 | 10. Operator Write Commands | 0/TBD | Not started | - |
