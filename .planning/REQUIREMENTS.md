@@ -34,12 +34,12 @@
 
 ### Synthesis loop (per block, the autonomous core)
 
-- [ ] **SYNT-01**: Trigger evaluation — eligible when `≥ N=5` new entries since `last_synthesized_at` OR `≥ T=30 days` with ≥1 new entry
-- [ ] **SYNT-02**: Trigger runs on a schedule (cron or existing orchestration poll); implementation choice deferred to executor
-- [ ] **SYNT-03**: Input assembly — current `published` body, all `timeline_entries` since prior `synthesized_from_through` (ordered by `event_date`), `live_tension`, current `maturity` — concrete entries, never cluster labels alone
-- [ ] **SYNT-04**: Generation — single editorial LLM call, Claude Sonnet, routed through `http://llm-proxy:8200` (no direct Anthropic SDK)
-- [ ] **SYNT-05**: Synthesis prompt lives in `economy_map/synth_identity.md`, hot-reloaded via mtime — voice iterates without redeploys
-- [ ] **SYNT-06**: Output is a rewritten `body_md` plus a `proposed_maturity`
+- [x] **SYNT-01**: Trigger evaluation — eligible when `≥ N=5` new entries since `last_synthesized_at` OR `≥ T=30 days` with ≥1 new entry
+- [x] **SYNT-02**: Trigger runs on a schedule (cron or existing orchestration poll); implementation choice deferred to executor
+- [x] **SYNT-03**: Input assembly — current `published` body, all `timeline_entries` since prior `synthesized_from_through` (ordered by `event_date`), `live_tension`, current `maturity` — concrete entries, never cluster labels alone
+- [x] **SYNT-04**: Generation — single editorial LLM call, Claude Sonnet, routed through `http://llm-proxy:8200` (no direct Anthropic SDK)
+- [x] **SYNT-05**: Synthesis prompt lives in `economy_map/synth_identity.md`, hot-reloaded via mtime — voice iterates without redeploys
+- [x] **SYNT-06**: Output is a rewritten `body_md` plus a `proposed_maturity`
 
 ### Validation sentinels
 
@@ -165,12 +165,12 @@ Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 | INTK-05 | Phase 5 | Complete |
 | CMD-01 | Phase 6 | Complete |
 | CMD-02 | Phase 6 | Complete |
-| SYNT-01 | Phase 7 | Pending |
-| SYNT-02 | Phase 7 | Pending |
-| SYNT-03 | Phase 7 | Pending |
-| SYNT-04 | Phase 7 | Pending |
-| SYNT-05 | Phase 7 | Pending |
-| SYNT-06 | Phase 7 | Pending |
+| SYNT-01 | Phase 7 | Complete |
+| SYNT-02 | Phase 7 | Complete |
+| SYNT-03 | Phase 7 | Complete |
+| SYNT-04 | Phase 7 | Complete |
+| SYNT-05 | Phase 7 | Complete |
+| SYNT-06 | Phase 7 | Complete |
 | VLDT-01 | Phase 8 | Pending |
 | VLDT-02 | Phase 8 | Pending |
 | VLDT-03 | Phase 8 | Pending |
