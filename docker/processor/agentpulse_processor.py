@@ -3383,6 +3383,173 @@ def synthesis_sonnet_call(system_prompt: str, user_prompt: str, cfg: dict) -> st
 
 
 # ============================================================================
+# Synthesis loop orchestrator (Plan 07-02) — autonomous per-block drafting
+# ============================================================================
+# Composes the Plan 07-01 primitives into the autonomous editorial spine:
+#   synthesize_block       — ONE block: eligibility → assemble → ONE Sonnet call
+#                            → parse/validate → ONE draft INSERT (GATE-01 draft-only)
+#   synthesize_blocks_poller — orchestrator: fail-loud identity/key guards, iterate
+#                            all seven blocks in per-block try/except, run-logged
+# The autonomy boundary (GATE-01): NOTHING here writes blocks.maturity,
+# blocks.current_body_version_id, or a published row. Each successful synthesis
+# writes exactly one status='draft' block_body_versions row (status omitted →
+# DB default), which Phase 8 (sentinels) and Phase 9 (/map-approve) consume.
+
+
+def synthesize_block(block: dict, cfg: dict, identity_text: str) -> dict:
+    """Synthesize ONE block into a draft body version, or skip it (SYNT-01..06, GATE-01).
+
+    For a single block:
+      1. read its open-draft flag (block_has_open_draft, D-03) and its new entries
+         (fetch_block_new_entries with the block's last_synthesized_at watermark; NULL
+         watermark => all entries count as new, cold-start D-06);
+      2. compute eligibility via is_block_eligible(...) using N / T_days from cfg — if
+         ineligible, return a skip result with ZERO Sonnet calls (no-draft guard + N/T
+         predicate, SYNT-01/D-03/D-05);
+      3. if eligible: fetch the prior published body_md (None on cold-start, D-08),
+         assemble_synthesis_input(...), make the SINGLE synthesis_sonnet_call(...),
+         parse_synthesis_output(...), then economy_map_insert_block_body_version(...)
+         with synthesized_from_through = the RUN wall-clock ISO timestamp
+         (datetime.now(timezone.utc).isoformat(), NOT the newest entry's date — Pitfall 5).
+
+    Writes ONLY a status='draft' block_body_versions row (status omitted → DB default).
+    NEVER writes blocks.maturity, blocks.current_body_version_id, or a published row
+    (the autonomy boundary, GATE-01). Returns a structured result:
+      ineligible -> {'slug', 'status': 'skipped', 'reason': 'ineligible', 'new_entries'}
+      synthesized -> {'slug', 'status': 'synthesized', 'version_id', 'proposed_maturity',
+                      'included_count', 'omitted_count'}
+    Raises on read/call/parse/insert failure so the caller (poller) can count it failed
+    and continue (per-block isolation lives in the poller, not here).
+    """
+    slug = block.get("slug", "")
+    has_draft = block_has_open_draft(slug)
+    new_entries = fetch_block_new_entries(slug, block.get("last_synthesized_at"))
+
+    N = int(cfg.get("N", 5))
+    T_days = int(cfg.get("T_days", 30))
+
+    if not is_block_eligible(block, new_entries, has_draft, N=N, T_days=T_days):
+        return {
+            "slug": slug,
+            "status": "skipped",
+            "reason": "ineligible",
+            "new_entries": len(new_entries),
+        }
+
+    # Eligible: assemble, call Sonnet ONCE, parse, and write exactly one draft row.
+    prior_body_md = fetch_current_block_body(block.get("current_body_version_id"))
+    assembled = assemble_synthesis_input(block, new_entries, prior_body_md, cfg)
+    raw = synthesis_sonnet_call(identity_text, assembled["prompt"], cfg)
+    parsed = parse_synthesis_output(raw)
+
+    # synthesized_from_through is the RUN wall-clock, NOT the newest entry date (Pitfall 5).
+    run_through = datetime.now(timezone.utc).isoformat()
+    inserted = economy_map_insert_block_body_version({
+        "block_slug": slug,
+        "body_md": parsed["body_md"],
+        "proposed_maturity": parsed["proposed_maturity"],
+        "synthesized_from_through": run_through,
+    })
+
+    return {
+        "slug": slug,
+        "status": "synthesized",
+        "version_id": inserted.get("id") if isinstance(inserted, dict) else None,
+        "proposed_maturity": parsed["proposed_maturity"],
+        "included_count": assembled["included_count"],
+        "omitted_count": assembled["omitted_count"],
+    }
+
+
+def synthesize_blocks_poller() -> dict:
+    """Autonomous per-block synthesis cycle over the seven economy_map blocks (SYNT-01..06).
+
+    Orchestrator mirroring classify_intake_poller:
+      - guard `if not supabase`;
+      - read `cfg = get_full_config().get('synthesis', {})`; if not cfg['enabled'] (default
+        True), log + return {'disabled': True} (no run logged);
+      - load_synth_identity() — if None, fail LOUD (logged, run marked failed) and return;
+        never synthesize voiceless (D-11/SYNT-05);
+      - if not _get_agent_api_key(), fail LOUD (logged, run marked failed) and return; never
+        a silent keyless no-op (fail-loud governance, MEMORY);
+      - log_pipeline_start('synthesize_blocks'); fetch all seven blocks; iterate each in its
+        OWN try/except so one bad block never aborts the cycle (mirror the intake poller),
+        accumulating totals {eligible, synthesized, skipped, failed}; log_pipeline_end with
+        the totals; return them.
+
+    GATE-01: every write is a status='draft' block_body_versions row; the published row and
+    blocks.* are never touched.
+    """
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    cfg = get_full_config().get('synthesis', {})
+    if not cfg.get('enabled', True):
+        logger.info("[SYNTH] synthesis disabled via config — skipping")
+        return {'disabled': True}
+
+    # Fail-loud (D-11/SYNT-05): never synthesize voiceless. Identity gate runs BEFORE
+    # log_pipeline_start so a misconfigured deploy is a loud no-run, not a 'failed' run row
+    # — but we still log the run as failed if the key is missing (below) for visibility.
+    identity_text = load_synth_identity()
+    if identity_text is None:
+        logger.error(
+            "[SYNTH] synth_identity.md unavailable — aborting synthesis cycle "
+            "(never synthesize voiceless); failing loud (D-11)"
+        )
+        return {'error': 'synth_identity unavailable'}
+
+    run_id = log_pipeline_start('synthesize_blocks')
+
+    # Fail-loud (MEMORY: fail-loud governance): a missing agent key would 401 every Sonnet
+    # call — abort the run loudly rather than degrade to a silent no-op.
+    if not _get_agent_api_key():
+        logger.error(
+            "[SYNTH] processor agent API key unavailable — aborting run "
+            "(every Sonnet call would 401); failing loud, not a silent no-op"
+        )
+        log_pipeline_end(run_id, 'failed', {'error': 'missing agent api key'})
+        return {'error': 'missing agent api key'}
+
+    totals = {'eligible': 0, 'synthesized': 0, 'skipped': 0, 'failed': 0}
+
+    try:
+        blocks = fetch_economy_map_blocks()
+
+        for block in blocks:
+            slug = block.get("slug", "")
+            try:
+                result = synthesize_block(block, cfg, identity_text)
+                if result.get("status") == "synthesized":
+                    totals['eligible'] += 1
+                    totals['synthesized'] += 1
+                    logger.info(
+                        f"[SYNTH] block {slug}: drafted version "
+                        f"{result.get('version_id')} ({result.get('proposed_maturity')})"
+                    )
+                else:
+                    totals['skipped'] += 1
+            except Exception as e:
+                totals['failed'] += 1
+                logger.error(
+                    f"[SYNTH] block {slug} failed: {e}", exc_info=True
+                )
+
+        log_pipeline_end(run_id, 'completed', totals)
+    except Exception as e:
+        logger.error(f"[SYNTH] synthesis poller run failed: {e}", exc_info=True)
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+    logger.info(
+        f"[SYNTH] cycle complete: {totals['synthesized']} draft(s) from "
+        f"{totals['eligible']} eligible block(s) ({totals['skipped']} skipped, "
+        f"{totals['failed']} failed)"
+    )
+    return totals
+
+
+# ============================================================================
 # Intake classifier poller (Plan 05-02) — autonomous timeline emission
 # ============================================================================
 # Reads finalized (status == 'published') newsletter editions, pulls each
