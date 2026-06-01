@@ -95,3 +95,8 @@ None. All functions are fully wired against live economy_map tables / the proxy 
 - `synthesized_from_through` on the INSERT must be the run wall-clock (`datetime.now(timezone.utc).isoformat()`), NOT the newest entry's date (Pitfall 5).
 - Per-block try/except so one bad block never aborts the cycle; wrap with `log_pipeline_start/log_pipeline_end('synthesize_blocks')`.
 - Cadence is SYNT-02 executor discretion (RESEARCH recommends daily or every 6h, avoiding the Friday newsletter slots).
+
+## Self-Check: PASSED
+
+- Files: config/economy_map/synth_identity.md, tests/test_07_synthesis.py, .planning/phases/07-synthesis-loop-core/07-01-SUMMARY.md — all FOUND.
+- Commits: 18edf59 (Task 1), f3eeb2a (Task 2), 71b66b1 (Task 3), 746ca7c (SUMMARY) — all FOUND in git history.
