@@ -30,14 +30,14 @@ A multi-agent intelligence platform for the AI agent economy: eight cooperating 
 - [ ] **REQ-INTAKE-AUTO**: Every finalized tier-1 newsletter event is auto-classified to a block with a confidence floor; entries below floor land in `unsorted` for one-tap reassignment
 - [ ] **REQ-INTAKE-TRACE**: Every timeline entry carries `source_edition_id` for full traceability back to the newsletter that produced it
 - [ ] **REQ-LEDGER-APPEND**: Timeline is append-only — corrections are new entries, history is never mutated
-- [ ] **REQ-SYNTH-LOOP**: Per-block synthesis triggers when ≥N new entries or ≥T days with ≥1 new entry; default `N=5/T=30` global
-- [ ] **REQ-SYNTH-IDENT**: Synthesis prompt lives in hot-reloadable `economy_map/synth_identity.md` (mtime-based), not in code
-- [ ] **REQ-SYNTH-ROUTE**: All synthesis LLM calls route through `llm-proxy:8200` (no direct Anthropic SDK calls — the RivalScope workaround we're not repeating)
+- [x] **REQ-SYNTH-LOOP** (SYNT-01/SYNT-02): Per-block synthesis triggers when ≥N new entries or ≥T days with ≥1 new entry; default `N=5/T=30` global — **Validated in Phase 7: synthesis-loop-core** (`is_block_eligible` + `synthesize_blocks_poller` on a daily `schedule` job; no-draft guard + `created_at` watermark recency; 21/21 test harness)
+- [x] **REQ-SYNTH-IDENT** (SYNT-05): Synthesis prompt lives in hot-reloadable `economy_map/synth_identity.md` (mtime-based), not in code — **Validated in Phase 7** (`load_synth_identity` mtime cache + `is not None` guard; fail-loud `None` on missing/empty aborts the cycle with a durable `failed` run row)
+- [x] **REQ-SYNTH-ROUTE** (SYNT-04): All synthesis LLM calls route through `llm-proxy:8200` (no direct Anthropic SDK calls — the RivalScope workaround we're not repeating) — **Validated in Phase 7** (`synthesis_sonnet_call` raw `httpx.post` to `{LLM_PROXY_URL}/anthropic/v1/messages`; zero `api.anthropic.com` / `routed_llm_call` in synthesis, code-review + test confirmed)
 - [ ] **REQ-SENTINEL-TENSION**: Validator flags if the live-tension section is missing or trivialized post-synthesis
 - [ ] **REQ-SENTINEL-LENGTH**: Validator flags if synthesized body is shorter than 60% of prior published length
 - [ ] **REQ-SENTINEL-MATURITY**: Maturity jumps >1 stop flag `requires_attention=true` rather than auto-accept
 - [ ] **REQ-SENTINEL-STRUCTURE**: Six-part skeleton headings must all be present in synthesized output
-- [ ] **REQ-GATE-DRAFT**: Synthesized bodies always land as `draft` versions; Telegram card surfaces flags; nothing goes live without `/map-approve`
+- [ ] **REQ-GATE-DRAFT**: Synthesized bodies always land as `draft` versions; Telegram card surfaces flags; nothing goes live without `/map-approve` — *draft-landing half shipped in Phase 7 (GATE-01: every synthesis writes one `draft` row, never touches the published row / `blocks.maturity` / `current_body_version_id`); flag-surfacing is Phase 8, `/map-approve` is Phase 9*
 - [ ] **REQ-PUBLISH-ATOMIC**: Approving a version flips its status, supersedes prior, updates `blocks.current_body_version_id` and `blocks.maturity` in one transaction
 - [ ] **REQ-VERSION-IMMUTABLE**: `block_body_versions` is append-only — re-synthesis inserts; rejected drafts are superseded, not deleted
 - [x] **REQ-RENDER-HUB** (RNDR-01): Hub page (`/map`) shows storyline header + seven-block visual + maturity pills with links to block pages — **Validated in Phase 4: hub-block-and-status-renderer** (`loadHub`/`renderHub` in `app.js`; live + operator-verified at aiagentspulse.com/#/map)
@@ -135,4 +135,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-28 — Phase 4 complete (hub/block/status renderers live at aiagentspulse.com: `#/map`, `#/map/<slug>`, `#/status` read `economy_map` via anon PostgREST with a 60s visibility-aware Evolution poll; RNDR-01..07 validated end-to-end; deploy also exposed the `economy_map` schema in prod PostgREST — the missing prerequisite — and fixed CR-01, a `source_url` scheme-validation XSS gap. Block-page body content awaits Phase 7 synthesis. Next: Phase 5 — intake classifier + `unsorted` handling)*
+*Last updated: 2026-06-01 — Phase 7 complete (synthesis loop core: a daily `schedule` job iterates the seven blocks fail-loud, evaluates N=5/T=30 eligibility with a no-draft guard, assembles concrete-entry input, makes ONE Claude Sonnet call via `llm-proxy:8200/anthropic/v1/messages` with a hot-reloadable `synth_identity.md`, and lands exactly one `draft` `block_body_versions` row per eligible block — GATE-01 draft-only upheld, nothing published changes. 15/15 must-haves verified, 21/21 tests. Code review: 0 Critical / 5 Warning / 4 Info; WR-02/03/04/05 fixed (fail-loud + observability), WR-01 UNIQUE-index migration + 4 Info deferred to the Phase 9/10 operator-approved track. Not yet deployed/running. Next: Phase 8 — validation sentinels)*
