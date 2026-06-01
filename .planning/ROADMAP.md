@@ -18,7 +18,7 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
 - [x] **Phase 4.1: Prod↔Main Reconciliation + LLM-Proxy Governance Migration** - Infra interstitial: bring prod current with main, ship the file→DB governance migration atomically + fail-loud, establish a clean deploy baseline before Phase 5 (completed 2026-05-28)
 - [x] **Phase 5: Intake Classifier + `unsorted` Handling** - Newsletter pipeline emits classified, traceable timeline entries via LLM proxy (completed 2026-05-28)
 - [x] **Phase 6: Telegram Read-Only Scaffolding** - `/map-status` and `/map-pending` give operator situational awareness (completed 2026-05-30)
-- [ ] **Phase 7: Synthesis Loop Core** - Trigger evaluation, input assembly, Sonnet generation with hot-reloadable identity, draft writes
+- [x] **Phase 7: Synthesis Loop Core** - Trigger evaluation, input assembly, Sonnet generation with hot-reloadable identity, draft writes (completed 2026-06-01)
 - [ ] **Phase 8: Validation Sentinels** - Tension/length/maturity/structure flags annotate drafts without blocking; visible on Telegram cards
 - [ ] **Phase 9: Gated Publishing + Approval Commands** - Atomic publish transaction wired to `/map-approve` and `/map-reject`
 - [ ] **Phase 10: Operator Write Commands** - `/map-assign`, `/map-entry`, `/map-synth`, `/map-tension` complete the control surface
@@ -229,7 +229,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 — both modify `agentpulse_processor.py` + the test file)*
 
-- [ ] 07-02-PLAN.md — Orchestrator: `synthesize_block` + `synthesize_blocks_poller` (fail-loud, draft-only/GATE-01), `scheduled_synthesize_blocks` wrapper + `schedule` registration; end-to-end poller tests proving one-draft-per-eligible-block, no-draft guard, fail-loud identity/key aborts, per-block isolation (SYNT-01/02/03/04/05/06)
+- [x] 07-02-PLAN.md — Orchestrator: `synthesize_block` + `synthesize_blocks_poller` (fail-loud, draft-only/GATE-01), `scheduled_synthesize_blocks` wrapper + `schedule` registration; end-to-end poller tests proving one-draft-per-eligible-block, no-draft guard, fail-loud identity/key aborts, per-block isolation (SYNT-01/02/03/04/05/06)
 
 ### Phase 8: Validation Sentinels
 
@@ -290,7 +290,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 4.1. Prod↔Main Reconciliation + Governance Migration | 3/3 | Complete    | 2026-05-28 |
 | 5. Intake Classifier + `unsorted` Handling | 3/3 | Complete    | 2026-05-28 |
 | 6. Telegram Read-Only Scaffolding | 2/2 | Complete    | 2026-05-30 |
-| 7. Synthesis Loop Core | 1/2 | In Progress|  |
+| 7. Synthesis Loop Core | 2/2 | Complete   | 2026-06-01 |
 | 8. Validation Sentinels | 0/TBD | Not started | - |
 | 9. Gated Publishing + Approval Commands | 0/TBD | Not started | - |
 | 10. Operator Write Commands | 0/TBD | Not started | - |
