@@ -102,6 +102,16 @@
     "enabled": true,
     "confidence_floor": 0.6
   },
+  "synthesis": {
+    "enabled": true,
+    "N": 5,
+    "T_days": 30,
+    "synthesis_model": "claude-sonnet-4-20250514",
+    "max_input_entries": 22,
+    "max_input_tokens": 12000,
+    "output_max_tokens": 8000,
+    "temperature": 0.4
+  },
   "analysis": {
     "model": "gpt-4o",
     "max_tokens": 4000,
