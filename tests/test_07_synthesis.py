@@ -372,6 +372,225 @@ def test_insert_block_body_version_non_2xx_raises():
     assert raised, "insert must raise on non-2xx"
 
 
+# ===========================================================================
+# Plan 07-02 — end-to-end synthesize_blocks_poller (draft-only GATE-01 + fail-loud)
+# ===========================================================================
+# These drive the full orchestrator with stubbed economy_map reads (proc.httpx.get),
+# stubbed Sonnet + INSERT writes (proc.httpx.post), and stubbed identity/key/run-logging.
+# The central assertions: an eligible block makes exactly ONE Sonnet POST + ONE draft
+# INSERT and NEVER targets /blocks or a published row (GATE-01); the no-draft guard and
+# the fail-loud identity/key aborts make zero Sonnet calls; one bad block is isolated.
+
+
+class _GetResponse:
+    """Minimal PostgREST-shaped GET response: json() -> list of rows, status 200."""
+
+    def __init__(self, rows, status_code=200):
+        self.status_code = status_code
+        self._rows = rows
+        self.text = json.dumps(rows)
+
+    def json(self):
+        return self._rows
+
+
+def _install_poller_stubs(monkey, *, blocks, get_router=None, sonnet_payload=None,
+                          identity="VOICE", agent_key="ap_processor_test"):
+    """Stub the poller's whole I/O surface: supabase guard, run-logging, identity, key,
+    httpx.get (economy_map reads), httpx.post (Sonnet call + draft INSERT).
+
+    `blocks` is the list returned by fetch_economy_map_blocks. `get_router(table, params)`
+    returns the row list for the per-block reads (block_body_versions draft check,
+    timeline_entries new-entries, block_body_versions current body); when None, a default
+    router returns: no draft, 5 cold-start entries, no prior body. Returns a `captured` dict
+    with lists of every POST url/body so tests can assert call counts and targets.
+    """
+    captured = {"posts": [], "gets": []}
+
+    monkey["supabase"] = proc.supabase
+    monkey["log_start"] = proc.log_pipeline_start
+    monkey["log_end"] = proc.log_pipeline_end
+    monkey["identity"] = proc.load_synth_identity
+    monkey["agent_key"] = proc._get_agent_api_key
+    monkey["httpx_get"] = proc.httpx.get
+    monkey["httpx_post"] = proc.httpx.post
+
+    proc.supabase = object()  # truthy guard pass; run-logging is stubbed so it's never used
+    proc.log_pipeline_start = lambda pipeline: "run-test"
+    proc.log_pipeline_end = lambda run_id, status, results: None
+    proc.load_synth_identity = (lambda: identity) if identity is not None else (lambda: None)
+    proc._get_agent_api_key = (lambda: agent_key) if agent_key else (lambda: "")
+
+    def _default_router(table, params):
+        if table == "block_body_versions" and params.get("status") == "eq.draft":
+            return []  # no open draft
+        if table == "timeline_entries":
+            # 5 cold-start entries (>= N) => eligible.
+            return [{"event_date": "2026-05-30", "what_shifted": f"e{i}",
+                     "why_it_mattered": "y", "source_url": None,
+                     "created_at": "2026-05-30T00:00:00+00:00"} for i in range(5)]
+        if table == "block_body_versions":
+            return []  # current body fetch (cold-start => empty)
+        return []
+
+    router = get_router or _default_router
+
+    def fake_get(url, params=None, headers=None, timeout=None, **kw):
+        params = params or {}
+        table = url.rsplit("/", 1)[-1]
+        captured["gets"].append({"table": table, "params": params})
+        if table == "blocks":
+            return _GetResponse(blocks)
+        return _GetResponse(router(table, params))
+
+    def fake_post(url, headers=None, json=None, timeout=None, **kw):
+        captured["posts"].append({"url": url, "headers": headers or {},
+                                  "body": json or {}})
+        if url.endswith("/anthropic/v1/messages"):
+            payload = sonnet_payload or _anthropic_payload(body_md="## What it is\nx",
+                                                           maturity="emerging")
+            return _FakeResponse(200, payload)
+        # block_body_versions INSERT
+        return _FakeResponse(201, [{"id": "v-new", "status": "draft"}])
+
+    proc.httpx.get = fake_get
+    proc.httpx.post = fake_post
+    return captured
+
+
+def _restore_poller(monkey):
+    proc.supabase = monkey["supabase"]
+    proc.log_pipeline_start = monkey["log_start"]
+    proc.log_pipeline_end = monkey["log_end"]
+    proc.load_synth_identity = monkey["identity"]
+    proc._get_agent_api_key = monkey["agent_key"]
+    proc.httpx.get = monkey["httpx_get"]
+    proc.httpx.post = monkey["httpx_post"]
+
+
+def _one_block(slug="memory-context"):
+    return [{"slug": slug, "maturity": "nascent", "live_tension": "the open Q",
+             "last_synthesized_at": None, "current_body_version_id": None}]
+
+
+def test_poller_eligible_block_drafts_one_row_no_published_write():
+    """Eligible cold-start block => exactly ONE Sonnet POST + ONE draft INSERT;
+    zero requests target /blocks or a published row (GATE-01 draft-only invariant)."""
+    monkey = {}
+    captured = _install_poller_stubs(monkey, blocks=_one_block())
+    try:
+        totals = proc.synthesize_blocks_poller()
+    finally:
+        _restore_poller(monkey)
+
+    assert totals["synthesized"] == 1, totals
+    assert totals["eligible"] == 1
+    assert totals["skipped"] == 0
+    assert totals["failed"] == 0
+
+    sonnet_posts = [p for p in captured["posts"] if p["url"].endswith("/anthropic/v1/messages")]
+    insert_posts = [p for p in captured["posts"] if p["url"].endswith("/block_body_versions")]
+    assert len(sonnet_posts) == 1, f"expected exactly one Sonnet call, got {len(sonnet_posts)}"
+    assert len(insert_posts) == 1, f"expected exactly one draft INSERT, got {len(insert_posts)}"
+
+    # GATE-01: no POST/PATCH ever targets the blocks table or a published-row mutation.
+    for p in captured["posts"]:
+        assert not p["url"].rstrip("/").endswith("/blocks"), p["url"]
+    ins = insert_posts[0]
+    assert ins["headers"].get("Content-Profile") == "economy_map"
+    assert "status" not in ins["body"], "status must be omitted (DB default draft, D-13)"
+    for forbidden in ("published_at", "current_body_version_id", "maturity"):
+        assert forbidden not in ins["body"], forbidden
+    # synthesized_from_through is the RUN wall-clock, present and ISO-ish (Pitfall 5).
+    assert "synthesized_from_through" in ins["body"]
+    assert ins["body"]["synthesized_from_through"]
+
+
+def test_poller_open_draft_block_makes_zero_calls():
+    """A block with an existing open draft => zero Sonnet calls, zero INSERTs (D-03 guard)."""
+    def router(table, params):
+        if table == "block_body_versions" and params.get("status") == "eq.draft":
+            return [{"id": "existing-draft"}]  # has open draft
+        if table == "timeline_entries":
+            return [{"event_date": "2026-05-30", "what_shifted": "e", "why_it_mattered": "y",
+                     "source_url": None, "created_at": "2026-05-30T00:00:00+00:00"}
+                    for _ in range(9)]
+        return []
+
+    monkey = {}
+    captured = _install_poller_stubs(monkey, blocks=_one_block(), get_router=router)
+    try:
+        totals = proc.synthesize_blocks_poller()
+    finally:
+        _restore_poller(monkey)
+
+    assert totals["skipped"] == 1, totals
+    assert totals["synthesized"] == 0
+    assert not any(p["url"].endswith("/anthropic/v1/messages") for p in captured["posts"])
+    assert not any(p["url"].endswith("/block_body_versions") for p in captured["posts"])
+
+
+def test_poller_aborts_loud_on_none_identity():
+    """load_synth_identity() None => poller aborts loudly, zero Sonnet calls (D-11)."""
+    monkey = {}
+    captured = _install_poller_stubs(monkey, blocks=_one_block(), identity=None)
+    try:
+        result = proc.synthesize_blocks_poller()
+    finally:
+        _restore_poller(monkey)
+
+    assert "error" in result and "identity" in result["error"], result
+    assert captured["posts"] == [], "no Sonnet/INSERT calls when identity is None"
+
+
+def test_poller_aborts_loud_on_missing_key():
+    """Missing agent key => poller aborts loudly, zero Sonnet calls (fail-loud governance)."""
+    monkey = {}
+    captured = _install_poller_stubs(monkey, blocks=_one_block(), agent_key="")
+    try:
+        result = proc.synthesize_blocks_poller()
+    finally:
+        _restore_poller(monkey)
+
+    assert "error" in result and "key" in result["error"], result
+    assert captured["posts"] == [], "no Sonnet/INSERT calls when the agent key is missing"
+
+
+def test_poller_isolates_one_failing_block():
+    """One block's read raises => that block counted failed, others still synthesized."""
+    good, bad = "memory-context", "identity-trust"
+
+    def router(table, params):
+        if table == "block_body_versions" and params.get("status") == "eq.draft":
+            # Make the draft-check read raise for the bad block only.
+            if params.get("block_slug") == f"eq.{bad}":
+                raise RuntimeError("simulated read failure")
+            return []
+        if table == "timeline_entries":
+            return [{"event_date": "2026-05-30", "what_shifted": "e", "why_it_mattered": "y",
+                     "source_url": None, "created_at": "2026-05-30T00:00:00+00:00"}
+                    for _ in range(5)]
+        return []
+
+    blocks = [
+        {"slug": bad, "maturity": "nascent", "live_tension": "t",
+         "last_synthesized_at": None, "current_body_version_id": None},
+        {"slug": good, "maturity": "nascent", "live_tension": "t",
+         "last_synthesized_at": None, "current_body_version_id": None},
+    ]
+    monkey = {}
+    captured = _install_poller_stubs(monkey, blocks=blocks, get_router=router)
+    try:
+        totals = proc.synthesize_blocks_poller()
+    finally:
+        _restore_poller(monkey)
+
+    assert totals["failed"] == 1, totals
+    assert totals["synthesized"] == 1, totals  # the good block still processed
+    sonnet_posts = [p for p in captured["posts"] if p["url"].endswith("/anthropic/v1/messages")]
+    assert len(sonnet_posts) == 1, "only the good block reaches the Sonnet call"
+
+
 def _run_all():
     tests = [
         test_sonnet_call_routes_through_anthropic_messages,
@@ -387,6 +606,11 @@ def _run_all():
         test_parse_output_raises_on_missing_maturity,
         test_insert_block_body_version_shape,
         test_insert_block_body_version_non_2xx_raises,
+        test_poller_eligible_block_drafts_one_row_no_published_write,
+        test_poller_open_draft_block_makes_zero_calls,
+        test_poller_aborts_loud_on_none_identity,
+        test_poller_aborts_loud_on_missing_key,
+        test_poller_isolates_one_failing_block,
     ]
     failures = []
     for t in tests:

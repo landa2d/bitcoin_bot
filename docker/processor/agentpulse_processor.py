@@ -10381,6 +10381,21 @@ def scheduled_classify_intake():
         logger.error(f"Intake classification failed: {e}")
 
 
+def scheduled_synthesize_blocks():
+    """Autonomous per-block synthesis cycle — draft one block_body_versions row per eligible block.
+
+    Thin try/except wrapper around synthesize_blocks_poller() (Plan 07-02). Runs in the
+    processor (the editorial spine turning on); the poller's per-block no-draft guard (D-03)
+    caps Sonnet spend to <=7 calls/cycle and the eligibility predicate prevents re-drafting.
+    Draft-only (GATE-01): never touches the published row or blocks.*.
+    """
+    try:
+        result = synthesize_blocks_poller()
+        logger.info(f"Block synthesis: {result}")
+    except Exception as e:
+        logger.error(f"Block synthesis failed: {e}")
+
+
 def scheduled_post_approved_x():
     """Poll for approved X content and post it."""
     try:
@@ -10797,6 +10812,12 @@ def setup_scheduler():
     # INTAKE — after publish, emit economy_map timeline candidates per published edition (Plan 05-02, D-01).
     #   Every 30 min: editions publish weekly, and the per-edition idempotency skip (D-08) makes frequent polling cheap.
     schedule.every(30).minutes.do(scheduled_classify_intake)
+    # SYNTHESIS — autonomous per-block drafting over the seven economy_map blocks (Plan 07-02, SYNT-02).
+    #   Daily at 07:00 UTC: deliberately a once-a-day slot (the no-draft + N/T eligibility guards make
+    #   most days a cheap no-op), placed AFTER the 06:00 daily jobs and CLEAR of the Friday newsletter
+    #   slots (08:00/08:30/11:00/12:00 UTC) and the Monday publish slots (11:00/11:15/11:30 UTC), and not
+    #   the same minute as the 30-min intake job. Draft-only (GATE-01); operator gates publication.
+    schedule.every().day.at("07:00").do(scheduled_synthesize_blocks)
 
     # Recurring analysis & extraction
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
