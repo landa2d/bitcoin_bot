@@ -247,7 +247,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 
-- [ ] 08-01-PLAN.md — Processor sentinels: run_sentinels helper, ordered maturity sequence, WR-02 raise removed, wired into synthesize_block + insert payload, test swap (VLDT-01..05)
+- [x] 08-01-PLAN.md — Processor sentinels: run_sentinels helper, ordered maturity sequence, WR-02 raise removed, wired into synthesize_block + insert payload, test swap (VLDT-01..05)
 - [ ] 08-02-PLAN.md — Telegram surfacing: get_draft_versions select + handle_map_pending flag rendering per D-08 (VLDT-06)
 
 ### Phase 9: Gated Publishing + Approval Commands

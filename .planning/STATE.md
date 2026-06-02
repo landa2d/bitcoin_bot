@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Session resumed — Phase 8 context gathered, ready to plan
-last_updated: "2026-06-02T17:57:57.416Z"
-last_activity: 2026-06-02 -- Phase 08 planning complete
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-06-02T18:15:43Z"
+last_activity: 2026-06-02 -- Completed Phase 08 Plan 01 (validation sentinels compute + wiring)
 progress:
   total_phases: 11
   completed_phases: 8
   total_plans: 24
-  completed_plans: 22
-  percent: 73
+  completed_plans: 23
+  percent: 77
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-26)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 07 — synthesis-loop-core
+**Current focus:** Phase 08 — validation-sentinels
 
 ## Current Position
 
-Phase: 8
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-02 -- Phase 08 planning complete
+Phase: 08 (validation-sentinels) — EXECUTING
+Plan: 2 of 2
+Status: Executing Phase 08
+Last activity: 2026-06-02 -- Completed Phase 08 Plan 01 (validation sentinels compute + wiring)
 
-Progress: [█████░░░░░] 55%
+Progress: [████████░░] 77%
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Progress: [█████░░░░░] 55%
 
 *Updated after each plan completion*
 | Phase 06 P01 | 18min | 4 tasks | 1 files |
+| Phase 08 P01 | 3min | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,7 @@ Recent decisions affecting current work:
 - 04.1-01: Downgrade reservation reconciliation = full refund of old-model reservation + fresh reserve at new-model estimate (governance runs after reserve_balance)
 - 04.1-01: Cross-provider downgrade (anthropic sonnet → deepseek) = typed 429 `governance_downgrade` redirect to `/v1/chat/completions` + `model_downgrade` event (no body translation, no silent sonnet pass-through); chat path does inline translate-and-dispatch
 - [Phase ?]: 06-01: economy_map read surface is GET-only by construction (httpx.get + Accept-Profile only, zero write verb/Content-Profile) per D-09; DB-level read-only role deferred to Phase 9
+- 08-01: Sentinels are deterministic (no LLM call — D-05 defers the judge to v2), run inside synthesize_block BETWEEN parse and INSERT (append-only trigger forbids post-insert annotation — D-02), and are fail-loud-but-never-block (VLDT-05: log loud + record sentinel_errors + force requires_attention, never raise). WR-02 skeleton hard gate removed → VLDT-04 annotating sentinel (D-01). SYNTH_MATURITY_ORDER added (ordered list) since SYNTH_MATURITY_ENUM is a set (D-07).
 
 ### Pending Todos
 
@@ -98,6 +100,6 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-06-02 (resumed)
-Stopped at: Session resumed — Phase 8 context gathered, ready to plan
-Resume file: .planning/phases/08-validation-sentinels/08-CONTEXT.md
+Last session: 2026-06-02
+Stopped at: Completed 08-01-PLAN.md
+Resume file: .planning/phases/08-validation-sentinels/08-02-PLAN.md

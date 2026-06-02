@@ -43,11 +43,11 @@
 
 ### Validation sentinels
 
-- [ ] **VLDT-01**: **Tension preserved** — live-tension section still exists and is non-trivial post-synthesis
-- [ ] **VLDT-02**: **Length floor** — body not shorter than 60% of prior published length
-- [ ] **VLDT-03**: **Maturity jump guard** — `proposed_maturity` differs from current by >1 stop → flag `requires_attention=true`
-- [ ] **VLDT-04**: **Structure intact** — all six skeleton headings present
-- [ ] **VLDT-05**: Failed sentinels annotate (`validator_report` jsonb) but do not block draft creation — silence is the enemy
+- [x] **VLDT-01**: **Tension preserved** — live-tension section still exists and is non-trivial post-synthesis
+- [x] **VLDT-02**: **Length floor** — body not shorter than 60% of prior published length
+- [x] **VLDT-03**: **Maturity jump guard** — `proposed_maturity` differs from current by >1 stop → flag `requires_attention=true`
+- [x] **VLDT-04**: **Structure intact** — all six skeleton headings present
+- [x] **VLDT-05**: Failed sentinels annotate (`validator_report` jsonb) but do not block draft creation — silence is the enemy
 - [ ] **VLDT-06**: Telegram card surfaces flags loudly so a flagged draft is the visible outcome
 
 ### Gated publishing
@@ -171,11 +171,11 @@ Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 | SYNT-04 | Phase 7 | Complete |
 | SYNT-05 | Phase 7 | Complete |
 | SYNT-06 | Phase 7 | Complete |
-| VLDT-01 | Phase 8 | Pending |
-| VLDT-02 | Phase 8 | Pending |
-| VLDT-03 | Phase 8 | Pending |
-| VLDT-04 | Phase 8 | Pending |
-| VLDT-05 | Phase 8 | Pending |
+| VLDT-01 | Phase 8 | Complete |
+| VLDT-02 | Phase 8 | Complete |
+| VLDT-03 | Phase 8 | Complete |
+| VLDT-04 | Phase 8 | Complete |
+| VLDT-05 | Phase 8 | Complete |
 | VLDT-06 | Phase 8 | Pending |
 | GATE-01 | Phase 9 | Pending |
 | GATE-02 | Phase 9 | Pending |
