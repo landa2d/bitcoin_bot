@@ -295,6 +295,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 5. Intake Classifier + `unsorted` Handling | 3/3 | Complete    | 2026-05-28 |
 | 6. Telegram Read-Only Scaffolding | 2/2 | Complete    | 2026-05-30 |
 | 7. Synthesis Loop Core | 2/2 | Complete    | 2026-06-01 |
-| 8. Validation Sentinels | 0/TBD | Not started | - |
+| 8. Validation Sentinels | 2/2 | Complete    | 2026-06-02 |
 | 9. Gated Publishing + Approval Commands | 0/TBD | Not started | - |
 | 10. Operator Write Commands | 0/TBD | Not started | - |
