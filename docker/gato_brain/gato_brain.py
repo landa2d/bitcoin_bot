@@ -1730,6 +1730,66 @@ def get_unabsorbed_count(block_slug: str, last_synthesized_at: str | None) -> in
 # by sort_order (the get_blocks() query already returns sort_order.asc).
 _MAP_TIER_ORDER = ("substrate", "behavior", "frame")
 
+# VLDT-02 length-floor ratio (D-06: a draft below 60% of the prior published body
+# is flagged). The processor's run_sentinels stores length_below_floor as a bool
+# (not the ratio), so /map-pending surfaces the floor concretely from the flag.
+_LENGTH_FLOOR_PCT = 60
+
+
+def _render_validator_flags(report: dict) -> list[str]:
+    """Render a draft's validator_report as indented /map-pending flag lines (D-08, VLDT-06).
+
+    Read-only formatting of the validator_report run_sentinels wrote at INSERT time
+    (08-01): keys tension_preserved, length_below_floor, structure_missing (list),
+    maturity_jump (int absolute ordinal distance), requires_attention, and an optional
+    sentinel_errors list (a check that could not run — VLDT-05). No write verb, no DB
+    access — pure string formatting of an already-fetched dict.
+
+    When requires_attention is truthy, emit a "⚠ REQUIRES ATTENTION" headline then an
+    INDENTED per-flag detail list ordered SERIOUS FIRST. Serious-first ordering (D-08):
+    sentinel_errors (a check silently failing is the worst case — VLDT-05) → structure
+    (skeleton broken) → tension (editorial spine lost — the project's core value) →
+    maturity (an unreviewed maturity leap) → length (thinned body). A clean draft
+    (requires_attention falsy and no sentinel_errors) gets a single quiet "✓ clean" line.
+
+    Concrete per-flag detail is rendered from what the report actually carries:
+      - sentinel_errors: "sentinel error: <checks> could not run"
+      - structure_missing: "missing headings: <comma-list>"
+      - tension trivialized (not tension_preserved): "tension trivialized"
+      - maturity_jump (>1): "maturity jump (Δ<n> stages — review)" — the report stores
+        an absolute ordinal distance only, no from→to direction, so the delta is shown
+        honestly without fabricating a direction the renderer does not have.
+      - length_below_floor: "length below floor (< 60% of prior)" — the report stores a
+        bool, not the ratio, and /map-pending does not fetch bodies, so the floor itself
+        is the concrete detail available.
+    """
+    report = report or {}
+    requires_attention = report.get("requires_attention")
+    sentinel_errors = report.get("sentinel_errors") or []
+
+    if not requires_attention and not sentinel_errors:
+        return ["     ✓ clean"]
+
+    details: list[str] = []
+    # SERIOUS FIRST (D-08): a check that could not run is the most dangerous (silent
+    # failure is the enemy — VLDT-05), then structure, tension, maturity, length.
+    if sentinel_errors:
+        checks = ", ".join(str(c) for c in sentinel_errors)
+        details.append(f"     · sentinel error: {checks} could not run")
+    structure_missing = report.get("structure_missing") or []
+    if structure_missing:
+        missing = ", ".join(str(h) for h in structure_missing)
+        details.append(f"     · missing headings: {missing}")
+    if not report.get("tension_preserved"):
+        details.append("     · tension trivialized")
+    maturity_jump = report.get("maturity_jump") or 0
+    if isinstance(maturity_jump, int) and maturity_jump > 1:
+        details.append(f"     · maturity jump (Δ{maturity_jump} stages — review)")
+    if report.get("length_below_floor"):
+        details.append(f"     · length below floor (< {_LENGTH_FLOOR_PCT}% of prior)")
+
+    return ["   ⚠ REQUIRES ATTENTION", *details]
+
 
 def handle_map_status() -> str:
     """Render /map-status (CMD-01): tier-grouped block maturity + counts + footer.
@@ -1805,6 +1865,11 @@ def handle_map_pending() -> str:
             for v in by_slug[slug]:
                 vid = v.get("id") or "?"
                 lines.append(f"   version: {vid}  →  /map-approve {vid}")
+                # VLDT-06 / D-08: surface the Phase 8 sentinel flags loudly under each
+                # draft — a flagged draft must be the VISIBLE outcome (silence is the
+                # enemy). Render-only: reads the validator_report run_sentinels wrote at
+                # INSERT (08-01), no new write verb.
+                lines.extend(_render_validator_flags(v.get("validator_report") or {}))
 
     lines.append("")
     lines.append("UNSORTED AWAITING ASSIGNMENT")
