@@ -3037,6 +3037,11 @@ _synth_identity_mtime: float = 0.0
 # The five-value maturity enum (migration 033 §3, order least→most settled).
 SYNTH_MATURITY_ENUM = {"nascent", "emerging", "contested", "consolidating", "mature"}
 
+# The SAME five values as an ORDERED sequence for ordinal-distance math (D-07 / VLDT-03).
+# SYNTH_MATURITY_ENUM stays a `set` for fast membership checks; a set has no order, so the
+# maturity-jump sentinel uses this list's .index() — never .index() on the set.
+SYNTH_MATURITY_ORDER = ["nascent", "emerging", "contested", "consolidating", "mature"]
+
 # The six-part RNDR-02 block skeleton headings, in order (D-08 / RNDR-02).
 SYNTH_SKELETON_HEADINGS = [
     "What it is",
@@ -3331,10 +3336,14 @@ def parse_synthesis_output(text: str) -> dict:
 
     Expects structured JSON {body_md, proposed_maturity}. Reuses _clean_json_response to strip
     markdown fences. Raises ValueError on empty body_md, on a proposed_maturity outside the
-    five-value enum, on a missing/empty proposed_maturity, OR on a body_md missing any of the
-    six required RNDR-02 skeleton sections — the caller logs and SKIPS this block's INSERT
-    (never defaults a maturity, never writes an empty OR structurally-malformed body that the
-    renderer/operator would have to catch downstream — D-12/SYNT-06/WR-02).
+    five-value enum, or on a missing/empty proposed_maturity — the caller logs and SKIPS this
+    block's INSERT (never defaults a maturity, never writes an empty body the renderer/operator
+    would have to catch downstream — D-12/SYNT-06).
+
+    NOTE (Phase 8, D-01): the missing-skeleton-headings HARD raise (Phase 7 WR-02) is REMOVED.
+    Structure problems are now a VLDT-04 sentinel that ANNOTATES the draft (run_sentinels),
+    never blocks it — a silent skip is itself a form of silence (VLDT-05). Empty-body /
+    invalid-maturity / missing-maturity remain genuinely-unusable cases that still raise.
     """
     parsed = json.loads(_clean_json_response(text))
     body_md = (parsed.get("body_md") or "").strip()
@@ -3345,13 +3354,155 @@ def parse_synthesis_output(text: str) -> dict:
         raise ValueError(
             f"invalid proposed_maturity {maturity!r} — must be one of {sorted(SYNTH_MATURITY_ENUM)}"
         )
-    # The six-part skeleton is a hard output contract (synth_identity.md + RNDR-02); a body that
-    # drops or renames headings must be skipped, not drafted malformed for the operator to catch.
-    _body_lower = body_md.lower()
-    missing = [h for h in SYNTH_SKELETON_HEADINGS if h.lower() not in _body_lower]
-    if missing:
-        raise ValueError(f"body_md missing required skeleton sections: {missing}")
     return {"body_md": body_md, "proposed_maturity": maturity}
+
+
+# The live-tension section heading is the third skeleton heading (index 2, D-05 / VLDT-01).
+_SYNTH_TENSION_HEADING = SYNTH_SKELETON_HEADINGS[2]  # "The live tension"
+# A stripped live-tension section shorter than this is treated as not-really-engaged (VLDT-01).
+_SYNTH_TENSION_MIN_CHARS = 40
+# The grep-friendly live_tension seed placeholder (migration 033 §seed). A body that merely
+# echoes it means synthesis never engaged the operator's framing.
+_SYNTH_TENSION_PLACEHOLDER = "TBD — set via /map-tension"
+
+
+def _extract_section_body(body_md: str, heading: str) -> str | None:
+    """Return the text under a `## <heading>` section up to the next `## ` line, or None.
+
+    A simple line scanner over the markdown (Claude's-discretion approach blessed in CONTEXT
+    D-05): find the `##`-level heading whose text matches `heading` (case-insensitive), then
+    collect lines until the next `##` heading. Returns None when the heading is absent.
+    """
+    target = heading.strip().lower()
+    lines = body_md.splitlines()
+    collecting = False
+    collected: list[str] = []
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("## "):
+            head_text = stripped[3:].strip().lower()
+            if collecting:
+                # Reached the next section — stop.
+                break
+            if head_text == target:
+                collecting = True
+            continue
+        if collecting:
+            collected.append(line)
+    if not collecting:
+        return None
+    return "\n".join(collected).strip()
+
+
+def run_sentinels(body_md: str, prior_body_md: str | None, block: dict,
+                  proposed_maturity: str) -> dict:
+    """Compute the four deterministic validation sentinels + a requires_attention rollup (VLDT-01..05).
+
+    PURE COMPUTE — no PostgREST verb, no LLM call, no touch of any published row /
+    blocks.maturity / current_body_version_id (GATE-01). Returns the validator_report dict
+    written ATOMICALLY into the new draft at INSERT time (D-02 — the append-only trigger
+    RAISES on any post-insert validator_report change, so this MUST run before the INSERT).
+
+    Report shape (D-03):
+      {tension_preserved: bool, length_below_floor: bool, structure_missing: [str],
+       maturity_jump: int, requires_attention: bool}
+    (a "sentinel_errors" key is ADDED only when a compute error occurs — VLDT-05.)
+
+    Sentinel semantics:
+      - VLDT-04 structure_missing: skeleton headings absent from body_md (case-insensitive).
+      - VLDT-01 tension_preserved=False when the live-tension section is absent, below a small
+        char floor, equals the 'TBD — set via /map-tension' placeholder, or verbatim-echoes
+        block.live_tension (synthesis didn't engage it) — deterministic per D-05 (the LLM
+        "shallow-but-present" judge is the deferred v2 upgrade).
+      - VLDT-02 length_below_floor: cold-start (no prior body) -> False/N/A (never divide);
+        else len(new)/len(prior) < 0.60 (D-06, character ratio).
+      - VLDT-03 maturity_jump: absolute ordinal distance on the ordered enum (D-07); >1 (via
+        the D-04 rollup) flags requires_attention.
+      - D-04 rollup: requires_attention = (not tension_preserved) or length_below_floor
+        or (maturity_jump > 1) or bool(structure_missing).
+
+    VLDT-05 fail-loud-but-never-block: a compute error must NOT raise (that would block the
+    draft). On error we log loudly (exc_info=True), record a "sentinel_errors" note, and force
+    requires_attention=True so the failure is VISIBLE to the operator — never a silent pass.
+    """
+    # Conservative safe defaults: a check that can't run flags attention rather than passing.
+    tension_preserved = False
+    length_below_floor = False
+    structure_missing: list[str] = []
+    maturity_jump = 0
+    sentinel_errors: list[str] = []
+
+    body_lower = (body_md or "").lower()
+
+    # VLDT-04 — structure intact (the idiom lifted from the removed parse-gate).
+    try:
+        structure_missing = [h for h in SYNTH_SKELETON_HEADINGS if h.lower() not in body_lower]
+    except Exception:
+        logger.error("[SENTINEL] VLDT-04 structure check failed", exc_info=True)
+        sentinel_errors.append("structure")
+        structure_missing = list(SYNTH_SKELETON_HEADINGS)  # safe default: looks missing
+
+    # VLDT-01 — live tension preserved (deterministic, D-05).
+    try:
+        section = _extract_section_body(body_md or "", _SYNTH_TENSION_HEADING)
+        prior_tension = (block.get("live_tension") or "").strip()
+        if section is None:
+            tension_preserved = False
+        elif len(section) < _SYNTH_TENSION_MIN_CHARS:
+            tension_preserved = False
+        elif section == _SYNTH_TENSION_PLACEHOLDER:
+            tension_preserved = False
+        elif prior_tension and section == prior_tension:
+            tension_preserved = False
+        else:
+            tension_preserved = True
+    except Exception:
+        logger.error("[SENTINEL] VLDT-01 tension check failed", exc_info=True)
+        sentinel_errors.append("tension")
+        tension_preserved = False  # safe default: surface, don't pass
+
+    # VLDT-02 — length floor (D-06). Cold-start => N/A (no flag, never divide).
+    try:
+        if prior_body_md is None or not prior_body_md.strip():
+            length_below_floor = False
+        else:
+            length_below_floor = (len(body_md or "") / len(prior_body_md)) < 0.60
+    except Exception:
+        logger.error("[SENTINEL] VLDT-02 length check failed", exc_info=True)
+        sentinel_errors.append("length")
+        length_below_floor = True  # safe default: surface, don't pass
+
+    # VLDT-03 — maturity jump = absolute ordinal distance (D-07).
+    try:
+        current_maturity = (block.get("maturity") or "").strip().lower()
+        maturity_jump = abs(
+            SYNTH_MATURITY_ORDER.index(proposed_maturity)
+            - SYNTH_MATURITY_ORDER.index(current_maturity)
+        )
+    except Exception:
+        logger.error("[SENTINEL] VLDT-03 maturity-jump check failed", exc_info=True)
+        sentinel_errors.append("maturity")
+        maturity_jump = len(SYNTH_MATURITY_ORDER)  # safe default: > 1, surfaces attention
+
+    # D-04 rollup — any concern (or any sentinel error) needs a careful human look.
+    requires_attention = (
+        (not tension_preserved)
+        or length_below_floor
+        or (maturity_jump > 1)
+        or bool(structure_missing)
+        or bool(sentinel_errors)
+    )
+
+    report = {
+        "tension_preserved": tension_preserved,
+        "length_below_floor": length_below_floor,
+        "structure_missing": structure_missing,
+        "maturity_jump": maturity_jump,
+        "requires_attention": requires_attention,
+    }
+    if sentinel_errors:
+        report["sentinel_errors"] = sentinel_errors
+    return report
 
 
 def synthesis_sonnet_call(system_prompt: str, user_prompt: str, cfg: dict) -> str:
