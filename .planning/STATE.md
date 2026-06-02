@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 08-02-PLAN.md
+status: executing
+stopped_at: Phase 08 complete + verified (5/5); Phase 09 next
 last_updated: "2026-06-02T18:34:03.110Z"
 last_activity: 2026-06-02
 progress:
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-26)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 08 — validation-sentinels
+**Current focus:** Phase 09 — gated-publishing-+-approval-commands
 
 ## Current Position
 
 Phase: 9
 Plan: Not started
-Status: Phase 08 complete — ready for verification / Phase 09
+Status: Phase 08 complete + verified (5/5 must-haves) — Phase 09 next
 Last activity: 2026-06-02
 
 Progress: [████████░░] 80%
