@@ -1653,16 +1653,20 @@ def get_blocks() -> list[dict]:
 
 
 def get_draft_versions() -> list[dict]:
-    """GET all draft block_body_versions (id, block_slug) via the partial draft index.
+    """GET all draft block_body_versions (id, block_slug, validator_report) via the partial draft index.
 
     status=eq.draft (uses the partial index built for /map-pending, 033:109-110).
+    Selects validator_report so handle_map_pending can surface the Phase 8 sentinel
+    flags loudly (VLDT-06, D-08) — without it the renderer reads None and shows no flags.
+    Read-only by construction: this stays a GET-only select extension (Accept-Profile:
+    economy_map via _economy_map_get); no new write verb, no Content-Profile (D-09).
     Raises RuntimeError on non-2xx (fail-loud — a read failure must not read as
     "no drafts pending", silently hiding the approval backlog).
     """
     resp = _economy_map_get(
         "block_body_versions",
         {
-            "select": "id,block_slug",
+            "select": "id,block_slug,validator_report",
             "status": "eq.draft",
         },
     )
