@@ -399,8 +399,7 @@ def test_sentinel_tension_verbatim_echo():
 def test_sentinel_length_below_floor():
     """VLDT-02: new body under 60% of prior published body -> length_below_floor True."""
     prior = "x" * 1000
-    body = _skeleton_with_tension("a genuinely engaged tension section well above the char floor")
-    # body is far shorter than 600 chars only if skeleton small; make prior dominate.
+    # "short" is ~0.5% of prior — well under the 60% floor.
     report = proc.run_sentinels("short", prior, {"maturity": "emerging", "live_tension": ""},
                                 "emerging")
     assert report["length_below_floor"] is True

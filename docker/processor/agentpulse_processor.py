@@ -3434,11 +3434,17 @@ def run_sentinels(body_md: str, prior_body_md: str | None, block: dict,
     maturity_jump = 0
     sentinel_errors: list[str] = []
 
-    body_lower = (body_md or "").lower()
-
-    # VLDT-04 — structure intact (the idiom lifted from the removed parse-gate).
+    # VLDT-04 — structure intact. Heading-aware (a heading counts as present only when it
+    # exists as a real `## ` heading line, not merely as a substring somewhere in prose) so
+    # this flag agrees with the VLDT-01 tension check, which also relies on _extract_section_body.
+    # Substring matching would silently read a heading as present when the synthesizer dropped
+    # the `## ` heading but happened to use the word in running text — a false "clean" on an
+    # operator-facing flag, the exact silence this phase exists to prevent (WR-01).
     try:
-        structure_missing = [h for h in SYNTH_SKELETON_HEADINGS if h.lower() not in body_lower]
+        structure_missing = [
+            h for h in SYNTH_SKELETON_HEADINGS
+            if _extract_section_body(body_md or "", h) is None
+        ]
     except Exception:
         logger.error("[SENTINEL] VLDT-04 structure check failed", exc_info=True)
         sentinel_errors.append("structure")
@@ -3468,6 +3474,9 @@ def run_sentinels(body_md: str, prior_body_md: str | None, block: dict,
         if prior_body_md is None or not prior_body_md.strip():
             length_below_floor = False
         else:
+            # 60% floor (D-06). Mirrored as _LENGTH_FLOOR_PCT in gato_brain
+            # _render_validator_flags (the renderer prints "< 60%" from a copy of this
+            # number); if you retune this, update that constant too or its label drifts.
             length_below_floor = (len(body_md or "") / len(prior_body_md)) < 0.60
     except Exception:
         logger.error("[SENTINEL] VLDT-02 length check failed", exc_info=True)
