@@ -19,7 +19,7 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
 - [x] **Phase 5: Intake Classifier + `unsorted` Handling** - Newsletter pipeline emits classified, traceable timeline entries via LLM proxy (completed 2026-05-28)
 - [x] **Phase 6: Telegram Read-Only Scaffolding** - `/map-status` and `/map-pending` give operator situational awareness (completed 2026-05-30)
 - [x] **Phase 7: Synthesis Loop Core** - Trigger evaluation, input assembly, Sonnet generation with hot-reloadable identity, draft writes (completed 2026-06-01)
-- [ ] **Phase 8: Validation Sentinels** - Tension/length/maturity/structure flags annotate drafts without blocking; visible on Telegram cards
+- [x] **Phase 8: Validation Sentinels** - Tension/length/maturity/structure flags annotate drafts without blocking; visible on Telegram cards
 - [ ] **Phase 9: Gated Publishing + Approval Commands** - Atomic publish transaction wired to `/map-approve` and `/map-reject`
 - [ ] **Phase 10: Operator Write Commands** - `/map-assign`, `/map-entry`, `/map-synth`, `/map-tension` complete the control surface
 
@@ -248,7 +248,7 @@ Plans:
 Plans:
 
 - [x] 08-01-PLAN.md — Processor sentinels: run_sentinels helper, ordered maturity sequence, WR-02 raise removed, wired into synthesize_block + insert payload, test swap (VLDT-01..05)
-- [ ] 08-02-PLAN.md — Telegram surfacing: get_draft_versions select + handle_map_pending flag rendering per D-08 (VLDT-06)
+- [x] 08-02-PLAN.md — Telegram surfacing: get_draft_versions select + handle_map_pending flag rendering per D-08 (VLDT-06)
 
 ### Phase 9: Gated Publishing + Approval Commands
 
