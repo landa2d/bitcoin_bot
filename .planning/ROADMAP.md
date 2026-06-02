@@ -244,7 +244,11 @@ Plans:
   4. The "structure intact" sentinel writes `validator_report.structure_missing=[<heading_list>]` if any of the six skeleton headings is absent from the synthesized body
   5. A failing sentinel never aborts draft creation; the draft always lands with annotations, and `/map-pending` plus the per-draft Telegram card surface all raised flags visibly (silence is the enemy — verified by forcing each sentinel to fire and confirming the card shows it)
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Processor sentinels: run_sentinels helper, ordered maturity sequence, WR-02 raise removed, wired into synthesize_block + insert payload, test swap (VLDT-01..05)
+- [ ] 08-02-PLAN.md — Telegram surfacing: get_draft_versions select + handle_map_pending flag rendering per D-08 (VLDT-06)
 
 ### Phase 9: Gated Publishing + Approval Commands
 
