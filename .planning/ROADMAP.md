@@ -263,7 +263,9 @@ Plans:
   4. Rejected drafts are never deleted — `superseded` is terminal, the row remains queryable for audit (verifiable by SQL after a `/map-reject`)
   5. Both commands run only for the verified Telegram owner and return a confirmation message on success or a typed error on failure
 
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 09-01-PLAN.md — Amend publish_block_version watermark (D-01) + apply migration 038 live (GATE-02)
+- [ ] 09-02-PLAN.md — Owner-gated /map-approve + /map-reject commands, RPC-POST helper, typed-error UX + GATE-01 verification (GATE-01..04, CMD-03/04)
 
 ### Phase 10: Operator Write Commands
 
