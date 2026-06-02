@@ -320,16 +320,120 @@ def test_parse_output_fence_wrapped():
     assert out["proposed_maturity"] == "mature"
 
 
-def test_parse_output_raises_on_missing_skeleton():
-    """A valid maturity + non-empty body that drops skeleton sections must raise (WR-02) —
-    a structurally-malformed body is skipped, never drafted for the operator to catch."""
-    raised = False
-    try:
-        proc.parse_synthesis_output(json.dumps(
-            {"body_md": "## What it is\nonly one section", "proposed_maturity": "emerging"}))
-    except ValueError:
-        raised = True
-    assert raised, "must raise when body_md is missing required skeleton sections"
+def test_parse_output_keeps_partial_skeleton():
+    """D-01 (Phase 8): the WR-02 missing-skeleton HARD raise is REMOVED — a body that drops
+    headings now LANDS as a draft (the structure problem becomes a VLDT-04 sentinel that
+    annotates, never blocks; a silent skip is itself a form of silence — VLDT-05)."""
+    out = proc.parse_synthesis_output(json.dumps(
+        {"body_md": "## What it is\nonly one section", "proposed_maturity": "emerging"}))
+    assert out["body_md"].startswith("## What it is")
+    assert out["proposed_maturity"] == "emerging"
+
+
+# ===========================================================================
+# Phase 8 VLDT-01..05 — run_sentinels (deterministic, pure compute, never blocks)
+# ===========================================================================
+def test_sentinel_flags_missing_structure():
+    """VLDT-04 + D-04: a missing-heading body lands but structure_missing is populated and
+    the requires_attention rollup fires."""
+    report = proc.run_sentinels(
+        "## What it is\nonly one section", None,
+        {"maturity": "emerging", "live_tension": "some prior tension framing"}, "emerging")
+    assert report["structure_missing"]            # populated — headings absent
+    assert report["requires_attention"] is True   # D-04 rollup fires
+    assert "sentinel_errors" not in report        # clean compute, no error note
+
+
+def test_sentinel_full_skeleton_clean():
+    """A full skeleton with a real, engaged live-tension section and no maturity jump is clean."""
+    body = "\n\n".join(
+        f"## {h}\n{'engaged tension content that is clearly above the char floor here' if h == 'The live tension' else f'body for {h}.'}"
+        for h in proc.SYNTH_SKELETON_HEADINGS
+    )
+    report = proc.run_sentinels(
+        body, None, {"maturity": "emerging", "live_tension": "prior framing"}, "emerging")
+    assert report["structure_missing"] == []
+    assert report["tension_preserved"] is True
+    assert report["length_below_floor"] is False  # cold-start N/A
+    assert report["maturity_jump"] == 0
+    assert report["requires_attention"] is False
+
+
+def _skeleton_with_tension(tension_body: str) -> str:
+    parts = []
+    for h in proc.SYNTH_SKELETON_HEADINGS:
+        body = tension_body if h == "The live tension" else f"body for {h}."
+        parts.append(f"## {h}\n{body}")
+    return "\n\n".join(parts)
+
+
+def test_sentinel_tension_absent_section():
+    """VLDT-01: live-tension section entirely absent -> tension_preserved False."""
+    body = "\n\n".join(
+        f"## {h}\nbody for {h}." for h in proc.SYNTH_SKELETON_HEADINGS
+        if h != "The live tension"
+    )
+    report = proc.run_sentinels(
+        body, None, {"maturity": "emerging", "live_tension": "x"}, "emerging")
+    assert report["tension_preserved"] is False
+    assert report["requires_attention"] is True
+
+
+def test_sentinel_tension_placeholder():
+    """VLDT-01: a live-tension section that is just the seed placeholder -> not preserved."""
+    body = _skeleton_with_tension("TBD — set via /map-tension")
+    report = proc.run_sentinels(
+        body, None, {"maturity": "emerging", "live_tension": "x"}, "emerging")
+    assert report["tension_preserved"] is False
+
+
+def test_sentinel_tension_verbatim_echo():
+    """VLDT-01: a live-tension section that verbatim-echoes block.live_tension -> not engaged."""
+    prior = "The unresolved fight is whether identity is portable across agents or platform-bound."
+    body = _skeleton_with_tension(prior)
+    report = proc.run_sentinels(
+        body, None, {"maturity": "emerging", "live_tension": prior}, "emerging")
+    assert report["tension_preserved"] is False
+
+
+def test_sentinel_length_below_floor():
+    """VLDT-02: new body under 60% of prior published body -> length_below_floor True."""
+    prior = "x" * 1000
+    body = _skeleton_with_tension("a genuinely engaged tension section well above the char floor")
+    # body is far shorter than 600 chars only if skeleton small; make prior dominate.
+    report = proc.run_sentinels("short", prior, {"maturity": "emerging", "live_tension": ""},
+                                "emerging")
+    assert report["length_below_floor"] is True
+    assert report["requires_attention"] is True
+    # Sanity: a comparable-length body is not flagged.
+    report2 = proc.run_sentinels("x" * 900, prior, {"maturity": "emerging", "live_tension": ""},
+                                 "emerging")
+    assert report2["length_below_floor"] is False
+
+
+def test_sentinel_length_coldstart_na():
+    """VLDT-02 / D-06: cold-start (no prior body) -> length sentinel N/A, never a flag."""
+    report = proc.run_sentinels("short", None, {"maturity": "emerging", "live_tension": ""},
+                                "emerging")
+    assert report["length_below_floor"] is False
+    report_empty = proc.run_sentinels("short", "   ", {"maturity": "emerging", "live_tension": ""},
+                                      "emerging")
+    assert report_empty["length_below_floor"] is False
+
+
+def test_sentinel_maturity_jump():
+    """VLDT-03 / D-07: ordinal distance > 1 sets requires_attention."""
+    full = _skeleton_with_tension("a genuinely engaged tension section above the char floor here")
+    # nascent (0) -> contested (2): jump = 2
+    report = proc.run_sentinels(full, None, {"maturity": "nascent", "live_tension": "p"},
+                                "contested")
+    assert report["maturity_jump"] == 2
+    assert report["requires_attention"] is True
+    # Adjacent step (jump = 1) does not by itself fire attention.
+    report1 = proc.run_sentinels(full, None, {"maturity": "nascent", "live_tension": "p"},
+                                 "emerging")
+    assert report1["maturity_jump"] == 1
+    assert report1["requires_attention"] is False
 
 
 def test_parse_output_raises_on_empty_body():
@@ -371,6 +475,13 @@ def test_insert_block_body_version_shape():
             "body_md": "## What it is\n...",
             "proposed_maturity": "emerging",
             "synthesized_from_through": "2026-06-01T00:00:00+00:00",
+            "validator_report": {
+                "tension_preserved": True,
+                "length_below_floor": False,
+                "structure_missing": [],
+                "maturity_jump": 0,
+                "requires_attention": False,
+            },
         }
         out = proc.economy_map_insert_block_body_version(row)
     finally:
@@ -386,7 +497,8 @@ def test_insert_block_body_version_shape():
     for forbidden in ("published_at", "current_body_version_id", "maturity"):
         assert forbidden not in captured["body"]
     assert set(captured["body"].keys()) == {
-        "block_slug", "body_md", "proposed_maturity", "synthesized_from_through"}
+        "block_slug", "body_md", "proposed_maturity", "synthesized_from_through",
+        "validator_report"}
 
 
 def test_insert_block_body_version_non_2xx_raises():
@@ -657,10 +769,18 @@ def _run_all():
         test_assembly_over_cap_keeps_newest_and_notes_omission,
         test_parse_output_valid,
         test_parse_output_fence_wrapped,
-        test_parse_output_raises_on_missing_skeleton,
+        test_parse_output_keeps_partial_skeleton,
         test_parse_output_raises_on_empty_body,
         test_parse_output_raises_on_invalid_maturity,
         test_parse_output_raises_on_missing_maturity,
+        test_sentinel_flags_missing_structure,
+        test_sentinel_full_skeleton_clean,
+        test_sentinel_tension_absent_section,
+        test_sentinel_tension_placeholder,
+        test_sentinel_tension_verbatim_echo,
+        test_sentinel_length_below_floor,
+        test_sentinel_length_coldstart_na,
+        test_sentinel_maturity_jump,
         test_insert_block_body_version_shape,
         test_insert_block_body_version_non_2xx_raises,
         test_poller_eligible_block_drafts_one_row_no_published_write,
