@@ -264,7 +264,12 @@ Plans:
   5. Both commands run only for the verified Telegram owner and return a confirmation message on success or a typed error on failure
 
 **Plans**: 2 plans
+**Wave 1**
+
 - [ ] 09-01-PLAN.md — Amend publish_block_version watermark (D-01) + apply migration 038 live (GATE-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 09-02-PLAN.md — Owner-gated /map-approve + /map-reject commands, RPC-POST helper, typed-error UX + GATE-01 verification (GATE-01..04, CMD-03/04)
 
 ### Phase 10: Operator Write Commands
