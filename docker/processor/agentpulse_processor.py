@@ -3176,9 +3176,11 @@ def economy_map_insert_block_body_version(row: dict) -> dict:
 
     A SECOND purpose-scoped writer (NOT a generic schema-agnostic writer) — honoring the
     tight-write-surface rationale on economy_map_insert_timeline_entry (threat T-07-WS).
-    Payload keys are exactly block_slug, body_md, proposed_maturity, synthesized_from_through;
-    `status` is intentionally OMITTED so the DB default 'draft' applies (D-13). NEVER touches
-    the published row, blocks.maturity, or blocks.current_body_version_id (autonomy boundary).
+    Payload keys are exactly block_slug, body_md, proposed_maturity, synthesized_from_through,
+    validator_report (the Phase 8 sentinel report jsonb, written atomically at INSERT because
+    the append-only trigger RAISES on any post-insert change — D-02); `status` is intentionally
+    OMITTED so the DB default 'draft' applies (D-13). NEVER touches the published row,
+    blocks.maturity, or blocks.current_body_version_id (autonomy boundary).
     Raises on any non-2xx. Returns the parsed representation row on success.
     """
     resp = httpx.post(
@@ -3623,6 +3625,13 @@ def synthesize_block(block: dict, cfg: dict, identity_text: str) -> dict:
         raw = synthesis_sonnet_call(identity_text, assembled["prompt"], cfg)
         parsed = parse_synthesis_output(raw)
 
+        # Phase 8: compute the validator_report BEFORE the INSERT — the append-only trigger
+        # forbids annotating after the row lands (D-02). Reuse prior_body_md already fetched
+        # above for the length floor (no second fetch_current_block_body call).
+        validator_report = run_sentinels(
+            parsed["body_md"], prior_body_md, block, parsed["proposed_maturity"]
+        )
+
         # synthesized_from_through is the RUN wall-clock, NOT the newest entry date (Pitfall 5).
         run_through = datetime.now(timezone.utc).isoformat()
         inserted = economy_map_insert_block_body_version({
@@ -3630,6 +3639,7 @@ def synthesize_block(block: dict, cfg: dict, identity_text: str) -> dict:
             "body_md": parsed["body_md"],
             "proposed_maturity": parsed["proposed_maturity"],
             "synthesized_from_through": run_through,
+            "validator_report": validator_report,
         })
     except Exception as e:
         raise BlockSynthesisError(str(e)) from e
