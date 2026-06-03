@@ -22,14 +22,14 @@ result: [pending]
 
 ### 3. Live /map-reject round-trip (entries unabsorbed)
 expected: Owner runs `/map-reject <draft_version_id>`; the bot confirms the draft is superseded and its timeline entries return to the next synthesis. DB shows the row `status='superseded'` (never deleted), no `blocks.*` mutation, and the next synthesis cycle re-reads the previously-consumed entries.
-result: [pending]
+result: PASS (2026-06-03) — owner rejected draft cd185b83 (governance-accountability) over live Telegram; bot confirmed "superseded; entries return". DB verified: row status=superseded (not deleted), blocks.current_body_version_id/maturity/last_synthesized_at all unchanged, 6 entries still unabsorbed, 0 open drafts. GATE-03 + GATE-04 + CMD-04 confirmed live.
 
 ## Summary
 
 total: 3
-passed: 0
+passed: 1
 issues: 0
-pending: 3
+pending: 2
 skipped: 0
 blocked: 0
 
