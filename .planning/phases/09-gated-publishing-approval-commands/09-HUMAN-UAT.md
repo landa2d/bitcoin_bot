@@ -1,0 +1,38 @@
+---
+status: partial
+phase: 09-gated-publishing-approval-commands
+source: [09-VERIFICATION.md]
+started: 2026-06-03
+updated: 2026-06-03
+---
+
+## Current Test
+
+[awaiting human testing — requires the gato_brain container rebuild first]
+
+## Tests
+
+### 1. Non-owner refusal over live Telegram
+expected: A non-owner Telegram account running `/map-approve <uuid>` or `/map-reject <uuid>` receives the owner-only refusal and NO publish/reject occurs (the RPC is never called). The verified owner running the same command proceeds.
+result: [pending]
+
+### 2. Live /map-approve round-trip (watermark correctness)
+expected: Owner runs `/map-approve <draft_version_id>`; the bot replies with the maturity `<old>→<new>` transition and the `https://aiagentspulse.com/#/map/<slug>` URL. Querying the DB afterward shows the row flipped to `published`, the prior published row `superseded`, `blocks.current_body_version_id`/`maturity` repointed, and `blocks.last_synthesized_at` set to the approved draft's `synthesized_from_through` (NOT the approval wall-clock). Block page re-renders within ~60s.
+result: [pending]
+
+### 3. Live /map-reject round-trip (entries unabsorbed)
+expected: Owner runs `/map-reject <draft_version_id>`; the bot confirms the draft is superseded and its timeline entries return to the next synthesis. DB shows the row `status='superseded'` (never deleted), no `blocks.*` mutation, and the next synthesis cycle re-reads the previously-consumed entries.
+result: [pending]
+
+## Summary
+
+total: 3
+passed: 0
+issues: 0
+pending: 3
+skipped: 0
+blocked: 0
+
+## Gaps
+
+(none — these are live E2E confirmations, not implementation gaps. All 5 success criteria are verified in code + the live DB. Blocked only on the gato_brain deploy.)
