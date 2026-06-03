@@ -1609,22 +1609,45 @@ def _economy_map_get(table: str, params: dict, *, count_exact: bool = False) -> 
 # request URL path, so it must never be caller-controlled (code-review WR-01 hardening):
 # both call sites pass string literals today, but the allowlist makes that structural so
 # a future refactor threading user input can never reach an arbitrary PostgREST endpoint.
-_ECONOMY_MAP_RPC_ALLOWLIST = frozenset({"publish_block_version", "reject_block_version"})
+_ECONOMY_MAP_RPC_ALLOWLIST = frozenset({
+    "publish_block_version",
+    "reject_block_version",
+    # Phase 10 operator write commands (migration 040 RPC names — verbatim):
+    "reassign_timeline_entry",        # /map-assign (D-04/D-05)
+    "insert_manual_timeline_entry",   # /map-entry  (D-06)
+    "set_block_live_tension",         # /map-tension (D-08)
+    "enqueue_synth_request",          # /map-synth enqueue (D-01/D-03)
+})
+
+# Input-validation allowlist for block slugs (migration 033 seed). Every operator write
+# command validates its <block_slug> against this seven-block frozenset BEFORE any RPC,
+# rejecting 'unsorted' and any unknown slug with a typed error (D-05/D-10, threat T-10-08).
+_ECONOMY_MAP_BLOCK_SLUGS = frozenset({
+    "identity-trust",
+    "memory-context",
+    "payments-settlement",
+    "autonomy-control",
+    "governance-accountability",
+    "psychology-disposition",
+    "regulation-legal",
+})
 
 
-def _economy_map_rpc(fn: str, version_id: str) -> httpx.Response:
+def _economy_map_rpc(fn: str, params: dict) -> httpx.Response:
     """POST a parameterized RPC against economy_map via PostgREST (the ONLY write surface).
 
     Mirrors _economy_map_get's service_role headers but uses the schema-WRITE header
     Content-Profile: economy_map (NOT Accept-Profile) and the /rpc/<fn> endpoint. The
-    version_id is passed as parameterized JSON `{"p_version_id": <uuid>}` — NEVER
-    interpolated into the URL path or body (threat T-09-07). `fn` is checked against an
-    allowlist before it reaches the URL (WR-01). The Phase 9 RPCs
-    (publish_block_version / reject_block_version) RETURN void, so 200/204 are both
-    success; on any non-2xx this RAISES RuntimeError carrying resp.text so the DB's
-    typed RAISE ("version ... not found or not in draft status") is preserved for the
-    D-05 case-(c) match (fail-loud — a failed write must never read as a benign no-op,
-    threat T-09-09). NEVER uses supabase-py .rpc()/.schema()/.in_().
+    caller-supplied `params` dict is passed as parameterized JSON `json=params` — its
+    values are NEVER interpolated into the URL path or body (threat T-09-07/T-10-07).
+    `fn` is checked against an allowlist BEFORE it reaches the URL (WR-01) because `fn`
+    IS interpolated into the path. The Phase 9 RPCs (publish/reject) RETURN void;
+    Phase 10 RPCs (reassign/insert/enqueue) RETURN a uuid as a 200 JSON body and
+    set_block_live_tension RETURNS void — the (200, 204) check covers both; callers
+    needing the return value read resp.json(). On any non-2xx this RAISES RuntimeError
+    carrying resp.text so the DB's typed RAISE is preserved for the case-(c) match
+    (fail-loud — a failed write must never read as a benign no-op, threat T-09-09/T-10-09).
+    NEVER uses supabase-py .rpc()/.schema()/.in_().
     """
     if fn not in _ECONOMY_MAP_RPC_ALLOWLIST:
         raise ValueError(f"economy_map rpc {fn!r} is not in the allowlist")
@@ -1636,7 +1659,7 @@ def _economy_map_rpc(fn: str, version_id: str) -> httpx.Response:
             "Content-Type": "application/json",
             "Content-Profile": "economy_map",
         },
-        json={"p_version_id": version_id},
+        json=params,
         timeout=10,
     )
     if resp.status_code not in (200, 204):
@@ -2048,7 +2071,7 @@ def handle_map_approve(parts: list[str], access_tier: str) -> str:
         old_maturity = (block or {}).get("maturity")
 
     try:
-        _economy_map_rpc("publish_block_version", version_id)
+        _economy_map_rpc("publish_block_version", {"p_version_id": version_id})
     except Exception as e:
         if _RPC_ALREADY_ACTIONED in str(e):
             return (
@@ -2092,7 +2115,7 @@ def handle_map_reject(parts: list[str], access_tier: str) -> str:
     slug = (draft or {}).get("block_slug")
 
     try:
-        _economy_map_rpc("reject_block_version", version_id)
+        _economy_map_rpc("reject_block_version", {"p_version_id": version_id})
     except Exception as e:
         if _RPC_ALREADY_ACTIONED in str(e):
             return (
