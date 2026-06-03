@@ -13,8 +13,19 @@ findings:
   warning: 5
   info: 2
   total: 8
-status: issues_found
+status: resolved
+resolution: "CR-01, WR-01, WR-02, WR-03, WR-04 fixed (migration 042 + gato_brain + processor, applied+rebuilt 2026-06-03). WR-05 accepted as-designed (plan 10-03 D-03 froze the status CHECK set). IN-01/IN-02 deferred (cosmetic, non-blocking)."
 ---
+
+> **Resolution (2026-06-03, orchestrator):**
+> - **CR-01** — fixed in `migration 042`: `reassign_timeline_entry` now rejects `'unsorted'` and verifies the slug exists in `economy_map.blocks` (server-side, the RLS-bypass boundary). Applied live; verified via `pg_get_functiondef`.
+> - **WR-04** — fixed in `migration 042`: `FOR UPDATE` added to the Step-1 source SELECT (true single-flight). Applied live.
+> - **WR-01** — fixed in `processor.py` (`bde158e`): the drain now reclaims orphaned `processing` rows (`updated_at` older than a 5-min stale cutoff) to a terminal `failed` with an explanatory error — queryable, never a silent stall (D-03). Verified firing with `reclaimed` counter.
+> - **WR-02** — fixed in `gato_brain.py` (`409cefb`): replaced the broad `"not found"` substring with `_rpc_block_not_found(slug, e)` matching the RPC's exact `block <slug> not found` RAISE — genuine write failures stay fail-loud.
+> - **WR-03** — fixed in `gato_brain.py` (`409cefb`): `_unknown_block_message(slug, verb)` now returns a correct unknown-slug message threading the actual slug (was the misleading missing-arg message).
+> - **WR-05** — **accepted as-designed.** Plan 10-03 (D-03) deliberately froze `synth_requests.status` to `{pending,processing,done,failed}`; the open-draft refusal is recorded as `failed` with an explanatory `error` string. The reviewer agrees the reasoning is sound. Adding a new status value would change the contract 10-02/10-03 were built around — out of scope for this phase.
+> - **IN-01 / IN-02** — deferred (cosmetic `limit` type and counter-name drift; non-blocking).
+
 
 # Phase 10: Code Review Report
 
