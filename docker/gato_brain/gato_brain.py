@@ -1802,6 +1802,7 @@ def get_unsorted_entries() -> list[dict]:
         {
             "select": "id,what_shifted,tag_confidence,created_at,event_date",
             "block_slug": "eq.unsorted",
+            "reassigned_to_entry_id": "is.null",
             "order": "created_at.desc",
         },
     )
@@ -1817,7 +1818,7 @@ def get_unsorted_count() -> int:
     """Exact count of timeline_entries WHERE block_slug='unsorted' (D-06 footer)."""
     return _economy_map_count(
         "timeline_entries",
-        {"block_slug": "eq.unsorted"},
+        {"block_slug": "eq.unsorted", "reassigned_to_entry_id": "is.null"},
     )
 
 
@@ -2382,10 +2383,19 @@ def handle_map_command(message: str, access_tier: str = "free") -> str:
             return handle_map_approve(parts, access_tier)
         elif cmd == "/map-reject":
             return handle_map_reject(parts, access_tier)
+        elif cmd == "/map-assign":
+            return handle_map_assign(parts, access_tier)
+        elif cmd == "/map-entry":
+            return handle_map_entry(parts, access_tier)
+        elif cmd == "/map-synth":
+            return handle_map_synth(parts, access_tier)
+        elif cmd == "/map-tension":
+            return handle_map_tension(parts, access_tier)
         else:
             return (
                 f"Unknown map command: {cmd}\n"
-                f"Available: /map-status, /map-pending, /map-approve, /map-reject"
+                f"Available: /map-status, /map-pending, /map-approve, /map-reject, "
+                f"/map-assign, /map-entry, /map-synth, /map-tension"
             )
     except Exception as e:
         logger.error(f"Map command failed: {cmd} — {e}")
