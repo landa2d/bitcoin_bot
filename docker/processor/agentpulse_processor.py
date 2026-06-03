@@ -3584,7 +3584,7 @@ class BlockSynthesisError(RuntimeError):
     eligible = True
 
 
-def synthesize_block(block: dict, cfg: dict, identity_text: str) -> dict:
+def synthesize_block(block: dict, cfg: dict, identity_text: str, force: bool = False) -> dict:
     """Synthesize ONE block into a draft body version, or skip it (SYNT-01..06, GATE-01).
 
     For a single block:
@@ -3600,10 +3600,18 @@ def synthesize_block(block: dict, cfg: dict, identity_text: str) -> dict:
          with synthesized_from_through = the RUN wall-clock ISO timestamp
          (datetime.now(timezone.utc).isoformat(), NOT the newest entry's date — Pitfall 5).
 
+    force (Phase 10 /map-synth, D-01): when True, bypass ONLY the is_block_eligible N/T
+    predicate (the operator forcing a synth "ignores N and T"). The open-draft invariant is
+    NEVER bypassed — block_has_open_draft stays a hard guard, so a forced synth onto a block
+    that already has an open draft returns the skip result, exactly like the autonomous path
+    (D-02). Default force=False keeps the autonomous path byte-for-byte identical.
+
     Writes ONLY a status='draft' block_body_versions row (status omitted → DB default).
     NEVER writes blocks.maturity, blocks.current_body_version_id, or a published row
     (the autonomy boundary, GATE-01). Returns a structured result:
       ineligible -> {'slug', 'status': 'skipped', 'reason': 'ineligible', 'new_entries'}
+      open-draft (force) -> {'slug', 'status': 'skipped', 'reason': 'open-draft'}
+      race-lost (23505) -> {'slug', 'status': 'skipped', 'reason': 'race-lost-open-draft'}
       synthesized -> {'slug', 'status': 'synthesized', 'version_id', 'proposed_maturity',
                       'included_count', 'omitted_count'}
     Raises on read/call/parse/insert failure so the caller (poller) can count it failed
@@ -3616,7 +3624,18 @@ def synthesize_block(block: dict, cfg: dict, identity_text: str) -> dict:
     N = int(cfg.get("N", 5))
     T_days = int(cfg.get("T_days", 30))
 
-    if not is_block_eligible(block, new_entries, has_draft, N=N, T_days=T_days):
+    if force:
+        # Forced synth (D-01): bypass ONLY the N/T eligibility predicate. The open-draft
+        # invariant is NEVER bypassed (D-02) — gato_brain already refuses up front; this is
+        # the defense-in-depth backstop. A block with an open draft still skips.
+        if has_draft:
+            return {
+                "slug": slug,
+                "status": "skipped",
+                "reason": "open-draft",
+                "new_entries": len(new_entries),
+            }
+    elif not is_block_eligible(block, new_entries, has_draft, N=N, T_days=T_days):
         return {
             "slug": slug,
             "status": "skipped",
@@ -3643,13 +3662,34 @@ def synthesize_block(block: dict, cfg: dict, identity_text: str) -> dict:
 
         # synthesized_from_through is the RUN wall-clock, NOT the newest entry date (Pitfall 5).
         run_through = datetime.now(timezone.utc).isoformat()
-        inserted = economy_map_insert_block_body_version({
-            "block_slug": slug,
-            "body_md": parsed["body_md"],
-            "proposed_maturity": parsed["proposed_maturity"],
-            "synthesized_from_through": run_through,
-            "validator_report": validator_report,
-        })
+        try:
+            inserted = economy_map_insert_block_body_version({
+                "block_slug": slug,
+                "body_md": parsed["body_md"],
+                "proposed_maturity": parsed["proposed_maturity"],
+                "synthesized_from_through": run_through,
+                "validator_report": validator_report,
+            })
+        except RuntimeError as insert_err:
+            # 23505 benign-skip (D-07): migration 041's uq_block_body_versions_one_open_draft
+            # rejects a second open draft on a lost check-then-act race (the autonomous poller
+            # and a forced /map-synth drain racing on the same block). block_has_open_draft is
+            # the cheap fast-path; this is the structural backstop. A lost race is a LOGGED
+            # benign skip — NEVER a fail-loud abort. NOTE: 'skipped' here is an in-memory return
+            # value the drain poller inspects; it is NOT a synth_requests.status DB value.
+            err_text = str(insert_err)
+            if "23505" in err_text or "duplicate key" in err_text:
+                logger.info(
+                    f"[SYNTH] block {slug}: race lost — an open draft already exists; "
+                    f"skipping (23505 benign-skip, D-07)"
+                )
+                return {
+                    "slug": slug,
+                    "status": "skipped",
+                    "reason": "race-lost-open-draft",
+                }
+            # Any non-23505 INSERT failure stays fail-loud (BlockSynthesisError below).
+            raise
     except Exception as e:
         raise BlockSynthesisError(str(e)) from e
 
