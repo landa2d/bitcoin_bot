@@ -103,12 +103,13 @@ const middleware = `
       return;
     }
 
-    // Forward /x-* and code commands to gato-brain (they're handled there, not in OpenClaw)
+    // Forward /x-*, /map-*, and code commands to gato-brain (they're handled there, not in OpenClaw)
     const isXCommand = text && /^\\/x-/i.test(text.trim());
+    const isMapCommand = text && /^\\/map-/i.test(text.trim());
     const isCodeCommand = text && /^\\/(code|diff|code-diff|code-approve|approve|code-reject|reject|code-merge|followup|repos)\\b/i.test(text.trim());
     const isCtoCommand = text && /^\\/cto\\b/i.test(text.trim());
     const isNewsletterPreview = text && /^\\/newsletter_preview\\b/i.test(text.trim());
-    const isGatoBrainCommand = isXCommand || isCodeCommand || isCtoCommand || isNewsletterPreview;
+    const isGatoBrainCommand = isXCommand || isMapCommand || isCodeCommand || isCtoCommand || isNewsletterPreview;
 
     if (text && (!text.startsWith("/") || isGatoBrainCommand)) {
       try {
