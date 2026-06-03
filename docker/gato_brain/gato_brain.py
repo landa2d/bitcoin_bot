@@ -2145,8 +2145,30 @@ def handle_map_reject(parts: list[str], access_tier: str) -> str:
 
 # typed-error markers raised by the migration-040 RPCs (matched on the RuntimeError text):
 _RPC_NOT_UNSORTED = "not an unsorted, un-reassigned entry"   # reassign_timeline_entry
-_RPC_BLOCK_NOT_FOUND = "not found"                            # set_block_live_tension / insert
 _MAP_ENTRY_DELIM = " | "
+
+
+def _rpc_block_not_found(slug: str, e: Exception) -> bool:
+    """Match the migration-040 RPCs' specific typed RAISE `'block <slug> not found'`.
+
+    Deliberately NOT a bare `"not found"` substring (WR-02): PostgREST/Postgres emit many
+    unrelated errors containing "not found" (function-signature resolution, schema/relation
+    errors, 404 routing). Matching the full `block {slug} not found` text keeps a genuine
+    write failure fail-loud instead of misreading it as a benign unknown-block nudge.
+    """
+    return f"block {slug} not found" in str(e)
+
+
+def _unknown_block_message(slug: str, verb: str) -> str:
+    """Operator-facing message when a format-valid slug has no live `blocks` row (WR-03).
+
+    Threads the actual slug (the prior code re-invoked the validator with "" and returned
+    the misleading *missing-arg* message).
+    """
+    return (
+        f"'{slug}' is not in the live economy map (no such block row).\n"
+        f"Check the block list, then retry {verb}."
+    )
 
 
 def _owner_only_refusal(verb: str) -> str:
@@ -2265,8 +2287,8 @@ def handle_map_entry(parts: list[str], access_tier: str) -> str:
             },
         )
     except Exception as e:
-        if _RPC_BLOCK_NOT_FOUND in str(e):
-            return _validate_block_slug("", "/map-entry")[1] or "Unknown block."
+        if _rpc_block_not_found(slug, e):
+            return _unknown_block_message(slug, "/map-entry")
         raise
 
     return (
@@ -2349,8 +2371,8 @@ def handle_map_tension(parts: list[str], access_tier: str) -> str:
     try:
         _economy_map_rpc("set_block_live_tension", {"p_slug": slug, "p_text": text})
     except Exception as e:
-        if _RPC_BLOCK_NOT_FOUND in str(e):
-            return _validate_block_slug("", "/map-tension")[1] or "Unknown block."
+        if _rpc_block_not_found(slug, e):
+            return _unknown_block_message(slug, "/map-tension")
         raise
 
     return (
