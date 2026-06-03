@@ -20,7 +20,7 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
 - [x] **Phase 6: Telegram Read-Only Scaffolding** - `/map-status` and `/map-pending` give operator situational awareness (completed 2026-05-30)
 - [x] **Phase 7: Synthesis Loop Core** - Trigger evaluation, input assembly, Sonnet generation with hot-reloadable identity, draft writes (completed 2026-06-01)
 - [x] **Phase 8: Validation Sentinels** - Tension/length/maturity/structure flags annotate drafts without blocking; visible on Telegram cards
-- [ ] **Phase 9: Gated Publishing + Approval Commands** - Atomic publish transaction wired to `/map-approve` and `/map-reject`
+- [x] **Phase 9: Gated Publishing + Approval Commands** - Atomic publish transaction wired to `/map-approve` and `/map-reject` (completed 2026-06-03)
 - [ ] **Phase 10: Operator Write Commands** - `/map-assign`, `/map-entry`, `/map-synth`, `/map-tension` complete the control surface
 
 ## Phase Details
@@ -270,7 +270,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 09-02-PLAN.md — Owner-gated /map-approve + /map-reject commands, RPC-POST helper, typed-error UX + GATE-01 verification (GATE-01..04, CMD-03/04)
+- [x] 09-02-PLAN.md — Owner-gated /map-approve + /map-reject commands, RPC-POST helper, typed-error UX + GATE-01 verification (GATE-01..04, CMD-03/04)
 
 ### Phase 10: Operator Write Commands
 
@@ -303,5 +303,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Telegram Read-Only Scaffolding | 2/2 | Complete    | 2026-05-30 |
 | 7. Synthesis Loop Core | 2/2 | Complete    | 2026-06-01 |
 | 8. Validation Sentinels | 2/2 | Complete    | 2026-06-02 |
-| 9. Gated Publishing + Approval Commands | 1/2 | In Progress|  |
+| 9. Gated Publishing + Approval Commands | 2/2 | Complete   | 2026-06-03 |
 | 10. Operator Write Commands | 0/TBD | Not started | - |

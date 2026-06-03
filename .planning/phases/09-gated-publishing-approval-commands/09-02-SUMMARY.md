@@ -102,6 +102,12 @@ None — no new env var, config, or secret (reuses the existing `SUPABASE_KEY` s
 - The autonomy boundary is now closed end-to-end: synthesis writes only drafts (GATE-01, tested), and only the verified owner can publish/reject via the atomic single-winner RPCs (GATE-02/03/04). The behavior is validated against the Plan 09-01 live RPC via the test suite (no container needed).
 - **Deploy step (operator-gated, NOT performed here):** `cd /root/bitcoin_bot/docker && docker compose up -d --build gato_brain`. Behavior is already covered by tests; the rebuild only ships the running container.
 
+## Self-Check: PASSED
+
+- FOUND: tests/test_09_gated_publishing.py
+- FOUND: .planning/phases/09-gated-publishing-approval-commands/09-02-SUMMARY.md
+- FOUND commits: ef777a3 (Task 1), 10ee3fd (Task 2), c08a3a8 (SUMMARY)
+
 ---
 *Phase: 09-gated-publishing-approval-commands*
 *Completed: 2026-06-03*
