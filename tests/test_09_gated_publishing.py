@@ -186,15 +186,15 @@ def _install_gb_stubs(monkey, *, rpc_side_effect=None, draft=None, block=None):
 
     rpc_side_effect: None -> success no-op; an Exception instance -> raised when the RPC
     is invoked. `draft` / `block` are the rows returned by get_draft_version_by_id /
-    get_block_by_slug. Returns a `calls` dict tracking RPC invocations (fn + version_id).
+    get_block_by_slug. Returns a `calls` dict tracking RPC invocations (fn + params dict).
     """
     calls = {"rpc": []}
     monkey["rpc"] = gb._economy_map_rpc
     monkey["get_draft"] = gb.get_draft_version_by_id
     monkey["get_block"] = gb.get_block_by_slug
 
-    def fake_rpc(fn, version_id):
-        calls["rpc"].append((fn, version_id))
+    def fake_rpc(fn, params):
+        calls["rpc"].append((fn, params))
         if isinstance(rpc_side_effect, Exception):
             raise rpc_side_effect
         return _FakeResponse(204)
@@ -277,7 +277,7 @@ def test_approve_owner_calls_rpc():
         gb.handle_map_command(f"/map-approve {_VALID_UUID}", access_tier="owner")
     finally:
         _restore_gb(monkey)
-    assert calls["rpc"] == [("publish_block_version", _VALID_UUID)]
+    assert calls["rpc"] == [("publish_block_version", {"p_version_id": _VALID_UUID})]
 
 
 def test_reject_owner_calls_rpc():
@@ -287,7 +287,7 @@ def test_reject_owner_calls_rpc():
         gb.handle_map_command(f"/map-reject {_VALID_UUID}", access_tier="owner")
     finally:
         _restore_gb(monkey)
-    assert calls["rpc"] == [("reject_block_version", _VALID_UUID)]
+    assert calls["rpc"] == [("reject_block_version", {"p_version_id": _VALID_UUID})]
 
 
 # ===========================================================================
