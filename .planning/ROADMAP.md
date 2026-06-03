@@ -303,5 +303,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Telegram Read-Only Scaffolding | 2/2 | Complete    | 2026-05-30 |
 | 7. Synthesis Loop Core | 2/2 | Complete    | 2026-06-01 |
 | 8. Validation Sentinels | 2/2 | Complete    | 2026-06-02 |
-| 9. Gated Publishing + Approval Commands | 2/2 | Complete   | 2026-06-03 |
+| 9. Gated Publishing + Approval Commands | 2/2 | Complete    | 2026-06-03 |
 | 10. Operator Write Commands | 0/TBD | Not started | - |

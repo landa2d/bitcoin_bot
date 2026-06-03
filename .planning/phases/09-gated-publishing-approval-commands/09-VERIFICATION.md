@@ -1,9 +1,20 @@
 ---
 phase: 09-gated-publishing-approval-commands
 verified: 2026-06-03T10:00:00Z
-status: human_needed
+status: passed
 score: 5/5 must-haves verified
 overrides_applied: 0
+post_verification_update: >
+  2026-06-03: status advanced human_needed -> passed after deploy + live UAT. All three
+  containers rebuilt (gato_brain, gato [OpenClaw /map-* routing fix], processor [Phase 7/8
+  synthesis cutover]). Live Telegram round-trips: UAT 3 /map-reject PASS (row superseded,
+  no blocks.* mutation, 6 entries unabsorbed) and UAT 2 /map-approve PASS with the D-01
+  watermark proven (approved 14:25:44 but last_synthesized_at set to the draft's
+  synthesized_from_through 10:48:59 — a 3.6h gap, proving NOT NOW(); migrations 038+039 live).
+  UAT 1 (non-owner refusal over live Telegram) DEFERRED per operator — the owner gate is
+  verified by the 15-test suite (non-owner -> refusal, RPC never called); the open item is
+  only the E2E confirmation, tracked in 09-HUMAN-UAT.md (needs a second Telegram account).
+  Code review (CR-01/WR-01/IN-01/IN-02) resolved pre-verification; WR-02 accepted by design.
 human_verification:
   - test: "Run /map-approve <valid-draft-uuid> from a non-owner Telegram account"
     expected: "Response contains 'owner-only' refusal, no block status changes in DB"

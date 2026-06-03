@@ -52,10 +52,10 @@
 
 ### Gated publishing
 
-- [ ] **GATE-01**: Every synthesized body lands as a `draft` version; nothing goes live without explicit approval
-- [ ] **GATE-02**: `/map-approve <version_id>` runs the atomic publish transaction, triggers re-render, updates `last_synthesized_at`
-- [ ] **GATE-03**: `/map-reject <version_id>` sets status to `superseded`, leaves timeline entries unabsorbed for the next synthesis
-- [ ] **GATE-04**: Versioned-not-overwritten — rejected drafts persist as `superseded`, never deleted
+- [x] **GATE-01**: Every synthesized body lands as a `draft` version; nothing goes live without explicit approval
+- [x] **GATE-02**: `/map-approve <version_id>` runs the atomic publish transaction, triggers re-render, updates `last_synthesized_at`
+- [x] **GATE-03**: `/map-reject <version_id>` sets status to `superseded`, leaves timeline entries unabsorbed for the next synthesis
+- [x] **GATE-04**: Versioned-not-overwritten — rejected drafts persist as `superseded`, never deleted
 
 ### Renderer (per Phase 0 findings)
 
@@ -71,8 +71,8 @@
 
 - [x] **CMD-01**: `/map-status` — all blocks, tier, maturity pill, count of unabsorbed timeline entries, count of pending drafts
 - [x] **CMD-02**: `/map-pending` — drafts awaiting approval + `unsorted` entries awaiting assignment
-- [ ] **CMD-03**: `/map-approve <version_id>` — publish draft body via atomic transaction
-- [ ] **CMD-04**: `/map-reject <version_id>` — supersede draft, no live change
+- [x] **CMD-03**: `/map-approve <version_id>` — publish draft body via atomic transaction
+- [x] **CMD-04**: `/map-reject <version_id>` — supersede draft, no live change
 - [ ] **CMD-05**: `/map-assign <entry_id> <block_slug>` — move `unsorted` entry to a block
 - [ ] **CMD-06**: `/map-entry <block_slug> <text>` — manual timeline drop; fills `what_shifted`, prompts/accepts inline for `why_it_mattered`
 - [ ] **CMD-07**: `/map-synth <block_slug>` — force re-synthesis now, ignoring trigger thresholds
@@ -177,12 +177,12 @@ Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 | VLDT-04 | Phase 8 | Complete |
 | VLDT-05 | Phase 8 | Complete |
 | VLDT-06 | Phase 8 | Complete |
-| GATE-01 | Phase 9 | Pending |
-| GATE-02 | Phase 9 | Pending |
-| GATE-03 | Phase 9 | Pending |
-| GATE-04 | Phase 9 | Pending |
-| CMD-03 | Phase 9 | Pending |
-| CMD-04 | Phase 9 | Pending |
+| GATE-01 | Phase 9 | Complete |
+| GATE-02 | Phase 9 | Complete |
+| GATE-03 | Phase 9 | Complete |
+| GATE-04 | Phase 9 | Complete |
+| CMD-03 | Phase 9 | Complete |
+| CMD-04 | Phase 9 | Complete |
 | CMD-05 | Phase 10 | Pending |
 | CMD-06 | Phase 10 | Pending |
 | CMD-07 | Phase 10 | Pending |
