@@ -8,7 +8,7 @@ updated: 2026-06-03
 
 ## Current Test
 
-[awaiting human testing — requires the gato_brain container rebuild first]
+gato_brain rebuilt 2026-06-03 (image current, healthy) — commands are LIVE; run the 3 checks below over Telegram.
 
 ## Tests
 
