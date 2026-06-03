@@ -3800,6 +3800,229 @@ def synthesize_blocks_poller() -> dict:
 
 
 # ============================================================================
+# Synth-request drain poller (Plan 10-03, CMD-07) — cross-service /map-synth trigger
+# ============================================================================
+# The processor is a pure `schedule` loop with NO HTTP surface, so the only cross-service
+# trigger is DB-polling (D-01): gato_brain INSERTs a 'pending' economy_map.synth_requests
+# row (Plan 02), and this drain poller reads pending requests on a short interval and runs
+# synthesize_block(force=True) — bypassing the N/T eligibility thresholds (D-01) but NEVER
+# the open-draft invariant (D-02; the 23505 backstop from migration 041 covers the race).
+# Every request gets a queryable terminal status (D-03, fail-loud governance — "the wallet
+# bug" lesson): a failed forced-synth must be as visible as a failed autonomous cycle.
+# CRITICAL: synth_requests.status is CHECK-pinned (migration 040) to EXACTLY one of
+# {pending, processing, done, failed}. Every write MUST be a member of that set — writing
+# any other value (e.g. 'skipped') would itself raise a 23514 CHECK violation and make the
+# failure invisible, directly violating D-03. The open-draft / lost-race "skipped synthesis"
+# case is mapped to status='failed' with an explanatory, operator-queryable error string.
+
+
+def economy_map_update_synth_request(request_id: str, fields: dict) -> None:
+    """PATCH one economy_map.synth_requests row by id via direct PostgREST (D-03).
+
+    A purpose-scoped writer (NOT a generic schema-agnostic writer) for the request-row
+    status lifecycle. Uses the service key and the schema-WRITE header
+    (Content-Profile: economy_map). Raises on any non-2xx so a failed status write is
+    fail-loud, never a silent drop. NEVER supabase-py .schema()/.rpc()/.in_() (silent-failure
+    rule). The caller MUST only ever pass a `status` within the migration-040 CHECK set
+    {pending, processing, done, failed}.
+    """
+    resp = httpx.patch(
+        f"{SUPABASE_URL}/rest/v1/synth_requests",
+        params={"id": f"eq.{request_id}"},
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Content-Profile": "economy_map",
+        },
+        json=fields,
+        timeout=10,
+    )
+    if resp.status_code not in (200, 204):
+        raise RuntimeError(
+            f"economy_map synth_requests update failed ({resp.status_code}): {resp.text}"
+        )
+
+
+def synth_request_drain_poller() -> dict:
+    """Drain pending economy_map.synth_requests, running forced synthesis (Plan 10-03, CMD-07).
+
+    Mirrors synthesize_blocks_poller's fail-loud skeleton EXACTLY, differing only as the drain
+    requires (D-01/D-02/D-03):
+      - same preamble: `if not supabase` guard; config-enable check; log_pipeline_start FIRST;
+        load_synth_identity() None → fail-loud; _get_agent_api_key() missing → fail-loud. A
+        failed forced-synth must be queryable, never a silent drop (D-03, "the wallet bug").
+      - reads PENDING requests via direct PostgREST (status=eq.pending, order=created_at.asc);
+      - per-request try/except isolation (mirrors the per-block isolation): mark 'processing',
+        fetch the target block by slug, call synthesize_block(..., force=True) — N/T bypassed
+        (D-01), open-draft guard + 23505 backstop intact (D-02/D-07);
+      - maps the three outcomes onto migration 040's CLOSED status set {pending, processing,
+        done, failed}, NEVER any other value:
+          * genuinely synthesized → status='done' with the resulting version_id (this case ONLY)
+          * open-draft / lost-race skip → status='failed' with an explanatory, queryable error
+            (NEVER a 'skipped' status — that would hit the 23514 CHECK and become invisible)
+          * genuine exception → status='failed' with error=str(e), logger.error(exc_info=True)
+      - log_pipeline_end('completed'/'failed') so the drain run is itself queryable.
+    """
+    if not supabase:
+        return {'error': 'Supabase not configured'}
+
+    cfg = get_full_config().get('synthesis', {})
+    if not cfg.get('enabled', True):
+        logger.info("[SYNTH-DRAIN] synthesis disabled via config — skipping")
+        return {'disabled': True}
+
+    # log_pipeline_start FIRST so every governance halt below leaves a durable, queryable
+    # 'failed' run row (WR-05; MEMORY: fail-loud governance) — same as synthesize_blocks_poller.
+    run_id = log_pipeline_start('synth_request_drain')
+
+    # Fail-loud (D-11/SYNT-05): never synthesize voiceless.
+    identity_text = load_synth_identity()
+    if identity_text is None:
+        logger.error(
+            "[SYNTH-DRAIN] synth_identity.md unavailable — aborting drain "
+            "(never synthesize voiceless); failing loud (D-11)"
+        )
+        log_pipeline_end(run_id, 'failed', {'error': 'synth_identity unavailable'})
+        return {'error': 'synth_identity unavailable'}
+
+    # Fail-loud (MEMORY: fail-loud governance): a missing agent key would 401 every Sonnet call.
+    if not _get_agent_api_key():
+        logger.error(
+            "[SYNTH-DRAIN] processor agent API key unavailable — aborting drain "
+            "(every Sonnet call would 401); failing loud, not a silent no-op"
+        )
+        log_pipeline_end(run_id, 'failed', {'error': 'missing agent api key'})
+        return {'error': 'missing agent api key'}
+
+    totals = {'drained': 0, 'synthesized': 0, 'skipped': 0, 'failed': 0}
+
+    try:
+        # Read PENDING requests via direct PostgREST (Accept-Profile: economy_map), oldest first.
+        # NEVER supabase-py .in_()/.schema()/.rpc() (silent-failure rule).
+        pending = _economy_map_get(
+            "synth_requests",
+            {
+                "status": "eq.pending",
+                "select": "id,block_slug",
+                "order": "created_at.asc",
+            },
+        )
+
+        for request in pending:
+            request_id = request.get("id")
+            slug = request.get("block_slug", "")
+            totals['drained'] += 1
+
+            # Per-request isolation (mirrors the per-block isolation at the autonomous poller):
+            # one bad request never aborts the drain, and every request lands a terminal status.
+            try:
+                # Claim the request: mark 'processing' before doing any work.
+                economy_map_update_synth_request(
+                    request_id,
+                    {"status": "processing", "updated_at": datetime.now(timezone.utc).isoformat()},
+                )
+
+                # Fetch the target block by slug (single-slug GET; same columns the synthesis
+                # loop needs). A missing/unknown slug yields no rows → treated as a failure below.
+                blocks = _economy_map_get(
+                    "blocks",
+                    {
+                        "slug": f"eq.{slug}",
+                        "select": "slug,maturity,live_tension,last_synthesized_at,current_body_version_id",
+                        "limit": 1,
+                    },
+                )
+                if not blocks:
+                    raise RuntimeError(f"block {slug!r} not found — cannot synthesize")
+                block = blocks[0]
+
+                # Forced synth: bypass N/T (D-01); open-draft guard + 23505 backstop intact
+                # (D-02/D-07). synthesize_block returns an in-memory dict — its 'skipped' is
+                # NOT a synth_requests.status value.
+                result = synthesize_block(block, cfg, identity_text, force=True)
+                status = result.get("status")
+
+                if status == "synthesized":
+                    # Genuine synthesis — the ONLY case that earns 'done'.
+                    economy_map_update_synth_request(
+                        request_id,
+                        {
+                            "status": "done",
+                            "version_id": result.get("version_id"),
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+                    totals['synthesized'] += 1
+                    logger.info(
+                        f"[SYNTH-DRAIN] request {request_id} ({slug}): drafted version "
+                        f"{result.get('version_id')} — done"
+                    )
+                else:
+                    # Open-draft present / lost 23505 race → no new draft was produced. Map to a
+                    # TERMINAL 'failed' with an explanatory, operator-queryable error string —
+                    # NEVER a 'skipped' status (would hit migration 040's 23514 CHECK and become
+                    # invisible), and NEVER left 'processing'/'pending' (D-03: queryable, never
+                    # a silent drop). The operator can see exactly why no new draft appeared.
+                    reason = result.get("reason", "no synthesis performed")
+                    error_msg = (
+                        "open draft already exists — no synthesis performed; approve or reject "
+                        "the existing draft via /map-pending "
+                        f"(reason: {reason})"
+                    )
+                    economy_map_update_synth_request(
+                        request_id,
+                        {
+                            "status": "failed",
+                            "error": error_msg,
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+                    totals['skipped'] += 1
+                    logger.info(
+                        f"[SYNTH-DRAIN] request {request_id} ({slug}): skipped "
+                        f"({reason}) — marked failed with explanatory error (D-03)"
+                    )
+            except Exception as e:
+                # Genuine synthesis error — terminal 'failed' with the error, per-request isolated.
+                totals['failed'] += 1
+                logger.error(
+                    f"[SYNTH-DRAIN] request {request_id} ({slug}) failed: {e}",
+                    exc_info=True,
+                )
+                try:
+                    economy_map_update_synth_request(
+                        request_id,
+                        {
+                            "status": "failed",
+                            "error": str(e),
+                            "updated_at": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+                except Exception as update_err:
+                    # The status write itself failed — log loud; the run row still records 'failed'.
+                    logger.error(
+                        f"[SYNTH-DRAIN] request {request_id}: could not write terminal "
+                        f"failed status: {update_err}",
+                        exc_info=True,
+                    )
+
+        log_pipeline_end(run_id, 'completed', totals)
+    except Exception as e:
+        logger.error(f"[SYNTH-DRAIN] drain poller run failed: {e}", exc_info=True)
+        log_pipeline_end(run_id, 'failed', {'error': str(e)})
+        return {'error': str(e)}
+
+    if totals['drained']:
+        logger.info(
+            f"[SYNTH-DRAIN] drain complete: {totals['synthesized']} draft(s), "
+            f"{totals['skipped']} skipped→failed, {totals['failed']} failed "
+            f"from {totals['drained']} pending request(s)"
+        )
+    return totals
+
+
+# ============================================================================
 # Intake classifier poller (Plan 05-02) — autonomous timeline emission
 # ============================================================================
 # Reads finalized (status == 'published') newsletter editions, pulls each
