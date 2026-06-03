@@ -266,7 +266,7 @@ Plans:
 **Plans**: 2 plans
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — Amend publish_block_version watermark (D-01) + apply migration 038 live (GATE-02)
+- [x] 09-01-PLAN.md — Amend publish_block_version watermark (D-01) + apply migration 038 live (GATE-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -303,5 +303,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 6. Telegram Read-Only Scaffolding | 2/2 | Complete    | 2026-05-30 |
 | 7. Synthesis Loop Core | 2/2 | Complete    | 2026-06-01 |
 | 8. Validation Sentinels | 2/2 | Complete    | 2026-06-02 |
-| 9. Gated Publishing + Approval Commands | 0/TBD | Not started | - |
+| 9. Gated Publishing + Approval Commands | 1/2 | In Progress|  |
 | 10. Operator Write Commands | 0/TBD | Not started | - |
