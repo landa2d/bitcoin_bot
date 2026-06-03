@@ -3895,9 +3895,54 @@ def synth_request_drain_poller() -> dict:
         log_pipeline_end(run_id, 'failed', {'error': 'missing agent api key'})
         return {'error': 'missing agent api key'}
 
-    totals = {'drained': 0, 'synthesized': 0, 'skipped': 0, 'failed': 0}
+    totals = {'drained': 0, 'synthesized': 0, 'skipped': 0, 'failed': 0, 'reclaimed': 0}
 
     try:
+        # Reclaim orphaned 'processing' requests (WR-01, D-03 fail-loud governance).
+        # A request is claimed by writing status='processing' BEFORE synthesize_block runs.
+        # If the processor crashes/restarts/rebuilds mid-synthesis (a routine
+        # `docker compose up -d --build` event), the row is stranded in 'processing' forever:
+        # the pending query below only reads 'pending', so it is never re-drained and never
+        # reaches a terminal status — invisible, the "wallet bug" silent-stall shape.
+        # Single processor instance + 30s cadence means any 'processing' row older than the
+        # stale cutoff is genuinely orphaned (never an in-flight request), so force it to a
+        # queryable terminal 'failed' with an explanatory error. Cutoff >> a single synthesis.
+        stale_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+        orphaned = _economy_map_get(
+            "synth_requests",
+            {
+                "status": "eq.processing",
+                "updated_at": f"lt.{stale_cutoff}",
+                "select": "id,block_slug",
+                "order": "created_at.asc",
+            },
+        )
+        for orphan in orphaned:
+            orphan_id = orphan.get("id")
+            try:
+                economy_map_update_synth_request(
+                    orphan_id,
+                    {
+                        "status": "failed",
+                        "error": (
+                            "drain interrupted (processor restart/crash) — request left "
+                            "in 'processing' past the stale cutoff; re-run /map-synth to retry"
+                        ),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
+                totals['reclaimed'] += 1
+                logger.warning(
+                    f"[SYNTH-DRAIN] reclaimed orphaned 'processing' request {orphan_id} "
+                    f"({orphan.get('block_slug', '')}) → failed (drain interrupted)"
+                )
+            except Exception as reclaim_err:
+                logger.error(
+                    f"[SYNTH-DRAIN] could not reclaim orphaned request {orphan_id}: "
+                    f"{reclaim_err}",
+                    exc_info=True,
+                )
+
         # Read PENDING requests via direct PostgREST (Accept-Profile: economy_map), oldest first.
         # NEVER supabase-py .in_()/.schema()/.rpc() (silent-failure rule).
         pending = _economy_map_get(
@@ -4013,11 +4058,12 @@ def synth_request_drain_poller() -> dict:
         log_pipeline_end(run_id, 'failed', {'error': str(e)})
         return {'error': str(e)}
 
-    if totals['drained']:
+    if totals['drained'] or totals['reclaimed']:
         logger.info(
             f"[SYNTH-DRAIN] drain complete: {totals['synthesized']} draft(s), "
             f"{totals['skipped']} skipped→failed, {totals['failed']} failed "
-            f"from {totals['drained']} pending request(s)"
+            f"from {totals['drained']} pending request(s); "
+            f"{totals['reclaimed']} orphaned 'processing' reclaimed→failed"
         )
     return totals
 
