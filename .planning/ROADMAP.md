@@ -285,7 +285,15 @@ Plans:
   4. Operator runs `/map-tension <block_slug> <text>` and the block's `live_tension` field updates; the change is visible on the next render of the block page (editorial framing remains in human hands)
   5. All four commands route through the same Gato → Gato Brain pattern as `/map-approve` and require Telegram owner verification
 
-**Plans**: TBD
+**Plans**: 3 plans
+**Wave 1**
+
+- [ ] 10-01-PLAN.md — Migrations 040 (synth-request table + reassign lifecycle + 4 SECURITY DEFINER RPCs) + 041 (WR-01 unique open-draft index), applied live via MCP (CMD-05..08 schema)
+
+**Wave 2** *(blocked on Wave 1; Plans 02 + 03 parallel — disjoint files)*
+
+- [ ] 10-02-PLAN.md — Owner-gated /map-assign, /map-entry, /map-synth, /map-tension in gato_brain: generalized RPC helper, slug allowlist, four handlers, dispatch, unsorted-read filter (CMD-05/06/07/08)
+- [ ] 10-03-PLAN.md — Processor synth-request drain poller + force-synth bypass + 23505 benign-skip + scheduler registration (CMD-07)
 
 ## Progress
 
