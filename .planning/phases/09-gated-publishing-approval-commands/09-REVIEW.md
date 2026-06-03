@@ -12,7 +12,15 @@ findings:
   warning: 2
   info: 2
   total: 5
-status: issues_found
+status: resolved
+resolution:
+  resolved_in: 2c30a85
+  resolved: 2026-06-03
+  notes: >
+    CR-01 fixed via migration 039 (COALESCE watermark guard), applied live + drift-clean.
+    WR-01 fixed (RPC fn allowlist frozenset). IN-01/IN-02 fixed (reject missing-arg test;
+    robust GATE-01 URL assertion). WR-02 accepted by design — the implemented D-05 case-(c)
+    message already reads "...or doesn't exist". 15/15 phase-9 tests pass.
 ---
 
 # Phase 9: Code Review Report
@@ -20,7 +28,7 @@ status: issues_found
 **Reviewed:** 2026-06-03T00:00:00Z
 **Depth:** standard
 **Files Reviewed:** 3
-**Status:** issues_found
+**Status:** resolved (fixes in 2c30a85; CR-01 via live migration 039)
 
 ## Summary
 
