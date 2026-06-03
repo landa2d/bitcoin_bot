@@ -11,6 +11,7 @@ import logging
 import os
 import re
 import time
+import uuid
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -1604,6 +1605,84 @@ def _economy_map_get(table: str, params: dict, *, count_exact: bool = False) -> 
     )
 
 
+def _economy_map_rpc(fn: str, version_id: str) -> httpx.Response:
+    """POST a parameterized RPC against economy_map via PostgREST (the ONLY write surface).
+
+    Mirrors _economy_map_get's service_role headers but uses the schema-WRITE header
+    Content-Profile: economy_map (NOT Accept-Profile) and the /rpc/<fn> endpoint. The
+    version_id is passed as parameterized JSON `{"p_version_id": <uuid>}` — NEVER
+    interpolated into the URL path or body (threat T-09-07). The Phase 9 RPCs
+    (publish_block_version / reject_block_version) RETURN void, so 200/204 are both
+    success; on any non-2xx this RAISES RuntimeError carrying resp.text so the DB's
+    typed RAISE ("version ... not found or not in draft status") is preserved for the
+    D-05 case-(c) match (fail-loud — a failed write must never read as a benign no-op,
+    threat T-09-09). NEVER uses supabase-py .rpc()/.schema()/.in_().
+    """
+    resp = httpx.post(
+        f"{SUPABASE_URL}/rest/v1/rpc/{fn}",
+        headers={
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "application/json",
+            "Content-Profile": "economy_map",
+        },
+        json={"p_version_id": version_id},
+        timeout=10,
+    )
+    if resp.status_code not in (200, 204):
+        raise RuntimeError(
+            f"economy_map rpc {fn} failed ({resp.status_code}): {resp.text}"
+        )
+    return resp
+
+
+def get_draft_version_by_id(version_id: str) -> dict | None:
+    """GET a single draft block_body_version (id, block_slug, proposed_maturity, status).
+
+    Used by the /map-approve confirmation to show the maturity transition. Read-only
+    (Accept-Profile via _economy_map_get); version_id passed as a parameterized filter,
+    never interpolated. Raises RuntimeError on non-2xx (fail-loud). Returns None when no
+    row matches (the RPC itself is the authoritative draft-status gate — this is only for
+    rendering the confirmation message).
+    """
+    resp = _economy_map_get(
+        "block_body_versions",
+        {
+            "select": "id,block_slug,proposed_maturity,status",
+            "id": f"eq.{version_id}",
+            "limit": "1",
+        },
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"economy_map block_body_versions read failed ({resp.status_code}): {resp.text}"
+        )
+    rows = resp.json()
+    return rows[0] if isinstance(rows, list) and rows else None
+
+
+def get_block_by_slug(slug: str) -> dict | None:
+    """GET a single economy_map.blocks row (slug, maturity) for confirmation rendering.
+
+    Read-only; slug passed as a parameterized filter. Raises on non-2xx (fail-loud).
+    Returns None when no row matches.
+    """
+    resp = _economy_map_get(
+        "blocks",
+        {
+            "select": "slug,maturity",
+            "slug": f"eq.{slug}",
+            "limit": "1",
+        },
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"economy_map blocks read failed ({resp.status_code}): {resp.text}"
+        )
+    rows = resp.json()
+    return rows[0] if isinstance(rows, list) and rows else None
+
+
 def _economy_map_count(table: str, params: dict) -> int:
     """Return an exact row count for a filtered economy_map GET via Content-Range.
 
@@ -1899,13 +1978,137 @@ def handle_map_pending() -> str:
     return "\n".join(lines)
 
 
-def handle_map_command(message: str) -> str:
+# ─── /map-* write commands — the owner approval gate (D-02 / D-04 / D-05) ──
+# These are the FIRST and ONLY two write verbs on the otherwise read-only /map-*
+# surface. Both are gated on access_tier == 'owner' (the autonomy boundary the whole
+# project is designed around) and call the Phase 2 atomic RPCs via _economy_map_rpc.
+
+_MAP_LIVE_URL_TMPL = "https://aiagentspulse.com/#/map/{slug}"
+_RPC_ALREADY_ACTIONED = "not found or not in draft status"
+
+
+def _validate_version_id(parts: list[str], verb: str) -> tuple[str | None, str | None]:
+    """Parse + strict-validate parts[1] as a UUID. Returns (version_id, error_msg).
+
+    On a missing arg or a non-UUID arg, returns (None, <usage-hint>) so the caller can
+    return the hint BEFORE building any RPC body (D-04a / D-05 case b, threat T-09-07).
+    """
+    if len(parts) < 2 or not parts[1].strip():
+        return None, (
+            f"Usage: {verb} <version-id>\n"
+            f"The <version-id> is the draft UUID shown by /map-pending."
+        )
+    arg = parts[1].strip()
+    try:
+        # Strict parse — rejects malformed UUIDs before any RPC call.
+        version_id = str(uuid.UUID(arg))
+    except (ValueError, AttributeError, TypeError):
+        return None, (
+            f"'{arg}' is not a valid version id.\n"
+            f"Usage: {verb} <version-id> (the draft UUID from /map-pending)."
+        )
+    return version_id, None
+
+
+def handle_map_approve(parts: list[str], access_tier: str) -> str:
+    """Owner-gated /map-approve <uuid>: publish a draft via the atomic publish RPC.
+
+    Gate FIRST (no RPC for a non-owner), then validate the UUID, then call the RPC. On
+    success returns a confirmation with block name, maturity old→new, and the live URL.
+    The 'already actioned' typed RAISE maps to a distinct D-05 case-(c) message; any other
+    failure propagates to the top-level fail-loud handler (D-05 case d).
+    """
+    if access_tier != "owner":
+        return (
+            "/map-approve is owner-only. Only the verified operator can publish a draft "
+            "to the live economy map."
+        )
+    version_id, err = _validate_version_id(parts, "/map-approve")
+    if err:
+        return err
+
+    # Read the draft + current block BEFORE the RPC so we can render the transition even
+    # though the RPC flips the row's status to 'published'.
+    draft = get_draft_version_by_id(version_id)
+    new_maturity = (draft or {}).get("proposed_maturity")
+    slug = (draft or {}).get("block_slug")
+    old_maturity = None
+    if slug:
+        block = get_block_by_slug(slug)
+        old_maturity = (block or {}).get("maturity")
+
+    try:
+        _economy_map_rpc("publish_block_version", version_id)
+    except Exception as e:
+        if _RPC_ALREADY_ACTIONED in str(e):
+            return (
+                "That draft was already published/rejected or doesn't exist — nothing "
+                "to publish. Run /map-pending to see what's still awaiting approval."
+            )
+        raise
+
+    name = slug or "(block)"
+    transition = (
+        f"{old_maturity or '?'}→{new_maturity or '?'}"
+        if (old_maturity or new_maturity)
+        else "(unchanged)"
+    )
+    url = _MAP_LIVE_URL_TMPL.format(slug=slug) if slug else "https://aiagentspulse.com/#/map"
+    return (
+        f"✅ Published draft for *{name}*.\n"
+        f"Maturity: {transition}\n"
+        f"Live: {url}\n"
+        f"The block page re-renders within ~60s."
+    )
+
+
+def handle_map_reject(parts: list[str], access_tier: str) -> str:
+    """Owner-gated /map-reject <uuid>: supersede a draft via the atomic reject RPC.
+
+    Gate FIRST, validate the UUID, then call the RPC. On success the draft becomes
+    'superseded' (terminal, never deleted — GATE-04) and its timeline entries return to
+    the next synthesis pass (GATE-03). The 'already actioned' RAISE maps to D-05 case-(c).
+    """
+    if access_tier != "owner":
+        return (
+            "/map-reject is owner-only. Only the verified operator can reject a pending "
+            "draft."
+        )
+    version_id, err = _validate_version_id(parts, "/map-reject")
+    if err:
+        return err
+
+    draft = get_draft_version_by_id(version_id)
+    slug = (draft or {}).get("block_slug")
+
+    try:
+        _economy_map_rpc("reject_block_version", version_id)
+    except Exception as e:
+        if _RPC_ALREADY_ACTIONED in str(e):
+            return (
+                "That draft was already published/rejected or doesn't exist — nothing "
+                "to reject. Run /map-pending to see what's still awaiting approval."
+            )
+        raise
+
+    name = slug or "(block)"
+    return (
+        f"🚫 Rejected the pending draft for *{name}*.\n"
+        f"No change to the live page. Its timeline entries stay unabsorbed and return "
+        f"to the next synthesis pass."
+    )
+
+
+def handle_map_command(message: str, access_tier: str = "free") -> str:
     """Dispatch /map-* commands to their handlers (mirrors handle_x_command, D-10).
 
     SYNC def returning a string; one top-level try/except Exception that logs and
-    returns a human-readable failure string (fail-loud — a read failure surfaces as
-    "Command failed: <e>" rather than a false-empty state). Read-only: dispatches only
-    to the GET-backed renderers; there is no write branch.
+    returns a human-readable failure string (fail-loud — a failure surfaces as
+    "Command failed: <e>" rather than a false-empty state). The read commands
+    (/map-status, /map-pending) are ungated GET-backed renderers (D-02a). The two write
+    verbs (/map-approve, /map-reject) are owner-gated (access_tier == 'owner') BEFORE any
+    RPC POST — the autonomy boundary (D-02). `access_tier` is threaded from the /chat
+    dispatch (computed at ensure_user time); the DB cannot know who the Telegram caller is.
     """
     msg = message.strip()
     parts = msg.split(None, 1)
@@ -1916,8 +2119,15 @@ def handle_map_command(message: str) -> str:
             return handle_map_status()
         elif cmd == "/map-pending":
             return handle_map_pending()
+        elif cmd == "/map-approve":
+            return handle_map_approve(parts, access_tier)
+        elif cmd == "/map-reject":
+            return handle_map_reject(parts, access_tier)
         else:
-            return f"Unknown map command: {cmd}\nAvailable: /map-status, /map-pending"
+            return (
+                f"Unknown map command: {cmd}\n"
+                f"Available: /map-status, /map-pending, /map-approve, /map-reject"
+            )
     except Exception as e:
         logger.error(f"Map command failed: {cmd} — {e}")
         return f"Command failed: {e}"
@@ -2260,9 +2470,12 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
             metadata={},
         )
 
-    # 2c-map. Economy Map read-only commands — handle directly, skip intent router
+    # 2c-map. Economy Map commands — handle directly, skip intent router.
+    # Read verbs (/map-status, /map-pending) are ungated; the two write verbs
+    # (/map-approve, /map-reject) are owner-gated inside handle_map_command on the
+    # access_tier threaded here (the autonomy boundary, D-02).
     if _msg_lower.startswith("/map-"):
-        map_response = handle_map_command(req.message)
+        map_response = handle_map_command(req.message, access_tier)
         return ChatResponse(
             response=map_response,
             session_id="",
