@@ -229,9 +229,11 @@ def test_gate01_synthesis_writer_omits_status_and_targets_versions_only():
     finally:
         _restore_proc_post(monkey)
 
-    # Targets the versions table, never the blocks table.
+    # Targets the versions table, never the blocks table. endswith() pins the full
+    # final path segment (IN-02: a substring check on rsplit()[-1] passes for wrong
+    # URLs too, since the last segment can never contain its own leading slash).
     assert captured["url"].endswith("/block_body_versions")
-    assert "/blocks" not in captured["url"].rsplit("/", 1)[-1]
+    assert not captured["url"].rstrip("/").endswith("/blocks")
     assert captured["headers"].get("Content-Profile") == "economy_map"
     # GATE-01: status omitted -> DB default 'draft'. Never a published/superseded write.
     assert "status" not in captured["body"], "synthesis must NOT write a status (draft-only)"
@@ -296,6 +298,19 @@ def test_approve_missing_arg_usage_hint_no_rpc():
     calls = _install_gb_stubs(monkey)
     try:
         out = gb.handle_map_command("/map-approve", access_tier="owner")
+    finally:
+        _restore_gb(monkey)
+    assert "usage" in out.lower()
+    assert calls["rpc"] == [], "missing arg must NOT call the RPC"
+
+
+def test_reject_missing_arg_usage_hint_no_rpc():
+    # IN-01: symmetry with the approve side — a bare /map-reject must return the usage
+    # hint and never reach the RPC (guards against an asymmetric future refactor).
+    monkey = {}
+    calls = _install_gb_stubs(monkey)
+    try:
+        out = gb.handle_map_command("/map-reject", access_tier="owner")
     finally:
         _restore_gb(monkey)
     assert "usage" in out.lower()

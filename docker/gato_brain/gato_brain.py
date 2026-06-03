@@ -1605,19 +1605,29 @@ def _economy_map_get(table: str, params: dict, *, count_exact: bool = False) -> 
     )
 
 
+# Allowlist of economy_map RPCs this helper may invoke. fn is interpolated into the
+# request URL path, so it must never be caller-controlled (code-review WR-01 hardening):
+# both call sites pass string literals today, but the allowlist makes that structural so
+# a future refactor threading user input can never reach an arbitrary PostgREST endpoint.
+_ECONOMY_MAP_RPC_ALLOWLIST = frozenset({"publish_block_version", "reject_block_version"})
+
+
 def _economy_map_rpc(fn: str, version_id: str) -> httpx.Response:
     """POST a parameterized RPC against economy_map via PostgREST (the ONLY write surface).
 
     Mirrors _economy_map_get's service_role headers but uses the schema-WRITE header
     Content-Profile: economy_map (NOT Accept-Profile) and the /rpc/<fn> endpoint. The
     version_id is passed as parameterized JSON `{"p_version_id": <uuid>}` — NEVER
-    interpolated into the URL path or body (threat T-09-07). The Phase 9 RPCs
+    interpolated into the URL path or body (threat T-09-07). `fn` is checked against an
+    allowlist before it reaches the URL (WR-01). The Phase 9 RPCs
     (publish_block_version / reject_block_version) RETURN void, so 200/204 are both
     success; on any non-2xx this RAISES RuntimeError carrying resp.text so the DB's
     typed RAISE ("version ... not found or not in draft status") is preserved for the
     D-05 case-(c) match (fail-loud — a failed write must never read as a benign no-op,
     threat T-09-09). NEVER uses supabase-py .rpc()/.schema()/.in_().
     """
+    if fn not in _ECONOMY_MAP_RPC_ALLOWLIST:
+        raise ValueError(f"economy_map rpc {fn!r} is not in the allowlist")
     resp = httpx.post(
         f"{SUPABASE_URL}/rest/v1/rpc/{fn}",
         headers={
