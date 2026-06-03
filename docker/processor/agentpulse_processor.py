@@ -10869,6 +10869,21 @@ def scheduled_synthesize_blocks():
         logger.error(f"Block synthesis failed: {e}")
 
 
+def scheduled_synth_request_drain():
+    """Drain pending /map-synth requests — forced synthesis on a short interval (Plan 10-03, CMD-07).
+
+    Thin try/except wrapper around synth_request_drain_poller(). Runs every ~30s (the cadence
+    gato_brain's /map-synth ack cites, Plan 02). Swallows exceptions (logs, never propagates)
+    so the scheduler thread never dies. Forced synth bypasses N/T (D-01) but never the
+    open-draft invariant (D-02); every request lands a queryable terminal status (D-03).
+    """
+    try:
+        result = synth_request_drain_poller()
+        logger.info(f"Synth-request drain: {result}")
+    except Exception as e:
+        logger.error(f"Synth-request drain failed: {e}")
+
+
 def scheduled_post_approved_x():
     """Poll for approved X content and post it."""
     try:
@@ -11291,6 +11306,13 @@ def setup_scheduler():
     #   slots (08:00/08:30/11:00/12:00 UTC) and the Monday publish slots (11:00/11:15/11:30 UTC), and not
     #   the same minute as the 30-min intake job. Draft-only (GATE-01); operator gates publication.
     schedule.every().day.at("07:00").do(scheduled_synthesize_blocks)
+    # SYNTH-REQUEST DRAIN — cross-service /map-synth trigger (Plan 10-03, CMD-07, D-01).
+    #   Every 30s: the processor has no HTTP surface, so gato_brain enqueues a pending
+    #   economy_map.synth_requests row and this short poll drains it (forced synth, N/T
+    #   bypassed but never the open-draft invariant). 30s is PINNED to the "~30s" wording in
+    #   gato_brain's /map-synth ack (Plan 02) so the operator's "draft appears within ~30s"
+    #   expectation holds. Cheap when empty (one indexed status=pending GET, zero Sonnet calls).
+    schedule.every(30).seconds.do(scheduled_synth_request_drain)
 
     # Recurring analysis & extraction
     schedule.every(analysis_interval).hours.do(scheduled_analyze)
