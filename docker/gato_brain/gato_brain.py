@@ -2132,6 +2132,232 @@ def handle_map_reject(parts: list[str], access_tier: str) -> str:
     )
 
 
+# ─── Phase 10 operator write commands — /map-assign /map-entry /map-synth /map-tension ──
+# Each handler is owner-gated FIRST (D-09, threat T-10-06) before any read or write, then
+# strict-validates its args (slugs against _ECONOMY_MAP_BLOCK_SLUGS — D-05/D-10, T-10-08),
+# then calls the generalized allowlist-guarded _economy_map_rpc. The five distinct D-10
+# error cases per command: not-owner refusal / missing-or-malformed arg / unknown-or-
+# 'unsorted' slug / already-actioned-or-precondition-failed / generic Command failed:<e>
+# (the last via handle_map_command's top-level except). NOTE the parsing gotcha:
+# handle_map_command splits with msg.split(None, 1) so parts[1] is the ENTIRE remainder
+# as one string — each handler re-splits parts[1] itself.
+
+# typed-error markers raised by the migration-040 RPCs (matched on the RuntimeError text):
+_RPC_NOT_UNSORTED = "not an unsorted, un-reassigned entry"   # reassign_timeline_entry
+_RPC_BLOCK_NOT_FOUND = "not found"                            # set_block_live_tension / insert
+_MAP_ENTRY_DELIM = " | "
+
+
+def _owner_only_refusal(verb: str) -> str:
+    return (
+        f"{verb} is owner-only. Only the verified operator can write to the live "
+        f"economy map."
+    )
+
+
+def _validate_block_slug(slug: str, verb: str) -> tuple[str | None, str | None]:
+    """Validate a block slug against the seven-block allowlist (D-05/D-10).
+
+    Returns (slug, None) on success or (None, <typed error>) for 'unsorted' / unknown
+    slugs — rejected at the boundary BEFORE any RPC body is built (threat T-10-08).
+    """
+    slug = (slug or "").strip()
+    if not slug:
+        return None, f"{verb} needs a <block_slug>."
+    if slug not in _ECONOMY_MAP_BLOCK_SLUGS:
+        allowed = ", ".join(sorted(_ECONOMY_MAP_BLOCK_SLUGS))
+        return None, (
+            f"'{slug}' is not a valid block slug (and 'unsorted' is not a write target).\n"
+            f"Valid blocks: {allowed}"
+        )
+    return slug, None
+
+
+def handle_map_assign(parts: list[str], access_tier: str) -> str:
+    """Owner-gated /map-assign <entry_id> <block_slug>: re-file an unsorted entry (CMD-05).
+
+    Gate FIRST (D-09), then re-split parts[1] into the entry UUID + target slug, validating
+    each. Calls reassign_timeline_entry which atomically copies the original under the named
+    block (provenance preserved) and marks the original reassigned — so it leaves the
+    /map-pending backlog immediately (D-04 SC1). The 'not unsorted / already reassigned'
+    typed RAISE maps to a distinct already-actioned message; any other failure re-raises
+    to the top-level fail-loud handler.
+    """
+    if access_tier != "owner":
+        return _owner_only_refusal("/map-assign")
+    raw = parts[1].strip() if len(parts) > 1 else ""
+    args = raw.split()
+    if len(args) < 2:
+        return (
+            "Usage: /map-assign <entry_id> <block_slug>\n"
+            "The <entry_id> is the unsorted entry UUID from /map-pending; <block_slug> is "
+            "the target block."
+        )
+    entry_raw, slug_raw = args[0], args[1]
+    try:
+        entry_id = str(uuid.UUID(entry_raw))
+    except (ValueError, AttributeError, TypeError):
+        return (
+            f"'{entry_raw}' is not a valid entry id.\n"
+            f"Usage: /map-assign <entry_id> <block_slug> (entry UUID from /map-pending)."
+        )
+    slug, err = _validate_block_slug(slug_raw, "/map-assign")
+    if err:
+        return err
+
+    try:
+        _economy_map_rpc(
+            "reassign_timeline_entry",
+            {"p_entry_id": entry_id, "p_block_slug": slug},
+        )
+    except Exception as e:
+        if _RPC_NOT_UNSORTED in str(e):
+            return (
+                "That entry is no longer an unsorted, un-reassigned entry — it was already "
+                "filed or reassigned. Run /map-pending to see what's still awaiting filing."
+            )
+        raise
+
+    return (
+        f"✅ Filed entry under *{slug}*.\n"
+        f"It left the /map-pending unsorted backlog. The block page re-renders within ~60s."
+    )
+
+
+def handle_map_entry(parts: list[str], access_tier: str) -> str:
+    """Owner-gated /map-entry <slug> <what_shifted> | <why_it_mattered>: manual drop (CMD-06).
+
+    Gate FIRST (D-09). First token of parts[1] is the slug (validated); the rest splits on
+    ' | ' — BOTH halves required (D-06). A missing delimiter or empty half returns the
+    format usage hint (stateless single-shot, satisfies SC2's "prompts for"). Calls
+    insert_manual_timeline_entry; the new append-only entry is dated today (CURRENT_DATE).
+    """
+    if access_tier != "owner":
+        return _owner_only_refusal("/map-entry")
+    raw = parts[1].strip() if len(parts) > 1 else ""
+    head = raw.split(None, 1)
+    usage = (
+        "Usage: /map-entry <block_slug> <what_shifted> | <why_it_mattered>\n"
+        "Both halves are required, separated by ' | '."
+    )
+    if len(head) < 2:
+        return usage
+    slug, err = _validate_block_slug(head[0], "/map-entry")
+    if err:
+        return err
+    body = head[1]
+    if _MAP_ENTRY_DELIM not in body:
+        return usage
+    what_shifted, why_it_mattered = body.split(_MAP_ENTRY_DELIM, 1)
+    what_shifted = what_shifted.strip()
+    why_it_mattered = why_it_mattered.strip()
+    if not what_shifted or not why_it_mattered:
+        return usage
+
+    try:
+        _economy_map_rpc(
+            "insert_manual_timeline_entry",
+            {
+                "p_slug": slug,
+                "p_what_shifted": what_shifted,
+                "p_why_it_mattered": why_it_mattered,
+            },
+        )
+    except Exception as e:
+        if _RPC_BLOCK_NOT_FOUND in str(e):
+            return _validate_block_slug("", "/map-entry")[1] or "Unknown block."
+        raise
+
+    return (
+        f"✅ Added a manual timeline entry under *{slug}*, dated today.\n"
+        f"Append-only — it will be absorbed on the next synthesis pass."
+    )
+
+
+def handle_map_synth(parts: list[str], access_tier: str) -> str:
+    """Owner-gated /map-synth <block_slug>: force re-synthesis NOW, ignoring N/T (CMD-07).
+
+    Gate FIRST (D-09). Single token (slug, validated). BEFORE enqueuing, GET the block's
+    open-draft state and REFUSE (do NOT enqueue) if one exists (D-02 — 'ignore N/T'
+    bypasses ONLY the eligibility thresholds, never the one-open-draft / human-approval
+    invariant). Otherwise enqueue via enqueue_synth_request and ack; the processor drain
+    poller (Plan 03, schedule.every(30).seconds) turns the request into a draft shortly.
+    """
+    if access_tier != "owner":
+        return _owner_only_refusal("/map-synth")
+    raw = parts[1].strip() if len(parts) > 1 else ""
+    slug_raw = raw.split()[0] if raw.split() else ""
+    slug, err = _validate_block_slug(slug_raw, "/map-synth")
+    if err:
+        if not slug_raw:
+            return "Usage: /map-synth <block_slug>"
+        return err
+
+    # Open-draft precondition (D-02): refuse — never bypass the open-draft invariant.
+    resp = _economy_map_get(
+        "block_body_versions",
+        {
+            "block_slug": f"eq.{slug}",
+            "status": "eq.draft",
+            "select": "id",
+            "limit": "1",
+        },
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(
+            f"economy_map open-draft precondition read failed ({resp.status_code}): {resp.text}"
+        )
+    rows = resp.json()
+    if isinstance(rows, list) and rows:
+        return (
+            f"*{slug}* already has a pending draft — approve or reject it first via "
+            f"/map-pending. (A forced synth never bypasses the open-draft review gate.)"
+        )
+
+    _economy_map_rpc("enqueue_synth_request", {"p_slug": slug})
+    return (
+        f"✅ Queued a forced synthesis for *{slug}*.\n"
+        f"Draft appears within ~30s; check /map-pending."
+    )
+
+
+def handle_map_tension(parts: list[str], access_tier: str) -> str:
+    """Owner-gated /map-tension <block_slug> <text>: update the block's live_tension (CMD-08).
+
+    Gate FIRST (D-09). First token of parts[1] is the slug (validated); the rest is the
+    free-text tension (required — empty → usage hint). Calls set_block_live_tension; the
+    'block not found' typed RAISE maps to the unknown-slug message. live_tension is the
+    editorial framing reserved for humans, visible on the next block-page render.
+    """
+    if access_tier != "owner":
+        return _owner_only_refusal("/map-tension")
+    raw = parts[1].strip() if len(parts) > 1 else ""
+    head = raw.split(None, 1)
+    if not head:
+        return "Usage: /map-tension <block_slug> <text>"
+    slug, err = _validate_block_slug(head[0], "/map-tension")
+    if err:
+        return err
+    text = head[1].strip() if len(head) > 1 else ""
+    if not text:
+        return (
+            "Usage: /map-tension <block_slug> <text>\n"
+            "Provide the live-tension framing text after the slug."
+        )
+
+    try:
+        _economy_map_rpc("set_block_live_tension", {"p_slug": slug, "p_text": text})
+    except Exception as e:
+        if _RPC_BLOCK_NOT_FOUND in str(e):
+            return _validate_block_slug("", "/map-tension")[1] or "Unknown block."
+        raise
+
+    return (
+        f"✅ Updated live tension for *{slug}*.\n"
+        f"Visible on the next render of the block page (~60s)."
+    )
+
+
 def handle_map_command(message: str, access_tier: str = "free") -> str:
     """Dispatch /map-* commands to their handlers (mirrors handle_x_command, D-10).
 
