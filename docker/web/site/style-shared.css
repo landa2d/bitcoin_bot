@@ -178,6 +178,66 @@ body {
     line-height: 1.5;
 }
 
+/* ── Economy Map: shared map/block/status rules (Phase 13) ───── */
+/* De-darkened out of the legacy style-map.css (delete-and-fold disposition,
+   PATTERNS §CSS-DISPOSITION option 1). The per-tier color cascade is retired
+   (D-05 / COLOR-02): the single --accent violet drives every accent; empty
+   dots fall back to --line-strong. */
+
+/* Maturity pill — the MAP-02 progress dots. Single source of truth across
+   hub / block / status. data-stage="N" fills the first N segments with
+   --accent; data-stage="0" (DEFERRED) matches none → all segments stay on the
+   --line-strong empty fill by construction (UI-SPEC §4). */
+.maturity-pill {
+    display: inline-flex;
+    gap: var(--space-xs);
+    vertical-align: middle;
+}
+
+.maturity-pill .seg {
+    display: inline-block;
+    width: 18px;
+    height: 8px;
+    background: var(--line-strong);
+    border: none;
+    border-radius: var(--radius-dot);
+}
+
+/* Left-to-right fill by stage. data-stage="N" fills first N segments. */
+.maturity-pill[data-stage="1"] .seg:nth-child(-n+1) { background: var(--accent); border-color: var(--accent); }
+.maturity-pill[data-stage="2"] .seg:nth-child(-n+2) { background: var(--accent); border-color: var(--accent); }
+.maturity-pill[data-stage="3"] .seg:nth-child(-n+3) { background: var(--accent); border-color: var(--accent); }
+.maturity-pill[data-stage="4"] .seg:nth-child(-n+4) { background: var(--accent); border-color: var(--accent); }
+.maturity-pill[data-stage="5"] .seg:nth-child(-n+5) { background: var(--accent); border-color: var(--accent); }
+
+/* Tier label — the mono section heading above each tier group (hub + status).
+   Matches the .section-label property block (mono 11px/600 --ink-faint,
+   UPPERCASE, .18em). TIER_LABELS already emits SUBSTRATE/BEHAVIOR/FRAME. */
+.tier-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-faint);
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    margin: var(--space-xl) 0 12px;
+}
+
+.tier-label:first-of-type {
+    margin-top: var(--space-sm);
+}
+
+/* Hub storyline — one-line serif editorial frame below the hub header
+   (D-06). No rule existed before Phase 13; orphan class is now styled. */
+.hub-storyline {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    margin-bottom: var(--space-md);
+}
+
 /* The old back-link rule was retired in Phase 11 — superseded by the
    "← Back to [section]" back-control in style-base.css (Plan 02). */
 

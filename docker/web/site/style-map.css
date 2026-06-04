@@ -15,64 +15,11 @@
      regulation-legal                                    → gray
 */
 
-:root {
-    /* Base hex — TOKN-01, calibrated for white/light surfaces */
-    --accent-teal-base:   #0F6E56;  /* substrate (identity-trust, memory-context, payments-settlement) */
-    --accent-purple-base: #534AB7;  /* behavior (autonomy-control, governance-accountability) */
-    --accent-coral-base:  #993C1D;  /* psychology (deliberate distinction — build spec §1) */
-    --accent-gray-base:   #5F5E5A;  /* frame (regulation-legal) */
-
-    /* On-dark variants — WCAG AA against #0a0a0f (technical-mode bg).
-       Pinned-hue family preserved; measured contrast ratios per planner audit. */
-    --accent-teal-on-dark:   #4FCBA8;  /* contrast 9.99:1 — passes AA text (4.5:1) and non-text (3:1) */
-    --accent-purple-on-dark: #9D95E8;  /* contrast 7.37:1 — passes AA text and non-text */
-    --accent-coral-on-dark:  #E89072;  /* contrast 7.45:1 — passes AA text and non-text */
-    --accent-gray-on-dark:   #B0AEA8;  /* contrast 9.10:1 — passes AA text and non-text */
-}
-
-/* Strategic (light) mode — pinned-base hex on every data-accent value */
-body.strategic [data-accent="teal"]   { --accent-tier: var(--accent-teal-base);   }
-body.strategic [data-accent="purple"] { --accent-tier: var(--accent-purple-base); }
-body.strategic [data-accent="coral"]  { --accent-tier: var(--accent-coral-base);  }
-body.strategic [data-accent="gray"]   { --accent-tier: var(--accent-gray-base);   }
-
-/* Technical (dark) mode — on-dark variants on every data-accent value */
-body.technical [data-accent="teal"]   { --accent-tier: var(--accent-teal-on-dark);   }
-body.technical [data-accent="purple"] { --accent-tier: var(--accent-purple-on-dark); }
-body.technical [data-accent="coral"]  { --accent-tier: var(--accent-coral-on-dark);  }
-body.technical [data-accent="gray"]   { --accent-tier: var(--accent-gray-on-dark);   }
-
-/* ── Maturity Pill ──────────────────────────────────────────── */
-/* Markup contract:
-   <div class="maturity-pill" data-accent="teal" data-stage="3"
-        aria-label="Maturity: contested (3 of 5)">
-     <span class="seg"></span> × 5
-   </div>
-   Single source of truth across hub / block / status (TOKN-02).
-   Informational only — no hover / interactive states.
-*/
-
-.maturity-pill {
-    display: inline-flex;
-    gap: 2px;
-    vertical-align: middle;
-}
-
-.maturity-pill .seg {
-    display: inline-block;
-    width: 18px;
-    height: 8px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 2px;
-}
-
-/* Left-to-right fill by stage. data-stage="N" fills first N segments. */
-.maturity-pill[data-stage="1"] .seg:nth-child(-n+1) { background: var(--accent-tier); border-color: var(--accent-tier); }
-.maturity-pill[data-stage="2"] .seg:nth-child(-n+2) { background: var(--accent-tier); border-color: var(--accent-tier); }
-.maturity-pill[data-stage="3"] .seg:nth-child(-n+3) { background: var(--accent-tier); border-color: var(--accent-tier); }
-.maturity-pill[data-stage="4"] .seg:nth-child(-n+4) { background: var(--accent-tier); border-color: var(--accent-tier); }
-.maturity-pill[data-stage="5"] .seg:nth-child(-n+5) { background: var(--accent-tier); border-color: var(--accent-tier); }
+/* Per-tier accent hexes, the body.technical|strategic [data-accent] cascade,
+   and the maturity-pill rules were RETIRED in Phase 13 (D-05 / COLOR-02): the
+   four tier colors collapse to the single --accent violet, and the de-darkened
+   maturity-pill now lives in style-shared.css. Tiers are distinguished only by
+   their mono section label — no per-tier color survives. */
 
 /* ── Timeline Entry (TOKN-03) ───────────────────────────────── */
 /* Markup contract (Phase 4 emits):
@@ -154,37 +101,10 @@ body.technical [data-accent="gray"]   { --accent-tier: var(--accent-gray-on-dark
    accent resolves via var(--accent-tier) through the body.technical/
    body.strategic × [data-accent] cascade (lines 33-43). */
 
-/* ── Nav Map Link (D-04) ────────────────────────────────────── */
-/* Markup contract: <a href="#/map" class="nav-map-link">Map</a> inside
-   .nav-left. Quiet text link, NOT a button, no active-state (v2). */
-.nav-map-link {
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    color: var(--text-secondary);
-    text-decoration: none;
-    margin-left: 16px;
-}
-
-.nav-map-link:hover {
-    color: var(--text-primary);
-}
-
-/* ── Tier Label (D-13) ──────────────────────────────────────── */
-/* Markup contract: <h2 class="tier-label">SUBSTRATE</h2> — uppercase
-   tier heading above each group of tiles (hub + status). */
-.tier-label {
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-    margin: 32px 0 16px 0;
-}
-
-.tier-label:first-of-type {
-    margin-top: 8px;
-}
+/* The dead nav map-link rule (already superseded by the Phase 11 Agent Economy
+   tab) and the dark tier label (Courier New) were RETIRED in Phase 13. The
+   de-darkened tier label (mono section-label step) now lives in
+   style-shared.css, shared by the hub + status views. */
 
 /* ── Block Tile (D-14) ──────────────────────────────────────── */
 /* Markup contract: <a href="#/map/{slug}" data-accent="teal" class="block-tile">
