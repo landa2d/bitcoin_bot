@@ -70,3 +70,126 @@ body {
   letter-spacing:.2em;
   color:var(--accent-ink);
 }
+
+/* ── Nav Shell: sticky 3-tab header (NAV-01..04, Plan 02) ─────── */
+/* All colors reference :root tokens except the two locked literals the UI-SPEC
+   specifies: the translucent header bg rgba(250,248,245,.86) and the active-tab
+   border #ddd2ff. Weights 400/600 only. Chrome paddings snapped to the 4px grid. */
+
+header {
+  position:sticky;
+  top:0;
+  z-index:50;
+  background:rgba(250,248,245,.86);
+  backdrop-filter:saturate(140%) blur(10px);
+  -webkit-backdrop-filter:saturate(140%) blur(10px);
+  border-bottom:1px solid var(--line);
+}
+
+.nav {
+  display:flex;
+  align-items:center;
+  gap:var(--space-md);
+  padding:12px var(--space-lg);
+}
+
+/* Brand: dot + AGENTPULSE wordmark, links to Newsletter home (#/) */
+.brand {
+  display:inline-flex;
+  align-items:center;
+  gap:var(--space-sm);
+  font-family:var(--mono);
+  font-weight:600;
+  font-size:14px;
+  letter-spacing:.08em;
+  color:var(--ink);
+  text-decoration:none;
+}
+
+.dot {
+  width:9px;
+  height:9px;
+  border-radius:50%;
+  background:var(--accent);
+}
+
+/* Tab container — center region; pushes Subscribe to the right */
+.tabs {
+  display:flex;
+  align-items:center;
+  gap:var(--space-sm);
+  margin-right:auto;
+}
+
+/* Tab REST state — weight 400 (UI-SPEC override of mockup's 500) */
+.tab {
+  font-family:var(--mono);
+  font-size:12.5px;
+  font-weight:400;
+  letter-spacing:.02em;
+  color:var(--ink-soft);
+  padding:8px 12px;
+  border-radius:var(--radius-sm);
+  border:1px solid transparent;
+  text-decoration:none;
+}
+
+/* Active tab — accent-soft fill, accent-ink text, locked border, weight 600 */
+.tab.active {
+  color:var(--accent-ink);
+  background:var(--accent-soft);
+  border-color:#ddd2ff;
+  font-weight:600;
+}
+
+/* Subscribe button — solid accent, white text, reuses scrollToSubscribe() */
+.subscribe {
+  font-family:var(--mono);
+  font-size:12.5px;
+  font-weight:600;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  background:var(--accent);
+  color:#fff;
+  border:none;
+  border-radius:var(--radius-btn);
+  padding:8px 16px;
+  cursor:pointer;
+}
+
+.subscribe:hover {
+  background:var(--accent-ink);
+}
+
+/* ── Back-control: ← Back to [section] (NAV-03) ──────────────── */
+.backlink {
+  display:inline-flex;
+  align-items:center;
+  gap:var(--space-xs);
+  font-family:var(--mono);
+  font-size:12.5px;
+  font-weight:400;
+  color:var(--ink-soft);
+  text-decoration:none;
+  background:none;
+  border:none;
+}
+
+.backlink:hover {
+  color:var(--accent-ink);
+}
+
+/* ── Responsive nav (D-03): ≤640px wrap tabs to scrollable row ── */
+/* Brand + Subscribe stay on the top row; the three tabs drop to a full-width,
+   horizontally-scrollable row below. */
+@media (max-width:640px) {
+  .nav {
+    flex-wrap:wrap;
+  }
+  .tabs {
+    order:3;
+    flex-basis:100%;
+    margin-right:0;
+    overflow-x:auto;
+  }
+}
