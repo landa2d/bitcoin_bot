@@ -31,7 +31,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 **Milestone Goal:** A UI-only redesign of the public `aiagentspulse.com` SPA — a persistent, stateful 3-tab nav shell; editorial Source Serif 4 / IBM Plex Mono typography; a single light-mode violet accent replacing the dark map theme; the Agent Economy as a tight 2-column grouped grid; a relocated Newsletter-only mode toggle; and a "What is AgentPulse" About stub. **Frontend-only** — no backend, pipeline, Supabase, or content/data changes; the dual-mode *content* logic is unchanged (only the toggle's placement and styling move). Phases restyle on top of one shared design-system shell (Phase 11), each later phase a coherent visual unit. Ships via the v1.0-proven scoped `agentpulse-web` rebuild — no new infra. The mockup is a reference for intent, not markup to copy.
 
 - [x] **Phase 11: Design System + Nav Shell** - Single light-mode token palette, Source Serif 4 / IBM Plex Mono typography, and the persistent stateful 3-tab nav shell with back-arrow that every later view reuses (completed 2026-06-04)
-- [ ] **Phase 12: Newsletter Section Restyle** - Restyle the edition list + article on the new shell and relocate the Technical/Strategic mode toggle into the Newsletter section only
+- [x] **Phase 12: Newsletter Section Restyle** - Restyle the edition list + article on the new shell and relocate the Technical/Strategic mode toggle into the Newsletter section only (completed 2026-06-04)
 - [ ] **Phase 13: Agent Economy Grid** - Re-render the map as a responsive 2-column grouped card grid driven by the canonical data-source block taxonomy, with deferred-block treatment
 - [ ] **Phase 14: About Stub + Polish Pass** - Add the nav-reachable "What is AgentPulse" stub and apply the site-wide spacing/radius consistency pass
 
@@ -79,7 +79,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 12-02-PLAN.md — Toggle relocation + markup/JS wiring (`index.html` + `app.js`): restructure hero into the minimal D3 header, scope hero/toggle to the `list` route in `showView()`, date-append the `renderList()` kicker, magazine header + `.preview-banner` in `renderArticle()` (TGL-01, TGL-02 wiring)
+- [x] 12-02-PLAN.md — Toggle relocation + markup/JS wiring (`index.html` + `app.js`): restructure hero into the minimal D3 header, scope hero/toggle to the `list` route in `showView()`, date-append the `renderList()` kicker, magazine header + `.preview-banner` in `renderArticle()` (TGL-01, TGL-02 wiring)
 
 **UI hint**: yes
 
@@ -131,6 +131,6 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 9. Gated Publishing + Approval | v1.0 | 2/2 | Complete | 2026-06-03 |
 | 10. Operator Write Commands | v1.0 | 3/3 | Complete | 2026-06-04 |
 | 11. Design System + Nav Shell | v2.0 | 2/2 | Complete    | 2026-06-04 |
-| 12. Newsletter Section Restyle | v2.0 | 1/2 | In Progress|  |
+| 12. Newsletter Section Restyle | v2.0 | 2/2 | Complete   | 2026-06-04 |
 | 13. Agent Economy Grid | v2.0 | 0/TBD | Not started | - |
 | 14. About Stub + Polish Pass | v2.0 | 0/TBD | Not started | - |

@@ -29,7 +29,7 @@ Requirements for the v2.0 milestone. Each maps to a roadmap phase.
 
 ### Mode toggle
 
-- [ ] **TGL-01**: The Technical/Strategic mode toggle appears only inside the Newsletter section (list and article views) and is removed from any global/shared position.
+- [x] **TGL-01**: The Technical/Strategic mode toggle appears only inside the Newsletter section (list and article views) and is removed from any global/shared position.
 - [x] **TGL-02**: The active mode shows a filled accent and a hint line below it ("Architecture, code, implementation" for Technical; "Markets, strategy, implications" for Strategic).
 
 ### Agent Economy map
@@ -90,7 +90,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TYPE-03 | Phase 11 | Complete |
 | COLOR-01 | Phase 11 | Complete |
 | COLOR-02 | Phase 11 | Complete |
-| TGL-01 | Phase 12 | Pending |
+| TGL-01 | Phase 12 | Complete |
 | TGL-02 | Phase 12 | Complete |
 | MAP-01 | Phase 13 | Pending |
 | MAP-02 | Phase 13 | Pending |

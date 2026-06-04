@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Frontend Redesign
-status: executing
-stopped_at: Completed 12-01-PLAN.md
-last_updated: "2026-06-04T20:28:28.585Z"
+status: verifying
+stopped_at: Completed 12-02-PLAN.md
+last_updated: "2026-06-04T20:37:21.920Z"
 last_activity: 2026-06-04
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
-  percent: 25
+  completed_plans: 4
+  percent: 50
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 
 ## Current Position
 
-Phase: 12 (newsletter-section-restyle) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute
+Phase: 12 (newsletter-section-restyle) — VERIFYING
+Plan: 2 of 2 (complete)
+Status: Phase complete — ready for verification
 Last activity: 2026-06-04
 
-Progress: [██░░░░░░░░] 25%
+Progress: [█████░░░░░] 50%
 
 ## Roadmap (v2.0 — Phases 11–14)
 
@@ -63,6 +63,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 11]: Status-view back-control left for manual local verification (D-01) — no static back-link in index.html and renderStatus renders only tier sections; outside Plan-02 edit scope
 - [Phase 12]: Newsletter CSS restyled in-place onto Phase 11 serif/light tokens — TYPE-01 mono->serif on article p/ul/ol/li/td + .entry-preview, single serif h2/h3 at 600, B1 --line-divided rows, A1 filled-accent toggle pill + mono hint, magazine surfaces, token-based .preview-banner (style-shared.css only)
 - [Phase 12]: Mobile @media reconciliation removed (not re-snapped) the off-grid 7px-16px toggle override + dead .hero-headline override — the desktop pill is already compact and the clamp() headline already scales down
+- [Phase 12]: Toggle relocated to the Newsletter list structurally (12-02) — its .hero host is scoped to the list route in showView(); the .mode-toggle markup/IDs/onclick stay put so setMode() needed zero logic change (TGL-01)
 
 ### Pending Todos
 
@@ -90,7 +91,7 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-06-04T20:28:11.573Z
+Last session: 2026-06-04T20:36:55.352Z
 Stopped at: Completed 12-01-PLAN.md
 Resume file: None
 
@@ -105,3 +106,4 @@ Resume file: None
 | Phase 11 P01 | 8min | 3 tasks | 3 files |
 | Phase 11 P02 | 2min | 3 tasks | 3 files |
 | Phase Phase 12 P01 P12-01 | 6min | 3 tasks | 1 files |
+| Phase 12 P02 | 4 min | 3 tasks | 2 files |
