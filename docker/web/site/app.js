@@ -737,11 +737,43 @@ function startEvolutionPoll(slug) {
     }, 60000);  // D-07 cadence floor
 }
 
+// ─── Nav Shell: route-derived active tab (NAV-02) ─────────────────────────────
+
+// Map the getRoute() view string → the nav tab that should be active, per the
+// UI-SPEC route→tab table (verbatim): list/reader → newsletter; map/block/status
+// → map; about → about; unsubscribe → none. Active state is ROUTE-derived (called
+// inside route() on load + every hashchange), NOT click-derived. Defensive
+// null-checks per PATTERNS §3 — if no .tab elements exist, no-op safely.
+function setActiveTab(view) {
+    var VIEW_TO_TAB = {
+        list: 'newsletter',
+        reader: 'newsletter',
+        map: 'map',
+        block: 'map',
+        status: 'map',
+        about: 'about'
+        // unsubscribe → undefined → no active tab (utility page)
+    };
+    var targetTab = VIEW_TO_TAB[view]; // undefined for unsubscribe / unknown
+    var tabs = document.querySelectorAll('.tab');
+    if (!tabs || !tabs.length) return;
+    tabs.forEach(function(el) {
+        var isActive = el.dataset.tab === targetTab;
+        el.classList.toggle('active', isActive);
+        if (isActive) {
+            el.setAttribute('aria-current', 'page');
+        } else {
+            el.removeAttribute('aria-current');
+        }
+    });
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 function route() {
     window.currentNewsletter = null;
     var r = getRoute();
+    setActiveTab(r.view);
     switch (r.view) {
         case 'list': loadList(); break;
         case 'reader': loadEdition(r.edition); break;
