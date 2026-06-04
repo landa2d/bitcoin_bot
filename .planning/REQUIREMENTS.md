@@ -34,10 +34,10 @@ Requirements for the v2.0 milestone. Each maps to a roadmap phase.
 
 ### Agent Economy map
 
-- [ ] **MAP-01**: The Agent Economy renders as a responsive grid (2 columns on desktop, 1 on mobile, tight ~16px gaps) rather than one long vertical scroll.
-- [ ] **MAP-02**: Each block is a bordered card — serif title, one-line description, progress dots, a 3px accent left-border, and a subtle hover lift.
-- [ ] **MAP-03**: Cards are grouped under small section labels using the canonical block taxonomy from the data source (not the mockup's placeholder blocks).
-- [ ] **MAP-04**: Deferred/incomplete blocks span the full grid width with a DEFERRED tag and empty progress dots.
+- [x] **MAP-01**: The Agent Economy renders as a responsive grid (2 columns on desktop, 1 on mobile, tight ~16px gaps) rather than one long vertical scroll.
+- [x] **MAP-02**: Each block is a bordered card — serif title, one-line description, progress dots, a 3px accent left-border, and a subtle hover lift.
+- [x] **MAP-03**: Cards are grouped under small section labels using the canonical block taxonomy from the data source (not the mockup's placeholder blocks).
+- [x] **MAP-04**: Deferred/incomplete blocks span the full grid width with a DEFERRED tag and empty progress dots.
 
 ### About
 
@@ -92,10 +92,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | COLOR-02 | Phase 11 | Complete |
 | TGL-01 | Phase 12 | Complete |
 | TGL-02 | Phase 12 | Complete |
-| MAP-01 | Phase 13 | Pending |
-| MAP-02 | Phase 13 | Pending |
-| MAP-03 | Phase 13 | Pending |
-| MAP-04 | Phase 13 | Pending |
+| MAP-01 | Phase 13 | Complete |
+| MAP-02 | Phase 13 | Complete |
+| MAP-03 | Phase 13 | Complete |
+| MAP-04 | Phase 13 | Complete |
 | ABOUT-01 | Phase 14 | Partial — minimal `#/about` stub shipped in Phase 11 (UAT); full page Phase 14 |
 | POLISH-01 | Phase 14 | Pending |
 | DARK-01 | Deferred (v-next) | Deferred |

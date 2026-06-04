@@ -4,14 +4,14 @@ milestone: v2.0
 milestone_name: Frontend Redesign
 status: executing
 stopped_at: Phase 13 UI-SPEC approved
-last_updated: "2026-06-04T22:07:38.895Z"
-last_activity: 2026-06-04 -- Phase 13 planning complete
+last_updated: "2026-06-04T22:20:44.124Z"
+last_activity: 2026-06-04 -- Phase 13 Plan 01 complete (hub card grid + DEFERRED + single-accent)
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 6
-  completed_plans: 4
-  percent: 50
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 13 — agent-economy-grid (Phase 12 complete & human-verified 2026-06-04)
+**Current focus:** Phase 13 — agent-economy-grid
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-04 -- Phase 13 planning complete
+Phase: 13 (agent-economy-grid) — EXECUTING
+Plan: 2 of 2
+Status: Plan 01 complete; Plan 02 (block-detail + status de-dark pass) ready to execute
+Last activity: 2026-06-04 -- Phase 13 Plan 01 complete
 
-Progress: [█████░░░░░] 50%
+Progress: [████████░░] 83%
 
 ## Roadmap (v2.0 — Phases 11–14)
 
@@ -64,6 +64,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 12]: Newsletter CSS restyled in-place onto Phase 11 serif/light tokens — TYPE-01 mono->serif on article p/ul/ol/li/td + .entry-preview, single serif h2/h3 at 600, B1 --line-divided rows, A1 filled-accent toggle pill + mono hint, magazine surfaces, token-based .preview-banner (style-shared.css only)
 - [Phase 12]: Mobile @media reconciliation removed (not re-snapped) the off-grid 7px-16px toggle override + dead .hero-headline override — the desktop pill is already compact and the clamp() headline already scales down
 - [Phase 12]: Toggle relocated to the Newsletter list structurally (12-02) — its .hero host is scoped to the list route in showView(); the .mode-toggle markup/IDs/onclick stay put so setMode() needed zero logic change (TGL-01)
+- [Phase 13]: Delete-and-fold CSS disposition — de-darkened hub map rules (.maturity-pill/.tier-label/.hub-storyline + .grid/.card/.card-deferred/.card-dots-row/.deferred-tag) migrated into style-shared.css; style-map.css keeps only the Plan-02-scoped block/status/timeline rules
+- [Phase 13]: Per-tier color cascade deleted (D-05/COLOR-02) — single --accent on card stripes + filled dots, tiers differ only by mono section label; data-accent retired from renderTile/renderMaturityPill (hub path); block/status data-accent left for Plan 02
+- [Phase 13]: DEFERRED derived in JS from current_body_version_id null (D-04) — full-width card (grid-column:1/-1) + empty data-stage=0 dots + "· DEFERRED" tag; no .eq('status') filter, RLS stays the boundary (D-17). Hub sub-line reuses the global .hero-date class (no new .hub-subline rule, keeps Task 3 JS-only)
 
 ### Pending Todos
 
@@ -91,9 +94,9 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-06-04T21:38:35.945Z
-Stopped at: Phase 13 UI-SPEC approved
-Resume file: .planning/phases/13-agent-economy-grid/13-UI-SPEC.md
+Last session: 2026-06-04T22:20:44.120Z
+Stopped at: Completed 13-01-PLAN.md (hub card grid + DEFERRED + single-accent collapse)
+Resume file: .planning/phases/13-agent-economy-grid/13-02-PLAN.md
 
 ## Operator Next Steps
 
@@ -107,3 +110,4 @@ Resume file: .planning/phases/13-agent-economy-grid/13-UI-SPEC.md
 | Phase 11 P02 | 2min | 3 tasks | 3 files |
 | Phase Phase 12 P01 P12-01 | 6min | 3 tasks | 1 files |
 | Phase 12 P02 | 4 min | 3 tasks | 2 files |
+| Phase 13 P01 | 4min | 3 tasks | 3 files |
