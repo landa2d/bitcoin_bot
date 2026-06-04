@@ -191,6 +191,10 @@ function renderList(data) {
 
 async function loadList() {
     showView('list');
+    // Set the hero synchronously so the previous section's title (e.g. the hub
+    // HUB_STORYLINE) doesn't flash here during the async fetch. renderList()
+    // refines the date once data arrives.
+    updateHero('AI Agents Pulse', '');
     var { data, error } = await sb
         .from('newsletters')
         .select('*')
@@ -378,6 +382,9 @@ function renderMaturityPill(b) {
 // plug in the data + markup.
 async function loadHub() {
     showView('map');
+    // Set the hero synchronously so the previous section's title doesn't flash
+    // here during the async fetch. renderHub() refines the date once data arrives.
+    updateHero(HUB_STORYLINE, '');
 
     // Single query — read all seven blocks ordered by sort_order. Per D-16 use
     // sb.schema('economy_map') so supabase-js sets Accept-Profile automatically.
