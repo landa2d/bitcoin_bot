@@ -46,7 +46,10 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
   2. The current section's tab stays visually active on nested pages (a single edition keeps Newsletter active; a single block keeps Agent Economy active), and every nested page shows a `← Back to [section]` control at top-left.
   3. Body and reading text + titles render in Source Serif 4 with no monospace body paragraphs anywhere; IBM Plex Mono appears only on UI chrome (eyebrow/label, metadata, tab labels, buttons, tags), and a single ~18px / ~1.6-line-height serif heading style is used (the second monospace heading treatment is gone).
   4. A single light-mode palette (warm off-white bg, surfaces, ink scale, one violet accent) is defined via CSS variables and applied site-wide, replacing the dark map theme; the accent appears on links and the active tab and nowhere is a second brand color used.
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 11-01-PLAN.md — Design-system foundation: style-base.css :root tokens + Source Serif 4 / IBM Plex Mono typography + Google-Fonts link; retire dark var blocks + Courier body (COLOR-01/02, TYPE-01/02/03)
+- [ ] 11-02-PLAN.md — Sticky 3-tab nav shell: header markup, route-derived active tab, ← Back to [section] control, mobile wrap, Subscribe reuses scrollToSubscribe() (NAV-01/02/03/04)
 **UI hint**: yes
 
 ### Phase 12: Newsletter Section Restyle
@@ -101,7 +104,7 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 8. Validation Sentinels | v1.0 | 2/2 | Complete | 2026-06-02 |
 | 9. Gated Publishing + Approval | v1.0 | 2/2 | Complete | 2026-06-03 |
 | 10. Operator Write Commands | v1.0 | 3/3 | Complete | 2026-06-04 |
-| 11. Design System + Nav Shell | v2.0 | 0/TBD | Not started | - |
+| 11. Design System + Nav Shell | v2.0 | 0/2 | Planned | - |
 | 12. Newsletter Section Restyle | v2.0 | 0/TBD | Not started | - |
 | 13. Agent Economy Grid | v2.0 | 0/TBD | Not started | - |
 | 14. About Stub + Polish Pass | v2.0 | 0/TBD | Not started | - |
