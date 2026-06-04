@@ -106,44 +106,9 @@
    de-darkened tier label (mono section-label step) now lives in
    style-shared.css, shared by the hub + status views. */
 
-/* ── Block Tile (D-14) ──────────────────────────────────────── */
-/* Markup contract: <a href="#/map/{slug}" data-accent="teal" class="block-tile">
-   <h3 class="tile-title">.. <p class="tile-subtitle">.. .maturity-pill</a>.
-   Whole anchor is the link target; tier accent = left-border stripe
-   via var(--accent-tier). No link underline. */
-.block-tile {
-    display: block;
-    padding: 16px 20px 16px 24px;
-    margin-bottom: 12px;
-    border-left: 3px solid var(--accent-tier);
-    text-decoration: none;
-    color: inherit;
-}
-
-.block-tile:hover {
-    background: rgba(255, 255, 255, 0.02);
-}
-
-.block-tile .tile-title {
-    font-family: Georgia, serif;
-    font-size: 18px;
-    font-weight: 400;
-    color: var(--text-primary);
-    margin-bottom: 6px;
-}
-
-.block-tile .tile-subtitle {
-    font-family: 'Courier New', monospace;
-    font-size: 15px;
-    font-weight: 400;
-    color: var(--text-body);
-    line-height: 1.5;
-}
-
-.block-tile .maturity-pill {
-    margin-top: 8px;
-    display: inline-flex;
-}
+/* The dark block-tile rules (Georgia title, Courier subtitle, per-tier stripe)
+   were RETIRED in Phase 13 (MAP-02). The light card grid (.grid / .card /
+   .card-deferred) now lives in style-shared.css. */
 
 /* ── Block Header (D-09) ────────────────────────────────────── */
 /* Markup contract: <header class="block-header" data-accent="teal">

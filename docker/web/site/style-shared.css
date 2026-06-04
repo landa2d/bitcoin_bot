@@ -238,6 +238,92 @@ body {
     margin-bottom: var(--space-md);
 }
 
+/* Card grid (MAP-01) — 2-col desktop within each tier section, the tier
+   label sits ABOVE this grid (emitted as a sibling by renderHub). */
+.grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-md);
+    margin-top: var(--space-sm);
+}
+
+/* Card (MAP-02) — the whole <a> is the click target. Bordered surface with a
+   3px --accent left stripe, serif title + one-line description + progress dots,
+   and a subtle hover lift. */
+.card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 20px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: .18s ease;
+}
+
+.card .tile-title {
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -.01em;
+    line-height: 1.25;
+}
+
+.card .tile-subtitle {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    flex: 1;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(26, 25, 22, .07);
+    border-left-color: var(--accent-ink);
+}
+
+.card:focus-visible {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 2px;
+}
+
+/* DEFERRED full-width variant (MAP-04) — spans the whole grid row. Same card
+   chrome (the 3px --accent stripe stays); reads "empty dots · DEFERRED". */
+.card-deferred {
+    grid-column: 1 / -1;
+}
+
+.card-dots-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+}
+
+.deferred-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    color: var(--ink-faint);
+}
+
+/* Mobile (MAP-01) — collapse to a single column. At 1 column the full-width
+   modifier is a no-op (every card already spans). */
+@media (max-width: 640px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* The old back-link rule was retired in Phase 11 — superseded by the
    "← Back to [section]" back-control in style-base.css (Plan 02). */
 
