@@ -1,0 +1,109 @@
+# Requirements: AgentPulse — v2.0 Frontend Redesign
+
+**Defined:** 2026-06-04
+**Core Value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval.
+**Source:** `.planning/docs/REDESIGN_BRIEF.md` + `agentpulse-redesign-mockup.html` (reference for intent, not code to copy).
+**Scope note:** Frontend-only. No backend, pipeline, Supabase, or content/data changes. Dual-mode *content* logic is unchanged — only the mode toggle's placement and styling move.
+
+## v1 Requirements
+
+Requirements for the v2.0 milestone. Each maps to a roadmap phase.
+
+### Navigation
+
+- [ ] **NAV-01**: Every page shows a persistent sticky top bar — brand (left), three section tabs (Newsletter / Agent Economy / What is AgentPulse), and a Subscribe button (right). The Subscribe button reuses the existing subscribe flow.
+- [ ] **NAV-02**: The current section's tab stays visually active on nested pages — viewing a single edition keeps **Newsletter** active; viewing a single block keeps **Agent Economy** active.
+- [ ] **NAV-03**: Every nested page (single edition, single block) shows a `← Back to [section]` control at top-left.
+- [ ] **NAV-04**: A reader can reach any section from any other section in one click; the old plain "Map" text link is replaced by the Agent Economy tab.
+
+### Typography
+
+- [ ] **TYPE-01**: Body/reading text and titles render in Source Serif 4; no monospace body paragraphs appear anywhere on the site.
+- [ ] **TYPE-02**: Monospace (IBM Plex Mono) is reserved for UI chrome only — eyebrow/label, metadata (Edition # · date), tab labels, buttons, tags, and code.
+- [ ] **TYPE-03**: A single serif heading style is used at ~18px body / ~1.6 line-height; the second monospace heading treatment is removed.
+
+### Color
+
+- [ ] **COLOR-01**: A single light-mode palette (warm off-white background, surfaces, ink scale, violet accent) is defined via CSS variables and applied site-wide, replacing the dark map theme.
+- [ ] **COLOR-02**: One accent only is used — for links, active tab, card borders, and progress dots; no second brand color appears.
+
+### Mode toggle
+
+- [ ] **TGL-01**: The Technical/Strategic mode toggle appears only inside the Newsletter section (list and article views) and is removed from any global/shared position.
+- [ ] **TGL-02**: The active mode shows a filled accent and a hint line below it ("Architecture, code, implementation" for Technical; "Markets, strategy, implications" for Strategic).
+
+### Agent Economy map
+
+- [ ] **MAP-01**: The Agent Economy renders as a responsive grid (2 columns on desktop, 1 on mobile, tight ~16px gaps) rather than one long vertical scroll.
+- [ ] **MAP-02**: Each block is a bordered card — serif title, one-line description, progress dots, a 3px accent left-border, and a subtle hover lift.
+- [ ] **MAP-03**: Cards are grouped under small section labels using the canonical block taxonomy from the data source (not the mockup's placeholder blocks).
+- [ ] **MAP-04**: Deferred/incomplete blocks span the full grid width with a DEFERRED tag and empty progress dots.
+
+### About
+
+- [ ] **ABOUT-01**: A nav-reachable "What is AgentPulse" page exists, stubbed with the existing about copy (the deeper pipeline-diagram content is deferred).
+
+### Spacing & polish
+
+- [ ] **POLISH-01**: Vertical rhythm is tightened and radii are consistent (~7–10px) across cards, toggle, and buttons — minimalist but not sparse.
+
+## v2 Requirements
+
+Deferred to a future release. Tracked but not in the current roadmap.
+
+### Theme
+
+- **DARK-01**: A dark-mode variant of the light palette (noted but deferred in this redesign pass to avoid doubling the token/QA surface).
+
+### About
+
+- **ABOUT-02**: A richer "What is AgentPulse" page with a pipeline/architecture diagram (a separate iteration after the stub ships).
+
+> Backend deferred items (negotiation-block graduation, per-block synthesis tuning, EU AI Act tracker integration) are tracked in STATE.md → Deferred Items and are intentionally kept in separate milestones from this UI redesign.
+
+## Out of Scope
+
+Explicitly excluded for v2.0. Documented to prevent scope creep.
+
+| Feature | Reason |
+|---------|--------|
+| Backend / pipeline / Supabase / content changes | v2.0 is frontend-only; the redesign brief mandates the backend stays untouched |
+| Dual-mode **content** logic changes | Only the mode toggle's placement and styling move; the content rendering logic is unchanged |
+| Dark mode | Ship the single light-mode system first; dark mode deferred to avoid doubling the token/QA surface (see DARK-01) |
+| Mockup's placeholder block taxonomy | The grid uses the canonical data-source block list/grouping, not the mockup's illustrative Substrate/Coordination blocks (Discovery, Orchestration, Marketplaces) |
+| Pipeline/architecture diagram on About | About ships as a stub of existing copy; the diagram is a later iteration (see ABOUT-02) |
+| New publish infrastructure | Reuse the v1.0-proven scoped web rebuild (single `agentpulse-web` container); no new infra |
+| Negotiation graduation / per-block tuning / EU AI Act tracker | Deferred backend v2 items; the operator chose to keep UI and backend scopes in separate milestones |
+
+## Traceability
+
+Which phases cover which requirements. Updated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| NAV-01 | TBD | Pending |
+| NAV-02 | TBD | Pending |
+| NAV-03 | TBD | Pending |
+| NAV-04 | TBD | Pending |
+| TYPE-01 | TBD | Pending |
+| TYPE-02 | TBD | Pending |
+| TYPE-03 | TBD | Pending |
+| COLOR-01 | TBD | Pending |
+| COLOR-02 | TBD | Pending |
+| TGL-01 | TBD | Pending |
+| TGL-02 | TBD | Pending |
+| MAP-01 | TBD | Pending |
+| MAP-02 | TBD | Pending |
+| MAP-03 | TBD | Pending |
+| MAP-04 | TBD | Pending |
+| ABOUT-01 | TBD | Pending |
+| POLISH-01 | TBD | Pending |
+
+**Coverage:**
+- v1 requirements: 17 total
+- Mapped to phases: 0 (roadmap pending)
+- Unmapped: 17 ⚠️ (filled by roadmapper)
+
+---
+*Requirements defined: 2026-06-04 — milestone v2.0 Frontend Redesign*
+*Last updated: 2026-06-04 after initial definition*
