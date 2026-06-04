@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: milestone_complete
-stopped_at: Phase 10 complete — milestone v1.0 fully executed
-last_updated: "2026-06-04T09:09:33.330Z"
-last_activity: 2026-06-04 -- Phase 10 complete; milestone v1.0 done (11/11 phases)
+status: Awaiting next milestone
+stopped_at: Phase 10 context gathered
+last_updated: "2026-06-04T12:00:35.265Z"
+last_activity: 2026-06-04 — Milestone v1.0 completed and archived
 progress:
   total_phases: 11
   completed_phases: 11
@@ -21,16 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-26)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Milestone v1.0 complete — all 11 phases done. Next: `/gsd-complete-milestone` (archive) or `/gsd-new-milestone` (v2 — deferred items: negotiation graduation, per-block tuning, design pass, EU AI Act).
+**Current focus:** Milestone v1.0 (Agent Economy Map) shipped + archived 2026-06-04. Awaiting v2.0 — start with `/gsd-new-milestone` (candidate scope: web UI redesign; deferred items: negotiation graduation, per-block tuning, design pass, EU AI Act).
 
 ## Current Position
 
-Phase: 10 (operator-write-commands) — COMPLETE
-Plan: 3/3 complete
-Status: Milestone v1.0 complete (11/11 phases, 29/29 plans)
-Last activity: 2026-06-04 -- Phase 10 complete; 10-HUMAN-UAT.md pending live Telegram smoke test
-
-Progress: [██████████] 100%
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-04 — Milestone v1.0 completed and archived
 
 ## Performance Metrics
 
@@ -103,8 +101,33 @@ Items acknowledged and carried forward:
 | v2 — Design pass | Bespoke typography / page chrome (DSGN-01..03) | Deferred to v2 | 2026-05-26 |
 | v2 — EU AI Act integration | Wire `eu_ai_act` tracker into regulation-legal block (EUAI-01, EUAI-02) | Deferred to v2 | 2026-05-26 |
 
+### Acknowledged at v1.0 close (2026-06-04)
+
+14 open items acknowledged and carried forward at milestone close (not blockers — manual live-smoke verification + known follow-up todos):
+
+| Category | Item | Status |
+|----------|------|--------|
+| UAT | Phase 02 HUMAN-UAT (3 pending scenarios) | partial |
+| UAT | Phase 04 HUMAN-UAT | partial |
+| UAT | Phase 09 HUMAN-UAT (1 pending) | partial |
+| UAT | Phase 10 HUMAN-UAT (5 pending — /map-* live Telegram smoke) | partial |
+| Verification | Phase 02 VERIFICATION | human_needed |
+| Verification | Phase 04 VERIFICATION | human_needed |
+| Verification | Phase 10 VERIFICATION | human_needed |
+| Todo (P2 analyst) | analyst-predictions-title-expire-bug | pending |
+| Todo (P5 governance) | harden-soft-caps-allow-negative (accepted choice to revisit) | pending |
+| Todo (P2 tooling) | pay-endpoint-500-transfer-rpc-search-path (RPC fixed migration 037; residual E2E only) | pending |
+| Todo (P4 intake) | phase05-review-followups-wr02-wr04-wr05 | pending |
+| Todo (P4 research) | research-trigger-file-permissions | pending |
+| Todo (P? phase06) | phase06-review-followups-wr01-wr02 | pending |
+| Todo (P? phase07) | phase07-review-followups-wr01-in01-04 | pending |
+
 ## Session Continuity
 
 Last session: 2026-06-03T18:51:58.774Z
 Stopped at: Phase 10 context gathered
 Resume file: .planning/phases/10-operator-write-commands/10-CONTEXT.md
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
