@@ -116,6 +116,8 @@ header {
   align-items:center;
   gap:var(--space-md);
   padding:12px var(--space-lg);
+  max-width:880px;       /* mockup --maxw — centered chrome, room for 3 one-line tabs */
+  margin:0 auto;
 }
 
 /* Brand: dot + AGENTPULSE wordmark, links to Newsletter home (#/) */
@@ -129,6 +131,7 @@ header {
   letter-spacing:.08em;
   color:var(--ink);
   text-decoration:none;
+  flex-shrink:0;
 }
 
 .dot {
@@ -148,6 +151,9 @@ header {
 
 /* Tab REST state — weight 400 (UI-SPEC override of mockup's 500) */
 .tab {
+  display:inline-flex;       /* equal height + vertically-centered label */
+  align-items:center;
+  white-space:nowrap;        /* never wrap to a 2nd row — keeps all tabs the same height */
   font-family:var(--mono);
   font-size:12.5px;
   font-weight:400;
@@ -155,7 +161,7 @@ header {
   color:var(--ink-soft);
   padding:8px 12px;
   border-radius:var(--radius-sm);
-  border:1px solid transparent;
+  border:1px solid transparent;  /* matches .active's 1px border → no height shift when highlighted */
   text-decoration:none;
 }
 
@@ -180,6 +186,7 @@ header {
   border-radius:var(--radius-btn);
   padding:8px 16px;
   cursor:pointer;
+  flex-shrink:0;
 }
 
 .subscribe:hover {
