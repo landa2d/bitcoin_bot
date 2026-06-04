@@ -96,8 +96,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MAP-02 | Phase 13 | Pending |
 | MAP-03 | Phase 13 | Pending |
 | MAP-04 | Phase 13 | Pending |
-| ABOUT-01 | Phase 14 | Pending |
+| ABOUT-01 | Phase 14 | Partial — minimal `#/about` stub shipped in Phase 11 (UAT); full page Phase 14 |
 | POLISH-01 | Phase 14 | Pending |
+| DARK-01 | Deferred (v-next) | Deferred |
+| ABOUT-02 | Deferred (v-next) | Deferred |
 
 **Coverage:**
 
