@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Frontend Redesign
-status: executing
-stopped_at: Completed 11-01-PLAN.md
-last_updated: "2026-06-04T17:47:02.452Z"
-last_activity: 2026-06-04 -- Phase 11 Plan 01 executed (design-system token layer)
+status: verifying
+stopped_at: Completed 11-02-PLAN.md
+last_updated: "2026-06-04T17:53:53.795Z"
+last_activity: 2026-06-04 -- Phase 11 Plan 02 executed (sticky 3-tab nav shell)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 50
+  completed_plans: 2
+  percent: 25
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 
 ## Current Position
 
-Phase: 11 (design-system-nav-shell) — EXECUTING
-Plan: 2 of 2
-Status: Plan 01 complete; Plan 02 (nav shell) ready to execute
-Last activity: 2026-06-04 -- Phase 11 Plan 01 executed (design-system token layer)
+Phase: 11 (design-system-nav-shell) — COMPLETE (ready for verification)
+Plan: 2 of 2 (both complete)
+Status: Phase complete — ready for verification
+Last activity: 2026-06-04 -- Phase 11 Plan 02 executed (sticky 3-tab nav shell)
 
-Progress: [█████░░░░░] 50%
+Progress: [██░░░░░░░░] 25%
 
 ## Roadmap (v2.0 — Phases 11–14)
 
@@ -59,6 +59,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - The mockup (`.planning/docs/agentpulse-redesign-mockup.html`) is a reference for intent, not markup to copy
 - [Phase 11]: Phase 11 design tokens live in a new first-loaded style-base.css :root; dark body.technical/strategic var blocks deleted so the single light palette wins (D-04)
 - [Phase 11]: Residual Courier New in style-shared.css migrated to var(--mono) IBM Plex Mono chrome token (gate-required, SPEC-aligned)
+- [Phase 11]: Nav shell tabs are plain hash links (#/ #/map #/about) driven by the real router; setActiveTab(getRoute().view) wired into route() makes active state route-derived not click-derived (NAV-02)
+- [Phase 11]: Status-view back-control left for manual local verification (D-01) — no static back-link in index.html and renderStatus renders only tier sections; outside Plan-02 edit scope
 
 ### Pending Todos
 
@@ -86,16 +88,17 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-06-04T17:46:22.059Z
-Stopped at: Phase 11 context gathered
+Last session: 2026-06-04T17:53:42.449Z
+Stopped at: Completed 11-02-PLAN.md — Phase 11 ready for verification
 Resume file: None
 
 ## Operator Next Steps
 
-- Plan Phase 11 (Design System + Nav Shell) → `/gsd-plan-phase 11`
+- Verify Phase 11 (Design System + Nav Shell) → `/gsd-verify-phase 11` (local-only checks per D-01 batch deploy; load the site locally to confirm the 4 ROADMAP success criteria)
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Notes |
 |-------|------|----------|-------|
 | Phase 11 P01 | 8min | 3 tasks | 3 files |
+| Phase 11 P02 | 2min | 3 tasks | 3 files |

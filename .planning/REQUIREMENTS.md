@@ -11,10 +11,10 @@ Requirements for the v2.0 milestone. Each maps to a roadmap phase.
 
 ### Navigation
 
-- [ ] **NAV-01**: Every page shows a persistent sticky top bar — brand (left), three section tabs (Newsletter / Agent Economy / What is AgentPulse), and a Subscribe button (right). The Subscribe button reuses the existing subscribe flow.
-- [ ] **NAV-02**: The current section's tab stays visually active on nested pages — viewing a single edition keeps **Newsletter** active; viewing a single block keeps **Agent Economy** active.
-- [ ] **NAV-03**: Every nested page (single edition, single block) shows a `← Back to [section]` control at top-left.
-- [ ] **NAV-04**: A reader can reach any section from any other section in one click; the old plain "Map" text link is replaced by the Agent Economy tab.
+- [x] **NAV-01**: Every page shows a persistent sticky top bar — brand (left), three section tabs (Newsletter / Agent Economy / What is AgentPulse), and a Subscribe button (right). The Subscribe button reuses the existing subscribe flow.
+- [x] **NAV-02**: The current section's tab stays visually active on nested pages — viewing a single edition keeps **Newsletter** active; viewing a single block keeps **Agent Economy** active.
+- [x] **NAV-03**: Every nested page (single edition, single block) shows a `← Back to [section]` control at top-left.
+- [x] **NAV-04**: A reader can reach any section from any other section in one click; the old plain "Map" text link is replaced by the Agent Economy tab.
 
 ### Typography
 
@@ -81,10 +81,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NAV-01 | Phase 11 | Pending |
-| NAV-02 | Phase 11 | Pending |
-| NAV-03 | Phase 11 | Pending |
-| NAV-04 | Phase 11 | Pending |
+| NAV-01 | Phase 11 | Complete |
+| NAV-02 | Phase 11 | Complete |
+| NAV-03 | Phase 11 | Complete |
+| NAV-04 | Phase 11 | Complete |
 | TYPE-01 | Phase 11 | Complete |
 | TYPE-02 | Phase 11 | Complete |
 | TYPE-03 | Phase 11 | Complete |
