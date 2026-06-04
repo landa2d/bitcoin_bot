@@ -158,78 +158,99 @@ body {
    "← Back to [section]" back-control in style-base.css (Plan 02). */
 
 /* ── Reader Article Styles ───────────────────────────────────── */
+/* Phase 12 (TYPE-01 / D-05): magazine reading column on the serif/light
+   system. Single serif heading style (24/20 @ 600, TYPE-03); serif body
+   prose (no mono paragraphs); accent blockquotes + code chips. Mono survives
+   ONLY on `th` (label row) and inline `code`/`pre` (allowed chrome). */
 
 article h2 {
-    font-family: var(--mono);
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--accent);
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--ink);
     margin-top: 28px;
     margin-bottom: 12px;
 }
 
 article h3 {
-    font-family: var(--mono);
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--accent);
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--ink);
     margin-top: 20px;
     margin-bottom: 8px;
 }
 
 article p {
-    font-family: var(--mono);
-    font-size: 15px;
-    color: var(--text-body);
-    line-height: 1.5;
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink-soft);
+    line-height: 1.62;
     margin-bottom: 16px;
 }
 
 article ul, article ol {
     margin-bottom: 16px;
     padding-left: 24px;
-    font-family: var(--mono);
-    font-size: 15px;
-    color: var(--text-body);
-    line-height: 1.5;
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink-soft);
+    line-height: 1.62;
 }
 
 article li { margin-bottom: 8px; }
 
-article strong { color: var(--text-primary); }
+article strong { color: var(--ink); }
+
+/* Emphasized lead — the first article paragraph reads one step up (D-05).
+   Serif via the `article p` family; no markdown change. */
+#newsletter-content > p:first-of-type {
+    font-size: 20px;
+    line-height: 1.45;
+    color: var(--ink);
+}
 
 article blockquote {
     border-left: 3px solid var(--accent);
-    padding: 12px 16px;
+    padding: var(--space-md);
     margin: 20px 0;
-    background: var(--blockquote-bg);
-    color: var(--text-body);
+    background: var(--accent-soft);
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+    font-family: var(--serif);
 }
 
 article a {
-    color: var(--accent);
+    color: var(--accent-ink);
     text-decoration: underline;
+    text-decoration-thickness: 1px;
     text-underline-offset: 2px;
+    text-decoration-color: var(--accent-soft);
+}
+
+article a:hover {
+    text-decoration-color: var(--accent-ink);
 }
 
 article code {
-    padding: 2px 6px;
-    border-radius: 3px;
-    font-size: 0.9em;
-    background: var(--code-bg);
-    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--line);
+    color: var(--accent-ink);
 }
 
 article pre {
-    border-radius: 4px;
-    padding: 16px;
+    border-radius: var(--radius);
+    padding: var(--space-md);
     overflow-x: auto;
     margin: 16px 0;
-    background: var(--pre-bg);
+    background: var(--line);
 }
 
 article pre code {
@@ -243,16 +264,15 @@ article table {
     width: 100%;
     border-collapse: collapse;
     margin: 16px 0;
-    font-family: var(--mono);
-    font-size: 15px;
 }
 
 article th {
     text-align: left;
     padding: 8px 12px;
-    border-bottom: 1px solid var(--border);
-    color: var(--accent);
-    font-weight: 700;
+    border-bottom: 1px solid var(--line);
+    font-family: var(--mono);
+    color: var(--accent-ink);
+    font-weight: 600;
     font-size: 13px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
@@ -260,9 +280,12 @@ article th {
 
 article td {
     padding: 8px 12px;
-    border-bottom: 0.5px solid var(--border);
-    color: var(--text-body);
-    line-height: 1.4;
+    border-bottom: 0.5px solid var(--line);
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--ink-soft);
+    line-height: 1.45;
 }
 
 article tr:last-child td {
