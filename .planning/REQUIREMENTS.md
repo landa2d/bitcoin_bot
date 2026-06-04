@@ -81,29 +81,29 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| NAV-01 | TBD | Pending |
-| NAV-02 | TBD | Pending |
-| NAV-03 | TBD | Pending |
-| NAV-04 | TBD | Pending |
-| TYPE-01 | TBD | Pending |
-| TYPE-02 | TBD | Pending |
-| TYPE-03 | TBD | Pending |
-| COLOR-01 | TBD | Pending |
-| COLOR-02 | TBD | Pending |
-| TGL-01 | TBD | Pending |
-| TGL-02 | TBD | Pending |
-| MAP-01 | TBD | Pending |
-| MAP-02 | TBD | Pending |
-| MAP-03 | TBD | Pending |
-| MAP-04 | TBD | Pending |
-| ABOUT-01 | TBD | Pending |
-| POLISH-01 | TBD | Pending |
+| NAV-01 | Phase 11 | Pending |
+| NAV-02 | Phase 11 | Pending |
+| NAV-03 | Phase 11 | Pending |
+| NAV-04 | Phase 11 | Pending |
+| TYPE-01 | Phase 11 | Pending |
+| TYPE-02 | Phase 11 | Pending |
+| TYPE-03 | Phase 11 | Pending |
+| COLOR-01 | Phase 11 | Pending |
+| COLOR-02 | Phase 11 | Pending |
+| TGL-01 | Phase 12 | Pending |
+| TGL-02 | Phase 12 | Pending |
+| MAP-01 | Phase 13 | Pending |
+| MAP-02 | Phase 13 | Pending |
+| MAP-03 | Phase 13 | Pending |
+| MAP-04 | Phase 13 | Pending |
+| ABOUT-01 | Phase 14 | Pending |
+| POLISH-01 | Phase 14 | Pending |
 
 **Coverage:**
 - v1 requirements: 17 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 17 ⚠️ (filled by roadmapper)
+- Mapped to phases: 17 ✓ (Phase 11: 9, Phase 12: 2, Phase 13: 4, Phase 14: 2)
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-06-04 — milestone v2.0 Frontend Redesign*
-*Last updated: 2026-06-04 after initial definition*
+*Last updated: 2026-06-04 — traceability filled by roadmapper (Phases 11–14)*
