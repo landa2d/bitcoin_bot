@@ -1,10 +1,11 @@
 ---
 phase: 11
 slug: design-system-nav-shell
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-04
+reviewed_at: 2026-06-04
 ---
 
 # Phase 11 — UI Design Contract
