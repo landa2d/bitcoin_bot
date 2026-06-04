@@ -1,94 +1,56 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: Awaiting next milestone
-stopped_at: Phase 10 context gathered
-last_updated: "2026-06-04T12:00:35.265Z"
-last_activity: 2026-06-04 — Milestone v1.0 completed and archived
+milestone: v2.0
+milestone_name: Frontend Redesign
+status: planning
+stopped_at: Milestone v2.0 — defining requirements
+last_updated: "2026-06-04T12:31:37.932Z"
+last_activity: 2026-06-04 — Milestone v2.0 (Frontend Redesign) started
 progress:
-  total_phases: 11
-  completed_phases: 11
-  total_plans: 29
-  completed_plans: 29
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-26)
+See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Milestone v1.0 (Agent Economy Map) shipped + archived 2026-06-04. Awaiting v2.0 — start with `/gsd-new-milestone` (candidate scope: web UI redesign; deferred items: negotiation graduation, per-block tuning, design pass, EU AI Act).
+**Current focus:** Milestone v2.0 (Frontend Redesign) — a UI-only public-site redesign: persistent 3-tab nav with stateful active state, Source Serif 4 / IBM Plex Mono typography, a single light-mode violet accent (replacing the dark map theme), the Agent Economy as a 2-col grouped grid, and a new "What is AgentPulse" About stub. Defining requirements → roadmap. Backend / pipeline / Supabase / content untouched.
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-04 — Milestone v1.0 completed and archived
-
-## Performance Metrics
-
-**Velocity:**
-
-- Total plans completed: 28
-- Average duration: -
-- Total execution time: -
-
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 02 | 2 | - | - |
-| 03 | 3 | - | - |
-| 04 | 6 | - | - |
-| 04.1 | 3 | - | - |
-| 05 | 3 | - | - |
-| 06 | 2 | - | - |
-| 07 | 2 | - | - |
-| 08 | 2 | - | - |
-| 09 | 2 | - | - |
-| 10 | 3 | - | - |
-
-**Recent Trend:**
-
-- Last 5 plans: -
-- Trend: -
-
-*Updated after each plan completion*
-| Phase 06 P01 | 18min | 4 tasks | 1 files |
-| Phase 08 P01 | 3min | 3 tasks | 2 files |
-| Phase 08 P02 | 5min | 2 tasks | 1 files |
+Status: Defining requirements
+Last activity: 2026-06-04 — Milestone v2.0 started
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
+Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecting current work:
 
-- Roadmap: Phase 1 is diagnostic-only (no code changes) — the existing `aiagentspulse.com` publish path is unknown and must be confirmed before renderer design
-- Roadmap: Negotiation ships as a section inside payments-settlement, not its own block (80% future-tense today)
-- Roadmap: Global synthesis defaults N=5/T=30; no per-block tuning in v1
-- Roadmap: All synthesis LLM calls route through `llm-proxy:8200` — direct Anthropic SDK is the RivalScope anti-pattern
-- Roadmap: `economy_map` access via direct PostgREST with `Accept-Profile: economy_map` header — sidesteps supabase-py `.in_()` silent failure
-- 04.1-01: Fail-loud governance event_type = `'cap_missing'` (new type, added to governance_events CHECK in migration 034); downgrade reuses existing `'model_downgrade'`
-- 04.1-01: Downgrade reservation reconciliation = full refund of old-model reservation + fresh reserve at new-model estimate (governance runs after reserve_balance)
-- 04.1-01: Cross-provider downgrade (anthropic sonnet → deepseek) = typed 429 `governance_downgrade` redirect to `/v1/chat/completions` + `model_downgrade` event (no body translation, no silent sonnet pass-through); chat path does inline translate-and-dispatch
-- [Phase ?]: 06-01: economy_map read surface is GET-only by construction (httpx.get + Accept-Profile only, zero write verb/Content-Profile) per D-09; DB-level read-only role deferred to Phase 9
-- 08-01: Sentinels are deterministic (no LLM call — D-05 defers the judge to v2), run inside synthesize_block BETWEEN parse and INSERT (append-only trigger forbids post-insert annotation — D-02), and are fail-loud-but-never-block (VLDT-05: log loud + record sentinel_errors + force requires_attention, never raise). WR-02 skeleton hard gate removed → VLDT-04 annotating sentinel (D-01). SYNTH_MATURITY_ORDER added (ordered list) since SYNTH_MATURITY_ENUM is a set (D-07).
-- 08-02: /map-pending surfaces sentinel flags loudly (VLDT-06, D-08): get_draft_versions select extended to validator_report (GET-only, no new verb — D-09), handle_map_pending renders ⚠ REQUIRES ATTENTION + serious-first indented detail (sentinel_errors→structure→tension→maturity→length) or ✓ clean. Render-only. maturity rendered as absolute Δ-stages and length as "< 60% of prior" since run_sentinels stores an int/bool (no direction/ratio) and the inbox fetches no bodies — honest detail over the mockup's illustrative values.
+- v2.0 is frontend-only — no backend/pipeline/Supabase/content changes; only the mode toggle's placement + styling move
+- Single light-mode violet accent replaces the dark map theme; dark mode deferred this pass
+- Source Serif 4 for body/titles, IBM Plex Mono for chrome only; one serif heading style; no monospace body
+- Persistent 3-tab nav (Newsletter / Agent Economy / What is AgentPulse) with stateful active state on nested pages; "Map" becomes the Agent Economy tab; back-arrow on every nested page
+- Economy map grid uses the canonical 7-block data-source taxonomy, not the mockup's placeholder blocks
+- Reuse the v1.0-proven scoped web rebuild (single `agentpulse-web` container) — no new infra
+- The mockup (`.planning/docs/agentpulse-redesign-mockup.html`) is a reference for intent, not markup to copy
 
 ### Pending Todos
 
-None yet.
+7 carried-forward backend todos in `.planning/todos/pending/` (all v1.0 follow-ups — analyst/governance/intake/research/phase-review). None are in v2.0 (frontend) scope; left unlinked.
 
 ### Blockers/Concerns
 
-- Phase 1 must confirm the publish path before Phase 4 (renderer) can be planned in detail; until then, Phase 4 success criterion 5 ("reuse existing publish path") carries a contingency on Phase 1 findings recommending a sibling route instead.
+None for v2.0 start.
 
 ## Deferred Items
 
@@ -96,38 +58,15 @@ Items acknowledged and carried forward:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| v2 — Negotiation graduation | Promote `negotiation-coordination` to own block (NEGB-01, NEGB-02) | Deferred to v2 | 2026-05-26 |
-| v2 — Per-block tuning | Threshold overrides per block (TUNE-01..03) | Deferred to v2 | 2026-05-26 |
-| v2 — Design pass | Bespoke typography / page chrome (DSGN-01..03) | Deferred to v2 | 2026-05-26 |
-| v2 — EU AI Act integration | Wire `eu_ai_act` tracker into regulation-legal block (EUAI-01, EUAI-02) | Deferred to v2 | 2026-05-26 |
+| v-next — Negotiation graduation | Promote `negotiation-coordination` to its own block (NEGB-01, NEGB-02) | Deferred — kept separate from v2.0 | 2026-05-26 |
+| v-next — Per-block tuning | Threshold overrides per block (TUNE-01..03) | Deferred — kept separate from v2.0 | 2026-05-26 |
+| v-next — EU AI Act integration | Wire `eu_ai_act` tracker into regulation-legal block (EUAI-01, EUAI-02) | Deferred — kept separate from v2.0 | 2026-05-26 |
+| Design pass | Bespoke typography / page chrome (DSGN-01..03) | Being addressed by v2.0 Frontend Redesign | 2026-05-26 |
 
 ### Acknowledged at v1.0 close (2026-06-04)
 
-14 open items acknowledged and carried forward at milestone close (not blockers — manual live-smoke verification + known follow-up todos):
-
-| Category | Item | Status |
-|----------|------|--------|
-| UAT | Phase 02 HUMAN-UAT (3 pending scenarios) | partial |
-| UAT | Phase 04 HUMAN-UAT | partial |
-| UAT | Phase 09 HUMAN-UAT (1 pending) | partial |
-| UAT | Phase 10 HUMAN-UAT (5 pending — /map-* live Telegram smoke) | partial |
-| Verification | Phase 02 VERIFICATION | human_needed |
-| Verification | Phase 04 VERIFICATION | human_needed |
-| Verification | Phase 10 VERIFICATION | human_needed |
-| Todo (P2 analyst) | analyst-predictions-title-expire-bug | pending |
-| Todo (P5 governance) | harden-soft-caps-allow-negative (accepted choice to revisit) | pending |
-| Todo (P2 tooling) | pay-endpoint-500-transfer-rpc-search-path (RPC fixed migration 037; residual E2E only) | pending |
-| Todo (P4 intake) | phase05-review-followups-wr02-wr04-wr05 | pending |
-| Todo (P4 research) | research-trigger-file-permissions | pending |
-| Todo (P? phase06) | phase06-review-followups-wr01-wr02 | pending |
-| Todo (P? phase07) | phase07-review-followups-wr01-in01-04 | pending |
-
-## Session Continuity
-
-Last session: 2026-06-03T18:51:58.774Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-operator-write-commands/10-CONTEXT.md
+14 open items carried forward at v1.0 close (not blockers — manual live-smoke verification + known follow-up todos): UAT/verification for phases 02/04/09/10 are partial/human_needed; 7 follow-up todos in `.planning/todos/pending/`. Full record in MILESTONES.md + RETROSPECTIVE.md.
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Defining v2.0 requirements → roadmap (in progress via /gsd-new-milestone)
