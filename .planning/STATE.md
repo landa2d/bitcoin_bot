@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Frontend Redesign
 status: executing
-stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-06-04T20:13:06.110Z"
-last_activity: 2026-06-04 -- Phase 12 planning complete
+stopped_at: Completed 12-01-PLAN.md
+last_updated: "2026-06-04T20:28:28.585Z"
+last_activity: 2026-06-04
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 25
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 12 — newsletter-section-restyle (Phase 11 design-system + nav shell complete)
+**Current focus:** Phase 12 — newsletter-section-restyle
 
 ## Current Position
 
-Phase: 12
-Plan: Not started
+Phase: 12 (newsletter-section-restyle) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
-Last activity: 2026-06-04 -- Phase 12 planning complete
+Last activity: 2026-06-04
 
 Progress: [██░░░░░░░░] 25%
 
@@ -61,6 +61,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 11]: Residual Courier New in style-shared.css migrated to var(--mono) IBM Plex Mono chrome token (gate-required, SPEC-aligned)
 - [Phase 11]: Nav shell tabs are plain hash links (#/ #/map #/about) driven by the real router; setActiveTab(getRoute().view) wired into route() makes active state route-derived not click-derived (NAV-02)
 - [Phase 11]: Status-view back-control left for manual local verification (D-01) — no static back-link in index.html and renderStatus renders only tier sections; outside Plan-02 edit scope
+- [Phase 12]: Newsletter CSS restyled in-place onto Phase 11 serif/light tokens — TYPE-01 mono->serif on article p/ul/ol/li/td + .entry-preview, single serif h2/h3 at 600, B1 --line-divided rows, A1 filled-accent toggle pill + mono hint, magazine surfaces, token-based .preview-banner (style-shared.css only)
+- [Phase 12]: Mobile @media reconciliation removed (not re-snapped) the off-grid 7px-16px toggle override + dead .hero-headline override — the desktop pill is already compact and the clamp() headline already scales down
 
 ### Pending Todos
 
@@ -88,9 +90,9 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-06-04T19:51:55.171Z
-Stopped at: Phase 12 UI-SPEC approved
-Resume file: .planning/phases/12-newsletter-section-restyle/12-UI-SPEC.md
+Last session: 2026-06-04T20:28:11.573Z
+Stopped at: Completed 12-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
@@ -102,3 +104,4 @@ Resume file: .planning/phases/12-newsletter-section-restyle/12-UI-SPEC.md
 |-------|------|----------|-------|
 | Phase 11 P01 | 8min | 3 tasks | 3 files |
 | Phase 11 P02 | 2min | 3 tasks | 3 files |
+| Phase Phase 12 P01 P12-01 | 6min | 3 tasks | 1 files |

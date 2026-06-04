@@ -75,7 +75,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 1**
 
-- [ ] 12-01-PLAN.md — Newsletter CSS restyle in `style-shared.css`: TYPE-01 serif prose migration (article p/ul/ol/li/td + .entry-preview → serif), B1 list rows, A1 segmented accent pill + hint styling, D3 minimal-header rules, magazine article surfaces, `.preview-banner` (criterion 3, TGL-02 styling)
+- [x] 12-01-PLAN.md — Newsletter CSS restyle in `style-shared.css`: TYPE-01 serif prose migration (article p/ul/ol/li/td + .entry-preview → serif), B1 list rows, A1 segmented accent pill + hint styling, D3 minimal-header rules, magazine article surfaces, `.preview-banner` (criterion 3, TGL-02 styling)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -131,6 +131,6 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 9. Gated Publishing + Approval | v1.0 | 2/2 | Complete | 2026-06-03 |
 | 10. Operator Write Commands | v1.0 | 3/3 | Complete | 2026-06-04 |
 | 11. Design System + Nav Shell | v2.0 | 2/2 | Complete    | 2026-06-04 |
-| 12. Newsletter Section Restyle | v2.0 | 0/2 | Planned | - |
+| 12. Newsletter Section Restyle | v2.0 | 1/2 | In Progress|  |
 | 13. Agent Economy Grid | v2.0 | 0/TBD | Not started | - |
 | 14. About Stub + Polish Pass | v2.0 | 0/TBD | Not started | - |
