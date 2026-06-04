@@ -69,40 +69,60 @@ body {
 
 /* ── Mode Toggle ─────────────────────────────────────────────── */
 
+/* Segmented accent pill A1 (D-02 / TGL-02): one pill, two segments; the active
+   segment is a filled --accent / white / 600 segment; an 11px mono hint line
+   sits below. setMode() toggles the `.active` class — keep IDs/classes intact. */
+
 .mode-toggle {
     display: inline-flex;
-    background: var(--toggle-bg);
-    border-radius: 8px;
-    padding: 3px;
-    gap: 2px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    padding: var(--space-xs);
+    gap: 0;
 }
 
 .toggle-btn {
     font-family: var(--mono);
-    font-size: 15px;
+    font-size: 12.5px;
     font-weight: 400;
     padding: 8px 20px;
-    border-radius: 6px;
+    border-radius: var(--radius-btn);
     border: none;
     background: transparent;
-    color: var(--toggle-inactive);
+    color: var(--ink-soft);
     cursor: pointer;
     transition: all 0.3s;
 }
 
 .toggle-btn.active {
     background: var(--accent);
-    color: var(--btn-text);
-    font-weight: 700;
+    color: #fff;
+    font-weight: 600;
 }
 
 .mode-subtitle {
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 400;
-    color: var(--text-hint);
-    letter-spacing: 0.5px;
-    margin-top: 10px;
+    color: var(--ink-faint);
+    margin-top: var(--space-sm);
+}
+
+/* PREVIEW banner (D-05) — token-based; Plan 02 swaps the inline amber <div>
+   for this class. Copy unchanged: "PREVIEW — NOT YET PUBLISHED". */
+
+.preview-banner {
+    background: var(--accent-soft);
+    color: var(--ink);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    padding: var(--space-sm) var(--space-md);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: var(--space-md);
 }
 
 /* ── Content Area ────────────────────────────────────────────── */
@@ -428,12 +448,13 @@ article tr:last-child td {
 @media (max-width: 600px) {
     .container { padding: 0 16px; }
 
-    .hero { padding: 30px 0 20px; }
-    .hero-headline { font-size: 25px; }
+    /* .hero top padding snapped to the 4px grid; the .hero-headline clamp()
+       (clamp(30px,5vw,46px)) already scales down, so no font-size override.
+       The 12.5px / 8px-20px desktop toggle is already compact — the legacy
+       off-grid mobile toggle override is retired (Phase 12 reconciliation). */
+    .hero { padding: var(--space-lg) 0 0; }
 
     .content-area { padding: 0 0 24px; padding-top: 16px; }
-
-    .toggle-btn { font-size: 14px; padding: 7px 16px; }
 
     .bottom-bar {
         flex-direction: column;
