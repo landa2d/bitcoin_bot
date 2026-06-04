@@ -324,6 +324,205 @@ body {
     }
 }
 
+/* ── Block detail (D-03 — restrained system pass) ────────────── */
+/* De-darkened out of style-map.css (delete-and-fold). The block reading view
+   adopts the serif/light system but KEEPS its structure (header / tension /
+   markdown body / Evolution) — NO second magazine layer (Newsletter-only). The
+   markdown body is wrapped in <section class="block-body"> (NOT <article>), so
+   the Phase 12 `article *` prose rules do NOT reach it — the scoped prose
+   rules below are copies of those rules (option a, keeps the magazine
+   layer Newsletter-only per D-03). */
+
+/* Header — flex baseline/space-between; the inline pill sits right of the H1.
+   The data-accent cascade it once fed is retired (D-05). */
+.block-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+}
+
+/* Block H1 — Phase 11 heading step (24px/600). Reads SMALLER than the hub
+   .page-title display hero (D-06): a reading-view title, not a section hero.
+   Replaces the inherited dark Georgia 29px. */
+.block-header h1 {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--ink);
+    margin: 0;
+}
+
+/* Tension card — light surface + 3px --accent stripe (the Phase 12 blockquote
+   analog), serif italic body step. Hidden today on all 7 blocks (live_tension
+   placeholder gated in renderBlock); restyled so it renders cleanly if surfaced. */
+.block-tension {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: var(--space-md) var(--space-lg);
+    margin-bottom: var(--space-xl);
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    font-style: italic;
+    line-height: 1.6;
+    color: var(--ink-soft);
+}
+
+/* Markdown body wrapper — keeps the bottom breathing room. */
+.block-body {
+    margin-bottom: var(--space-2xl);
+}
+
+/* Body prose — copies the Phase 12 `article p` serif migration verbatim
+   (TYPE-01: serif 18px/1.62 --ink-soft body, no monospace). Scoped to
+   .block-body so it does not bleed into the Newsletter magazine layer. */
+.block-body p,
+.block-body li {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink-soft);
+    line-height: 1.62;
+    margin-bottom: 16px;
+}
+
+.block-body ul,
+.block-body ol {
+    padding-left: 24px;
+    margin-bottom: 16px;
+}
+
+/* In-content H2 — copies the Phase 12 `article h2` (serif 24px/600/1.2).
+   Replaces the dark Georgia 21px. */
+.block-body h2 {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--ink);
+    margin: 32px 0 12px;
+}
+
+/* In-content links — copies the Phase 12 `article a` (--accent-ink underline). */
+.block-body a {
+    color: var(--accent-ink);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    text-decoration-color: var(--accent-soft);
+}
+
+.block-body a:hover {
+    text-decoration-color: var(--accent-ink);
+}
+
+.block-body strong {
+    color: var(--ink);
+}
+
+/* ── Evolution timeline (D-08, D-11) ─────────────────────────── */
+/* De-darkened: the "EVOLUTION" label is the mono section-label step; the
+   timeline entry what/why prose is serif body; date/source/sep stay mono
+   chrome. The single --accent / --accent-ink replaces the retired
+   --accent-tier fallback. */
+.evolution {
+    margin-top: var(--space-xl);
+}
+
+.evolution > h2 {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 var(--space-md) 0;
+}
+
+.timeline-entry {
+    margin-bottom: 14px;
+    line-height: 1.5;
+}
+
+.timeline-entry .timeline-line1 {
+    margin-bottom: 2px;
+}
+
+.timeline-entry .timeline-date {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--ink-faint);
+}
+
+.timeline-entry .timeline-sep {
+    font-family: var(--mono);
+    color: var(--ink-faint);
+    margin: 0 6px;
+}
+
+.timeline-entry .timeline-what {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink-soft);
+}
+
+.timeline-entry .timeline-line2 {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.timeline-entry .timeline-why {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink-soft);
+    flex: 1;
+}
+
+.timeline-entry .timeline-source {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--accent-ink);
+    text-decoration: none;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.timeline-entry .timeline-source:hover {
+    text-decoration: underline;
+}
+
+/* Empty-source graceful degradation — defensive rule. renderTimelineEntries
+   omits the <a class="timeline-source"> from markup when source_url is null /
+   unsafe-scheme; this keeps it hidden if the wrapper is ever reused. */
+.timeline-entry:not([data-source]) .timeline-source {
+    display: none;
+}
+
+/* Show-all button — de-darkened: mono chrome, in-set radius, --line border,
+   --accent-ink text, --surface hover (replacing the dark rgba hover). */
+.timeline-show-all {
+    display: block;
+    margin: var(--space-md) 0 0 0;
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-btn);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--accent-ink);
+    cursor: pointer;
+}
+
+.timeline-show-all:hover {
+    background: var(--surface);
+}
+
 /* The old back-link rule was retired in Phase 11 — superseded by the
    "← Back to [section]" back-control in style-base.css (Plan 02). */
 
@@ -496,7 +695,7 @@ article tr:last-child td {
 }
 
 .subscribe-heading {
-    font-family: Georgia, serif;
+    font-family: var(--serif);
     font-size: 23px;
     font-weight: 400;
     color: var(--text-primary);
