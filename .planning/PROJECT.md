@@ -28,20 +28,20 @@ A multi-agent intelligence platform for the AI agent economy: eight cooperating 
 
 <!-- Current milestone: v2.0 Frontend Redesign — UI-only public-site redesign (see .planning/docs/REDESIGN_BRIEF.md + agentpulse-redesign-mockup.html). REQ detail in REQUIREMENTS.md. -->
 
-**Navigation**
-- [ ] **NAV-01**: Every page shows a persistent sticky top bar — brand (left), three section tabs (Newsletter / Agent Economy / What is AgentPulse), Subscribe button (right)
-- [ ] **NAV-02**: The current section's tab stays visually active on nested pages (a single edition keeps Newsletter active; a single block keeps Agent Economy active)
-- [ ] **NAV-03**: Every nested page (single edition, single block) shows a `← Back to [section]` control at top-left
-- [ ] **NAV-04**: A reader can reach any section from any other in one click; the old plain "Map" link is replaced by the Agent Economy tab
+**Navigation** *(validated Phase 11, 2026-06-04 — operator UAT)*
+- [x] **NAV-01**: Every page shows a persistent sticky top bar — brand (left), three section tabs (Newsletter / Agent Economy / What is AgentPulse), Subscribe button (right)
+- [x] **NAV-02**: The current section's tab stays visually active on nested pages (a single edition keeps Newsletter active; a single block keeps Agent Economy active)
+- [x] **NAV-03**: Every nested page (single edition, single block) shows a `← Back to [section]` control at top-left
+- [x] **NAV-04**: A reader can reach any section from any other in one click; the old plain "Map" link is replaced by the Agent Economy tab
 
-**Typography**
-- [ ] **TYPE-01**: Body and reading text + titles render in Source Serif 4; no monospace body paragraphs anywhere on the site
-- [ ] **TYPE-02**: Monospace (IBM Plex Mono) is reserved for UI chrome only — eyebrow/label, metadata (Edition # · date), tab labels, buttons, tags, code
-- [ ] **TYPE-03**: One serif heading style at ~18px body / ~1.6 line-height; the second monospace heading treatment is removed
+**Typography** *(validated Phase 11 — foundation; article-prose serif lands Phase 12)*
+- [x] **TYPE-01**: Body and reading text + titles render in Source Serif 4; no monospace body paragraphs anywhere on the site *(base serif body shipped; newsletter article-prose conversion is Phase 12)*
+- [x] **TYPE-02**: Monospace (IBM Plex Mono) is reserved for UI chrome only — eyebrow/label, metadata (Edition # · date), tab labels, buttons, tags, code
+- [x] **TYPE-03**: One serif heading style at ~18px body / ~1.6 line-height; the second monospace heading treatment is removed
 
-**Color**
-- [ ] **COLOR-01**: A single light-mode palette (warm off-white bg, surfaces, ink scale, violet accent) is defined via CSS variables and applied site-wide, replacing the dark map theme
-- [ ] **COLOR-02**: One accent only — used for links, active tab, card borders, and progress dots; no second brand color
+**Color** *(validated Phase 11, 2026-06-04 — palette applied site-wide incl. legacy-token bridge)*
+- [x] **COLOR-01**: A single light-mode palette (warm off-white bg, surfaces, ink scale, violet accent) is defined via CSS variables and applied site-wide, replacing the dark map theme
+- [x] **COLOR-02**: One accent only — used for links, active tab, card borders, and progress dots; no second brand color
 
 **Mode toggle**
 - [ ] **TGL-01**: The Technical/Strategic mode toggle appears only inside the Newsletter section (list + article) and is removed from any global/shared position
@@ -144,6 +144,6 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-04 — Milestone v2.0 (Frontend Redesign) started. UI-only public-site redesign per `.planning/docs/REDESIGN_BRIEF.md` + `agentpulse-redesign-mockup.html`: persistent 3-tab nav with stateful active state, Source Serif 4 / IBM Plex Mono typography, a single light-mode violet accent (replacing the dark map theme), the Agent Economy as a 2-col grouped grid, a new "What is AgentPulse" About stub, and a spacing/polish pass. Backend / pipeline / Supabase / content untouched; deferred backend v2 items (negotiation graduation, per-block tuning, EU AI Act tracker) kept in separate milestones. Phase numbering continues from 11. v1.0 (Agent Economy Map) shipped + archived 2026-06-04 — see MILESTONES.md.*
+*Last updated: 2026-06-04 — Phase 11 (Design System + Nav Shell) complete + operator-verified: light-mode token palette, Source Serif 4 / IBM Plex Mono typography, and the persistent stateful 3-tab sticky nav shell with ← Back controls (NAV-01..04, TYPE-01..03, COLOR-01..02). A minimal `#/about` stub was pulled forward (full page = Phase 14). Next: Phase 12 (Newsletter Section Restyle). — Milestone v2.0 (Frontend Redesign) started. UI-only public-site redesign per `.planning/docs/REDESIGN_BRIEF.md` + `agentpulse-redesign-mockup.html`: persistent 3-tab nav with stateful active state, Source Serif 4 / IBM Plex Mono typography, a single light-mode violet accent (replacing the dark map theme), the Agent Economy as a 2-col grouped grid, a new "What is AgentPulse" About stub, and a spacing/polish pass. Backend / pipeline / Supabase / content untouched; deferred backend v2 items (negotiation graduation, per-block tuning, EU AI Act tracker) kept in separate milestones. Phase numbering continues from 11. v1.0 (Agent Economy Map) shipped + archived 2026-06-04 — see MILESTONES.md.*
 
 *Milestone v1.0 close (2026-06-04) — Phase 10 complete (operator write commands — MILESTONE v1.0 COMPLETE, 11/11 phases). The operator's editorial-framing levers went live on Telegram: `/map-assign`, `/map-entry`, `/map-synth`, `/map-tension` (CMD-05..08), all owner-gated and routed through the allowlist-guarded `_economy_map_rpc` helper. Migration 040 added the `synth_requests` queue + `timeline_entries.reassigned_*` lifecycle + 4 SECURITY DEFINER write RPCs; 041 the open-draft UNIQUE index; 042 hardened `reassign_timeline_entry`. Phase 9 (2026-06-03) closed the autonomy boundary end-to-end with owner-gated `/map-approve` + `/map-reject` and the watermark advancing from the approved draft's `synthesized_from_through`. See MILESTONES.md + RETROSPECTIVE.md for the full v1.0 record.*
