@@ -29,23 +29,23 @@ created: 2026-06-04
 
 ### Font Loading (locked)
 
-Use the Google Fonts stylesheet link, identical to the mockup:
+Use the Google Fonts stylesheet link, identical to the mockup except trimmed to the **two weights this contract actually uses (400, 600)** for both families:
 
 ```html
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 ```
 
-**Rationale (load-bearing — do not change to self-hosting without a CSP edit):** The existing `docker/web/Caddyfile` Content-Security-Policy already whitelists `style-src ... https://fonts.googleapis.com` and `font-src https://fonts.gstatic.com`. Google Fonts therefore works with zero infra change. Self-hosting woff2 would require editing the CSP `font-src` to `'self'` and is explicitly out of scope for this UI pass. **Weights to load:** Source Serif 4 — 400, 500, 600, 700 (+ italic 400); IBM Plex Mono — 400, 500, 600.
+**Rationale (load-bearing — do not change to self-hosting without a CSP edit):** The existing `docker/web/Caddyfile` Content-Security-Policy already whitelists `style-src ... https://fonts.googleapis.com` and `font-src https://fonts.gstatic.com`. Google Fonts therefore works with zero infra change. Self-hosting woff2 would require editing the CSP `font-src` to `'self'` and is explicitly out of scope for this UI pass. **Weights to load (exactly 2 per family):** Source Serif 4 — 400, 600 (+ italic 400); IBM Plex Mono — 400, 600. Weights 500 and 700 are deliberately NOT requested — see the weight policy in Typography.
 
 ---
 
 ## Spacing Scale
 
-Source: mockup nav/section/card padding values + REDESIGN_BRIEF §6 ("tighten loose vertical gaps; minimalist but not sparse") + POLISH-01. Snapped to a 4px base. Where the mockup used a non-multiple-of-4 value (e.g. `14px` nav padding, `13px` tab padding, `18px` body margins), the contract uses the nearest 4px step; non-multiple values that are visually load-bearing in the mockup are listed as exceptions below.
+Source: mockup nav/section/card padding values + REDESIGN_BRIEF §6 ("tighten loose vertical gaps; minimalist but not sparse") + POLISH-01. **Every spacing value in this contract is a multiple of 4px** — chrome micro-paddings that the mockup expressed as non-multiples (nav `14px`, tab `7px/13px`, Subscribe `9px`, toggle `7px`) are snapped to the nearest 4px step below. There are no spacing exceptions.
 
-Declared values (multiples of 4):
+Declared tokens (multiples of 4):
 
 | Token | Value | Usage |
 |-------|-------|-------|
@@ -57,10 +57,15 @@ Declared values (multiples of 4):
 | `--space-2xl` | 48px | Major section breaks (e.g. above About note, large eyebrow top margin) |
 | `--space-3xl` | 64px | Page-bottom breathing room (`main` bottom padding region) |
 
-Exceptions (intentional, from the mockup — these are chrome micro-paddings, not layout rhythm; keep as literal values, not tokens):
-- Nav vertical padding `14px` and tab padding `7px 13px` — pill chrome sizing inherited from the mockup; acceptable non-token values.
-- Subscribe button padding `9px 16px`, toggle button padding `7px 20px` — control chrome.
-- Hairline borders `1px` (lines) — not spacing.
+Chrome control paddings (literal values, all snapped to multiples of 4 — kept as literals rather than tokens because they are one-off control sizing, but they remain fully 4px-conformant):
+
+| Element | Padding | Notes |
+|---------|---------|-------|
+| Nav vertical padding | `12px` (horizontal uses `--space-lg` 24px) | Snapped from mockup `14px`. Use `16px` only if the sticky bar reads too tight against the mockup. |
+| Tab padding | `8px 12px` | Snapped from mockup `7px 13px`. |
+| Subscribe button padding | `8px 16px` | Snapped from mockup `9px 16px`. |
+| Toggle button padding | `8px 20px` | Snapped from mockup `7px 20px`. |
+| Hairline borders | `1px` | Border width, not spacing — exempt from the 4px rule by definition. |
 
 ---
 
@@ -81,26 +86,35 @@ Convention: nothing on the site uses a radius outside the 3 / 7 / 8 / 10px set. 
 
 ## Typography
 
-Two families only. **Source Serif 4 = everything you READ (body paragraphs + every title/heading).** **IBM Plex Mono = UI chrome ONLY** (eyebrow/label, metadata like "Edition # · date", tab labels, brand wordmark, buttons, tags, code, section labels). **No monospace body paragraphs anywhere** (TYPE-01). A **single serif heading treatment** — the old second monospace heading style (`Courier New` uppercase accent `<h2>`/`<h3>`) is **removed** (TYPE-03).
+**Two-family system per the brief — each family uses ≤4 sizes (serif: 4, mono: 3); 2 weights total (400, 600) shared across both families.** The brief mandates two type families with distinct jobs, so the contract gives EACH family a tight, defensible scale and verifies them per-family (not by counting globally).
+
+- **Source Serif 4 = everything you READ** (body paragraphs + every title/heading).
+- **IBM Plex Mono = UI chrome ONLY** (eyebrow/label, metadata like "Edition # · date", tab labels, brand wordmark, buttons, tags, code, section labels).
+- **No monospace body paragraphs anywhere** (TYPE-01). A **single serif heading treatment** — the old second monospace heading style (`Courier New` uppercase accent `<h2>`/`<h3>`) is **removed** (TYPE-03).
 
 Base body: **18px / line-height 1.62** serif (TYPE-03 target "~18px / ~1.6").
 
-| Role | Family | Size | Weight | Line Height | Notes |
-|------|--------|------|--------|-------------|-------|
-| Body | Source Serif 4 | 18px | 400 | 1.62 | Reading text, article/about paragraphs. `body { font-size:18px; line-height:1.62 }`. |
-| Page title (display) | Source Serif 4 | `clamp(30px, 5vw, 46px)` | 600 | 1.12 | Centered hero/section title; `letter-spacing:-.015em`. |
-| Heading (in-content H2) | Source Serif 4 | 24px | 600–700 | 1.2 | Single serif heading style for article/block sub-sections (`margin` only varies). |
-| List item title (edition / card title) | Source Serif 4 | 19–22px | 600 | 1.25 | Edition list `h3` 22px; economy card title 19px. `letter-spacing:-.01em`. |
-| Eyebrow / kicker | IBM Plex Mono | 11.5px | 600 | — | UPPERCASE, `letter-spacing:.18–.22em`, accent or ink-faint. Chrome. |
-| Metadata / page-sub | IBM Plex Mono | 13px | 400 | — | "Edition # · date", "synthesized … · block N of 8". `--ink-faint`. Chrome. |
-| Tab label | IBM Plex Mono | 12.5px | 500 (600 active) | — | `letter-spacing:.02em`. Chrome. |
-| Brand wordmark | IBM Plex Mono | 14px | 600 | — | `letter-spacing:.08em`, `--ink`. Chrome. |
-| Button / Subscribe | IBM Plex Mono | 12px | 600 | — | `letter-spacing:.06em`, UPPERCASE label. Chrome. |
-| Back-control | IBM Plex Mono | 12.5px | 500 | — | "← Back to [section]". `--ink-soft` → `--accent-ink` on hover. Chrome. |
-| Section label (mono group label) | IBM Plex Mono | 11px | 600 | — | UPPERCASE, `letter-spacing:.18em`, `--ink-faint`. Chrome. |
-| Code / inline `code` | IBM Plex Mono | 0.9em | 400 | — | Code only. Chrome. |
+### Serif scale (4 sizes — Source Serif 4)
 
-Weight policy: **two serif weights in active use** (400 body, 600 headings/titles; 700 reserved for the single article H2 emphasis, which is the same serif treatment scaled — not a new style). Mono uses 400 / 500 / 600.
+| Role | Size | Weight | Line Height | Notes |
+|------|------|--------|-------------|-------|
+| Body | 18px | 400 | 1.62 | Reading text, article/about paragraphs. `body { font-size:18px; line-height:1.62 }`. |
+| List/card title | 20px | 600 | 1.25 | Single shared title size for the edition list `h3` AND economy-map card titles. `letter-spacing:-.01em`. (Consolidates the former 19–22px range to one value.) |
+| Heading (in-content H2) | 24px | 600 | 1.2 | Single serif heading style for article/block sub-sections; only `margin` varies. The former 700 "emphasis" H2 is the SAME serif treatment at weight 600 — not a new size or weight. |
+| Page title (display) | `clamp(30px, 5vw, 46px)` | 600 | 1.12 | Centered hero/section title; `letter-spacing:-.015em`. |
+
+### Mono scale (3 sizes — IBM Plex Mono, chrome only)
+
+| Role | Size | Weight | Notes |
+|------|------|--------|-------|
+| Eyebrow / kicker · Section label | 11px | 600 | UPPERCASE, `letter-spacing:.18–.22em`, accent or `--ink-faint`. Both the kicker and the mono group/section label live on this step. |
+| Tab label · Button/Subscribe · Back-control | 12.5px | 400 (600 when active/primary) | Tab `letter-spacing:.02em`; Subscribe/button `letter-spacing:.06em` UPPERCASE; back-control "← Back to [section]". Rest state 400; the active tab, the Subscribe button, and any primary button render at 600. Back-control rest state is 400, → `--accent-ink` on hover (color change, not weight). |
+| Brand wordmark · Metadata / page-sub · Code | 14px | 600 brand / 400 metadata & code | Brand `letter-spacing:.08em`, `--ink`, weight 600. Metadata ("Edition # · date", "synthesized … · block N of 8") and inline `code` sit on the same 14px step at weight 400, `--ink-faint`. (Metadata moved up from the former 13px to land on this consolidated step.) |
+
+**Weight policy (exactly 2 weights total, shared across both families):**
+- **400** — serif body; mono metadata; mono code; mono tab/back-control rest state.
+- **600** — serif headings, list/card titles, page-title display; mono active tab; mono brand wordmark; mono Subscribe/primary buttons; mono eyebrow & section labels.
+- **500 is removed** (former tab/back rest state now uses 400). **700 is retired** (the former article-H2 "emphasis" is the same serif heading at 600, scaled by margin — not a new weight). The Google Fonts `<link>` requests only 400 & 600 for both families accordingly.
 
 ---
 
@@ -137,6 +151,12 @@ Not allowed: any second hue, any per-tier accent color, the retired teal. Mode-d
 
 ---
 
+## Visual Hierarchy
+
+**Primary focal point of the main Newsletter-list screen:** the most-recent edition headline — the first edition's serif title (20px/600) in the edition list, the first element directly below the sticky nav. The eye lands there first; the centered page-title display sits above as orientation, and the accent is rationed (eyebrow, active tab, Subscribe) so nothing competes with that lead headline. Each later screen inherits the same rule: one serif title leads, mono chrome and the single accent support but never out-shout it.
+
+---
+
 ## Nav Shell Contract (NAV-01..04)
 
 The persistent shell is the load-bearing deliverable of this phase. Specifics:
@@ -167,7 +187,7 @@ The persistent shell is the load-bearing deliverable of this phase. Specifics:
 - Every **nested** page shows a top-left back control: copy pattern **`← Back to [section]`**.
   - Single edition (`#/edition/{n}`) → `← Back to Newsletter`.
   - Single block (`#/map/{slug}`) and status (`#/status`) → `← Back to the map` (the Agent Economy section).
-- Styling: IBM Plex Mono 12.5px, `--ink-soft` → `--accent-ink` on hover, no underline. (Replaces the current `← All editions` / `← Map` back-links.)
+- Styling: IBM Plex Mono 12.5px weight 400, `--ink-soft` → `--accent-ink` on hover, no underline. (Replaces the current `← All editions` / `← Map` back-links.)
 
 **One-click reachability + Map retirement (NAV-04):**
 - From any section a reader reaches any other in one click via the always-present tabs.
@@ -193,6 +213,8 @@ All copy below is locked verbatim — these strings are reused by Phases 12–14
 | Empty state body | None required beyond the line above for this phase. |
 | Error state | No new error surfaces introduced by the shell. Existing subscribe/unsubscribe status messaging is untouched (out of scope — content/flow unchanged). |
 | Destructive confirmation | Not applicable — read-only public site; the shell introduces no destructive actions. |
+
+**On the single-word CTA `SUBSCRIBE`:** intentionally kept as the standard newsletter subscribe verb. It is unambiguous in context (top-right of a newsletter site's nav, beside the Newsletter tab) and reuses the existing subscribe flow verbatim — expanding it to a verb+noun phrase ("Subscribe to the newsletter") would add nav-bar width for no clarity gain and would diverge from the brief/mockup wording. The single-word label is deliberate, not an omission.
 
 Metadata separator: use `·` (U+00B7) with surrounding spaces, e.g. `Edition #29 · June 1, 2026` — IBM Plex Mono, `--ink-faint`.
 
