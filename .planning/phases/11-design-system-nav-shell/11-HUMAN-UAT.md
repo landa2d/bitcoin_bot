@@ -12,11 +12,23 @@ updated: 2026-06-04T22:10:00Z
 
 ## How to test locally (no deploy — D-01 batch-deploy)
 
+IMPORTANT: do NOT serve `docker/web/site/` raw — `app.js` hardcodes
+`__SUPABASE_URL__`/`__SUPABASE_ANON_KEY__` placeholders that `docker/web/entrypoint.sh`
+substitutes at container start. Served raw, `createClient('__SUPABASE_URL__', …)` throws at
+module load and the whole SPA goes dead (every click inert, no tab highlight). Substitute first:
+
 ```bash
-# from repo root, serve the static site and open in a browser:
-cd docker/web/site && python3 -m http.server 8080
-# then visit http://127.0.0.1:8080/  (and the #/… hash routes below)
+# build a substituted preview copy (mirrors entrypoint.sh) and serve it
+rm -rf /tmp/ap-preview && mkdir -p /tmp/ap-preview
+cp docker/web/site/*.html docker/web/site/*.css docker/web/site/*.js /tmp/ap-preview/
+SUPABASE_URL=$(grep -E '^SUPABASE_URL=' config/.env | cut -d= -f2- | tr -d '"'"'"'"')
+SUPABASE_ANON_KEY=$(grep -E '^SUPABASE_ANON_KEY=' config/.env | cut -d= -f2- | tr -d '"'"'"'"')
+sed -i "s|__SUPABASE_URL__|${SUPABASE_URL}|g; s|__SUPABASE_ANON_KEY__|${SUPABASE_ANON_KEY}|g" /tmp/ap-preview/app.js
+cd /tmp/ap-preview && python3 -m http.server 8090   # → http://127.0.0.1:8090/
 ```
+
+(A valid stub URL like `https://stub.supabase.co` also stops the crash — the shell renders,
+data views just stay empty, which is sufficient to verify the Phase 11 nav/palette/typography.)
 
 ## Tests
 
