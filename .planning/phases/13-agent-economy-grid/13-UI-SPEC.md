@@ -93,44 +93,70 @@ The 3px **left-border accent stripe** on each card is a border *width*, not a ra
 
 ## Typography
 
-Two-family system inherited from Phase 11 — **Source Serif 4 = everything you READ; IBM Plex Mono = UI chrome only. Weights 400 & 600 only. No monospace body paragraphs (TYPE-01).** Phase 13 introduces NO new sizes or weights; it maps map/block/status text onto the existing serif + mono scales. The legacy `style-map.css` `Georgia, serif` titles and `'Courier New'` chrome are **retired** (migrated to `var(--serif)` / `var(--mono)`).
+Two-family system inherited from Phase 11 — **Source Serif 4 = everything you READ; IBM Plex Mono = UI chrome only. Weights 400 & 600 only. No monospace body paragraphs (TYPE-01).** Phase 13 introduces NO new sizes or weights; it maps map/block/status text onto the **existing** Phase 11 serif + mono scales. The legacy `style-map.css` `Georgia, serif` titles and `'Courier New'` chrome are **retired** (migrated to `var(--serif)` / `var(--mono)`).
+
+**Locked Phase 11 serif scale (EXACTLY 4 sizes — no others permitted):**
+
+| Step | Size | Weight | Line Height | Phase 11 role |
+|------|------|--------|-------------|---------------|
+| Body | `18px` | 400 | 1.62 | Reading text |
+| List / card title | `20px` | 600 | 1.25 | `letter-spacing:-.01em` |
+| Heading (in-content H2) | `24px` | 600 | 1.2 | Section sub-headings |
+| Page title (display) | `clamp(30px, 5vw, 46px)` | 600 | 1.12 | Centered hero/section title, `letter-spacing:-.015em` |
+
+**Locked Phase 11 mono scale (EXACTLY 3 sizes — no others permitted):** `11px` (eyebrow / section label, 600) · `12.5px` (tab / button / back-control, 400 or 600) · `14px` (brand 600 / metadata & code 400). Phase 13 already conforms to the mono scale — it is **not** changed by this revision.
+
+Every serif size used below is one of the four locked serif steps. Where two roles share a serif step, they are differentiated by **weight and ink color**, not by a new size (per the Phase 11 "one serif title leads" hierarchy rule).
 
 ### Card grid (hub)
 
 | Role | Size | Family / Weight | Line Height | Notes |
 |------|------|-----------------|-------------|-------|
-| Card title (`.tile-title`) | **20px** | serif / 600 | 1.25 | Consolidated to the Phase 11 "List/card title" step (20px/600, `letter-spacing:-.01em`). Mockup's `19px` is snapped UP to the locked 20px so it matches the edition-list title size site-wide. Replaces current `Georgia 18px/400`. |
-| Card description (`.tile-subtitle`) | **15px** | serif / 400 | 1.45 | One-line block `subtitle`, serif (TYPE-01 — was `'Courier New' 15px`). 15px is the Phase 11 metadata/serif-small step rounded from mockup `14.5px` to a whole px; `--ink-soft`. Single line; allow it to wrap to 2 lines max if a subtitle is long (no truncation required — data is short). |
-| Section label (`.tier-label`) | **11px** | mono / 600 | — | UPPERCASE, `letter-spacing:.18em`, `var(--ink-faint)`. The Phase 11 "Eyebrow / Section label" step. Replaces current `'Courier New' 13px/400 letter-spacing:1.5px`. Casing: **UPPERCASE** (the `TIER_LABELS` constant already emits `SUBSTRATE`/`BEHAVIOR`/`FRAME` — keep verbatim). |
+| Card title (`.tile-title`) | **20px** | serif / 600 | 1.25 | Phase 11 "List/card title" step (20px/600, `letter-spacing:-.01em`), `--ink`. Mockup's `19px` snaps UP to the locked 20px so it matches the edition-list title size site-wide. Replaces current `Georgia 18px/400`. |
+| Card description (`.tile-subtitle`) | **18px** | serif / 400 | 1.5 | Phase 11 **body** step at lighter ink — `var(--ink-soft)`. One-line block `subtitle`, serif (TYPE-01 — was `'Courier New' 15px`). No new size: the lighter `--ink-soft` + 400 weight + short single line distinguishes it from the 20px/600 `--ink` title above it. Allow it to wrap to 2 lines max if a subtitle is long (no truncation required — data is short). Line-height `1.5` (the body reading step relaxed slightly for a one/two-line label; ≤ the 1.62 body default). |
+| Section label (`.tier-label`) | **11px** | mono / 600 | — | UPPERCASE, `letter-spacing:.18em`, `var(--ink-faint)`. The Phase 11 "Eyebrow / Section label" mono step. Replaces current `'Courier New' 13px/400 letter-spacing:1.5px`. Casing: **UPPERCASE** (the `TIER_LABELS` constant already emits `SUBSTRATE`/`BEHAVIOR`/`FRAME` — keep verbatim). |
 | DEFERRED tag | **11px** | mono / 600 | — | UPPERCASE, `letter-spacing:.12em`, `var(--ink-faint)`. Same mono chrome step. Rendered as `· DEFERRED` (leading middot separator) appended after the card title or on the dots row — see Component Inventory. |
 
 ### Hub header (D-06)
 
 | Role | Size | Family / Weight | Line Height | Notes |
 |------|------|-----------------|-------------|-------|
-| Page title | `clamp(30px, 5vw, 46px)` | serif / 600 | 1.12 | Reuse Phase 11 `.page-title` class verbatim. Copy: **"The Agent Economy"** (see Copywriting). `letter-spacing:-.015em`. |
+| Page title | `clamp(30px, 5vw, 46px)` | serif / 600 | 1.12 | Reuse Phase 11 `.page-title` class (the locked serif **page-title display** step) verbatim. Copy: **"The Agent Economy"** (see Copywriting). `letter-spacing:-.015em`. |
 | Sub-line / metadata | 14px | mono / 400 | 1.5 | Reuse Phase 11 `.eyebrow` is 11px/600 accent — instead use the mono metadata step (14px/400, `var(--ink-faint)`) for the "updated {date}" stamp. The eyebrow kicker is **optional** (see Hub Header Contract); if used, it is 11px/600 accent UPPERCASE. |
-| Storyline (`HUB_STORYLINE`) | 16px | serif / 400 | 1.55 | One-line editorial frame, `var(--ink-soft)`. Serif (it reads as a sentence, not chrome). Sits below the header, above the first section label. |
+| Storyline (`HUB_STORYLINE`) | **18px** | serif / 400 | 1.55 | Phase 11 **body** step — `var(--ink-soft)`. One-line editorial frame; it reads as a sentence, so it sits on the serif body size (no new size). Sits below the header, above the first section label. Line-height `1.55` (body reading step, slightly tightened for a single editorial line; ≤ 1.62). |
 
 ### Block detail (D-03 — restrained pass; no magazine layer)
 
 | Role | Size | Family / Weight | Line Height | Notes |
 |------|------|-----------------|-------------|-------|
-| Block H1 (`.block-header h1`) | `clamp(28px, 4vw, 38px)` | serif / 600 | 1.15 | Single serif display style. Smaller than the hub `.page-title` display (this is a reading-view title, not a section hero). **No** mono kicker above it (that is Newsletter-only, D-03/D-06). |
-| Tension card text | 18px | serif / 400 italic | 1.6 | Editorial hook; serif italic on a light surface. (Hidden today on all 7 blocks — `live_tension` is the placeholder — but restyle the rule so it renders cleanly if surfaced.) |
-| Body prose `p` / `li` | 18px | serif / 400 | 1.62 | The Phase 12 serif-prose migration (TYPE-01: `'Courier New'`→serif on `p/ul/ol/li`). Inherits the base `body` rule; only ensure no `style-map.css` `Courier New` override survives. |
-| Body H2 (in-content) | 24px | serif / 600 | 1.2 | Single serif heading style. Replaces current `Georgia 21px`. Only margin varies between instances. |
-| Evolution heading + timeline | 11px mono / 600 (heading); 15px serif (entries) | — | "EVOLUTION" label = mono section-label step (was `'Courier New' 13px`). Timeline entry `what`/`why` = serif; `date`/`source ↗` = mono chrome. |
+| Block H1 (`.block-header h1`) | **24px** | serif / 600 | 1.2 | Phase 11 **heading** step (24px/600). The block H1 is the reading-view title and must read *smaller* than the hub `.page-title` display hero (CONTEXT/D-06: not a section hero) — `24px` is the defensible reading-view title and introduces no new clamp range. (If mobile scaling is judged necessary, reuse the existing Phase 11 page-title `clamp(30px,5vw,46px)` class instead — but do NOT introduce a new clamp range. `24px` is preferred.) Replaces the former distinct `clamp(28px,4vw,38px)`. **No** mono kicker above it (Newsletter-only, D-03/D-06). |
+| Tension card text | 18px | serif / 400 italic | 1.6 | Phase 11 **body** step (italic). Editorial hook; serif italic on a light surface. (Hidden today on all 7 blocks — `live_tension` is the placeholder — but restyle the rule so it renders cleanly if surfaced.) Line-height `1.6` (body reading step). |
+| Body prose `p` / `li` | 18px | serif / 400 | 1.62 | Phase 11 **body** step. The Phase 12 serif-prose migration (TYPE-01: `'Courier New'`→serif on `p/ul/ol/li`). Inherits the base `body` rule; only ensure no `style-map.css` `Courier New` override survives. |
+| Body H2 (in-content) | 24px | serif / 600 | 1.2 | Phase 11 **heading** step (single serif heading style). Replaces current `Georgia 21px`. Only margin varies between instances. |
+| Evolution heading + timeline | 11px mono / 600 (heading); **18px** serif / 400 (entries) | heading — ; entries 1.5 | "EVOLUTION" label = mono **section-label** step (was `'Courier New' 13px`). Timeline entry `what`/`why` = serif **body** step (18px/400, `var(--ink-soft)`, line-height 1.5 — a reading sentence, so it lands on the body size, no new size); `date`/`source ↗` = mono chrome (`12.5px`/14px metadata step). |
 
 ### Status (de-dark pass — D-02)
 
-| Role | Size | Family / Weight | Notes |
-|------|------|-----------------|-------|
-| Status title (`.status-title`) | 17px | serif / 400 | Was `Georgia 17px` — migrate to `var(--serif)`; keep size. |
-| Status subtitle (`.status-subtitle`) | 14px | mono / 400 → **serif** | `var(--ink-soft)`. Per TYPE-01 this descriptive text becomes serif (it's a one-line description, not metadata). Was `'Courier New' 14px`. |
-| Status synth timestamp (`.status-synth`) | 14px | mono / 400 | Metadata — stays mono chrome (`var(--ink-faint)`). Was `'Courier New' 13px` → land on the 14px mono step. |
+| Role | Size | Family / Weight | Line Height | Notes |
+|------|------|-----------------|-------------|-------|
+| Status title (`.status-title`) | **18px** | serif / 400 | 1.5 | Phase 11 **body** step. Was `Georgia 17px` — migrate to `var(--serif)` AND land on the locked 18px body step (the 1px change from the old Georgia 17px is imperceptible; the status title is prose-scale, not a display title). `--ink`. Line-height `1.5`. |
+| Status subtitle (`.status-subtitle`) | 18px | serif / 400 | 1.5 | Phase 11 **body** step, `var(--ink-soft)`. Per TYPE-01 this descriptive text becomes serif (it's a one-line description, not metadata). Was `'Courier New' 14px`. Sits on the same serif body step as the status title above it, differentiated by ink (`--ink-soft` vs `--ink`). |
+| Status synth timestamp (`.status-synth`) | 14px | mono / 400 | — | Metadata — stays mono chrome (`var(--ink-faint)`, the 14px mono metadata step). Was `'Courier New' 13px` → lands on the 14px mono step. |
 
-**Weight policy (inherited, exactly 2 weights):** 400 (serif body/descriptions; mono metadata/timestamps) · 600 (serif titles/headings; mono section labels, DEFERRED tag, brand). 500 and 700 are not loaded.
+**Serif size audit (the four locked steps, and where each is used in Phase 13):**
+
+| Serif step | Used by |
+|------------|---------|
+| `18px` / 400 | Card description (`--ink-soft`); hub storyline (`--ink-soft`); tension card (italic); body prose `p`/`li`; Evolution timeline entries (`--ink-soft`); status title (`--ink`); status subtitle (`--ink-soft`) |
+| `20px` / 600 | Card title (`--ink`) |
+| `24px` / 600 | Block H1; in-content body H2 |
+| `clamp(30px,5vw,46px)` / 600 | Hub page title (reused `.page-title`) |
+
+No serif size outside these four appears anywhere in this contract. (The former `15px`, `16px`, `17px`, and `clamp(28px,4vw,38px)` serif sizes are retired — collapsed onto the steps above.)
+
+**Mono size audit (the three locked steps, unchanged by this revision):** `11px`/600 (section labels, DEFERRED tag, Evolution heading) · `12.5px` (Evolution "Show all" button, `source ↗`) · `14px`/400 (hub sub-line stamp, status synth timestamp, metadata).
+
+**Weight policy (inherited, exactly 2 weights):** 400 (serif body/descriptions/storyline/tension/status text; mono metadata/timestamps) · 600 (serif titles/headings/page-title display; mono section labels, DEFERRED tag, brand). 500 and 700 are not loaded.
 
 ---
 
@@ -143,7 +169,7 @@ Single light-mode palette inherited from Phase 11 — **exactly ONE accent (viol
 | Dominant (60%) — `--bg` | `#faf8f5` | Warm off-white page background behind the grid, block view, status view. |
 | Surface (30%) — `--surface` | `#ffffff` | **Card background**; tension card surface; (status rows stay on `--bg` with the accent stripe, see below). |
 | Ink — `--ink` | `#1a1916` | Card titles, block H1, body prose, status titles. |
-| Ink soft — `--ink-soft` | `#55514a` | Card descriptions, status subtitles, storyline. |
+| Ink soft — `--ink-soft` | `#55514a` | Card descriptions, status subtitles, storyline, tension/timeline reading text. |
 | Ink faint — `--ink-faint` | `#8a857c` | Section labels, DEFERRED tag, synth timestamps, "updated {date}" stamp, empty-dot context. |
 | Line — `--line` | `#e7e2da` | **Card border** (1px, all sides except the accent-stripe left edge); hairline dividers. |
 | Line strong — `--line-strong` | `#d8d2c7` | **Empty progress-dot fill** (the unfilled `.seg` / `.dots i` background); replaces the dark theme's transparent-with-border empty seg. |
@@ -162,7 +188,7 @@ Single light-mode palette inherited from Phase 11 — **exactly ONE accent (viol
 
 **Empty dots = DEFERRED visual (MAP-04):** a deferred card's `renderMaturityPill()` renders with `data-stage="0"` — **zero** filled segments. All 5 segments show `--line-strong` fill (empty state). This is the "empty progress dots" signal. (Implementation note: the existing CSS keys fills off `data-stage="1".."5"`; `data-stage="0"` matches none of those selectors, so all segments fall through to the empty `--line-strong` default — correct by construction. The seg default background must be set to `--line-strong`, not `transparent`, on the light system.)
 
-**Contrast (inherited, AA):** `--accent-ink #4a2fd6` on `--bg` ≈ 7.0:1 (link/hover text). `--accent #5b3df5` on `--surface #fff` ≈ 5.4:1 — fine as a non-text fill (3px stripe, dot fills). `--ink #1a1916` on `--surface` ≈ 16:1 (card titles). `--ink-soft #55514a` on `--surface` ≈ 7.4:1 (descriptions, AA body). `--ink-faint #8a857c` on `--bg` ≈ 3.3:1 — **chrome/metadata/labels only, never body copy** (section labels, DEFERRED tag, timestamps qualify).
+**Contrast (inherited, AA):** `--accent-ink #4a2fd6` on `--bg` ≈ 7.0:1 (link/hover text). `--accent #5b3df5` on `--surface #fff` ≈ 5.4:1 — fine as a non-text fill (3px stripe, dot fills). `--ink #1a1916` on `--surface` ≈ 16:1 (card titles). `--ink-soft #55514a` on `--surface` ≈ 7.4:1 (descriptions, storyline, status subtitle — all AA body). `--ink-faint #8a857c` on `--bg` ≈ 3.3:1 — **chrome/metadata/labels only, never body copy** (section labels, DEFERRED tag, timestamps qualify).
 
 ---
 
@@ -175,7 +201,7 @@ The whole `<a href="#/map/{slug}">` stays the click target (preserve the whole-a
 - `background: var(--surface)`; `border: 1px solid var(--line)`; **`border-left: 3px solid var(--accent)`**; `border-radius: var(--radius)` (10px).
 - `padding: 20px 20px 16px`; `display:flex; flex-direction:column; gap: var(--space-sm)` (8px).
 - `text-decoration:none; color:inherit; cursor:pointer` (it's an anchor).
-- Contents in order: `.tile-title` (serif 20px/600) → `.tile-subtitle` (serif 15px/400, `--ink-soft`, `flex:1` so dots bottom-align) → `renderMaturityPill()` (the dots).
+- Contents in order: `.tile-title` (serif **20px/600**, `--ink`) → `.tile-subtitle` (serif **18px/400**, `--ink-soft`, line-height 1.5, `flex:1` so dots bottom-align) → `renderMaturityPill()` (the dots). The title and description share neither size nor weight nor ink — the 20px/600/`--ink` title reads as the lead, the 18px/400/`--ink-soft` description recedes below it.
 - **Hover (MAP-02 "subtle hover lift"):** `transform: translateY(-3px)`; `box-shadow: 0 8px 24px rgba(26,25,22,.07)`; `border-left-color: var(--accent-ink)`; `transition: .18s ease`. No heavy animation (brief §53).
 - Focus-visible (a11y): add a visible focus ring (`outline: 2px solid var(--accent-ink); outline-offset: 2px`) since the card is a keyboard-reachable link — the dark theme had none.
 
@@ -197,7 +223,7 @@ A block is DEFERRED when **`current_body_version_id` is null** (D-04 — data-de
 - `grid-column: 1 / -1` (full width).
 - A mono **`· DEFERRED`** tag (11px/600, UPPERCASE, `letter-spacing:.12em`, `var(--ink-faint)`). Placement: **on the dots row, right-aligned, replacing/beside the empty dots** — or appended after the title. **Planner discretion** on exact placement; recommended: a small flex row with empty dots on the left and `· DEFERRED` on the right, so the row reads "empty progress · DEFERRED".
 - **Empty progress dots:** `renderMaturityPill()` called with `data-stage="0"` (all 5 segments `--line-strong`, zero accent fill). Implementation: pass an override so a deferred card forces stage 0 regardless of `maturity` (the block still has a `maturity` value, but a deferred block shows no progress). The executor adds a `deferred` flag to `renderTile()`/`renderMaturityPill()` rather than changing data.
-- Same card chrome otherwise: `--surface` bg, 1px `--line` border, 3px `--accent` left stripe (the accent stripe stays — it's the section's single accent, not a "this is done" signal), `--radius` corners. The DEFERRED card is visually quieter (empty dots, faint tag) but still a real, clickable card linking to its (bodyless) block page.
+- Same card chrome otherwise: `--surface` bg, 1px `--line` border, 3px `--accent` left stripe (the accent stripe stays — it's the section's single accent, not a "this is done" signal), `--radius` corners, serif 20px/600 title + serif 18px/400 `--ink-soft` description. The DEFERRED card is visually quieter (empty dots, faint tag) but still a real, clickable card linking to its (bodyless) block page.
 
 > **Accepted consequence (D-04a):** with today's data, 5 of 7 cards are full-width DEFERRED rows, so the live grid is mostly stacked full-width rows until more blocks are synthesized. This is honest and on-brand ("silence is the enemy — show what isn't written yet"). The 2-col grid must still be built correctly so it **densifies automatically** as `current_body_version_id` fills in. Normal 2-col cards today: `identity-trust`, `governance-accountability` (both in their tiers — substrate and behavior respectively).
 
@@ -211,26 +237,26 @@ Reused **verbatim** across hub + block detail (it IS the MAP-02 progress dots). 
 
 ### 5. Hub header (D-06)
 
-- Reuse the Phase 11 `.page-title` class for the serif display title: **"The Agent Economy"**.
+- Reuse the Phase 11 `.page-title` class for the serif display title: **"The Agent Economy"** (serif `clamp(30px,5vw,46px)`/600).
 - A mono sub-line below it carrying the **"updated {date}"** stamp when any block has a non-null `last_synthesized_at` (the existing `renderHub()` already computes `latest` / `dateText`). 14px mono/400 `--ink-faint`. **Omit the date entirely** when every block's `last_synthesized_at` is null (current v1 state may have it null — render no stamp rather than an empty "updated").
 - The eyebrow kicker is **optional and recommended OFF** for the hub (the page-title + sub-line is enough; an extra accent eyebrow competes with the Phase 11 visual-hierarchy rule "ration the accent"). If the planner wants one, it is the Phase 11 `.eyebrow` (11px/600 accent UPPERCASE) reading e.g. `AGENT ECONOMY`.
-- **`HUB_STORYLINE` placement:** keep the existing storyline string (`app.js:32`) rendered as a one-line serif editorial frame (16px/400 `--ink-soft`) **below the header sub-line and above the first tier section label**. Do not change the storyline wording (editorial copy, owned by the operator via PR).
+- **`HUB_STORYLINE` placement:** keep the existing storyline string (`app.js:32`) rendered as a one-line serif editorial frame (serif **18px/400** `--ink-soft`, line-height 1.55) **below the header sub-line and above the first tier section label**. Do not change the storyline wording (editorial copy, owned by the operator via PR).
 
 > Header DOM note: today `loadHub()`/`renderHub()` write the title via `updateHero()` into the shared `.hero` block, but Phase 12 scoped that `.hero` to the **list route only** in `showView()`. The hub header must therefore render **inside `#map-view .content-area`** (the page-title + sub-line + storyline as the first elements written by `renderHub()`), not via the now-list-scoped global hero. **Planner owns the exact mechanism**; the contract requirement is: the hub shows a serif "The Agent Economy" title + optional "updated {date}" mono sub-line + the serif storyline, all on the light system, with the grid below.
 
 ### 6. Block detail (D-03 — restrained system pass)
 
 Keep `renderBlock()`'s existing 4-part structure (header → tension card → markdown body → Evolution timeline). Restyle, do NOT redesign:
-- **Header:** serif H1 (`clamp(28px,4vw,38px)`/600); the inline pill becomes the **dots** (same `renderMaturityPill()`, recolored). Right-aligned pill preserved. **No** mono kicker / display-title / lead / blockquote magazine layer (Newsletter-only).
-- **Tension card:** light surface (`--surface` or `--bg` with a 3px `--accent` left stripe), serif italic 18px. Stays hidden while `live_tension` equals the placeholder (all 7 today) — keep the existing gate.
-- **Body:** serif prose (TYPE-01 migration — `p/ul/ol/li` → serif 18px/1.62). In-content links `--accent-ink`. H2 = single serif heading (24px/600). Ensure no `style-map.css` `Courier New` / `Georgia` overrides survive.
-- **Evolution:** "EVOLUTION" heading = mono section-label step (11px/600 `--ink-faint`); timeline entries de-darkened (serif `what`/`why`, mono `date`/`source ↗`); "Show all" button de-darkened (`--radius-btn` 8px, `--line` border, `--accent-ink` text, `--surface` hover instead of the `rgba(255,255,255,.02)` dark-theme hover).
+- **Header:** serif H1 (**24px/600** — Phase 11 heading step; reads smaller than the hub `.page-title` hero, D-06); the inline pill becomes the **dots** (same `renderMaturityPill()`, recolored). Right-aligned pill preserved. **No** mono kicker / display-title / lead / blockquote magazine layer (Newsletter-only).
+- **Tension card:** light surface (`--surface` or `--bg` with a 3px `--accent` left stripe), serif italic 18px (body step), line-height 1.6. Stays hidden while `live_tension` equals the placeholder (all 7 today) — keep the existing gate.
+- **Body:** serif prose (TYPE-01 migration — `p/ul/ol/li` → serif 18px/1.62, body step). In-content links `--accent-ink`. H2 = single serif heading (24px/600, heading step). Ensure no `style-map.css` `Courier New` / `Georgia` overrides survive.
+- **Evolution:** "EVOLUTION" heading = mono section-label step (11px/600 `--ink-faint`); timeline entries de-darkened (serif `what`/`why` at 18px/400 `--ink-soft` body step, mono `date`/`source ↗`); "Show all" button de-darkened (`--radius-btn` 8px, `--line` border, `--accent-ink` text, mono 12.5px, `--surface` hover instead of the `rgba(255,255,255,.02)` dark-theme hover).
 
 ### 7. Status view (D-02 — light de-dark pass only)
 
 No layout redesign. Strip the dark surfaces / `Courier New` / per-tier accent:
 - `.status-row`: keep flex layout + `12px 20px 12px 24px` padding + 3px left stripe, but stripe → `--accent` (was `--accent-tier`); row sits on `--bg`.
-- `.status-title` → serif; `.status-subtitle` → serif `--ink-soft`; `.status-synth` → mono `--ink-faint`.
+- `.status-title` → serif 18px/400 `--ink` (body step); `.status-subtitle` → serif 18px/400 `--ink-soft` (body step); `.status-synth` → mono 14px `--ink-faint`.
 - `.tier-label` → mono section-label step (shared with hub — change once, both benefit).
 - Dots recolored via the shared `renderMaturityPill()` change. No new status states, no filters, no re-link into nav (deep-link-only).
 
@@ -244,11 +270,11 @@ All copy locked verbatim. Editorial strings (`HUB_STORYLINE`, `TIER_LABELS`, `ST
 |---------|------|----------------|
 | Hub page title | `The Agent Economy` | D-06. New serif `.page-title`. Matches the nav tab's section name ("Agent Economy") with a definite article for the hero. |
 | Hub sub-line (stamp) | `updated {Month D, YYYY}` | Rendered only when a block has `last_synthesized_at`; uses existing `formatDate()`. Mono `--ink-faint`. Omitted entirely when all null. |
-| Hub storyline | *(preserve existing `HUB_STORYLINE`)* `Synthesis with editorial integrity. Eight blocks, seven shipped, one deferred — the agent economy as a living map.` | `app.js:32`. **Do not change wording** (operator editorial copy). Restyle to serif `--ink-soft` only. |
+| Hub storyline | *(preserve existing `HUB_STORYLINE`)* `Synthesis with editorial integrity. Eight blocks, seven shipped, one deferred — the agent economy as a living map.` | `app.js:32`. **Do not change wording** (operator editorial copy). Restyle to serif 18px/400 `--ink-soft` only. |
 | Section labels | `SUBSTRATE` · `BEHAVIOR` · `FRAME` | `TIER_LABELS` (`app.js:41`). UPPERCASE, verbatim. Mono section-label step. |
 | DEFERRED tag | `· DEFERRED` | MAP-04. Leading middot (U+00B7) + UPPERCASE. Mono `--ink-faint` 11px/600. |
 | Card title | *(block `title` from DB)* | Serif 20px/600. No copy authored here — data-driven. |
-| Card description | *(block `subtitle` from DB)* | Serif 15px/400. One line. Data-driven. |
+| Card description | *(block `subtitle` from DB)* | Serif 18px/400 `--ink-soft`. One line. Data-driven. |
 | Block back-control | `← Back to the map` | Phase 11 locked (NAV-03); static in `index.html` `#block-view`. Unchanged. |
 | Status back-control | `← Back to the map` | Phase 11 locked; static in `index.html` `#status-view`. Unchanged. |
 | Status page header | *(preserve existing `STATUS_PAGE_HEADER`)* `Maturity Snapshot` | `app.js:35`. Restyle only. |
@@ -267,7 +293,7 @@ Metadata separator: `·` (U+00B7) with surrounding spaces where it joins phrases
 
 ## Visual Hierarchy
 
-**Primary focal point of the hub screen:** the **grid of cards** as a scannable group — specifically the first *normal* (non-deferred) card's serif title is the brightest reading anchor, while the section labels orient and the single `--accent` (3px stripes + filled dots) rations attention across the grid without any one card shouting. The "The Agent Economy" page-title sits above as orientation; the storyline is a quiet one-line frame. On the block view, the serif H1 leads; tension/body/timeline support. Same Phase 11 rule everywhere: one serif title leads, mono chrome + the single accent support but never out-shout it. The grid's job (MAP-01, brief §68) is "more blocks above the fold, related blocks visible together" — so the contract favors tight 16px gaps and compact card padding over generous whitespace, while staying "minimalist not sparse" (§57).
+**Primary focal point of the hub screen:** the **grid of cards** as a scannable group — specifically the first *normal* (non-deferred) card's serif title (20px/600 `--ink`) is the brightest reading anchor, while the section labels orient and the single `--accent` (3px stripes + filled dots) rations attention across the grid without any one card shouting. The card description sits one serif step *down in prominence* without being a smaller size: at the same 18px body size but 400 weight and `--ink-soft`, it recedes below the 20px/600/`--ink` title (the Phase 11 "differentiate by weight and ink, not by adding sizes" rule). The "The Agent Economy" page-title (the serif display step) sits above as orientation; the storyline is a quiet one-line serif body frame in `--ink-soft`. On the block view, the serif H1 (24px/600 heading step) leads as the reading-view title — deliberately smaller than the hub's display page-title — and the 18px body prose, tension card, and timeline support. Same Phase 11 rule everywhere: one serif title leads, mono chrome + the single accent support but never out-shout it. The grid's job (MAP-01, brief §68) is "more blocks above the fold, related blocks visible together" — so the contract favors tight 16px gaps and compact card padding over generous whitespace, while staying "minimalist not sparse" (§57).
 
 ---
 
@@ -280,14 +306,14 @@ Metadata separator: `·` (U+00B7) with surrounding spaces where it joins phrases
 | Per-tier accent hexes (teal/purple/coral/gray) + on-dark variants | `:18`–`:31` | Deleted — single `--accent` |
 | `body.technical\|strategic [data-accent]{--accent-tier:…}` cascade | `:33`–`:43` | Deleted — `data-accent` machinery retired (D-05); dots/stripes use `--accent` directly |
 | `.maturity-pill .seg` transparent + `--accent-tier` fills | `:55`–`:75` | `--line-strong` empty fill + `--accent` filled; `border-radius:3px`; stage 0 = all-empty (DEFERRED) |
-| `.block-tile` (`Georgia` title, `Courier New` subtitle, dark hover, no radius/border) | `:194`–`:226` | `.card`: `--surface` bg, 1px `--line` + 3px `--accent` stripe, `--radius`, serif 20px title, serif 15px desc, lift+shadow hover |
+| `.block-tile` (`Georgia` title, `Courier New` subtitle, dark hover, no radius/border) | `:194`–`:226` | `.card`: `--surface` bg, 1px `--line` + 3px `--accent` stripe, `--radius`, serif 20px/600 title, serif 18px/400 `--ink-soft` desc, lift+shadow hover |
 | `.tier-label` / `.tier-section` (`Courier New 13px`) | `:172`–`:185` | `.section-label`: mono 11px/600 `--ink-faint`, UPPERCASE `.18em`; grid wrapper added |
-| `.block-header h1` inherits dark Georgia 29px | `:233`–`:243` | Serif `clamp(28px,4vw,38px)`/600; inline pill = recolored dots |
-| `.block-tension` (`Georgia`, dark) | `:249`–`:258` | Serif italic 18px on light surface + 3px `--accent` stripe |
-| `.block-body h2` (`Georgia 21px`), `p` | `:264`–`:278` | Serif 24px/600 H2; serif 18px/1.62 body (TYPE-01); `--accent-ink` links |
-| `.evolution > h2` (`Courier New 13px`), `.timeline-*` (dark) | `:283`–`:148` | Mono 11px section label; de-darkened serif/mono timeline entries |
+| `.block-header h1` inherits dark Georgia 29px | `:233`–`:243` | Serif **24px/600** (Phase 11 heading step — reading-view title, smaller than the hub display page-title); inline pill = recolored dots |
+| `.block-tension` (`Georgia`, dark) | `:249`–`:258` | Serif italic 18px (body step) on light surface + 3px `--accent` stripe |
+| `.block-body h2` (`Georgia 21px`), `p` | `:264`–`:278` | Serif 24px/600 H2 (heading step); serif 18px/1.62 body (TYPE-01, body step); `--accent-ink` links |
+| `.evolution > h2` (`Courier New 13px`), `.timeline-*` (dark) | `:283`–`:148` | Mono 11px section label; de-darkened timeline entries (serif 18px/400 `--ink-soft`, mono date/source) |
 | `.timeline-show-all` (`Courier New`, `radius:4px`, dark hover) | `:300`–`:315` | Mono 12.5px, `--radius-btn` 8px, `--line` border, `--surface` hover |
-| `.status-row`/`.status-*` (`Georgia`/`Courier New`, dark, `--accent-tier`) | `:321`–`:348` | De-darkened: serif title/subtitle, mono synth, `--accent` stripe |
+| `.status-row`/`.status-*` (`Georgia`/`Courier New`, dark, `--accent-tier`) | `:321`–`:348` | De-darkened: serif 18px title (`--ink`) / 18px subtitle (`--ink-soft`), mono 14px synth, `--accent` stripe |
 | `.nav-map-link` (`Courier New`) | `:160`–`:169` | **Already** retired in Phase 11 (Agent Economy tab) — delete the dead rule if it remains |
 
 **Out of scope this phase (untouched):** economy_map fetch logic; any status filter; Newsletter views (Phase 12); About page (Phase 14); the global `.hero` (Phase 12 scoped it to the list route); backend/data; dark mode (DARK-01, deferred); prod deploy (batch after Phase 14).
