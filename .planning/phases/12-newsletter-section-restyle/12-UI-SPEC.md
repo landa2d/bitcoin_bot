@@ -1,10 +1,11 @@
 ---
 phase: 12
 slug: newsletter-section-restyle
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-04
+reviewed_at: 2026-06-04
 ---
 
 # Phase 12 — UI Design Contract
@@ -196,7 +197,7 @@ Per row (preserve the `renderList()` `.article-entry` anatomy; restyle, don't re
 - **Lead paragraph (serif, emphasized):** the **first** body paragraph renders one step up — serif 20px/400/1.45, `--ink` (not `--ink-soft`). Achieved with a CSS rule scoped to `#newsletter-content > p:first-of-type` (or the first `<p>` after the banner) — no markdown change, no content-logic change. Remaining paragraphs are the 18px/400/1.62 body step.
 - **Body prose (serif):** all `article p` / `li` at serif 18px/400/1.62, `--ink-soft`. `h2`/`h3` single serif heading (24px / 20px, 600, `--ink`). **No mono paragraphs** (TYPE-01).
 - **Blockquotes (D-05):** `border-left: 3px solid var(--accent)`, `background: var(--accent-soft)`, `padding: var(--space-md)` (16px), `border-radius: var(--radius-sm)` (7px), serif body text `--ink`. (Recolors the existing teal-era rule to the violet accent.)
-- **Code surfaces (D-05, allowed mono):** inline `code` — mono 14px, `--accent-ink` text, `background: var(--line)` (or a faint `--surface`/`--line` tint), `padding: 2px 6px`, `border-radius: var(--radius-sm)` (7px). `pre` — mono, `background: var(--line)`, `padding: var(--space-md)` (16px), `border-radius: var(--radius)` (10px), `overflow-x:auto`; `pre code` has no own background/padding. Code is the **only** mono allowed in the article reading column.
+- **Code surfaces (D-05, allowed mono):** inline `code` — mono 14px, `--accent-ink` text, `background: var(--line)` (or a faint `--surface`/`--line` tint), `padding: 4px 8px` (4px-grid conformant), `border-radius: var(--radius-sm)` (7px). `pre` — mono, `background: var(--line)`, `padding: var(--space-md)` (16px), `border-radius: var(--radius)` (10px), `overflow-x:auto`; `pre code` has no own background/padding. Code is the **only** mono allowed in the article reading column.
 - **Tables:** `th` keeps mono (label row) at 13px/600 UPPERCASE `--accent-ink`; `td` converts to serif 16px/400 `--ink-soft` (data reads as prose — TYPE-01).
 - **PREVIEW banner (D-05, restyle not rebuild):** keep the `status === 'preview'` banner emission in `renderArticle()`. Restyle from the legacy inline amber (`background:#f59e0b;color:#000`) to: `background: var(--accent-soft)`, `color: var(--ink)`, `border-left: 3px solid var(--accent)`, `border-radius: var(--radius)` (10px), `padding: var(--space-sm) var(--space-md)`, mono 12.5px/600 UPPERCASE label. Copy unchanged: `PREVIEW — NOT YET PUBLISHED`.
 
