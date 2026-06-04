@@ -168,7 +168,7 @@ function showView(viewName) {
 function renderList(data) {
     if (!data || data.length === 0) {
         document.getElementById('newsletter-list').innerHTML =
-            '<div class="content-area"><p style="color:var(--text-secondary);font-size:15px;">No newsletters published yet.</p></div>';
+            '<div class="content-area"><p class="entry-preview">No newsletters published yet.</p></div>';
         updateHero('AI Agents Pulse', '');
         return;
     }
@@ -184,7 +184,7 @@ function renderList(data) {
         var excerpt = content.replace(/[#*_\[\]`>]/g, '').substring(0, 150) + '...';
 
         return '<div class="article-entry">' +
-            '<div class="section-label">EDITION #' + n.edition_number + '</div>' +
+            '<div class="section-label">EDITION #' + n.edition_number + ' · ' + formatDate(n.published_at) + '</div>' +
             '<a href="#/edition/' + n.edition_number + '" class="entry-title">' + escapeHtml(title) + '</a>' +
             '<p class="entry-preview">' + escapeHtml(excerpt) + '</p>' +
             '</div>';
@@ -223,16 +223,32 @@ function renderArticle(data) {
     var content = getModeContent(data);
     var date = formatDate(data.published_at || data.created_at);
 
-    // Update hero with edition info
+    // Update hero with edition info (harmless on the reader route — the .hero is
+    // list-scoped post-12-02 and not visible here; the article carries its own
+    // magazine header below. Non-list callers still rely on updateHero()).
     updateHero(title, 'Edition #' + data.edition_number + ' \u00b7 ' + date);
 
     var banner = '';
     if (data.status === 'preview') {
-        banner = '<div style="background:#f59e0b;color:#000;padding:10px 16px;border-radius:6px;margin-bottom:16px;font-weight:600;text-align:center;">PREVIEW — NOT YET PUBLISHED</div>';
+        banner = '<div class="preview-banner">PREVIEW — NOT YET PUBLISHED</div>';
     }
 
+    // Magazine header (D-05) — the reader view's own header, sitting under the
+    // static "← Back to Newsletter" control in #reader-view. Mono .eyebrow kicker,
+    // serif .page-title display title, mono byline. The {Technical|Strategic} label
+    // is resolved from MODES (not hardcoded); every DB-derived string (title) is
+    // escapeHtml'd exactly as the list rows are (edition_number is numeric).
+    var sep = ' ' + String.fromCharCode(0xB7) + ' ';
+    var modeLabel = MODES[currentMode].label;
+    var header =
+        '<div class="article-header">' +
+            '<p class="eyebrow">Edition #' + data.edition_number + sep + modeLabel + '</p>' +
+            '<h1 class="page-title">' + escapeHtml(title) + '</h1>' +
+            '<p class="byline">Edition #' + data.edition_number + sep + date + sep + modeLabel + '</p>' +
+        '</div>';
+
     var rendered = marked.parse(content);
-    document.getElementById('newsletter-content').innerHTML = banner + rendered;
+    document.getElementById('newsletter-content').innerHTML = header + banner + rendered;
 }
 
 async function loadEdition(editionNumber) {
