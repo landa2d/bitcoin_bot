@@ -1,8 +1,10 @@
 ---
 phase: 11-design-system-nav-shell
 verified: 2026-06-04T22:00:00Z
-status: human_needed
-score: 4/4 must-haves verified (SC-level); see deferred items for TYPE-01 article restyle
+status: passed
+human_verified: 2026-06-04 (operator, local substituted preview :8090 — see 11-HUMAN-UAT.md)
+score: 4/4 must-haves verified (SC-level) + 6/6 human items passed; see deferred items for TYPE-01 article restyle
+post_verification_uat: "4 UI issues fixed in-loop (equal-height tabs 13e67ad, #/about stub 7c69e2d, hero-flash 95d63a9, #/status back-control d077c99). #/about minimal stub pulls a thin slice of Phase 14 ABOUT-01 forward; full page remains Phase 14."
 overrides_applied: 0
 deferred:
   - truth: "Body and reading text + titles render in Source Serif 4 with NO monospace body paragraphs anywhere (TYPE-01, SC 3)"

@@ -1,14 +1,23 @@
 ---
-status: partial
+status: passed
 phase: 11-design-system-nav-shell
 source: [11-VERIFICATION.md]
 started: 2026-06-04T22:10:00Z
-updated: 2026-06-04T22:10:00Z
+updated: 2026-06-04T23:30:00Z
 ---
 
 ## Current Test
 
-[awaiting human testing]
+[complete — operator verified in local preview 2026-06-04]
+
+## UAT notes
+
+Operator tested via the substituted local preview (:8090). Issues found and fixed in-loop:
+- Tab heights unequal (long labels wrapped to 2 rows) → full-width header + `white-space:nowrap` (commit 13e67ad).
+- "What is AgentPulse" tab dead-ended to Newsletter → minimal `#/about` stub added per operator choice; full page is Phase 14 / ABOUT-01 (commit 7c69e2d).
+- Hub-storyline title flashed on Newsletter during async nav → hero set synchronously in loadList/loadHub (commit 95d63a9).
+- `#/status` back-control was missing → added (commit d077c99).
+Note: the edition list is empty because no `newsletters` rows are `published`/`preview` in the connected DB (content state, not a shell defect); the reader back-control was verified via direct `#/edition/1` nav and the map back-controls via `#/map` → block / `#/status`.
 
 ## How to test locally (no deploy — D-01 batch-deploy)
 
@@ -34,34 +43,34 @@ data views just stay empty, which is sufficient to verify the Phase 11 nav/palet
 
 ### 1. Light palette + serif body + sticky header (COLOR-01, TYPE-01)
 expected: At `#/`, page background is warm off-white (#faf8f5); body text renders in a serif (Source Serif 4); no dark/black background anywhere; the sticky header is present at the top.
-result: [pending]
+result: passed
 
 ### 2. Route-derived active tab (NAV-02)
 expected: On `#/` and `#/edition/1` the **Newsletter** tab is highlighted (accent-soft bg, accent-ink text). On `#/map` the **Agent Economy** tab is highlighted. On `#/about` no tab highlights and the list view shows (documented Phase 14 deferral — not a bug).
-result: [pending]
+result: passed
 
 ### 3. Back-controls on nested pages (NAV-03)
 expected: `#/edition/1` shows `← Back to Newsletter` (top-left, IBM Plex Mono 12.5px); `#/map/<slug>` and `#/status` show `← Back to the map`. Links are visually distinct from serif body text.
-result: [pending]
+result: passed
 
 ### 4. Subscribe reuses scrollToSubscribe() (NAV-01)
 expected: Clicking the header **Subscribe** button scrolls smoothly to the subscribe section. No new modal/page opens.
-result: [pending]
+result: passed
 
 ### 5. Responsive nav wrap at ≤640px (D-03)
 expected: At ≤640px viewport, brand (AGENTPULSE + dot) and Subscribe stay on the top row; the three tabs wrap to a full-width, horizontally-scrollable row below.
-result: [pending]
+result: passed
 
 ### 6. Serif vs mono differentiation (TYPE-02/03)
 expected: Headings/titles render serif; tab labels, SUBSCRIBE, and the back-links render IBM Plex Mono. (Article-body paragraphs still render mono — that is the known Phase 12 deferral, NOT a Phase 11 bug.)
-result: [pending]
+result: passed
 
 ## Summary
 
 total: 6
-passed: 0
+passed: 6
 issues: 0
-pending: 6
+pending: 0
 skipped: 0
 blocked: 0
 
