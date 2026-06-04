@@ -522,7 +522,7 @@ async function loadBlock(slug) {
     timelineRes = pair[1];
 
     if (blockRes.error || !blockRes.data) {
-        document.getElementById('block-content').innerHTML = '<p style="color:var(--text-secondary);">Block not found.</p>';
+        document.getElementById('block-content').innerHTML = '<p style="font-family:var(--serif);color:var(--ink-soft);">Block not found.</p>';
         updateHero('Block Not Found', '');
         console.error('loadBlock error:', blockRes.error);
         return;
@@ -561,11 +561,11 @@ async function loadBlock(slug) {
 
 // Six-part block-page composition (D-08): Title → tension → body → Evolution.
 function renderBlock(block, bodyMd, entries) {
-    // A. Header — always renders. D-09 inline pill, right-aligned (CSS). The
-    //    header carries data-accent so the cascade resolves --accent-tier for
-    //    the pill child.
+    // A. Header — always renders. D-09 inline pill, right-aligned (CSS). Phase 13
+    //    (D-05): the per-tier accent attribute is dropped — the cascade it fed is
+    //    retired; the inline pill recolors to the single --accent via CSS.
     var headerHtml =
-        '<header class="block-header" data-accent="' + escapeHtml(block.accent) + '">' +
+        '<header class="block-header">' +
             '<h1>' + escapeHtml(block.title) + '</h1>' +
             renderMaturityPill(block) +
         '</header>';
@@ -611,7 +611,7 @@ function renderTimelineEntries(entries, expanded) {
     if (!entries || entries.length === 0) {
         // Graceful empty state — distinct from D-10 hide-section; Evolution always
         // renders per D-08, just with this message when there are no entries yet.
-        return '<p style="color:var(--text-secondary);">No timeline entries yet.</p>';
+        return '<p style="font-family:var(--serif);color:var(--ink-soft);">No timeline entries yet.</p>';
     }
     return entries.map(function(e) {
         // CR-01: only render the source link/attr when the URL is http(s). A
@@ -672,7 +672,7 @@ async function loadStatus() {
         .order('sort_order', { ascending: true });
 
     if (error || !data || data.length === 0) {
-        document.getElementById('status-content').innerHTML = '<p style="color:var(--text-secondary);font-size:15px;padding:20px 24px;">Status data unavailable.</p>';
+        document.getElementById('status-content').innerHTML = '<p style="font-family:var(--serif);color:var(--ink-soft);padding:20px 24px;">Status data unavailable.</p>';
         updateHero(STATUS_PAGE_HEADER, '');
         console.error('loadStatus error:', error);
         return;
@@ -700,13 +700,14 @@ function renderStatus(data) {
     var frameBlocks = data.filter(function(b) { return b.tier === 'frame'; });
 
     // Single row (D-15): pill + title + (optional) subtitle + synth timestamp.
-    // data-accent drives the left-border stripe via the --accent-tier cascade.
-    // Every DB string and the computed synthText passes through escapeHtml.
+    // Phase 13 (D-05): the per-tier accent attribute is dropped — the left-border
+    // stripe recolors to the single --accent via CSS. Every DB string and the
+    // computed synthText passes through escapeHtml.
     function renderStatusRow(b) {
         var synthText = b.last_synthesized_at
             ? 'synthesized ' + formatDate(b.last_synthesized_at)
             : 'never synthesized';
-        return '<div class="status-row" data-accent="' + escapeHtml(b.accent) + '">' +
+        return '<div class="status-row">' +
                    renderMaturityPill(b) +
                    '<div class="status-title">' + escapeHtml(b.title) + '</div>' +
                    (b.subtitle ? '<div class="status-subtitle">' + escapeHtml(b.subtitle) + '</div>' : '') +
