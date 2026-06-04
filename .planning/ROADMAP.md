@@ -131,6 +131,6 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 9. Gated Publishing + Approval | v1.0 | 2/2 | Complete | 2026-06-03 |
 | 10. Operator Write Commands | v1.0 | 3/3 | Complete | 2026-06-04 |
 | 11. Design System + Nav Shell | v2.0 | 2/2 | Complete    | 2026-06-04 |
-| 12. Newsletter Section Restyle | v2.0 | 2/2 | Complete   | 2026-06-04 |
+| 12. Newsletter Section Restyle | v2.0 | 2/2 | Complete    | 2026-06-04 |
 | 13. Agent Economy Grid | v2.0 | 0/TBD | Not started | - |
 | 14. About Stub + Polish Pass | v2.0 | 0/TBD | Not started | - |

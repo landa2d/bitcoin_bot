@@ -1,7 +1,9 @@
 ---
 phase: 12-newsletter-section-restyle
 verified: 2026-06-04T20:50:13Z
-status: human_needed
+status: passed
+human_verified: 2026-06-04T21:05:00Z
+human_verified_note: "Operator validated all 4 visual items in a local substituted preview — all pass. (Out-of-scope observation: Agent Economy blocks render vertically — that is Phase 13's deliverable, not a Phase 12 gap.)"
 score: 3/3 must-haves verified
 overrides_applied: 0
 human_verification:
