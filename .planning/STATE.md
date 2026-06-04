@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 10 context gathered
+status: milestone_complete
+stopped_at: Phase 10 complete — milestone v1.0 fully executed
 last_updated: "2026-06-04T09:09:33.330Z"
-last_activity: 2026-06-04
+last_activity: 2026-06-04 -- Phase 10 complete; milestone v1.0 done (11/11 phases)
 progress:
   total_phases: 11
   completed_phases: 11
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-26)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 10 — operator-write-commands
+**Current focus:** Milestone v1.0 complete — all 11 phases done. Next: `/gsd-complete-milestone` (archive) or `/gsd-new-milestone` (v2 — deferred items: negotiation graduation, per-block tuning, design pass, EU AI Act).
 
 ## Current Position
 
-Phase: 10
-Plan: Not started
-Status: Executing Phase 10
-Last activity: 2026-06-04
+Phase: 10 (operator-write-commands) — COMPLETE
+Plan: 3/3 complete
+Status: Milestone v1.0 complete (11/11 phases, 29/29 plans)
+Last activity: 2026-06-04 -- Phase 10 complete; 10-HUMAN-UAT.md pending live Telegram smoke test
 
-Progress: [█████████░] 91%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
