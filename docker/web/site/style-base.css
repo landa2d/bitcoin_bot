@@ -225,3 +225,24 @@ header {
     overflow-x:auto;
   }
 }
+
+/* ── About stub (NAV/ABOUT) — minimal Phase 11 placeholder ────── */
+/* Full "What is AgentPulse" page is Phase 14 (ABOUT-01); this just makes the
+   third tab land somewhere honest instead of falling through to the list. */
+.about-stub {
+  padding-top:var(--space-2xl);
+}
+.about-stub .page-title {
+  margin-top:var(--space-md);
+}
+.about-lede {
+  font-family:var(--serif);
+  font-size:17px;
+  line-height:1.6;
+  color:var(--ink-soft);
+  max-width:60ch;
+  margin:var(--space-lg) 0 var(--space-2xl);
+}
+.about-stub .backlink {
+  font-size:12.5px;
+}

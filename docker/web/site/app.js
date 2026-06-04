@@ -129,6 +129,9 @@ function getRoute() {
     if (hash.startsWith('#/unsubscribe')) {
         return { view: 'unsubscribe' };
     }
+    if (hash.startsWith('#/about')) {
+        return { view: 'about' };
+    }
     return { view: 'list' };
 }
 
@@ -138,15 +141,22 @@ function showView(viewName) {
     document.getElementById('map-view').style.display = viewName === 'map' ? 'block' : 'none';
     document.getElementById('block-view').style.display = viewName === 'block' ? 'block' : 'none';
     document.getElementById('status-view').style.display = viewName === 'status' ? 'block' : 'none';
+    var aboutView = document.getElementById('about-view');
+    if (aboutView) aboutView.style.display = viewName === 'about' ? 'block' : 'none';
 
-    // Hide the technical/strategic mode toggle on map routes (D-03). The body
-    // class stays so the --accent-tier cascade still resolves; only the toggle
-    // UI and its subtitle are hidden. Defensive null-checks per PATTERNS §3.
-    var isMapRoute = (viewName === 'map' || viewName === 'block' || viewName === 'status');
+    // Hide the technical/strategic mode toggle on map routes and the About page
+    // (D-03). The body class stays so the --accent-tier cascade still resolves;
+    // only the toggle UI and its subtitle are hidden. Defensive null-checks per PATTERNS §3.
+    var hideToggle = (viewName === 'map' || viewName === 'block' || viewName === 'status' || viewName === 'about');
     var toggle = document.querySelector('.mode-toggle');
-    if (toggle) toggle.style.display = isMapRoute ? 'none' : 'inline-flex';
+    if (toggle) toggle.style.display = hideToggle ? 'none' : 'inline-flex';
     var subtitle = document.getElementById('mode-subtitle');
-    if (subtitle) subtitle.style.display = isMapRoute ? 'none' : 'block';
+    if (subtitle) subtitle.style.display = hideToggle ? 'none' : 'block';
+
+    // About is a standalone top-level section — hide the newsletter hero so the
+    // stub reads clean. Phase 14 (ABOUT-01) builds the full page.
+    var hero = document.querySelector('.hero');
+    if (hero) hero.style.display = viewName === 'about' ? 'none' : 'block';
 }
 
 // ─── List View ───────────────────────────────────────────────────────────────
@@ -781,6 +791,7 @@ function route() {
         case 'map': loadHub(); break;
         case 'block': loadBlock(r.slug); break;
         case 'status': loadStatus(); break;
+        case 'about': showView('about'); window.scrollTo(0, 0); break;
     }
 }
 
