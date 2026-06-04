@@ -523,6 +523,48 @@ body {
     background: var(--surface);
 }
 
+/* ── Status (D-02 — light de-dark pass, deep-link-only #/status) ──── */
+/* De-darkened out of style-map.css (delete-and-fold completes here — the dark
+   theme file is fully retired). No layout redesign: keep the flex row + the
+   asymmetric 12px 20px 12px 24px padding (the wider left pad accommodates the
+   stripe). The stripe is the single --accent (was --accent-tier); the row sits
+   on --bg (no dark surface). Titles/subtitles migrate to serif (TYPE-01); the
+   synth timestamp stays mono chrome. .tier-label is shared with the hub
+   (already in style-shared.css) — not redefined here. */
+.status-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: 12px var(--space-lg) 12px var(--space-lg);
+    margin-bottom: var(--space-sm);
+    border-left: 3px solid var(--accent);
+}
+
+.status-row .status-title {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--ink);
+}
+
+.status-row .status-subtitle {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--ink-soft);
+    flex: 1;
+}
+
+.status-row .status-synth {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+}
+
 /* The old back-link rule was retired in Phase 11 — superseded by the
    "← Back to [section]" back-control in style-base.css (Plan 02). */
 
