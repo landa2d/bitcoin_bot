@@ -388,9 +388,16 @@ function getModeContent(data) {
 // resolves the enum; || 1 guards an unexpected value (renders as nascent).
 // Module-scoped so renderHub() (plan 04-02) and renderBlock() (plan 04-03)
 // share one definition — the only Phase-4-owned pill token site.
-function renderMaturityPill(b) {
-    var stage = MATURITY_STAGE[b.maturity] || 1;
-    return '<div class="maturity-pill" data-accent="' + escapeHtml(b.accent) + '" data-stage="' + stage + '" aria-label="Maturity: ' + escapeHtml(b.maturity) + ' (' + stage + ' of 5)">' +
+function renderMaturityPill(b, deferred) {
+    // Phase 13 (D-05): the per-tier accent attribute is dropped — the cascade
+    // it fed is retired; the pill recolors to the single --accent via CSS. A
+    // deferred block (no synthesized body) forces data-stage="0" so all 5
+    // segments fall through to the --line-strong empty fill (MAP-04 empty dots).
+    var stage = deferred ? 0 : (MATURITY_STAGE[b.maturity] || 1);
+    var label = deferred
+        ? 'Maturity: deferred (not yet synthesized)'
+        : 'Maturity: ' + escapeHtml(b.maturity) + ' (' + stage + ' of 5)';
+    return '<div class="maturity-pill" data-stage="' + stage + '" aria-label="' + label + '">' +
                '<span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>' +
            '</div>';
 }
@@ -402,9 +409,9 @@ function renderMaturityPill(b) {
 // plug in the data + markup.
 async function loadHub() {
     showView('map');
-    // Set the hero synchronously so the previous section's title doesn't flash
-    // here during the async fetch. renderHub() refines the date once data arrives.
-    updateHero(HUB_STORYLINE, '');
+    // Phase 13 (D-06): the hub header renders inside #map-view .content-area in
+    // renderHub() — the shared .hero is scoped to the list route (Phase 12), so
+    // no updateHero() call here. The grid fills in once data arrives.
 
     // Single query — read all seven blocks ordered by sort_order. Per D-16 use
     // sb.schema('economy_map') so supabase-js sets Accept-Profile automatically.
@@ -418,8 +425,7 @@ async function loadHub() {
     if (error || !data || data.length === 0) {
         console.error('loadHub error:', error);
         document.getElementById('map-view').querySelector('.content-area').innerHTML =
-            '<p style="color:var(--text-secondary);font-size:15px;padding:20px 24px;">Map data unavailable.</p>';
-        updateHero(HUB_STORYLINE, '');
+            '<p class="entry-preview" style="color:var(--ink-soft);">Map data unavailable.</p>';
         return;
     }
 
@@ -428,12 +434,15 @@ async function loadHub() {
 }
 
 function renderHub(data) {
-    // 1. Hero — use the latest last_synthesized_at across all blocks as the
-    //    "updated" stamp (D-02). ISO string-sort works for ordering; omit the
-    //    date entirely if every block has a null last_synthesized_at (v1 state).
+    // 1. Updated stamp — latest last_synthesized_at across all blocks (D-06).
+    //    ISO string-sort orders correctly; omit the stamp entirely when every
+    //    block has a null last_synthesized_at (v1 state). Phase 13: the hub
+    //    header renders INSIDE #map-view .content-area, not via updateHero()
+    //    (Phase 12 scoped the shared .hero to the list route — PATTERNS gotcha).
     var latest = data.map(function(b) { return b.last_synthesized_at; }).filter(Boolean).sort().pop();
-    var dateText = latest ? 'updated ' + formatDate(latest) : '';
-    updateHero(HUB_STORYLINE, dateText);
+    var subline = latest
+        ? '<p class="hero-date">updated ' + escapeHtml(formatDate(latest)) + '</p>'
+        : '';
 
     // 2. Group by tier. The query is already sort_order-ascending, so each
     //    filtered array preserves the seed order (Phase 2 D-23): substrate 1-3,
@@ -442,34 +451,48 @@ function renderHub(data) {
     var behaviorBlocks = data.filter(function(b) { return b.tier === 'behavior'; });
     var frameBlocks = data.filter(function(b) { return b.tier === 'frame'; });
 
-    // 3. Single tile — whole <a> is the click target (D-14). encodeURIComponent
-    //    on the slug is defense-in-depth; every DB string is escapeHtml'd.
+    // 3. Single card — whole <a> is the click target (D-14). encodeURIComponent
+    //    on the slug is defense-in-depth; every DB string is escapeHtml'd. A
+    //    block with no synthesized body (current_body_version_id null) renders
+    //    as a full-width DEFERRED card with empty dots + a "· DEFERRED" tag
+    //    (MAP-04, D-04). The deferred state is derived in JS from a column
+    //    already in the loadHub select — NO .eq('status',…) filter (D-17, RLS).
     function renderTile(b) {
-        return '<a href="#/map/' + encodeURIComponent(b.slug) + '" data-accent="' + escapeHtml(b.accent) + '" class="block-tile">' +
+        var deferred = !b.current_body_version_id;
+        var cls = deferred ? 'card card-deferred' : 'card';
+        var dotsRow = deferred
+            ? '<div class="card-dots-row">' + renderMaturityPill(b, true) +
+                  '<span class="deferred-tag">· DEFERRED</span></div>'
+            : renderMaturityPill(b, false);
+        return '<a href="#/map/' + encodeURIComponent(b.slug) + '" class="' + cls + '">' +
                    '<h3 class="tile-title">' + escapeHtml(b.title) + '</h3>' +
                    '<p class="tile-subtitle">' + escapeHtml(b.subtitle) + '</p>' +
-                   renderMaturityPill(b) +
+                   dotsRow +
                '</a>';
     }
 
-    // 4. Maturity pill is now a module-scoped helper (renderMaturityPill, defined
-    //    near escapeHtml/formatDate) shared by renderHub + renderBlock (plan 04-03).
-
-    // 5. Tier section wrapper — emits a <section class="tier-section"> with a
-    //    <h2 class="tier-label"> heading followed by the joined tiles. Skips an
+    // 4. Tier section wrapper — emits a <section class="tier-section"> with a
+    //    <h2 class="tier-label"> heading ABOVE a <div class="grid"> of cards
+    //    (MAP-01/03; the label sits above the grid, not inside it). Skips an
     //    empty array so no dangling heading appears (defensive; the seed always
     //    fills all three tiers).
     function tierSection(label, blocks) {
         if (!blocks.length) return '';
         return '<section class="tier-section">' +
                    '<h2 class="tier-label">' + label + '</h2>' +
-                   blocks.map(renderTile).join('') +
+                   '<div class="grid">' +
+                       blocks.map(renderTile).join('') +
+                   '</div>' +
                '</section>';
     }
 
-    // 6. Storyline preface + three tier sections, written to the #map-view's
-    //    .content-area container (provided by plan 04-01 Task 1).
+    // 5. In-content hub header (D-06) + three tier grids, written to the
+    //    #map-view's .content-area. Order: serif "The Agent Economy" page-title,
+    //    optional mono "updated {date}" sub-line (only when latest exists),
+    //    serif storyline, then the tier grids. No eyebrow kicker (UI-SPEC §5).
     var html =
+        '<h1 class="page-title">The Agent Economy</h1>' +
+        subline +
         '<div class="hub-storyline">' + escapeHtml(HUB_STORYLINE) + '</div>' +
         tierSection(TIER_LABELS.substrate, substrateBlocks) +
         tierSection(TIER_LABELS.behavior, behaviorBlocks) +
