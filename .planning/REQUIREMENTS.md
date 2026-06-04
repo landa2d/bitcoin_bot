@@ -18,14 +18,14 @@ Requirements for the v2.0 milestone. Each maps to a roadmap phase.
 
 ### Typography
 
-- [ ] **TYPE-01**: Body/reading text and titles render in Source Serif 4; no monospace body paragraphs appear anywhere on the site.
-- [ ] **TYPE-02**: Monospace (IBM Plex Mono) is reserved for UI chrome only — eyebrow/label, metadata (Edition # · date), tab labels, buttons, tags, and code.
-- [ ] **TYPE-03**: A single serif heading style is used at ~18px body / ~1.6 line-height; the second monospace heading treatment is removed.
+- [x] **TYPE-01**: Body/reading text and titles render in Source Serif 4; no monospace body paragraphs appear anywhere on the site.
+- [x] **TYPE-02**: Monospace (IBM Plex Mono) is reserved for UI chrome only — eyebrow/label, metadata (Edition # · date), tab labels, buttons, tags, and code.
+- [x] **TYPE-03**: A single serif heading style is used at ~18px body / ~1.6 line-height; the second monospace heading treatment is removed.
 
 ### Color
 
-- [ ] **COLOR-01**: A single light-mode palette (warm off-white background, surfaces, ink scale, violet accent) is defined via CSS variables and applied site-wide, replacing the dark map theme.
-- [ ] **COLOR-02**: One accent only is used — for links, active tab, card borders, and progress dots; no second brand color appears.
+- [x] **COLOR-01**: A single light-mode palette (warm off-white background, surfaces, ink scale, violet accent) is defined via CSS variables and applied site-wide, replacing the dark map theme.
+- [x] **COLOR-02**: One accent only is used — for links, active tab, card borders, and progress dots; no second brand color appears.
 
 ### Mode toggle
 
@@ -85,11 +85,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | NAV-02 | Phase 11 | Pending |
 | NAV-03 | Phase 11 | Pending |
 | NAV-04 | Phase 11 | Pending |
-| TYPE-01 | Phase 11 | Pending |
-| TYPE-02 | Phase 11 | Pending |
-| TYPE-03 | Phase 11 | Pending |
-| COLOR-01 | Phase 11 | Pending |
-| COLOR-02 | Phase 11 | Pending |
+| TYPE-01 | Phase 11 | Complete |
+| TYPE-02 | Phase 11 | Complete |
+| TYPE-03 | Phase 11 | Complete |
+| COLOR-01 | Phase 11 | Complete |
+| COLOR-02 | Phase 11 | Complete |
 | TGL-01 | Phase 12 | Pending |
 | TGL-02 | Phase 12 | Pending |
 | MAP-01 | Phase 13 | Pending |
@@ -100,6 +100,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | POLISH-01 | Phase 14 | Pending |
 
 **Coverage:**
+
 - v1 requirements: 17 total
 - Mapped to phases: 17 ✓ (Phase 11: 9, Phase 12: 2, Phase 13: 4, Phase 14: 2)
 - Unmapped: 0 ✓

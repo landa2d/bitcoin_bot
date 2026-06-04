@@ -52,7 +52,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 **Plans**: 2 plansPlans:
 **Wave 1**
 
-- [ ] 11-01-PLAN.md — Design-system foundation: style-base.css :root tokens + Source Serif 4 / IBM Plex Mono typography + Google-Fonts link; retire dark var blocks + Courier body (COLOR-01/02, TYPE-01/02/03)
+- [x] 11-01-PLAN.md — Design-system foundation: style-base.css :root tokens + Source Serif 4 / IBM Plex Mono typography + Google-Fonts link; retire dark var blocks + Courier body (COLOR-01/02, TYPE-01/02/03)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -121,7 +121,7 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 8. Validation Sentinels | v1.0 | 2/2 | Complete | 2026-06-02 |
 | 9. Gated Publishing + Approval | v1.0 | 2/2 | Complete | 2026-06-03 |
 | 10. Operator Write Commands | v1.0 | 3/3 | Complete | 2026-06-04 |
-| 11. Design System + Nav Shell | v2.0 | 0/2 | Planned | - |
+| 11. Design System + Nav Shell | v2.0 | 1/2 | In Progress|  |
 | 12. Newsletter Section Restyle | v2.0 | 0/TBD | Not started | - |
 | 13. Agent Economy Grid | v2.0 | 0/TBD | Not started | - |
 | 14. About Stub + Polish Pass | v2.0 | 0/TBD | Not started | - |
