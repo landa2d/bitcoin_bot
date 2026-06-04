@@ -13,15 +13,21 @@
 </head>
 <body class="technical">
   <div class="container">
-    <!-- Top navigation bar -->
-    <nav class="top-nav">
-        <div class="nav-left">
-            <span class="nav-dot"></span>
-            <span class="nav-logo">AGENTPULSE</span>
-            <a href="#/map" class="nav-map-link">Map</a>
-        </div>
-        <button class="btn-subscribe-primary" onclick="scrollToSubscribe()">SUBSCRIBE</button>
-    </nav>
+    <!-- Sticky 3-tab nav shell (NAV-01..04) -->
+    <header>
+        <nav class="nav">
+            <a href="#/" class="brand">
+                <span class="dot"></span>
+                <span class="brand-wordmark">AGENTPULSE</span>
+            </a>
+            <div class="tabs">
+                <a href="#/" class="tab" data-tab="newsletter">Newsletter</a>
+                <a href="#/map" class="tab" data-tab="map">Agent Economy</a>
+                <a href="#/about" class="tab" data-tab="about">What is AgentPulse</a>
+            </div>
+            <button class="subscribe" onclick="scrollToSubscribe()">SUBSCRIBE</button>
+        </nav>
+    </header>
 
     <!-- Hero area -->
     <div class="hero">
@@ -44,7 +50,7 @@
         <!-- Reader view -->
         <div id="reader-view" style="display:none">
             <div class="content-area">
-                <a href="#/" class="back-link">&larr; All editions</a>
+                <a href="#/" class="backlink">&larr; Back to Newsletter</a>
                 <article id="newsletter-content"></article>
             </div>
         </div>
@@ -57,7 +63,7 @@
         <!-- Block (single-block page) view -->
         <div id="block-view" style="display:none">
             <div class="content-area">
-                <a href="#/map" class="back-link">&larr; Map</a>
+                <a href="#/map" class="backlink">&larr; Back to the map</a>
                 <div id="block-content"></div>
             </div>
         </div>
