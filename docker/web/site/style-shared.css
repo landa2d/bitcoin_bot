@@ -230,6 +230,31 @@ article li { margin-bottom: 8px; }
 
 article strong { color: var(--ink); }
 
+/* Magazine article header (D-05, UI-SPEC §D) — eyebrow → serif display title →
+   mono byline, sitting above the prose. `.eyebrow` and `.page-title` are the
+   locked Phase 11 base classes; this supplies the byline (mono 14px/400 metadata
+   line) and resets the inherited `article p`/<h1> margins to the spec'd rhythm
+   (kicker→title 4px, title→byline 4px, byline→body 32px). This rule is the seam
+   between Plan 12-01 (CSS) and Plan 12-02 (markup): Plan 01 shipped no `.byline`
+   because the markup did not exist yet; Plan 02 could not touch CSS. Resolved
+   here as a post-merge integration fix. */
+.article-header {
+    margin-bottom: var(--space-xl);
+}
+.article-header .eyebrow {
+    margin: 0 0 var(--space-xs);
+}
+.article-header .page-title {
+    margin: 0;
+}
+.article-header .byline {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ink-faint);
+    margin: var(--space-xs) 0 0;
+}
+
 /* Emphasized lead — the first article paragraph reads one step up (D-05).
    Serif via the `article p` family; no markdown change. */
 #newsletter-content > p:first-of-type {
