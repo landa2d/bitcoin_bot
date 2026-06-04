@@ -75,7 +75,9 @@ function setMode(mode) {
     url.searchParams.set('mode', mode);
     history.replaceState({}, '', url);
 
-    // Body class (drives CSS variables)
+    // Body class — content re-render selector only (D-03). Phase 11 decoupled the
+    // palette to :root; this class no longer drives CSS variables/theme, it only
+    // re-renders the dual-mode list/article content below.
     document.body.classList.remove('technical', 'strategic');
     document.body.classList.add(mode);
 
@@ -144,19 +146,21 @@ function showView(viewName) {
     var aboutView = document.getElementById('about-view');
     if (aboutView) aboutView.style.display = viewName === 'about' ? 'block' : 'none';
 
-    // Hide the technical/strategic mode toggle on map routes and the About page
-    // (D-03). The body class stays so the --accent-tier cascade still resolves;
-    // only the toggle UI and its subtitle are hidden. Defensive null-checks per PATTERNS §3.
-    var hideToggle = (viewName === 'map' || viewName === 'block' || viewName === 'status' || viewName === 'about');
+    // The Technical/Strategic toggle lives ONLY inside the Newsletter list (TGL-01,
+    // D-01). Its host is the .hero block, scoped to the list route below; these
+    // belt-and-suspenders display lines keep the toggle/subtitle hidden off-list.
+    // Defensive null-checks per PATTERNS §3.
+    var showToggle = (viewName === 'list');
     var toggle = document.querySelector('.mode-toggle');
-    if (toggle) toggle.style.display = hideToggle ? 'none' : 'inline-flex';
+    if (toggle) toggle.style.display = showToggle ? 'inline-flex' : 'none';
     var subtitle = document.getElementById('mode-subtitle');
-    if (subtitle) subtitle.style.display = hideToggle ? 'none' : 'block';
+    if (subtitle) subtitle.style.display = showToggle ? 'block' : 'none';
 
-    // About is a standalone top-level section — hide the newsletter hero so the
-    // stub reads clean. Phase 14 (ABOUT-01) builds the full page.
+    // The .hero is the list-scoped minimal D3 header (it hosts the toggle). Render
+    // it ONLY on the list route (TGL-01); the reader/map/block/status/about views
+    // carry their own headers. Phase 13 owns the map/status hero behavior.
     var hero = document.querySelector('.hero');
-    if (hero) hero.style.display = viewName === 'about' ? 'none' : 'block';
+    if (hero) hero.style.display = viewName === 'list' ? 'block' : 'none';
 }
 
 // ─── List View ───────────────────────────────────────────────────────────────
