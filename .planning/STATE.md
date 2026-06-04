@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Frontend Redesign
-status: executing
-stopped_at: Phase 13 UI-SPEC approved
-last_updated: "2026-06-04T22:20:44.124Z"
-last_activity: 2026-06-04 -- Phase 13 Plan 01 complete (hub card grid + DEFERRED + single-accent)
+status: verifying
+stopped_at: Completed 13-02-PLAN.md (block-detail + status de-dark; style-map.css retired)
+last_updated: "2026-06-04T22:33:27.182Z"
+last_activity: 2026-06-04 -- Phase 13 Plan 02 complete (block/status de-dark + delete-and-fold complete)
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 75
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 
 ## Current Position
 
-Phase: 13 (agent-economy-grid) — EXECUTING
-Plan: 2 of 2
-Status: Plan 01 complete; Plan 02 (block-detail + status de-dark pass) ready to execute
-Last activity: 2026-06-04 -- Phase 13 Plan 01 complete
+Phase: 13 (agent-economy-grid) — PLAN-COMPLETE (ready for verification)
+Plan: 2 of 2 (both complete)
+Status: Phase 13 plans complete — ready for /gsd-verify-phase 13 (end-of-phase human-verify gate)
+Last activity: 2026-06-04 -- Phase 13 Plan 02 complete (block/status de-dark; style-map.css deleted)
 
-Progress: [████████░░] 83%
+Progress: [███████▌░░] 75%
 
 ## Roadmap (v2.0 — Phases 11–14)
 
@@ -67,6 +67,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 13]: Delete-and-fold CSS disposition — de-darkened hub map rules (.maturity-pill/.tier-label/.hub-storyline + .grid/.card/.card-deferred/.card-dots-row/.deferred-tag) migrated into style-shared.css; style-map.css keeps only the Plan-02-scoped block/status/timeline rules
 - [Phase 13]: Per-tier color cascade deleted (D-05/COLOR-02) — single --accent on card stripes + filled dots, tiers differ only by mono section label; data-accent retired from renderTile/renderMaturityPill (hub path); block/status data-accent left for Plan 02
 - [Phase 13]: DEFERRED derived in JS from current_body_version_id null (D-04) — full-width card (grid-column:1/-1) + empty data-stage=0 dots + "· DEFERRED" tag; no .eq('status') filter, RLS stays the boundary (D-17). Hub sub-line reuses the global .hero-date class (no new .hub-subline rule, keeps Task 3 JS-only)
+- [Phase 13 P02]: Delete-and-fold COMPLETED (D-01..D-03) — block-detail (.block-header/h1, .block-tension, .block-body p/li/h2/a, .evolution>h2, .timeline-*, .timeline-show-all) + status (.status-row/.status-title/.status-subtitle/.status-synth) de-darkened into style-shared.css; style-map.css DELETED and its <link> removed from index.html. Final cascade = style-base.css + style-shared.css (2 links, Phase 12 topology)
+- [Phase 13 P02]: Block-body prose scoped (D-03) — .block-body p/li/h2/a copy the Phase 12 article rules WITHOUT adding .block-body to the article selector list, so the magazine layer stays Newsletter-only (no mono-kicker/display-title/lead/blockquote on the block view). Block H1 = serif 24px/600 reading-view title (smaller than the hub .page-title hero, D-06)
+- [Phase 13 P02]: Single-accent + security preserved — data-accent dropped from renderBlock + renderStatusRow markup (D-05; --accent-tier fallback retired everywhere); live_tension placeholder gate, marked.parse(bodyMd) sole bypass, safeHttpUrl+escapeHtml model, and no .eq('status') filter all preserved verbatim (D-17). Three empty-states restyled to serif --ink-soft, wording unchanged
+- [Phase 13 P02]: One stray legacy .subscribe-heading Georgia literal migrated to var(--serif) — gate-conformance + a genuine missed TYPE-01 migration (the last Georgia, literal in the shared sheet); content-neutral
 
 ### Pending Todos
 
@@ -94,13 +98,15 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-06-04T22:20:44.120Z
-Stopped at: Completed 13-01-PLAN.md (hub card grid + DEFERRED + single-accent collapse)
-Resume file: .planning/phases/13-agent-economy-grid/13-02-PLAN.md
+Last session: 2026-06-04T22:33:27.182Z
+Stopped at: Completed 13-02-PLAN.md (block-detail + status de-dark; style-map.css retired; both Phase 13 plans done)
+Resume file: None — Phase 13 plans complete; run /gsd-verify-phase 13
 
 ## Operator Next Steps
 
+- Verify Phase 13 (Agent Economy Grid) → `/gsd-verify-phase 13` (end-of-phase human-verify gate; load the site locally via the substituted preview per the web-static-preview-substitution memory — confirm hub grid, a normal block reading view (identity-trust), a DEFERRED block, and the #/status deep-link all render on the light/serif single-accent system, no dark bg / Courier).
 - Verify Phase 11 (Design System + Nav Shell) → `/gsd-verify-phase 11` (local-only checks per D-01 batch deploy; load the site locally to confirm the 4 ROADMAP success criteria)
+- Phase 14 (About Stub + Polish Pass) is the last v2.0 phase before the batch deploy (D-01).
 
 ## Performance Metrics
 
@@ -111,3 +117,4 @@ Resume file: .planning/phases/13-agent-economy-grid/13-02-PLAN.md
 | Phase Phase 12 P01 P12-01 | 6min | 3 tasks | 1 files |
 | Phase 12 P02 | 4 min | 3 tasks | 2 files |
 | Phase 13 P01 | 4min | 3 tasks | 3 files |
+| Phase 13 P02 | 6min | 3 tasks | 4 files |

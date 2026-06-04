@@ -32,7 +32,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 - [x] **Phase 11: Design System + Nav Shell** - Single light-mode token palette, Source Serif 4 / IBM Plex Mono typography, and the persistent stateful 3-tab nav shell with back-arrow that every later view reuses (completed 2026-06-04)
 - [x] **Phase 12: Newsletter Section Restyle** - Restyle the edition list + article on the new shell and relocate the Technical/Strategic mode toggle into the Newsletter section only (completed 2026-06-04)
-- [ ] **Phase 13: Agent Economy Grid** - Re-render the map as a responsive 2-column grouped card grid driven by the canonical data-source block taxonomy, with deferred-block treatment
+- [x] **Phase 13: Agent Economy Grid** - Re-render the map as a responsive 2-column grouped card grid driven by the canonical data-source block taxonomy, with deferred-block treatment (completed 2026-06-04)
 - [ ] **Phase 14: About Stub + Polish Pass** - Add the nav-reachable "What is AgentPulse" stub and apply the site-wide spacing/radius consistency pass
 
 ## Phase Details
@@ -103,7 +103,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 2** *(blocked on Wave 1 completion — shares app.js + style-shared.css + style-map.css)*
 
-- [ ] 13-02-PLAN.md — Block detail restrained system pass (serif body prose, light surfaces, single-accent dots, structure kept) + `#/status` light de-dark pass + complete `style-map.css` delete-and-fold; drop dead `data-accent` from `renderBlock`/`renderStatusRow` (D-01/D-02/D-03/D-05, TYPE-01)
+- [x] 13-02-PLAN.md — Block detail restrained system pass (serif body prose, light surfaces, single-accent dots, structure kept) + `#/status` light de-dark pass + complete `style-map.css` delete-and-fold; drop dead `data-accent` from `renderBlock`/`renderStatusRow` (D-01/D-02/D-03/D-05, TYPE-01)
 
 **UI hint**: yes
 
@@ -141,5 +141,5 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 10. Operator Write Commands | v1.0 | 3/3 | Complete | 2026-06-04 |
 | 11. Design System + Nav Shell | v2.0 | 2/2 | Complete    | 2026-06-04 |
 | 12. Newsletter Section Restyle | v2.0 | 2/2 | Complete    | 2026-06-04 |
-| 13. Agent Economy Grid | v2.0 | 1/2 | In Progress|  |
+| 13. Agent Economy Grid | v2.0 | 2/2 | Complete   | 2026-06-04 |
 | 14. About Stub + Polish Pass | v2.0 | 0/TBD | Not started | - |
