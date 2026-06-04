@@ -39,35 +39,32 @@ body {
 
 /* ── Hero Area ───────────────────────────────────────────────── */
 
+/* Minimal D3 Newsletter header (D-07). The tagline is dropped; the headline
+   matches the locked `.page-title` display; the date is a mono metadata line.
+   4px-grid rhythm: 32px top → 8px (title→date, via headline margin) → 16px
+   (date→toggle, via .hero-date margin). */
+
 .hero {
-    padding: 40px 0 24px;
+    padding: var(--space-xl) 0 0;
     text-align: center;
 }
 
-.hero-tagline {
-    font-family: var(--mono);
-    font-size: 14px;
-    font-weight: 400;
-    color: var(--accent);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-}
-
 .hero-headline {
-    font-family: Georgia, serif;
-    font-size: 29px;
-    font-weight: 400;
-    color: var(--text-primary);
-    margin-bottom: 8px;
+    font-family: var(--serif);
+    font-size: clamp(30px, 5vw, 46px);
+    font-weight: 600;
+    line-height: 1.12;
+    letter-spacing: -.015em;
+    color: var(--ink);
+    margin-bottom: var(--space-sm);
 }
 
 .hero-date {
     font-family: var(--mono);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 400;
-    color: var(--text-secondary);
-    margin-bottom: 28px;
+    color: var(--ink-faint);
+    margin-bottom: var(--space-md);
 }
 
 /* ── Mode Toggle ─────────────────────────────────────────────── */
@@ -116,41 +113,48 @@ body {
     padding-top: 20px;
 }
 
-/* Article entries in list view */
+/* Article entries in list view — B1 restyled rows (D-04): --line-divided rows
+   (not cards), rationed --ink-faint kicker, serif title link + serif excerpt. */
 
 .article-entry {
-    margin-bottom: 20px;
+    padding: var(--space-lg) 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.article-entry:last-child {
+    border-bottom: none;
 }
 
 .section-label {
     font-family: var(--mono);
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--accent);
-    letter-spacing: 1.5px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-faint);
+    letter-spacing: .2em;
     text-transform: uppercase;
-    margin-bottom: 6px;
+    margin-bottom: var(--space-xs);
 }
 
 .entry-title {
-    font-family: Georgia, serif;
-    font-size: 18px;
-    font-weight: 400;
-    color: var(--text-primary);
+    font-family: var(--serif);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -.01em;
     text-decoration: none;
     display: block;
-    margin-bottom: 6px;
+    margin-bottom: var(--space-sm);
 }
 
 .entry-title:hover {
-    color: var(--accent);
+    color: var(--accent-ink);
 }
 
 .entry-preview {
-    font-family: var(--mono);
-    font-size: 15px;
+    font-family: var(--serif);
+    font-size: 18px;
     font-weight: 400;
-    color: var(--text-body);
+    color: var(--ink-soft);
     line-height: 1.5;
 }
 
