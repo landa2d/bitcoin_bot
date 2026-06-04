@@ -1,0 +1,72 @@
+/* === AgentPulse v2.0 — Design-System Base === */
+/* Single light-mode token layer (COLOR-01/02) + Source Serif 4 / IBM Plex Mono
+   typography (TYPE-01/02/03). Loaded FIRST in index.html so its :root and serif
+   body win the cascade over the legacy component rules in style-shared.css.
+   Hand-authored CSS, no build step. Nav-shell / tab / back-control styles are
+   Plan 02 — this file ships tokens + body typography + display classes only. */
+
+/* ── Design Tokens ───────────────────────────────────────────── */
+
+:root {
+  /* Color — single light-mode palette, ONE violet accent (COLOR-01/02) */
+  --bg:#faf8f5;
+  --surface:#ffffff;
+  --ink:#1a1916;
+  --ink-soft:#55514a;
+  --ink-faint:#8a857c;
+  --line:#e7e2da;
+  --line-strong:#d8d2c7;
+  --accent:#5b3df5;
+  --accent-soft:#efeaff;
+  --accent-ink:#4a2fd6;
+
+  /* Font stacks (TYPE-01/02) — serif for reading, mono for UI chrome only */
+  --serif:'Source Serif 4', Georgia, serif;
+  --mono:'IBM Plex Mono', ui-monospace, monospace;
+
+  /* Spacing — 4px grid */
+  --space-xs:4px;
+  --space-sm:8px;
+  --space-md:16px;
+  --space-lg:24px;
+  --space-xl:32px;
+  --space-2xl:48px;
+  --space-3xl:64px;
+
+  /* Radius — 3 / 7 / 8 / 10 set */
+  --radius:10px;
+  --radius-sm:7px;
+  --radius-btn:8px;
+  --radius-dot:3px;
+}
+
+/* ── Base Body Typography (TYPE-01/TYPE-03) ──────────────────── */
+/* Serif 18px / 1.62 reading base; no body-level monospace anywhere. */
+
+body {
+  font-family:var(--serif);
+  font-size:18px;
+  line-height:1.62;
+  background:var(--bg);
+  color:var(--ink);
+}
+
+/* ── Display / Eyebrow Type Classes (D-02) ───────────────────── */
+/* Ship the CSS only; hero DOM restructure is Phase 12. Weights 400/600 only. */
+
+.page-title {
+  font-family:var(--serif);
+  font-size:clamp(30px, 5vw, 46px);
+  font-weight:600;
+  line-height:1.12;
+  letter-spacing:-.015em;
+}
+
+.eyebrow {
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:.2em;
+  color:var(--accent-ink);
+}
