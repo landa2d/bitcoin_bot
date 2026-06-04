@@ -73,10 +73,10 @@
 - [x] **CMD-02**: `/map-pending` — drafts awaiting approval + `unsorted` entries awaiting assignment
 - [x] **CMD-03**: `/map-approve <version_id>` — publish draft body via atomic transaction
 - [x] **CMD-04**: `/map-reject <version_id>` — supersede draft, no live change
-- [ ] **CMD-05**: `/map-assign <entry_id> <block_slug>` — move `unsorted` entry to a block
-- [ ] **CMD-06**: `/map-entry <block_slug> <text>` — manual timeline drop; fills `what_shifted`, prompts/accepts inline for `why_it_mattered`
-- [ ] **CMD-07**: `/map-synth <block_slug>` — force re-synthesis now, ignoring trigger thresholds
-- [ ] **CMD-08**: `/map-tension <block_slug> <text>` — update a block's `live_tension`
+- [x] **CMD-05**: `/map-assign <entry_id> <block_slug>` — move `unsorted` entry to a block
+- [x] **CMD-06**: `/map-entry <block_slug> <text>` — manual timeline drop; fills `what_shifted`, prompts/accepts inline for `why_it_mattered`
+- [x] **CMD-07**: `/map-synth <block_slug>` — force re-synthesis now, ignoring trigger thresholds
+- [x] **CMD-08**: `/map-tension <block_slug> <text>` — update a block's `live_tension`
 
 ### Design tokens (v1 — only what encodes information)
 
@@ -183,10 +183,10 @@ Every v1 requirement is mapped to exactly one phase. Coverage: 52/52.
 | GATE-04 | Phase 9 | Complete |
 | CMD-03 | Phase 9 | Complete |
 | CMD-04 | Phase 9 | Complete |
-| CMD-05 | Phase 10 | Pending |
-| CMD-06 | Phase 10 | Pending |
-| CMD-07 | Phase 10 | Pending |
-| CMD-08 | Phase 10 | Pending |
+| CMD-05 | Phase 10 | Complete |
+| CMD-06 | Phase 10 | Complete |
+| CMD-07 | Phase 10 | Complete |
+| CMD-08 | Phase 10 | Complete |
 
 **Coverage:**
 

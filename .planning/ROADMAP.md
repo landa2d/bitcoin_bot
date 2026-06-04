@@ -21,7 +21,7 @@ Ten phases ordered by the build spec's risk/dependency chain (section 9). The jo
 - [x] **Phase 7: Synthesis Loop Core** - Trigger evaluation, input assembly, Sonnet generation with hot-reloadable identity, draft writes (completed 2026-06-01)
 - [x] **Phase 8: Validation Sentinels** - Tension/length/maturity/structure flags annotate drafts without blocking; visible on Telegram cards
 - [x] **Phase 9: Gated Publishing + Approval Commands** - Atomic publish transaction wired to `/map-approve` and `/map-reject` (completed 2026-06-03)
-- [ ] **Phase 10: Operator Write Commands** - `/map-assign`, `/map-entry`, `/map-synth`, `/map-tension` complete the control surface
+- [x] **Phase 10: Operator Write Commands** - `/map-assign`, `/map-entry`, `/map-synth`, `/map-tension` complete the control surface (completed 2026-06-03)
 
 ## Phase Details
 
@@ -288,12 +288,12 @@ Plans:
 **Plans**: 3 plans
 **Wave 1**
 
-- [ ] 10-01-PLAN.md — Migrations 040 (synth-request table + reassign lifecycle + 4 SECURITY DEFINER RPCs) + 041 (WR-01 unique open-draft index), applied live via MCP (CMD-05..08 schema)
+- [x] 10-01-PLAN.md — Migrations 040 (synth-request table + reassign lifecycle + 4 SECURITY DEFINER RPCs) + 041 (WR-01 unique open-draft index), applied live via MCP (CMD-05..08 schema)
 
 **Wave 2** *(blocked on Wave 1; Plans 02 + 03 parallel — disjoint files)*
 
-- [ ] 10-02-PLAN.md — Owner-gated /map-assign, /map-entry, /map-synth, /map-tension in gato_brain: generalized RPC helper, slug allowlist, four handlers, dispatch, unsorted-read filter (CMD-05/06/07/08)
-- [ ] 10-03-PLAN.md — Processor synth-request drain poller + force-synth bypass + 23505 benign-skip + scheduler registration (CMD-07)
+- [x] 10-02-PLAN.md — Owner-gated /map-assign, /map-entry, /map-synth, /map-tension in gato_brain: generalized RPC helper, slug allowlist, four handlers, dispatch, unsorted-read filter (CMD-05/06/07/08)
+- [x] 10-03-PLAN.md — Processor synth-request drain poller + force-synth bypass + 23505 benign-skip + scheduler registration (CMD-07)
 
 ## Progress
 
@@ -312,4 +312,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Synthesis Loop Core | 2/2 | Complete    | 2026-06-01 |
 | 8. Validation Sentinels | 2/2 | Complete    | 2026-06-02 |
 | 9. Gated Publishing + Approval Commands | 2/2 | Complete    | 2026-06-03 |
-| 10. Operator Write Commands | 0/TBD | Not started | - |
+| 10. Operator Write Commands | 3/3 | Complete    | 2026-06-04 |
