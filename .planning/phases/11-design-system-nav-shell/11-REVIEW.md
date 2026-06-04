@@ -13,7 +13,8 @@ findings:
   warning: 4
   info: 2
   total: 8
-status: issues_found
+status: remediated
+remediated: 2026-06-04
 ---
 
 # Phase 11: Code Review Report
@@ -167,6 +168,25 @@ header { background: var(--bg); } /* opaque fallback */
 **Issue:** `style-base.css` sets `body { line-height:1.62 }` (TYPE-01) and `style-shared.css` sets `body { line-height:1.6 }`. Both are `body` selectors with equal specificity; the later-loaded `style-shared.css` wins, so the body line-height is actually `1.6`, not the intended `1.62`. Minor, but the design token is silently overridden — the opposite of the "base loaded first so it wins" comment at `style-base.css:4`. (The cascade comment is misleading: for equal-specificity `body` rules, *last* wins, not *first*.)
 
 **Fix:** Remove `line-height: 1.6;` from `style-shared.css:17` so the `style-base.css` reading base (`1.62`) takes effect, or reconcile the two intentionally.
+
+---
+
+## Orchestrator Disposition (2026-06-04)
+
+Reviewed each finding on merit (not blindly applied). Two classes: real regressions fixed before phase verification (per the operator's fail-loud / fix-blockers-before-verify guidance); planned/scoped-out items documented as accepted deferrals tracked to their owning phase.
+
+| ID | Verdict | Action |
+|----|---------|--------|
+| **CR-01** | **Real blocker — FIXED** | Confirmed 17 component tokens orphaned (global chrome: text scale, borders, footer bottom-bar, subscribe CTA+input, code/quote surfaces, mode toggle) — defeated COLOR-01 "site-wide". Added a legacy-token compatibility bridge in `style-base.css :root` mapping all 17 onto the existing light palette (no new hues; COLOR-02 intact). Verified **zero** consumed-but-undefined custom properties remain across the three loaded stylesheets. Commit `4edd217`. |
+| **CR-02** | **Accepted deferral → Phase 14** | NOT a defect to fix here. The `#/about` tab is *intentionally* forward-wired per Plan 11-02 Task 1 ("`#/about` … the route lands in Phase 14. Do NOT add the route here") under batch-deploy (D-01, nothing ships until the milestone is complete). The `about` mapping in `setActiveTab` is intentional forward-compat. Route + view + stub are **ABOUT-01 (Phase 14)**. |
+| **WR-01** | **Accepted deferral → Phase 14** | Paired with CR-02 — `showView()` gains its `about` branch when the route lands in Phase 14. |
+| **WR-02** | **Deferred → Phase 13** | `style-map.css` Courier→`var(--mono)` migration. Plan 11-01 Task 3 explicitly scoped `style-map.css` out ("Do NOT touch style-map.css at all this phase"); the map/block/status restyle is **Phase 13 (Agent Economy grid)**. Acceptable "rough between phases" under D-01. |
+| **WR-03** | **Deferred → Phase 13** | `body.technical` `*-on-dark` tier accents on the light bg (WCAG risk) live entirely in `style-map.css` on the hub/block pages — the Phase 13 restyle target. Collapse the technical/strategic accent split to light `*-base` and re-audit contrast there. Accepted inter-phase rough-edge under batch-deploy. |
+| **WR-04** | **Deferred → Phase 14 polish (POLISH-01)** | Header `backdrop-filter` opaque fallback. Minor progressive-enhancement; the bg is already 86% opaque. UI-SPEC locked the `.86` value; the `@supports` fallback fits the Phase 14 site-wide polish pass. |
+| **IN-01** | **Accepted (no action)** | `.brand-wordmark` inherits `.brand` and renders correctly; harmless dead class. |
+| **IN-02** | **FIXED** | `style-shared.css` body `line-height` `1.6` → `1.62` so the TYPE-03 spec value wins (shared's body rule loads after base's). Commit `4edd217`. |
+
+Net: both blockers resolved (CR-01 fixed in-code; CR-02 is a documented planned deferral, not a regression). All deferrals are tracked to Phase 13/14 requirements already on the roadmap.
 
 ---
 
