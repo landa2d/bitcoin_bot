@@ -3,53 +3,14 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 /* ── Color Variables ─────────────────────────────────────────── */
-
-body.technical {
-    --accent: #00e5a0;
-    --bg: #0a0a0f;
-    --text-primary: #ffffff;
-    --text-secondary: rgba(255, 255, 255, 0.85);
-    --text-body: #ffffff;
-    --text-hint: rgba(255, 255, 255, 0.7);
-    --border: rgba(255, 255, 255, 0.08);
-    --toggle-bg: rgba(255, 255, 255, 0.06);
-    --toggle-inactive: rgba(255, 255, 255, 0.85);
-    --btn-bg: #00e5a0;
-    --btn-text: #0a0a0f;
-    --bar-bg: rgba(0, 229, 160, 0.06);
-    --bar-border: rgba(0, 229, 160, 0.15);
-    --bar-text: rgba(255, 255, 255, 0.85);
-    --btn-secondary-border: rgba(0, 229, 160, 0.3);
-    --blockquote-bg: rgba(255, 255, 255, 0.03);
-    --code-bg: rgba(255, 255, 255, 0.08);
-    --pre-bg: rgba(255, 255, 255, 0.04);
-    --input-bg: rgba(255, 255, 255, 0.04);
-}
-
-body.strategic {
-    --accent: #7c3aed;
-    --bg: #ffffff;
-    --text-primary: #0a0a0f;
-    --text-secondary: #0a0a0f;
-    --text-body: #0a0a0f;
-    --text-hint: rgba(10, 10, 15, 0.8);
-    --border: rgba(0, 0, 0, 0.08);
-    --toggle-bg: rgba(0, 0, 0, 0.05);
-    --toggle-inactive: #0a0a0f;
-    --btn-bg: #7c3aed;
-    --btn-text: #ffffff;
-    --bar-bg: rgba(124, 58, 237, 0.04);
-    --bar-border: rgba(124, 58, 237, 0.12);
-    --bar-text: #0a0a0f;
-    --btn-secondary-border: rgba(124, 58, 237, 0.3);
-    --blockquote-bg: rgba(124, 58, 237, 0.04);
-    --code-bg: rgba(124, 58, 237, 0.08);
-    --pre-bg: rgba(124, 58, 237, 0.03);
-    --input-bg: rgba(0, 0, 0, 0.03);
-}
+/* The dark dual-accent body.technical / body.strategic var blocks were
+   retired in Phase 11 (D-04): the single light :root palette now lives in
+   style-base.css. Re-introducing a body.x-scoped palette would override
+   :root by specificity and is forbidden. */
 
 body {
-    font-family: 'Courier New', monospace;
+    /* body-level monospace font-family removed in Phase 11 — serif body now
+       comes from style-base.css (TYPE-01). */
     background: var(--bg);
     color: var(--text-primary);
     line-height: 1.6;
@@ -72,54 +33,9 @@ body {
     transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease !important;
 }
 
-/* ── Top Navigation Bar ──────────────────────────────────────── */
-
-.top-nav {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 0;
-    border-bottom: 0.5px solid var(--border);
-}
-
-.nav-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.nav-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--accent);
-    flex-shrink: 0;
-}
-
-.nav-logo {
-    font-family: 'Courier New', monospace;
-    font-size: 17px;
-    font-weight: 500;
-    color: var(--text-primary);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}
-
-.btn-subscribe-primary {
-    font-family: 'Courier New', monospace;
-    font-size: 15px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    padding: 8px 20px;
-    border-radius: 6px;
-    border: none;
-    background: var(--btn-bg);
-    color: var(--btn-text);
-    cursor: pointer;
-}
-
-.btn-subscribe-primary:hover { opacity: 0.9; }
+/* The old top navigation bar rules (brand dot, wordmark, primary subscribe
+   button) were retired in Phase 11 — superseded by the sticky 3-tab <header>
+   shell in style-base.css (Plan 02). */
 
 /* ── Hero Area ───────────────────────────────────────────────── */
 
@@ -129,7 +45,7 @@ body {
 }
 
 .hero-tagline {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 14px;
     font-weight: 400;
     color: var(--accent);
@@ -147,7 +63,7 @@ body {
 }
 
 .hero-date {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 15px;
     font-weight: 400;
     color: var(--text-secondary);
@@ -165,7 +81,7 @@ body {
 }
 
 .toggle-btn {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 15px;
     font-weight: 400;
     padding: 8px 20px;
@@ -184,7 +100,7 @@ body {
 }
 
 .mode-subtitle {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 13px;
     font-weight: 400;
     color: var(--text-hint);
@@ -207,7 +123,7 @@ body {
 }
 
 .section-label {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 13px;
     font-weight: 400;
     color: var(--accent);
@@ -231,30 +147,20 @@ body {
 }
 
 .entry-preview {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 15px;
     font-weight: 400;
     color: var(--text-body);
     line-height: 1.5;
 }
 
-/* Back link */
-
-.back-link {
-    font-family: 'Courier New', monospace;
-    font-size: 15px;
-    color: var(--accent);
-    text-decoration: none;
-    display: inline-block;
-    margin-bottom: 20px;
-}
-
-.back-link:hover { opacity: 0.8; }
+/* The old back-link rule was retired in Phase 11 — superseded by the
+   "← Back to [section]" back-control in style-base.css (Plan 02). */
 
 /* ── Reader Article Styles ───────────────────────────────────── */
 
 article h2 {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 15px;
     font-weight: 700;
     color: var(--accent);
@@ -265,7 +171,7 @@ article h2 {
 }
 
 article h3 {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 15px;
     font-weight: 700;
     color: var(--accent);
@@ -276,7 +182,7 @@ article h3 {
 }
 
 article p {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 15px;
     color: var(--text-body);
     line-height: 1.5;
@@ -286,7 +192,7 @@ article p {
 article ul, article ol {
     margin-bottom: 16px;
     padding-left: 24px;
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 15px;
     color: var(--text-body);
     line-height: 1.5;
@@ -337,7 +243,7 @@ article table {
     width: 100%;
     border-collapse: collapse;
     margin: 16px 0;
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 15px;
 }
 
@@ -380,7 +286,7 @@ article tr:last-child td {
 }
 
 .subscribe-tagline {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 14px;
     color: var(--text-secondary);
     margin-bottom: 24px;
@@ -395,7 +301,7 @@ article tr:last-child td {
     width: 100%;
     padding: 10px 14px;
     font-size: 15px;
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     border: 0.5px solid var(--border);
     border-radius: 6px;
     background: var(--input-bg);
@@ -417,7 +323,7 @@ article tr:last-child td {
     justify-content: center;
     gap: 16px;
     margin-bottom: 16px;
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 14px;
     color: var(--text-secondary);
 }
@@ -434,7 +340,7 @@ article tr:last-child td {
 }
 
 #subscribe-btn {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 15px;
     font-weight: 700;
     letter-spacing: 0.5px;
@@ -451,7 +357,7 @@ article tr:last-child td {
 #subscribe-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 .subscribe-status {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 14px;
     margin-top: 12px;
     min-height: 16px;
@@ -470,14 +376,14 @@ article tr:last-child td {
 }
 
 .bottom-bar-text {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 14px;
     font-weight: 400;
     color: var(--bar-text);
 }
 
 .btn-subscribe-secondary {
-    font-family: 'Courier New', monospace;
+    font-family: var(--mono);
     font-size: 14px;
     font-weight: 400;
     color: var(--accent);
