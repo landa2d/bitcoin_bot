@@ -13,7 +13,7 @@ body {
        comes from style-base.css (TYPE-01). */
     background: var(--bg);
     color: var(--text-primary);
-    line-height: 1.6;
+    line-height: 1.62;
     min-height: 100vh;
 }
 

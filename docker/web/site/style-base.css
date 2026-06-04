@@ -20,6 +20,31 @@
   --accent-soft:#efeaff;
   --accent-ink:#4a2fd6;
 
+  /* Legacy-token compatibility bridge (COLOR-01 — applied site-wide).
+     The retired dark body.technical/.strategic blocks were the SOLE definition
+     site for these component token names, which style-shared.css still consumes
+     for global chrome (body/article text, borders, footer bottom-bar, subscribe
+     CTA + input, code/quote surfaces, mode toggle). Re-home them onto the new
+     light palette here so the foundation actually renders site-wide. Phases
+     12-13 restyle these components and may retire these aliases. */
+  --text-primary:var(--ink);
+  --text-body:var(--ink);
+  --text-secondary:var(--ink-soft);
+  --text-hint:var(--ink-faint);
+  --border:var(--line);
+  --btn-bg:var(--accent);
+  --btn-text:#fff;
+  --btn-secondary-border:var(--line-strong);
+  --input-bg:var(--surface);
+  --code-bg:var(--line);
+  --pre-bg:var(--line);
+  --blockquote-bg:var(--accent-soft);
+  --toggle-bg:var(--accent-soft);
+  --toggle-inactive:var(--ink-faint);
+  --bar-bg:var(--surface);
+  --bar-border:var(--line);
+  --bar-text:var(--ink-soft);
+
   /* Font stacks (TYPE-01/02) — serif for reading, mono for UI chrome only */
   --serif:'Source Serif 4', Georgia, serif;
   --mono:'IBM Plex Mono', ui-monospace, monospace;
