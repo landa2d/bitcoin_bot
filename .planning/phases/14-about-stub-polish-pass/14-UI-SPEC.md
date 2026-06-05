@@ -1,10 +1,11 @@
 ---
 phase: 14
 slug: about-stub-polish-pass
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-06-05
+reviewed_at: 2026-06-05
 ---
 
 # Phase 14 — UI Design Contract
@@ -120,7 +121,7 @@ Convention (unchanged): nothing on the site uses a radius outside the 3/7/8/10 s
 | Page-sub / metadata | 14px | 400 | About page-sub "A newsletter written by a multi-agent system" — mono 14px `--ink-faint` (matches the locked metadata/page-sub step). |
 | **Agent-pill name (`.an`)** | **13px** | **600** | Net-new. Agent name in mono 600 `--accent-ink` — chrome label, NOT body. Sits on the existing mono chrome family (13px is within the locked 11–14px mono band; ported from mockup `.an` 13px). |
 
-**Agent-pill description (`.ad`):** the mockup renders `.ad` at serif 13.5px `--ink-soft`. **Reconciliation:** keep it as a short serif descriptor (one line, `line-height:1.4`, `--ink-soft`) — it is reading content, so serif is correct (TYPE-01). Size **13.5px** is below the 18px body step but is acceptable as a *compact card-caption* role analogous to the 16px table-cell serif (`article td`) and the 13px mono metadata already in the system; it is NOT a body paragraph. If the checker flags the half-pixel, round to **14px** (no behavioral change). Both land within the established reading-caption band.
+**Agent-pill description (`.ad`):** the mockup renders `.ad` at serif 13.5px `--ink-soft`. **Reconciliation (RESOLVED — checker FLAG, Dimension 4):** rendered at **14px** to land on a declared scale step rather than an undeclared half-pixel — keep it as a short serif descriptor (one line, `line-height:1.4`, `--ink-soft`); it is reading content, so serif is correct (TYPE-01). 14px sits in the established reading-caption band as a *compact card-caption* role analogous to the 16px table-cell serif (`article td`); it is NOT a body paragraph. No behavioral change from the mockup's 13.5px.
 
 **Weight policy (unchanged, exactly 2):** 400 (serif body, mono page-sub, serif pill description) and 600 (page-title, eyebrow, mono pill name). 500 and 700 remain retired. No new Google-Fonts weight requested.
 
@@ -178,7 +179,7 @@ The **only net-new component** is the agent-pill block. It is ported from the mo
 - `font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--accent-ink);`
 
 ### `.agent-pill .ad` (one-line role)
-- `font-family: var(--serif); font-size: 13.5px; color: var(--ink-soft); margin-top: var(--space-xs); line-height: 1.4;`
+- `font-family: var(--serif); font-size: 14px; color: var(--ink-soft); margin-top: var(--space-xs); line-height: 1.4;`
 
 **Porting checklist (executor):** (1) every color is a `:root` token, no literal hex; (2) radius is `var(--radius-btn)`, not the mockup's `8px` literal; (3) gaps/padding/margins are `--space-*` tokens, not the mockup's `12px/14px/16px/24px` literals; (4) name is mono-chrome, description is serif-reading (TYPE-01/02); (5) no `data-accent` / per-pill tint.
 
