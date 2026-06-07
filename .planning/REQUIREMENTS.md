@@ -41,7 +41,7 @@ Requirements for the v2.0 milestone. Each maps to a roadmap phase.
 
 ### About
 
-- [ ] **ABOUT-01**: A nav-reachable "What is AgentPulse" page exists, stubbed with the existing about copy (the deeper pipeline-diagram content is deferred).
+- [x] **ABOUT-01**: A nav-reachable "What is AgentPulse" page exists, stubbed with the existing about copy (the deeper pipeline-diagram content is deferred).
 
 ### Spacing & polish
 

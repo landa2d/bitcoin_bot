@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Frontend Redesign
 status: executing
-stopped_at: Phase 14 UI-SPEC approved
-last_updated: "2026-06-05T12:59:41.447Z"
-last_activity: 2026-06-05 -- Phase 14 planning complete
+stopped_at: Completed 14-01-PLAN.md (About stub, ABOUT-01) — ready to execute 14-02 (POLISH-01)
+last_updated: "2026-06-07T17:58:48.278Z"
+last_activity: 2026-06-07 -- 14-01 (About stub) complete
 progress:
   total_phases: 4
   completed_phases: 3
   total_plans: 8
-  completed_plans: 6
-  percent: 75
+  completed_plans: 7
+  percent: 88
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 13 — agent-economy-grid
+**Current focus:** Phase 14 — about-stub-polish-pass
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-05 -- Phase 14 planning complete
+Phase: 14 (about-stub-polish-pass) — EXECUTING
+Plan: 2 of 2
+Status: 14-01 (About stub) complete; ready to execute 14-02 (POLISH-01)
+Last activity: 2026-06-07 -- 14-01 (About stub) complete
 
-Progress: [███████▌░░] 75%
+Progress: [█████████░] 88%
 
 ## Roadmap (v2.0 — Phases 11–14)
 
@@ -71,6 +71,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - [Phase 13 P02]: Block-body prose scoped (D-03) — .block-body p/li/h2/a copy the Phase 12 article rules WITHOUT adding .block-body to the article selector list, so the magazine layer stays Newsletter-only (no mono-kicker/display-title/lead/blockquote on the block view). Block H1 = serif 24px/600 reading-view title (smaller than the hub .page-title hero, D-06)
 - [Phase 13 P02]: Single-accent + security preserved — data-accent dropped from renderBlock + renderStatusRow markup (D-05; --accent-tier fallback retired everywhere); live_tension placeholder gate, marked.parse(bodyMd) sole bypass, safeHttpUrl+escapeHtml model, and no .eq('status') filter all preserved verbatim (D-17). Three empty-states restyled to serif --ink-soft, wording unchanged
 - [Phase 13 P02]: One stray legacy .subscribe-heading Georgia literal migrated to var(--serif) — gate-conformance + a genuine missed TYPE-01 migration (the last Georgia, literal in the shared sheet); content-neutral
+- [Phase 14 P01]: ABOUT-01 done — #about-view fleshed out to the real "What is AgentPulse" page (eyebrow → title → page-sub → 3 reconciled prose paragraphs → 5-pill .agent-row); net-new .about/.agent-pill CSS ported through the .card/.grid + article-p analogs onto :root tokens (no literal hex, var(--radius-btn), --space-*). Static non-interactive pills (no left-stripe/hover/cursor/link), single-accent .an (no data-accent). app.js untouched (route pre-wired); no deploy (D-06)
+- [Phase 14 P01]: About prose + 5 .ad role strings shipped verbatim from the UI-SPEC Copywriting Contract as an OPERATOR-REVIEWABLE DRAFT — operator to finalize copy before the separate D-06 deploy. Accuracy bar held (D-02/D-03): "eight cooperating services", exactly 5 content-agent pills, Gato Brain/LLM Proxy/Web in prose P3 (not pills), Processor = background scheduler (not a routing orchestrator)
 
 ### Pending Todos
 
@@ -98,15 +100,18 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-06-05T12:26:19.563Z
-Stopped at: Phase 14 UI-SPEC approved
-Resume file: .planning/phases/14-about-stub-polish-pass/14-UI-SPEC.md
+Last session: 2026-06-07T17:58:48.274Z
+Stopped at: Session resumed — Phase 14 planning complete (14-01 + 14-02 PLAN.md created, no SUMMARY yet); ready to execute
+Resume file: None
+Note: root .planning/.continue-here.md is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
 ## Operator Next Steps
 
+- Execute 14-02 (POLISH-01) → the remaining Phase-14 plan: snap the 3 subscribe-form 6px radii to tokens + run the D-05 confirmation grep gate (which also validates the net-new `.agent-pill var(--radius-btn)` from 14-01), and re-anchor the named loose/off-grid spacing literals onto `--space-*` tokens.
+- Review/finalize the About prose + 5 `.ad` role strings (14-01 shipped the UI-SPEC draft verbatim) — operator-owned editorial copy, to lock before the D-06 deploy. Accuracy bar is non-negotiable: "eight cooperating services", 5 content-agent pills only, Processor = background scheduler (not a router).
 - Verify Phase 13 (Agent Economy Grid) → `/gsd-verify-phase 13` (end-of-phase human-verify gate; load the site locally via the substituted preview per the web-static-preview-substitution memory — confirm hub grid, a normal block reading view (identity-trust), a DEFERRED block, and the #/status deep-link all render on the light/serif single-accent system, no dark bg / Courier).
 - Verify Phase 11 (Design System + Nav Shell) → `/gsd-verify-phase 11` (local-only checks per D-01 batch deploy; load the site locally to confirm the 4 ROADMAP success criteria)
-- Phase 14 (About Stub + Polish Pass) is the last v2.0 phase before the batch deploy (D-01).
+- Phase 14 (About Stub + Polish Pass) is the last v2.0 phase before the batch deploy (D-01); the live deploy + accumulated 11/12/13/14 browser-UAT walk is the separate operator-approved ship step (D-06), NOT part of the phase.
 
 ## Performance Metrics
 
@@ -118,3 +123,4 @@ Resume file: .planning/phases/14-about-stub-polish-pass/14-UI-SPEC.md
 | Phase 12 P02 | 4 min | 3 tasks | 2 files |
 | Phase 13 P01 | 4min | 3 tasks | 3 files |
 | Phase 13 P02 | 6min | 3 tasks | 4 files |
+| Phase 14 P01 | 4min | 2 tasks | 2 files |

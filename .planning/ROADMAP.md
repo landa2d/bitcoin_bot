@@ -122,7 +122,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 1**
 
-- [ ] 14-01-PLAN.md — About stub (ABOUT-01): flesh out `#about-view` into the real "What is AgentPulse" page (eyebrow/title/page-sub/3 reconciled paragraphs/5 agent-pills) + net-new token-anchored agent-pill CSS
+- [x] 14-01-PLAN.md — About stub (ABOUT-01): flesh out `#about-view` into the real "What is AgentPulse" page (eyebrow/title/page-sub/3 reconciled paragraphs/5 agent-pills) + net-new token-anchored agent-pill CSS
 
 **Wave 2** *(blocked on Wave 1 — shares style-shared.css)*
 
@@ -151,4 +151,4 @@ Phases execute in numeric order: 11 → 12 → 13 → 14
 | 11. Design System + Nav Shell | v2.0 | 2/2 | Complete    | 2026-06-04 |
 | 12. Newsletter Section Restyle | v2.0 | 2/2 | Complete    | 2026-06-04 |
 | 13. Agent Economy Grid | v2.0 | 2/2 | Complete    | 2026-06-05 |
-| 14. About Stub + Polish Pass | v2.0 | 0/2 | Planned | - |
+| 14. About Stub + Polish Pass | v2.0 | 1/2 | In Progress|  |
