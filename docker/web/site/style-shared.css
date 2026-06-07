@@ -855,6 +855,88 @@ article tr:last-child td {
 
 .btn-subscribe-secondary:hover { opacity: 0.8; }
 
+/* ── About page (ABOUT-01) ───────────────────────────────────────
+   Net-new, fully token-anchored from the Phase-11 system. Ports the
+   serif-body pattern from `article p` (:597) for `.about p`, the mono
+   page-sub from `.article-header .byline` (:637), and a net-new
+   agent-pill surface-card grid ported from `.card`/`.grid` (:243/:253)
+   with the DIVERGENCES applied (no left stripe, no hover lift, no link
+   semantics — static informational pills). Single-accent discipline
+   (COLOR-02): every `.an` name shares the one `--accent-ink`; no
+   `data-accent`, no per-pill tint. */
+
+/* About prose — serif reading body (TYPE-01). P1 primary = --ink;
+   P2/P3 secondary = --ink-soft via `.body-soft`. */
+.about p {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink);
+    line-height: 1.62;
+    margin-bottom: var(--space-md);
+}
+
+.about p.body-soft {
+    color: var(--ink-soft);
+}
+
+/* Page-sub — mono metadata line (analog: `.article-header .byline`). */
+.about-stub .page-sub {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ink-faint);
+    margin: var(--space-xs) 0 0;
+}
+
+/* Inline links in About prose (analog: `article a`). */
+.about a {
+    color: var(--accent-ink);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    text-decoration-color: var(--accent-soft);
+}
+
+/* Agent-pill grid container (analog: `.grid`) — responsive auto-fit
+   collapse to 1-col on narrow widths. */
+.agent-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-md);
+    margin: var(--space-lg) 0;
+}
+
+/* Agent-pill (analog: `.card`) — surface card WITHOUT the left-accent
+   stripe, hover lift, transition, cursor, or link semantics. Static,
+   non-interactive informational card. */
+.agent-pill {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-btn);
+    background: var(--surface);
+    padding: var(--space-md) var(--space-md);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Agent name — mono chrome label, single accent (COLOR-02). */
+.agent-pill .an {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-ink);
+}
+
+/* Agent role — serif reading caption (analog: `article td`, shrunk to 14px). */
+.agent-pill .ad {
+    font-family: var(--serif);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--ink-soft);
+    margin-top: var(--space-xs);
+    line-height: 1.4;
+}
+
 /* ── Responsive ──────────────────────────────────────────────── */
 
 @media (max-width: 600px) {
