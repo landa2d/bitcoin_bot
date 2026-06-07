@@ -45,7 +45,7 @@ Requirements for the v2.0 milestone. Each maps to a roadmap phase.
 
 ### Spacing & polish
 
-- [ ] **POLISH-01**: Vertical rhythm is tightened and radii are consistent (~7–10px) across cards, toggle, and buttons — minimalist but not sparse.
+- [x] **POLISH-01**: Vertical rhythm is tightened and radii are consistent (~7–10px) across cards, toggle, and buttons — minimalist but not sparse.
 
 ## v2 Requirements
 
@@ -97,7 +97,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MAP-03 | Phase 13 | Complete |
 | MAP-04 | Phase 13 | Complete |
 | ABOUT-01 | Phase 14 | Partial — minimal `#/about` stub shipped in Phase 11 (UAT); full page Phase 14 |
-| POLISH-01 | Phase 14 | Pending |
+| POLISH-01 | Phase 14 | Complete |
 | DARK-01 | Deferred (v-next) | Deferred |
 | ABOUT-02 | Deferred (v-next) | Deferred |
 
