@@ -762,7 +762,7 @@ article tr:last-child td {
     font-size: 15px;
     font-family: var(--mono);
     border: 0.5px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     background: var(--input-bg);
     color: var(--text-primary);
     margin-bottom: 12px;
@@ -805,7 +805,7 @@ article tr:last-child td {
     letter-spacing: 0.5px;
     text-transform: uppercase;
     padding: 8px 24px;
-    border-radius: 6px;
+    border-radius: var(--radius-btn);
     border: none;
     background: var(--btn-bg);
     color: var(--btn-text);
@@ -849,7 +849,7 @@ article tr:last-child td {
     background: transparent;
     border: 1px solid var(--btn-secondary-border);
     padding: 6px 16px;
-    border-radius: 6px;
+    border-radius: var(--radius-btn);
     cursor: pointer;
 }
 
