@@ -128,9 +128,9 @@ body {
 /* ── Content Area ────────────────────────────────────────────── */
 
 .content-area {
-    padding: 0 0 32px;
+    padding: 0 0 var(--space-xl);
     border-top: 0.5px solid var(--border);
-    padding-top: 20px;
+    padding-top: var(--space-lg);
 }
 
 /* Article entries in list view — B1 restyled rows (D-04): --line-divided rows
@@ -220,7 +220,7 @@ body {
     color: var(--ink-faint);
     letter-spacing: .18em;
     text-transform: uppercase;
-    margin: var(--space-xl) 0 12px;
+    margin: var(--space-xl) 0 var(--space-sm);
 }
 
 .tier-label:first-of-type {
@@ -255,7 +255,7 @@ body {
     border: 1px solid var(--line);
     border-left: 3px solid var(--accent);
     border-radius: var(--radius);
-    padding: 20px 20px 16px;
+    padding: var(--space-lg) var(--space-lg) var(--space-md);
     display: flex;
     flex-direction: column;
     gap: var(--space-sm);
@@ -403,7 +403,7 @@ body {
     font-weight: 600;
     line-height: 1.2;
     color: var(--ink);
-    margin: 32px 0 12px;
+    margin: var(--space-xl) 0 var(--space-sm);
 }
 
 /* In-content links — copies the Phase 12 `article a` (--accent-ink underline). */
@@ -581,7 +581,7 @@ article h2 {
     line-height: 1.2;
     color: var(--ink);
     margin-top: 28px;
-    margin-bottom: 12px;
+    margin-bottom: var(--space-sm);
 }
 
 article h3 {
@@ -590,7 +590,7 @@ article h3 {
     font-weight: 600;
     line-height: 1.25;
     color: var(--ink);
-    margin-top: 20px;
+    margin-top: var(--space-lg);
     margin-bottom: 8px;
 }
 
@@ -653,7 +653,7 @@ article strong { color: var(--ink); }
 article blockquote {
     border-left: 3px solid var(--accent);
     padding: var(--space-md);
-    margin: 20px 0;
+    margin: var(--space-lg) 0;
     background: var(--accent-soft);
     border-radius: var(--radius-sm);
     color: var(--ink);
@@ -731,7 +731,7 @@ article tr:last-child td {
 /* ── Subscribe Section ───────────────────────────────────────── */
 
 #subscribe-section {
-    padding: 40px 0;
+    padding: var(--space-xl) 0;
     text-align: center;
     border-top: 0.5px solid var(--border);
 }
@@ -765,7 +765,7 @@ article tr:last-child td {
     border-radius: var(--radius-sm);
     background: var(--input-bg);
     color: var(--text-primary);
-    margin-bottom: 12px;
+    margin-bottom: var(--space-sm);
 }
 
 #subscribe-email:focus {
@@ -818,7 +818,7 @@ article tr:last-child td {
 .subscribe-status {
     font-family: var(--mono);
     font-size: 14px;
-    margin-top: 12px;
+    margin-top: var(--space-sm);
     min-height: 16px;
     color: var(--accent);
 }
