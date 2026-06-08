@@ -63,7 +63,9 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
   2. The live `maturity` enum is verified against the three doc values (`building` / `contested` / `nascent`); any mismatch is surfaced explicitly with a resolution, never silently remapped.
   3. The roster diff is resolved per slug with a written disposition (first-publish vs body-rewrite vs retire): `negotiation-coordination` (added; v2.0-deferred), the live `regulation-legal` (omitted from docs), and the tier model (docs' 2 tiers vs the live 3) each have a decision.
   4. The reconciliation plan is presented for operator approval before any block is written — the "read before writing, I approve" gate from the brief is satisfied.
-**Plans**: TBD
+**Plans**: 2 plans
+  - [ ] 15-01-PLAN.md — Write 15-CONTRACT.md (live storage+serve contract + verified maturity enum: INV-01/INV-02) and 15-RECONCILIATION.md (per-slug roster disposition + D-04 hub pin + D-03 collision-free reshuffle: ROST-01)
+  - [ ] 15-02-PLAN.md — Operator-approval gate: present both docs, record the read-before-write approval before any Phase 16 write (SC#4)
 
 ### Phase 16: Content Load (unpublished)
 **Goal**: All in-scope canonical bodies (hub `agent-economy` + the reconciled blocks) land in `economy_map` as unsorted/unpublished, using the YAML frontmatter as the metadata source of truth — content is present in the store with zero change for live visitors, and the load refuses to land anything blank or partial.
@@ -116,7 +118,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 | 12. Newsletter Section Restyle | v2.0 | 2/2 | Complete | 2026-06-04 |
 | 13. Agent Economy Grid | v2.0 | 2/2 | Complete | 2026-06-05 |
 | 14. About Stub + Polish Pass | v2.0 | 2/2 | Complete | 2026-06-08 |
-| 15. Inventory & Roster Reconciliation | v2.1 | 0/? | Not started | - |
+| 15. Inventory & Roster Reconciliation | v2.1 | 0/2 | Planned | - |
 | 16. Content Load (unpublished) | v2.1 | 0/? | Not started | - |
 | 17. Cross-link Wiring & Preview | v2.1 | 0/? | Not started | - |
 | 18. Gated Batch Publish | v2.1 | 0/? | Not started | - |
