@@ -47,7 +47,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial content: load the hub `agent-economy` + 7 block bodies into `economy_map` as unpublished, wire the `#/map/<slug>` cross-block links, verify on a non-published preview route, then publish live in ONE operator-approved batch. Content-only — no UI redesign, no pipeline / proxy / agent-service changes. Honors the spine: intake/load is reversible and unpublished by default; **publishing is the final gated, operator-approved step.** Direct PostgREST + `Accept-Profile` (no `.in_()`); append-only trigger → canonical-body-rewrite (never raw UPDATE); fail-loud on missing fields; branch + `/diff` + web-only scoped deploy.
 
-- [ ] **Phase 15: Inventory & Roster Reconciliation** — Confirm the live storage/serve contract + maturity enum, and resolve the per-slug roster diff before any write (read-before-write, operator-approved plan).
+- [x] **Phase 15: Inventory & Roster Reconciliation** — Confirm the live storage/serve contract + maturity enum, and resolve the per-slug roster diff before any write (read-before-write, operator-approved plan). (completed 2026-06-08)
 - [ ] **Phase 16: Content Load (unpublished)** — Load all 8 canonical bodies into `economy_map` as unsorted/unpublished, fail-loud on missing fields, correct existing rows via the rewrite path — zero change for live visitors.
 - [ ] **Phase 17: Cross-link Wiring & Preview** — Make every `#/map/<slug>` cross-block + hub→block link resolve, and verify the loaded-but-unpublished content end-to-end on a non-published preview route.
 - [ ] **Phase 18: Gated Batch Publish** — Publish the content live via the existing atomic publish RPC in ONE operator-approved batch (web-only scoped deploy).
@@ -72,7 +72,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-  - [ ] 15-02-PLAN.md — Operator-approval gate: present both docs, record the read-before-write approval before any Phase 16 write (SC#4)
+  - [x] 15-02-PLAN.md — Operator-approval gate: present both docs, record the read-before-write approval before any Phase 16 write (SC#4)
 
 ### Phase 16: Content Load (unpublished)
 
@@ -134,7 +134,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 | 12. Newsletter Section Restyle | v2.0 | 2/2 | Complete | 2026-06-04 |
 | 13. Agent Economy Grid | v2.0 | 2/2 | Complete | 2026-06-05 |
 | 14. About Stub + Polish Pass | v2.0 | 2/2 | Complete | 2026-06-08 |
-| 15. Inventory & Roster Reconciliation | v2.1 | 1/2 | In Progress|  |
+| 15. Inventory & Roster Reconciliation | v2.1 | 2/2 | Complete   | 2026-06-08 |
 | 16. Content Load (unpublished) | v2.1 | 0/? | Not started | - |
 | 17. Cross-link Wiring & Preview | v2.1 | 0/? | Not started | - |
 | 18. Gated Batch Publish | v2.1 | 0/? | Not started | - |
