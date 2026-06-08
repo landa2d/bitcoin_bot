@@ -55,48 +55,64 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 ## Phase Details
 
 ### Phase 15: Inventory & Roster Reconciliation
+
 **Goal**: The live `economy_map` storage + serve contract is documented from the running system (not assumed), and the per-slug roster diff vs the docs is resolved with an explicit, operator-approved disposition — so no write happens before the contract and the roster are locked.
 **Depends on**: Nothing (first v2.1 phase; v2.0 renderer already shipped)
 **Requirements**: INV-01, INV-02, ROST-01
 **Success Criteria** (what must be TRUE):
+
   1. The block data contract (slug / tier / title / subtitle / order / maturity / body / timeline), the append-only trigger behavior, and the atomic publish RPC are each documented from the live schema — a reader can see exactly how a block is stored and published without reading code.
   2. The live `maturity` enum is verified against the three doc values (`building` / `contested` / `nascent`); any mismatch is surfaced explicitly with a resolution, never silently remapped.
   3. The roster diff is resolved per slug with a written disposition (first-publish vs body-rewrite vs retire): `negotiation-coordination` (added; v2.0-deferred), the live `regulation-legal` (omitted from docs), and the tier model (docs' 2 tiers vs the live 3) each have a decision.
-  4. The reconciliation plan is presented for operator approval before any block is written — the "read before writing, I approve" gate from the brief is satisfied.
-**Plans**: 2 plans
+  4. The reconciliation plan is presented for operator approval before any block is written — the "read before writing, I approve" gate from the brief is satisfied.**Plans**: 2 plans
+
+**Wave 1**
+
   - [ ] 15-01-PLAN.md — Write 15-CONTRACT.md (live storage+serve contract + verified maturity enum: INV-01/INV-02) and 15-RECONCILIATION.md (per-slug roster disposition + D-04 hub pin + D-03 collision-free reshuffle: ROST-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
   - [ ] 15-02-PLAN.md — Operator-approval gate: present both docs, record the read-before-write approval before any Phase 16 write (SC#4)
 
 ### Phase 16: Content Load (unpublished)
+
 **Goal**: All in-scope canonical bodies (hub `agent-economy` + the reconciled blocks) land in `economy_map` as unsorted/unpublished, using the YAML frontmatter as the metadata source of truth — content is present in the store with zero change for live visitors, and the load refuses to land anything blank or partial.
 **Depends on**: Phase 15 (roster + contract + enum locked)
 **Requirements**: LOAD-01, LOAD-02, LOAD-03
 **Success Criteria** (what must be TRUE):
+
   1. Every in-scope body is present in `economy_map` as unsorted/unpublished, with metadata (slug/tier/title/subtitle/order/maturity) taken verbatim from the frontmatter — and the live `#/map` is unchanged for visitors (nothing newly visible).
   2. The load halts loud with a clear error on any missing/empty required field (empty body, null maturity) and lands no blank or partial block — a deliberately broken input is rejected, not published.
   3. Existing live rows for matching slugs are corrected via the canonical-body-rewrite path (the append-only trigger is respected — no raw UPDATE), and no duplicate block rows are created for any slug.
   4. All `economy_map` access in the load uses direct PostgREST + `Accept-Profile` (no supabase-py `.in_()`).
+
 **Plans**: TBD
 
 ### Phase 17: Cross-link Wiring & Preview
+
 **Goal**: The loaded-but-unpublished content renders correctly and is fully navigable on a non-published preview route — every `#/map/<slug>` cross-block link and every hub→block click-through resolves to the right page, maturity pills render the three values, and the hub presents as the `#/map` landing without a duplicated block list — proving the content is publish-ready before any publish.
 **Depends on**: Phase 16 (content loaded)
 **Requirements**: LINK-01, PREV-01, HUB-01
 **Success Criteria** (what must be TRUE):
+
   1. Every `#/map/<slug>` cross-block link inside the bodies resolves to the correct block page, and the hub's block entries are clickable through to their deep-dive pages (no dead or mis-routed links).
   2. The loaded-but-unpublished content renders correctly on a non-published preview route — maturity pills show the three values (`building` / `contested` / `nascent`) and cross-links + hub→block click-through work end-to-end — with the live published site still unchanged.
   3. The hub renders as the `#/map` landing: thesis + two-tier framing as the intro above the block grid, with the block list appearing once (cards), not duplicated as both prose links and cards.
   4. Any router/renderer fix needed to make existing links resolve stays content-scoped — no net-new UI feature is introduced (the v2.0 renderer is reused, not redesigned).
+
 **Plans**: TBD
 
 ### Phase 18: Gated Batch Publish
+
 **Goal**: The reconciled, loaded, preview-verified content goes live in ONE operator-approved batch via the existing atomic publish RPC and a web-only scoped deploy — afterward the hub renders at `#/map` and every published block renders at `#/map/<slug>` with the full reading surface.
 **Depends on**: Phase 17 (preview-verified, publish-ready)
 **Requirements**: PUB-01
 **Success Criteria** (what must be TRUE):
+
   1. The content is published live via the existing atomic publish RPC in ONE operator-approved batch — the publish is explicitly gated (operator approves the batch before it goes live), never a blind/full deploy.
   2. After publish, the hub renders at `#/map` (filling the previously 5/7-unpublished grid) and every published block renders at `#/map/<slug>` with back arrow, title, subtitle, maturity pill, and body.
   3. The deploy is web-only and scoped (branch + `/diff` + the `agentpulse-web` rebuild) — the pipeline, LLM proxy, and agent services are untouched.
+
 **Plans**: TBD
 
 ## Progress
@@ -128,7 +144,9 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 Parked for a future milestone — **not scheduled, not for now**. Surfaces at next `/gsd-new-milestone` planning. Source-of-truth detail lives in `.planning/todos/pending/`.
 
 ### Backend follow-ups (candidate: a backend-hardening milestone)
+
 Carried forward from v1.0; out of v2.0 (frontend) scope.
+
 - analyst predictions `title` expire bug (P2)
 - soft-cap allow-negative hardening (P5)
 - pay-endpoint 500 activation E2E — RPC root-cause fixed in migration 037 (P2)
@@ -136,5 +154,7 @@ Carried forward from v1.0; out of v2.0 (frontend) scope.
 - research trigger file permissions (P4)
 
 ### Agent Economy content (separate workstream, drafts already staged)
+
 Surfaced by the v2.0 live-site UAT: 5 of 7 economy-map blocks are unpublished (deferred), so the map reads as one column and the hub storyline subtitle is stale. Publishing the bodies un-defers them.
+
 - Publish the hub + 7 block bodies to the live `#/map` (drafts staged untracked in `.planning/docs/00-hub.md … 07-*.md` + `EXECUTION_BRIEF.md`).
