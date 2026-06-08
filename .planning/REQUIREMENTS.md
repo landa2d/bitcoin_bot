@@ -44,13 +44,13 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INV-01 | — | Pending |
-| INV-02 | — | Pending |
-| ROST-01 | — | Pending |
-| LOAD-01 | — | Pending |
-| LOAD-02 | — | Pending |
-| LOAD-03 | — | Pending |
-| LINK-01 | — | Pending |
-| PREV-01 | — | Pending |
-| HUB-01 | — | Pending |
-| PUB-01 | — | Pending |
+| INV-01 | Phase 15 | Pending |
+| INV-02 | Phase 15 | Pending |
+| ROST-01 | Phase 15 | Pending |
+| LOAD-01 | Phase 16 | Pending |
+| LOAD-02 | Phase 16 | Pending |
+| LOAD-03 | Phase 16 | Pending |
+| LINK-01 | Phase 17 | Pending |
+| PREV-01 | Phase 17 | Pending |
+| HUB-01 | Phase 17 | Pending |
+| PUB-01 | Phase 18 | Pending |
