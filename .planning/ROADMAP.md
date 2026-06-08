@@ -109,7 +109,15 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
   3. The hub renders as the `#/map` landing: thesis + two-tier framing as the intro above the block grid, with the block list appearing once (cards), not duplicated as both prose links and cards.
   4. Any router/renderer fix needed to make existing links resolve stays content-scoped — no net-new UI feature is introduced (the v2.0 renderer is reused, not redesigned).
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+**Wave 1**
+
+  - [ ] 17-01-PLAN.md — Content-scoped app.js render path: dormant PREVIEW_ENABLED flag (D-04), read-only draft-fetch fallback in loadBlock (D-03), hub draft-body intro + Tier-1/Tier-2 prose-list trim in renderHub (D-06a/c) — ships a prod no-op (LINK-01, PREV-01, HUB-01)
+
+**Wave 2** *(blocked on Wave 1 — renders the path under test)*
+
+  - [ ] 17-02-PLAN.md — Fail-loud cross-link harness (D-05) + service_role-key diff guard (D-02), local elevated preview container (D-01/D-02), operator manual click-through checkpoint (PREV-01, LINK-01, HUB-01)
 
 ### Phase 18: Gated Batch Publish
 
@@ -145,7 +153,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 | 14. About Stub + Polish Pass | v2.0 | 2/2 | Complete | 2026-06-08 |
 | 15. Inventory & Roster Reconciliation | v2.1 | 2/2 | Complete    | 2026-06-08 |
 | 16. Content Load (unpublished) | v2.1 | 3/3 | Complete    | 2026-06-08 |
-| 17. Cross-link Wiring & Preview | v2.1 | 0/? | Not started | - |
+| 17. Cross-link Wiring & Preview | v2.1 | 0/2 | Planned     | - |
 | 18. Gated Batch Publish | v2.1 | 0/? | Not started | - |
 
 ## Backlog
