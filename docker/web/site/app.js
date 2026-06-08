@@ -487,10 +487,28 @@ async function loadHub() {
         if (!hubRes.error && hubRes.data && hubRes.data.length) hubBodyMd = hubRes.data[0].body_md;
     }
 
-    renderHub(data, hubBodyMd);
+    // Phase 17 (preview-only) — draft proposed_maturity per loaded block.
+    // blocks.maturity is stale until the Phase-18 publish watermark (mig 038), so
+    // the cards must read the draft's proposed_maturity to preview publish-ready,
+    // and a draft-bearing block is no longer rendered DEFERRED. One query,
+    // flag-gated; DORMANT in prod (no flag), NO-OP for anon (RLS exposes only
+    // published). Migration 041 guarantees at most one open draft per slug.
+    var draftMaturity = null;
+    if (PREVIEW_ENABLED) {
+        var dmRes = await sb.schema('economy_map')
+            .from('block_body_versions')
+            .select('block_slug,proposed_maturity')
+            .eq('status', 'draft');
+        if (!dmRes.error && dmRes.data) {
+            draftMaturity = {};
+            dmRes.data.forEach(function(r) { if (r.proposed_maturity) draftMaturity[r.block_slug] = r.proposed_maturity; });
+        }
+    }
+
+    renderHub(data, hubBodyMd, draftMaturity);
 }
 
-function renderHub(data, hubBodyMd) {
+function renderHub(data, hubBodyMd, draftMaturity) {
     // 1. Updated stamp — latest last_synthesized_at across all blocks (D-06).
     //    ISO string-sort orders correctly; omit the stamp entirely when every
     //    block has a null last_synthesized_at (v1 state). Phase 13: the hub
@@ -515,12 +533,18 @@ function renderHub(data, hubBodyMd) {
     //    (MAP-04, D-04). The deferred state is derived in JS from a column
     //    already in the loadHub select — NO .eq('status',…) filter (D-17, RLS).
     function renderTile(b) {
-        var deferred = !b.current_body_version_id;
+        // Phase 17 (preview-only): a draft-bearing block previews as publish-ready
+        // — never DEFERRED, and its pill reflects the draft's proposed_maturity
+        // (blocks.maturity is stale pre-publish). draftMaturity is null in prod →
+        // identical pre-change behavior (deferred keyed off current_body_version_id).
+        var previewMaturity = (draftMaturity && draftMaturity[b.slug]) ? draftMaturity[b.slug] : null;
+        var deferred = !b.current_body_version_id && !previewMaturity;
+        var pillArg = previewMaturity ? { maturity: previewMaturity } : b;
         var cls = deferred ? 'card card-deferred' : 'card';
         var dotsRow = deferred
-            ? '<div class="card-dots-row">' + renderMaturityPill(b, true) +
+            ? '<div class="card-dots-row">' + renderMaturityPill(pillArg, true) +
                   '<span class="deferred-tag">· DEFERRED</span></div>'
-            : renderMaturityPill(b, false);
+            : renderMaturityPill(pillArg, false);
         return '<a href="#/map/' + encodeURIComponent(b.slug) + '" class="' + cls + '">' +
                    '<h3 class="tile-title">' + escapeHtml(b.title) + '</h3>' +
                    '<p class="tile-subtitle">' + escapeHtml(b.subtitle) + '</p>' +
@@ -603,40 +627,42 @@ async function loadBlock(slug) {
     // without Evolution entries.
     var timelineEntries = (timelineRes.error || !timelineRes.data) ? [] : timelineRes.data;
 
-    // Conditionally fetch the published body (D-10 / D-17). Per D-17 NO
-    // .eq('status', 'published') — RLS only exposes published versions to anon.
-    // If the FK target doesn't satisfy RLS, this returns null and we fall through
-    // to the body-hidden path.
+    // Body resolution. Phase 17 (D-03, LINK-01 + preview-maturity fix): in preview
+    // mode the loaded DRAFT takes precedence so the page shows exactly what Phase
+    // 18 will publish — its body AND its proposed_maturity (blocks.maturity stays
+    // stale until the publish watermark, mig 038). Flag-gated: prod (no flag)
+    // skips the draft entirely and takes the unchanged published path below, so
+    // the deployed render is a byte-for-byte no-op. Migration 041 guarantees at
+    // most ONE open draft per slug, so .limit(1)+array (NOT .single()) returns 0/1
+    // cleanly; created_at is the append-ordering column (15-CONTRACT §Body
+    // storage). The .eq('status','draft') is the deliberate, flag-gated INVERSE of
+    // the D-17-forbidden defensive .eq('status','published') — functional scoping
+    // for the preview-only path, never reachable for anon. Graceful-degrade: any
+    // error/empty leaves bodyMd null, never throws. renderBlock's marked.parse
+    // (:586) turns the in-body #/map/<slug> links into real <a href> (LINK-01).
     var bodyMd = null;
-    if (blockRes.data.current_body_version_id) {
-        var bodyRes = await sb.schema('economy_map').from('block_body_versions').select('body_md').eq('id', blockRes.data.current_body_version_id).single();
-        if (!bodyRes.error && bodyRes.data) bodyMd = bodyRes.data.body_md;
-    }
-
-    // Phase 17 (D-03, LINK-01) — preview-only draft-fetch fallback. When no
-    // published version is pinned (current_body_version_id NULL pre-publish) AND
-    // the D-04 flag is set, fall back to the latest status='draft' body for this
-    // slug. DORMANT in prod (no flag) AND a NO-OP for anon even if reached (RLS
-    // exposes only status='published'). Migration 041 guarantees at most ONE
-    // open draft per slug, so .limit(1) returns 0 or 1 row; created_at is the
-    // append-ordering column (15-CONTRACT §Body storage). Use .limit(1)+array
-    // (NOT .single()) so a zero-draft prod read returns cleanly empty instead of
-    // erroring. The .eq('status','draft') here is the deliberate, flag-gated
-    // INVERSE of the D-17-forbidden defensive .eq('status','published') filter —
-    // functional scoping for the preview-only draft path, reachable only behind
-    // PREVIEW_ENABLED. Graceful-degrade: any error/empty leaves bodyMd null and
-    // renders body-less, never throws (matches the timeline/published posture).
-    // Once rendered, renderBlock's marked.parse (:586) turns the in-body
-    // #/map/<slug> cross-links into real <a href> elements (LINK-01).
-    if (!bodyMd && PREVIEW_ENABLED) {
+    if (PREVIEW_ENABLED) {
         var draftRes = await sb.schema('economy_map')
             .from('block_body_versions')
-            .select('body_md')
+            .select('body_md,proposed_maturity')
             .eq('block_slug', slug)
             .eq('status', 'draft')
             .order('created_at', { ascending: false })
             .limit(1);
-        if (!draftRes.error && draftRes.data && draftRes.data.length) bodyMd = draftRes.data[0].body_md;
+        if (!draftRes.error && draftRes.data && draftRes.data.length) {
+            bodyMd = draftRes.data[0].body_md;
+            // Preview the draft's proposed_maturity in the pill (blocks.maturity
+            // is stale pre-publish). Overrides this local fetch row only.
+            if (draftRes.data[0].proposed_maturity) blockRes.data.maturity = draftRes.data[0].proposed_maturity;
+        }
+    }
+
+    // Published body (D-10 / D-17) — unchanged prod path. Per D-17 NO
+    // .eq('status','published'); RLS exposes only published versions to anon. In
+    // preview this is reached only when no draft was found above.
+    if (!bodyMd && blockRes.data.current_body_version_id) {
+        var bodyRes = await sb.schema('economy_map').from('block_body_versions').select('body_md').eq('id', blockRes.data.current_body_version_id).single();
+        if (!bodyRes.error && bodyRes.data) bodyMd = bodyRes.data.body_md;
     }
 
     // Stash for the Wave 3 idle poll (plan 04-05).
