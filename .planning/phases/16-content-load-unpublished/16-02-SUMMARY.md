@@ -93,4 +93,14 @@ None. The loader is complete and self-contained; the only deferred action is the
 
 ## Orchestrator Notes (state ownership)
 
-Per the executor's critical overrides for this sequential phase: `.planning/STATE.md` and `.planning/ROADMAP.md` were **NOT modified** — the orchestrator owns those writes and will update them after the wave completes. The gsd-sdk is not on this agent's PATH; the state/roadmap/requirements update steps from execute-plan.md were intentionally SKIPPED. Only the two code files and this SUMMARY.md were committed.
+Per the executor's critical overrides for this sequential phase: `.planning/STATE.md` and `.planning/ROADMAP.md` were **NOT modified by this agent** — the orchestrator owns those writes. (An unstaged ` M .planning/STATE.md` is present in the working tree; its diff is the orchestrator's own "Phase 16 execution started" marker written at wave start — left untouched, not staged/committed/reverted by this agent.) The gsd-sdk is not on this agent's PATH; the state/roadmap/requirements update steps from execute-plan.md were intentionally SKIPPED. Only the two code files and this SUMMARY.md were committed.
+
+## Self-Check: PASSED
+
+- `scripts/load_economy_map_content.py` — FOUND
+- `tests/test_16_content_load.py` — FOUND
+- `.planning/phases/16-content-load-unpublished/16-02-SUMMARY.md` — FOUND
+- Commit `d6b3b14` (Task 1 loader) — FOUND
+- Commit `81387ef` (Task 2 test) — FOUND
+- Commit `f4c3c64` (SUMMARY docs) — FOUND
+- STATE.md/ROADMAP.md not modified by this agent (the working-tree ` M STATE.md` is the orchestrator's own wave-start write) — VERIFIED
