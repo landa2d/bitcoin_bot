@@ -144,7 +144,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 | 13. Agent Economy Grid | v2.0 | 2/2 | Complete | 2026-06-05 |
 | 14. About Stub + Polish Pass | v2.0 | 2/2 | Complete | 2026-06-08 |
 | 15. Inventory & Roster Reconciliation | v2.1 | 2/2 | Complete    | 2026-06-08 |
-| 16. Content Load (unpublished) | v2.1 | 3/3 | Complete   | 2026-06-08 |
+| 16. Content Load (unpublished) | v2.1 | 3/3 | Complete    | 2026-06-08 |
 | 17. Cross-link Wiring & Preview | v2.1 | 0/? | Not started | - |
 | 18. Gated Batch Publish | v2.1 | 0/? | Not started | - |
 

@@ -18,9 +18,9 @@
 
 ### Content Load (unpublished)
 
-- [ ] **LOAD-01**: All canonical bodies (hub `agent-economy` + the in-scope blocks) are loaded into `economy_map` as unsorted/unpublished, using the frontmatter as the metadata source of truth — content lands with zero change for live visitors.
-- [ ] **LOAD-02**: The load fails loud on any missing/empty required field (empty body, null maturity) — it halts with a clear error and never lands a blank or partial block.
-- [ ] **LOAD-03**: Existing live rows for matching slugs are corrected via the canonical-body-rewrite path (not a raw UPDATE the append-only trigger rejects); no duplicate block rows are created.
+- [x] **LOAD-01**: All canonical bodies (hub `agent-economy` + the in-scope blocks) are loaded into `economy_map` as unsorted/unpublished, using the frontmatter as the metadata source of truth — content lands with zero change for live visitors.
+- [x] **LOAD-02**: The load fails loud on any missing/empty required field (empty body, null maturity) — it halts with a clear error and never lands a blank or partial block.
+- [x] **LOAD-03**: Existing live rows for matching slugs are corrected via the canonical-body-rewrite path (not a raw UPDATE the append-only trigger rejects); no duplicate block rows are created.
 
 ### Cross-link Wiring & Preview
 
@@ -55,9 +55,9 @@
 | INV-01 | Phase 15 | Complete |
 | INV-02 | Phase 15 | Complete |
 | ROST-01 | Phase 15 | Complete |
-| LOAD-01 | Phase 16 | Pending |
-| LOAD-02 | Phase 16 | Pending |
-| LOAD-03 | Phase 16 | Pending |
+| LOAD-01 | Phase 16 | Complete |
+| LOAD-02 | Phase 16 | Complete |
+| LOAD-03 | Phase 16 | Complete |
 | LINK-01 | Phase 17 | Pending |
 | PREV-01 | Phase 17 | Pending |
 | HUB-01 | Phase 17 | Pending |
