@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Agent Economy Content
 status: executing
-stopped_at: Phase 17 context gathered
-last_updated: "2026-06-08T18:57:25.139Z"
-last_activity: 2026-06-08 -- Phase 17 planning complete
+stopped_at: Phase 17 plan 01 complete (preview render path shipped dormant)
+last_updated: "2026-06-08T19:13:29.590Z"
+last_activity: 2026-06-08 -- Phase 17 plan 01 executed (app.js preview path)
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 7
-  completed_plans: 5
+  completed_plans: 6
   percent: 50
 ---
 
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 16 complete (content load — LOAD-01/02/03 verified PASSED, 8 bodies loaded unpublished, zero visitor change); Phase 17 Cross-link Wiring & Preview next.
+**Current focus:** Phase 17 — cross-link-wiring-preview
 
 ## Current Position
 
-Phase: 17 — Cross-link Wiring & Preview (next to plan)
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-08 -- Phase 17 planning complete
-Next: `/gsd-discuss-phase 17`
+Phase: 17 (cross-link-wiring-preview) — EXECUTING
+Plan: 2 of 2
+Status: Plan 17-01 complete (PREVIEW_ENABLED flag + block/hub draft-fetch + hub trim, all dormant in prod); 17-02 next
+Last activity: 2026-06-08 -- Phase 17 plan 01 executed (app.js preview render path; 3 tasks, 3 commits)
+Next: execute plan 17-02 (local service_role preview container + behavioral/no-op/leak-guard proofs)
 
 ## Roadmap (v2.1 — Phases 15–18)
 
@@ -100,9 +100,9 @@ Note: `negotiation-coordination` graduation (NEGB-01/02), previously deferred fr
 
 ## Session Continuity
 
-Last session: 2026-06-08T18:32:48.753Z
+Last session: 2026-06-08T19:13:20.385Z
 Stopped at: Phase 17 context gathered
-Resume file: .planning/phases/17-cross-link-wiring-preview/17-CONTEXT.md
+Resume file: None
 Next: `/gsd-plan-phase 16`
 Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
@@ -129,3 +129,4 @@ Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 
 | Phase 13 P02 | 6min | 3 tasks | 4 files |
 | Phase 14 P01 | 4min | 2 tasks | 2 files |
 | Phase 14 P02 | 6min | 2 tasks | 1 file |
+| Phase 17 P01 | 7min | 3 tasks | 1 files |
