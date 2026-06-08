@@ -86,7 +86,16 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
   3. Existing live rows for matching slugs are corrected via the canonical-body-rewrite path (the append-only trigger is respected — no raw UPDATE), and no duplicate block rows are created for any slug.
   4. All `economy_map` access in the load uses direct PostgREST + `Accept-Profile` (no supabase-py `.in_()`).
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+**Wave 1** *(parallel — no file overlap)*
+
+  - [ ] 16-01-PLAN.md — Migration 043 (structure): tier-CHECK relax → admit `'hub'`, INSERT hub + negotiation `blocks` rows, collision-free highest-first `sort_order` reshuffle to {0..8}; orchestrator applies via Supabase MCP (LOAD-01)
+  - [ ] 16-02-PLAN.md — Standalone PostgREST body loader (`scripts/load_economy_map_content.py`): validate-all-then-insert, `building→emerging` remap, idempotent skip-if-open-draft + deliberately-broken-fixture negative test (LOAD-01, LOAD-02, LOAD-03)
+
+**Wave 2** *(blocked on Wave 1 — 043 live + loader authored)*
+
+  - [ ] 16-03-PLAN.md — Run the loader against the live DB after 043 is applied; capture the SC#1 before/after anon-perspective evidence (zero new published rows) + record the LOAD-03 canonical-body-rewrite posture and idempotent re-run (LOAD-01, LOAD-03)
 
 ### Phase 17: Cross-link Wiring & Preview
 
