@@ -18,10 +18,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-04)
+See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** v2.0 SHIPPED — deployed live to aiagentspulse.com; remaining work is the operator browser perceptual/editorial walk + /gsd-complete-milestone
+**Current focus:** Planning next milestone — v1.0 + v2.0 shipped. Start with `/gsd-new-milestone`. Open: operator browser perceptual/editorial walk of the live site (Phase 13/14 HUMAN-UAT) + carried-forward backend todos (candidates for a backend milestone).
 
 ## Current Position
 

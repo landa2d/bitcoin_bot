@@ -44,6 +44,40 @@
 
 ---
 
+## Milestone: v2.0 — Frontend Redesign
+
+**Shipped:** 2026-06-08
+**Phases:** 4 (11–14) | **Plans:** 8 | **Tasks:** 16
+
+### What Was Built
+- A **UI-only redesign** of the public `aiagentspulse.com` SPA, deployed live via the scoped `agentpulse-web` cutover: a `style-base.css` :root design-token layer (single light-mode violet palette, Source Serif 4 / IBM Plex Mono), a persistent stateful 3-tab nav shell with `← Back` controls and route-derived active state, the Newsletter list/article restyled with a section-scoped Technical/Strategic toggle, the Agent Economy re-rendered as a responsive grouped card grid (`style-map.css` retired → 2-sheet cascade), and a real "What is AgentPulse" About page + a site-wide radius/spacing token sweep.
+- Frontend-only — zero backend/pipeline/Supabase/content change; the dual-mode content logic was untouched (only the toggle's placement + styling moved).
+
+### What Worked
+- **Foundation-first discipline** (Phase 11 = the shared shell every later phase reused) mirrored v1.0 and paid off: phases 12–14 were pure restyle-on-tokens with no re-litigation of palette/typography.
+- **Token-anchored verification gates** made CSS phases deterministically checkable — `grep` gates for "no raw-px radius / no off-grid spacing / no literal hex" turned subjective polish into pass/fail, and they re-ran cleanly verbatim at verify time.
+- **Delete-and-fold** (Phase 13 retiring `style-map.css` into the shared sheet) shrank the cascade to 2 sheets without behavior change.
+- **Non-destructive preview before the prod cutover**: replicating the entrypoint substitution into a temp dir + serving on a high port verified the substituted SPA boot + content over HTTP without a browser and without touching the live container — then the cutover was a clean image-swap.
+
+### What Was Inefficient
+- **Single-plan waves** (each Phase-14 wave had exactly one plan) gained nothing from worktree isolation; running them no-worktree-sequential avoided the known cleanup-SUMMARY-collision for zero parallelism loss — worth detecting earlier and defaulting.
+- **No headless browser in the environment** meant the perceptual/visual UAT items (render quality, "minimalist but not sparse") could not be closed in-session; they correctly stayed as operator browser-walk items but mean the milestone closes with visual sign-off still pending.
+- A crude `awk` window during verification false-flagged "interactive attrs" in the agent-row (bled into the shared subscribe section) — re-extracting the exact block resolved it, but a tighter boundary would have avoided the detour.
+
+### Patterns Established
+- **Substituted-preview + `--resolve` live-vhost verification** for the Caddy-served SPA (see the web-static-preview-substitution reference): verify served bytes + JS routing logic when no browser exists; verify the live TLS vhost with `curl --resolve domain:443:127.0.0.1` (SNI must equal the cert domain).
+- **D-06 deploy-fenced phases**: frontend phases deliberately fence out the live deploy + browser-UAT so the whole milestone ships in one operator-approved batch cutover rather than per-phase.
+
+### Key Lessons
+- For CSS/HTML phases, **grep-able token gates are the unit of truth**; perceptual quality is a separate human gate that genuinely needs a browser — don't conflate them or let "not visually signed off" block a code-verified, deployed milestone.
+- **Scope the deploy to the one changed service.** `agentpulse-web` maps `80/443`, so `compose up -d web` IS the public cutover — capture a rollback image ref, run `drift-check.sh` first (web-pending + the accepted lab-data-provider D-07 are the expected non-zero lines), build the image non-destructively, then swap.
+
+### Cost Observations
+- Model mix: **Opus** orchestrator + executors, **Sonnet** for phase verification + the code review. 4 phases executed in a single session resume → deploy → close chain.
+- Notable: each wave was a single plan, so execution was inherently serial; the cost was dominated by the executor/verifier/reviewer subagents, not orchestration.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
