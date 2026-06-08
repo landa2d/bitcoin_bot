@@ -61,3 +61,19 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 12. Newsletter Section Restyle | v2.0 | 2/2 | Complete | 2026-06-04 |
 | 13. Agent Economy Grid | v2.0 | 2/2 | Complete | 2026-06-05 |
 | 14. About Stub + Polish Pass | v2.0 | 2/2 | Complete | 2026-06-08 |
+
+## Backlog
+
+Parked for a future milestone — **not scheduled, not for now**. Surfaces at next `/gsd-new-milestone` planning. Source-of-truth detail lives in `.planning/todos/pending/`.
+
+### Backend follow-ups (candidate: a backend-hardening milestone)
+Carried forward from v1.0; out of v2.0 (frontend) scope.
+- analyst predictions `title` expire bug (P2)
+- soft-cap allow-negative hardening (P5)
+- pay-endpoint 500 activation E2E — RPC root-cause fixed in migration 037 (P2)
+- phase-05 intake-classifier review follow-ups WR02/04/05 (P4)
+- research trigger file permissions (P4)
+
+### Agent Economy content (separate workstream, drafts already staged)
+Surfaced by the v2.0 live-site UAT: 5 of 7 economy-map blocks are unpublished (deferred), so the map reads as one column and the hub storyline subtitle is stale. Publishing the bodies un-defers them.
+- Publish the hub + 7 block bodies to the live `#/map` (drafts staged untracked in `.planning/docs/00-hub.md … 07-*.md` + `EXECUTION_BRIEF.md`).

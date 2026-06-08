@@ -1,7 +1,8 @@
 ---
 phase: 14-about-stub-polish-pass
 verified: 2026-06-07T18:30:00Z
-status: human_needed
+status: passed
+human_verified: 2026-06-08T11:45:00Z — live-site browser UAT all 4 items pass (see 14-HUMAN-UAT.md); About page, nav active-state, POLISH consistency, and copy accuracy all confirmed on https://aiagentspulse.com
 score: 7/7 must-haves verified
 overrides_applied: 0
 re_verification: null
