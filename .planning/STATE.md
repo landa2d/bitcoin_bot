@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Frontend Redesign
-status: milestone-execution-complete
-stopped_at: "Phase 14 complete + operator-approved (7/7 verified in code); v2.0 all 4 phases executed (8/8 plans). Remaining: D-06 batch deploy + accumulated 11/13/14 browser-UAT (the ship step)"
-last_updated: "2026-06-08T09:59:18.932Z"
+status: milestone-shipped
+stopped_at: "v2.0 DEPLOYED 2026-06-08 — scoped agentpulse-web cutover (docker compose up -d web) live + verified end-to-end over https://aiagentspulse.com (About page, runtime substitution, 0 raw-px radii); drift-check web=ok. Remaining: operator browser perceptual/editorial walk + optional cleanups, then /gsd-complete-milestone"
+last_updated: "2026-06-08T10:19:22.000Z"
 last_activity: 2026-06-08
 progress:
   total_phases: 4
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** v2.0 execution COMPLETE (all 4 phases) — remaining work is the D-06 batch deploy + accumulated browser-UAT
+**Current focus:** v2.0 SHIPPED — deployed live to aiagentspulse.com; remaining work is the operator browser perceptual/editorial walk + /gsd-complete-milestone
 
 ## Current Position
 
 Phase: 14 of 14 — COMPLETE (last v2.0 phase)
 Plan: 8 of 8 plans executed
-Status: Milestone v2.0 execution complete + operator-approved in code; awaiting D-06 batch deploy + browser-UAT (the ship step)
-Last activity: 2026-06-08 -- Phase 14 complete, v2.0 fully executed
+Status: Milestone v2.0 DEPLOYED + verified end-to-end over public HTTPS; awaiting operator browser perceptual/editorial UAT, then milestone close
+Last activity: 2026-06-08 -- v2.0 deployed live (agentpulse-web cutover) + verified
 
 Progress: [██████████] 100%
 
@@ -101,19 +101,19 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-06-08T09:59:18Z
-Stopped at: Phase 14 executed end-to-end (Wave 1 14-01 ABOUT-01, Wave 2 14-02 POLISH-01), code-reviewed (0 blockers), verified 7/7 in code, operator-approved + marked complete. v2.0 fully executed (8/8 plans, 100%).
+Last session: 2026-06-08T10:19:22Z
+Stopped at: Phase 14 executed end-to-end (14-01 ABOUT-01 + 14-02 POLISH-01), code-reviewed (0 blockers), verified 7/7, operator-approved + marked complete. v2.0 (all 4 phases, 8/8 plans) then DEPLOYED LIVE via scoped agentpulse-web cutover and verified end-to-end over https://aiagentspulse.com.
 Resume file: None
 Note: root .planning/.continue-here.md is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
 ## Operator Next Steps
 
-v2.0 is execution-complete in code. The remaining work is the **deploy + verify** ship step — deliberately fenced out of every phase (D-06):
+v2.0 is SHIPPED. Phases 11–14 are live on aiagentspulse.com (scoped `agentpulse-web` cutover, 2026-06-08; drift-check web=ok, only the accepted lab-data-provider D-07 drift remains). Remaining work is operator-side verification + milestone close:
 
-- **D-06 batch deploy** — scoped `agentpulse-web` rebuild (`cd /root/bitcoin_bot/docker && docker compose up -d --build --no-deps agentpulse-web`) carrying phases 11–14 together. Prod IS this host; operator-approved per the prod-cutover-discipline memory.
-- **Accumulated browser-UAT** — walk the persisted HUMAN-UAT items via `/gsd-verify-work` (or `/gsd-audit-uat` to see all at once): `14-HUMAN-UAT.md` (About render, nav active-state, POLISH perceptual quality, About copy editorial review), `13-HUMAN-UAT.md` (6 map items), plus Phase 11 local checks. Load the site via the substituted preview per the web-static-preview-substitution memory (raw `docker/web/site` crashes app.js on `__SUPABASE_URL__`).
-- **Finalize About copy** — the 3 prose paragraphs + 5 `.ad` role strings shipped as the UI-SPEC draft verbatim (flagged in both 14 SUMMARYs); lock the wording before deploy. Accuracy bar non-negotiable: "eight cooperating services", 5 content-agent pills only, Processor = background scheduler (not a router).
-- **Then** `/gsd-complete-milestone` once deployed + UAT passes.
+- **DONE — deploy** ✅ `docker compose up -d web` (new image `docker-web:latest`, 813f22f8…); rollback ref = prior image `sha256:b2303c94…`. Verified end-to-end over public HTTPS: `/` 200 (About page, 5 pills, "eight cooperating services"), `app.js` 200 (0 literal placeholders → SPA boots), `style-shared.css` 200 (0 raw-px radii). Caddy healthy (TLS for aiagentspulse.com).
+- **Operator browser walk (live site)** — the persisted HUMAN-UAT items now testable against the LIVE site (no preview needed): `14-HUMAN-UAT.md` (About visual render, nav active-state, POLISH perceptual "minimalist-but-not-sparse" feel, About copy editorial sign-off), `13-HUMAN-UAT.md` (6 map items), Phase 11 checks. `/gsd-audit-uat` lists them all; `/gsd-verify-work 14` walks them conversationally.
+- **About copy** — shipped as the UI-SPEC draft verbatim and verified accurate (8 services / Processor=background scheduler / 5 content pills / infra in prose). It is LIVE now; reword in `index.html` + redeploy `web` only if the editorial sign-off wants changes.
+- **Then** `/gsd-complete-milestone` once the browser walk passes.
 
 ### Advisory follow-ups (non-blocking, from 14-REVIEW.md)
 - WR-01: dead `.about-lede` rule in `style-base.css` (its only consumer was deleted this phase) — left untouched because both plans fenced `style-base.css`; trivial cleanup, fold into the deploy commit or a quick task.
