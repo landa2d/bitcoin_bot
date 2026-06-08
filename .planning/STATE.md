@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Agent Economy Content
-status: planning
+status: executing
 stopped_at: Phase 17 context gathered
-last_updated: "2026-06-08T18:32:48.757Z"
-last_activity: 2026-06-08 -- Phase 16 executed + verified (8 canonical bodies loaded as unpublished drafts)
+last_updated: "2026-06-08T18:57:25.139Z"
+last_activity: 2026-06-08 -- Phase 17 planning complete
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 5
+  total_plans: 7
   completed_plans: 5
   percent: 50
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 
 Phase: 17 — Cross-link Wiring & Preview (next to plan)
 Plan: Not started
-Status: Phase 16 complete (verified) — ready to plan Phase 17
-Last activity: 2026-06-08 -- Phase 16 executed + verified (8 canonical bodies loaded as unpublished drafts)
+Status: Ready to execute
+Last activity: 2026-06-08 -- Phase 17 planning complete
 Next: `/gsd-discuss-phase 17`
 
 ## Roadmap (v2.1 — Phases 15–18)
