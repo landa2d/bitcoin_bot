@@ -48,7 +48,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial content: load the hub `agent-economy` + 7 block bodies into `economy_map` as unpublished, wire the `#/map/<slug>` cross-block links, verify on a non-published preview route, then publish live in ONE operator-approved batch. Content-only — no UI redesign, no pipeline / proxy / agent-service changes. Honors the spine: intake/load is reversible and unpublished by default; **publishing is the final gated, operator-approved step.** Direct PostgREST + `Accept-Profile` (no `.in_()`); append-only trigger → canonical-body-rewrite (never raw UPDATE); fail-loud on missing fields; branch + `/diff` + web-only scoped deploy.
 
 - [x] **Phase 15: Inventory & Roster Reconciliation** — Confirm the live storage/serve contract + maturity enum, and resolve the per-slug roster diff before any write (read-before-write, operator-approved plan). (completed 2026-06-08)
-- [ ] **Phase 16: Content Load (unpublished)** — Load all 8 canonical bodies into `economy_map` as unsorted/unpublished, fail-loud on missing fields, correct existing rows via the rewrite path — zero change for live visitors.
+- [x] **Phase 16: Content Load (unpublished)** — Load all 8 canonical bodies into `economy_map` as unsorted/unpublished, fail-loud on missing fields, correct existing rows via the rewrite path — zero change for live visitors. (completed 2026-06-08)
 - [ ] **Phase 17: Cross-link Wiring & Preview** — Make every `#/map/<slug>` cross-block + hub→block link resolve, and verify the loaded-but-unpublished content end-to-end on a non-published preview route.
 - [ ] **Phase 18: Gated Batch Publish** — Publish the content live via the existing atomic publish RPC in ONE operator-approved batch (web-only scoped deploy).
 
@@ -95,7 +95,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 
 **Wave 2** *(blocked on Wave 1 — 043 live + loader authored)*
 
-  - [ ] 16-03-PLAN.md — Run the loader against the live DB after 043 is applied; capture the SC#1 before/after anon-perspective evidence (zero new published rows) + record the LOAD-03 canonical-body-rewrite posture and idempotent re-run (LOAD-01, LOAD-03)
+  - [x] 16-03-PLAN.md — Run the loader against the live DB after 043 is applied; capture the SC#1 before/after anon-perspective evidence (zero new published rows) + record the LOAD-03 canonical-body-rewrite posture and idempotent re-run (LOAD-01, LOAD-03)
 
 ### Phase 17: Cross-link Wiring & Preview
 
@@ -144,7 +144,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 | 13. Agent Economy Grid | v2.0 | 2/2 | Complete | 2026-06-05 |
 | 14. About Stub + Polish Pass | v2.0 | 2/2 | Complete | 2026-06-08 |
 | 15. Inventory & Roster Reconciliation | v2.1 | 2/2 | Complete    | 2026-06-08 |
-| 16. Content Load (unpublished) | v2.1 | 2/3 | In Progress|  |
+| 16. Content Load (unpublished) | v2.1 | 3/3 | Complete   | 2026-06-08 |
 | 17. Cross-link Wiring & Preview | v2.1 | 0/? | Not started | - |
 | 18. Gated Batch Publish | v2.1 | 0/? | Not started | - |
 
