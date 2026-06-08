@@ -68,7 +68,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 
 **Wave 1**
 
-  - [ ] 15-01-PLAN.md — Write 15-CONTRACT.md (live storage+serve contract + verified maturity enum: INV-01/INV-02) and 15-RECONCILIATION.md (per-slug roster disposition + D-04 hub pin + D-03 collision-free reshuffle: ROST-01)
+  - [x] 15-01-PLAN.md — Write 15-CONTRACT.md (live storage+serve contract + verified maturity enum: INV-01/INV-02) and 15-RECONCILIATION.md (per-slug roster disposition + D-04 hub pin + D-03 collision-free reshuffle: ROST-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -134,7 +134,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 | 12. Newsletter Section Restyle | v2.0 | 2/2 | Complete | 2026-06-04 |
 | 13. Agent Economy Grid | v2.0 | 2/2 | Complete | 2026-06-05 |
 | 14. About Stub + Polish Pass | v2.0 | 2/2 | Complete | 2026-06-08 |
-| 15. Inventory & Roster Reconciliation | v2.1 | 0/2 | Planned | - |
+| 15. Inventory & Roster Reconciliation | v2.1 | 1/2 | In Progress|  |
 | 16. Content Load (unpublished) | v2.1 | 0/? | Not started | - |
 | 17. Cross-link Wiring & Preview | v2.1 | 0/? | Not started | - |
 | 18. Gated Batch Publish | v2.1 | 0/? | Not started | - |
