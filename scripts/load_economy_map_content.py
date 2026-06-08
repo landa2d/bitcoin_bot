@@ -68,6 +68,11 @@ LIVE_MATURITY = {"nascent", "emerging", "contested", "consolidating", "mature"}
 # The hub has no `maturity` in its frontmatter (D-05 special-case); seed default.
 HUB_MATURITY = "nascent"
 
+# The single hub slug. The 'hub' type is reserved for it (D-04). validate_all
+# enforces type=='hub' iff slug==HUB_SLUG so a block mislabeled `type: hub` cannot
+# skip the tier/maturity gate and silently load 'nascent' (fail-loud, WR-04).
+HUB_SLUG = "agent-economy"
+
 # The pinned input glob: matches EXACTLY the 8 numbered bodies (00-*..07-*) and
 # excludes the three frontmatter-less docs in the same dir (EXECUTION_BRIEF.md,
 # REDESIGN_BRIEF.md, economy-map-build-spec-v2.md). A bare *.md would pull those
@@ -161,15 +166,23 @@ def parse_doc(path: str) -> dict:
     the second `---`. The hub (00-hub.md) carries no `tier`/`maturity` (D-05);
     blocks carry slug/tier/title/subtitle/order/maturity.
     """
-    text = open(path, encoding="utf-8").read()
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
     fm = {}
     body = text
-    if text.startswith("---"):
-        # split on the frontmatter fence: ['', <yaml>, <body...>]
-        parts = text.split("---", 2)
-        if len(parts) == 3:
-            fm = yaml.safe_load(parts[1]) or {}
-            body = parts[2]
+    # Line-anchored frontmatter fence (WR-02): the opening `---` must be its own
+    # line and the closing fence is the FIRST subsequent line that is exactly `---`.
+    # Splitting on the bare `---` substring would let a `---` inside a YAML value
+    # truncate the frontmatter (a silent corruption shape); matching whole lines
+    # avoids it and leaves body-level `---` thematic breaks intact.
+    lines = text.split("\n")
+    if lines and lines[0].strip() == "---":
+        closing = next(
+            (i for i in range(1, len(lines)) if lines[i].strip() == "---"), None
+        )
+        if closing is not None:
+            fm = yaml.safe_load("\n".join(lines[1:closing])) or {}
+            body = "\n".join(lines[closing + 1:])
     if not isinstance(fm, dict):
         fm = {}
 
@@ -226,6 +239,15 @@ def validate_all(records: list) -> None:
         elif slug not in LOCKED_ROSTER:
             failures.append(f"{where}: slug '{slug}' not in the locked roster")
 
+        # type integrity (WR-04): 'hub' is reserved for the hub slug. A block
+        # mislabeled `type: hub` would skip the tier/maturity gate below and load
+        # 'nascent' silently; a hub mislabeled as a block would demand a tier/maturity
+        # it does not carry. Enforce the equivalence loud.
+        if rtype == "hub" and slug != HUB_SLUG:
+            failures.append(f"{where}: type='hub' but slug '{slug}' is not the hub ({HUB_SLUG})")
+        if slug == HUB_SLUG and rtype != "hub":
+            failures.append(f"{where}: hub slug must declare type='hub' (got type={rtype!r})")
+
         for field in ("title", "subtitle"):
             if not record.get(field):
                 failures.append(f"{where}: missing {field}")
@@ -254,6 +276,18 @@ def validate_all(records: list) -> None:
             failures.append(
                 f"{where}: post-remap maturity '{maturity}' not in {sorted(LIVE_MATURITY)}"
             )
+
+    # Duplicate-slug guard (WR-03): two records claiming the same slug would each
+    # attempt an insert; the second collides the one-open-draft UNIQUE index (23505).
+    # Reject loud at the gate instead of surfacing a mid-batch DB crash.
+    seen: dict = {}
+    for record in records:
+        s = record.get("slug")
+        if s:
+            seen[s] = seen.get(s, 0) + 1
+    for s, n in sorted(seen.items()):
+        if n > 1:
+            failures.append(f"duplicate slug '{s}' appears {n} times in the batch")
 
     if failures:
         raise ValueError(
