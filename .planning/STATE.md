@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.0
-milestone_name: Frontend Redesign
-status: Awaiting next milestone
-stopped_at: "Phase 14 executed end-to-end (14-01 ABOUT-01 + 14-02 POLISH-01), code-reviewed (0 blockers), verified 7/7, operator-approved + marked complete. v2.0 (all 4 phases, 8/8 plans) then DEPLOYED LIVE via scoped agentpulse-web cutover and verified end-to-end over https://aiagentspulse.com."
-last_updated: "2026-06-08T11:31:55.659Z"
-last_activity: 2026-06-08 — Milestone v2.0 completed and archived
+milestone: v2.1
+milestone_name: Agent Economy Content
+status: planning
+last_updated: "2026-06-08T12:01:02.697Z"
+last_activity: 2026-06-08
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 
 ## Current Position
 
-Phase: Milestone v2.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-06-08 — Milestone v2.0 completed and archived
+Status: Defining requirements
+Last activity: 2026-06-08 — Milestone v2.1 started
 
 ## Roadmap (v2.0 — Phases 11–14)
 

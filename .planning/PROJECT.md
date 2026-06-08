@@ -8,6 +8,23 @@ A multi-agent intelligence platform for the AI agent economy: eight cooperating 
 
 **Synthesis with editorial integrity.** Autonomous ingestion and drafting accelerate the operator's output, but every consequential publication is gated by human approval — silence and homogenization are the failure modes to design against.
 
+## Current Milestone: v2.1 Agent Economy Content
+
+**Goal:** Publish the Agent Economy hub + 7 block bodies live on `aiagentspulse.com/#/map`, with the hub's blocks clickable through to their deep-dive pages — filling the v2.0 grid (currently 5/7 blocks unpublished) with real editorial content.
+
+**Target work:**
+- Load 8 canonical markdown bodies (hub `agent-economy` + 7 blocks) into `economy_map` as unsorted/unpublished — content lands, visitors unaffected
+- Verify `#/map/<slug>` cross-block links + hub→block click-through on a non-published preview route; maturity pills render the 3 values (building / contested / nascent)
+- Publish via the existing atomic publish RPC in ONE operator-approved batch (web-only scoped deploy)
+
+**Open items for discuss-phase (per EXECUTION_BRIEF.md — do not decide unilaterally):**
+- **Roster diff vs the live map:** the docs ADD `negotiation-coordination` (v2.0-deferred, NEGB-01/02), OMIT the live `regulation-legal` (FRAME tier), and use 2 tiers (substrate/behavior) vs the live 3 (substrate/behavior/frame). Decide first-publish vs body-rewrite vs retire-block per slug before any load.
+- Hub block list as cards (preferred) vs prose links; whether `nascent` blocks get distinct visual treatment.
+
+**Standing constraints (the spine):** direct PostgREST + `Accept-Profile` for `economy_map` (never supabase-py `.in_()`); append-only trigger — corrections via the canonical-body-rewrite path, not raw UPDATE; fail-loud on any missing field; branch + `/diff` + web-only scoped deploy — no pipeline / proxy / agent-service changes.
+
+**Source content:** `.planning/docs/00-hub.md` … `07-psychology-disposition.md` (+ `EXECUTION_BRIEF.md`). Frontmatter (slug/tier/title/subtitle/order/maturity) is the metadata source of truth.
+
 ## Requirements
 
 ### Validated
