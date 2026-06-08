@@ -460,7 +460,7 @@ var hubHtml = hubBody && hubBody.body_md
 
 **Otherwise:** every structural claim is `[VERIFIED: migration SQL]` or `[VERIFIED: app.js]` — read directly from the in-tree authoritative files. The two assumptions above are the only non-VERIFIED items.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the hub need a maturity pill / sort_order in `renderHub`?**
    - What we know: Option A gives the hub row a `sort_order` (0 recommended) and a default `maturity`; `renderHub` excludes it from the tier grids, so neither is rendered as a card today.
