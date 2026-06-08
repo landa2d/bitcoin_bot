@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Frontend Redesign
-status: verifying
-stopped_at: "Completed 14-02-PLAN.md (POLISH-01) — Phase 14 plans 1+2 done; ready for phase verification (status: ready_for_verification)"
+status: milestone-execution-complete
+stopped_at: "Phase 14 complete + operator-approved (7/7 verified in code); v2.0 all 4 phases executed (8/8 plans). Remaining: D-06 batch deploy + accumulated 11/13/14 browser-UAT (the ship step)"
 last_updated: "2026-06-08T09:59:18.932Z"
 last_activity: 2026-06-08
 progress:
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-04)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 14 — about-stub-polish-pass
+**Current focus:** v2.0 execution COMPLETE (all 4 phases) — remaining work is the D-06 batch deploy + accumulated browser-UAT
 
 ## Current Position
 
-Phase: 14
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-06-08
+Phase: 14 of 14 — COMPLETE (last v2.0 phase)
+Plan: 8 of 8 plans executed
+Status: Milestone v2.0 execution complete + operator-approved in code; awaiting D-06 batch deploy + browser-UAT (the ship step)
+Last activity: 2026-06-08 -- Phase 14 complete, v2.0 fully executed
 
-Progress: [█████████░] 88%
+Progress: [██████████] 100%
 
 ## Roadmap (v2.0 — Phases 11–14)
 
@@ -101,18 +101,24 @@ Items acknowledged and carried forward:
 
 ## Session Continuity
 
-Last session: 2026-06-07T18:05:57.762Z
-Stopped at: Completed 14-02-PLAN.md (POLISH-01) — Phase 14 plans 1+2 done; ready for phase verification (status: ready_for_verification)
+Last session: 2026-06-08T09:59:18Z
+Stopped at: Phase 14 executed end-to-end (Wave 1 14-01 ABOUT-01, Wave 2 14-02 POLISH-01), code-reviewed (0 blockers), verified 7/7 in code, operator-approved + marked complete. v2.0 fully executed (8/8 plans, 100%).
 Resume file: None
 Note: root .planning/.continue-here.md is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
 ## Operator Next Steps
 
-- Execute 14-02 (POLISH-01) → the remaining Phase-14 plan: snap the 3 subscribe-form 6px radii to tokens + run the D-05 confirmation grep gate (which also validates the net-new `.agent-pill var(--radius-btn)` from 14-01), and re-anchor the named loose/off-grid spacing literals onto `--space-*` tokens.
-- Review/finalize the About prose + 5 `.ad` role strings (14-01 shipped the UI-SPEC draft verbatim) — operator-owned editorial copy, to lock before the D-06 deploy. Accuracy bar is non-negotiable: "eight cooperating services", 5 content-agent pills only, Processor = background scheduler (not a router).
-- Verify Phase 13 (Agent Economy Grid) → `/gsd-verify-phase 13` (end-of-phase human-verify gate; load the site locally via the substituted preview per the web-static-preview-substitution memory — confirm hub grid, a normal block reading view (identity-trust), a DEFERRED block, and the #/status deep-link all render on the light/serif single-accent system, no dark bg / Courier).
-- Verify Phase 11 (Design System + Nav Shell) → `/gsd-verify-phase 11` (local-only checks per D-01 batch deploy; load the site locally to confirm the 4 ROADMAP success criteria)
-- Phase 14 (About Stub + Polish Pass) is the last v2.0 phase before the batch deploy (D-01); the live deploy + accumulated 11/12/13/14 browser-UAT walk is the separate operator-approved ship step (D-06), NOT part of the phase.
+v2.0 is execution-complete in code. The remaining work is the **deploy + verify** ship step — deliberately fenced out of every phase (D-06):
+
+- **D-06 batch deploy** — scoped `agentpulse-web` rebuild (`cd /root/bitcoin_bot/docker && docker compose up -d --build --no-deps agentpulse-web`) carrying phases 11–14 together. Prod IS this host; operator-approved per the prod-cutover-discipline memory.
+- **Accumulated browser-UAT** — walk the persisted HUMAN-UAT items via `/gsd-verify-work` (or `/gsd-audit-uat` to see all at once): `14-HUMAN-UAT.md` (About render, nav active-state, POLISH perceptual quality, About copy editorial review), `13-HUMAN-UAT.md` (6 map items), plus Phase 11 local checks. Load the site via the substituted preview per the web-static-preview-substitution memory (raw `docker/web/site` crashes app.js on `__SUPABASE_URL__`).
+- **Finalize About copy** — the 3 prose paragraphs + 5 `.ad` role strings shipped as the UI-SPEC draft verbatim (flagged in both 14 SUMMARYs); lock the wording before deploy. Accuracy bar non-negotiable: "eight cooperating services", 5 content-agent pills only, Processor = background scheduler (not a router).
+- **Then** `/gsd-complete-milestone` once deployed + UAT passes.
+
+### Advisory follow-ups (non-blocking, from 14-REVIEW.md)
+- WR-01: dead `.about-lede` rule in `style-base.css` (its only consumer was deleted this phase) — left untouched because both plans fenced `style-base.css`; trivial cleanup, fold into the deploy commit or a quick task.
+- IN-03: the `.ad` class name can be hit by ad-blocker cosmetic filters (could hide agent role text) — consider a rename if observed.
+- Security: no `14-SECURITY.md` (threats all dispositioned "accept" — static HTML/CSS); `/gsd-secure-phase 14` available if you want the formal record.
 
 ## Performance Metrics
 
