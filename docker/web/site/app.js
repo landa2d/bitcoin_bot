@@ -59,6 +59,31 @@ const PREVIEW_ENABLED = (function () {
     return p === '1' || p === 'true';
 })();
 
+// Phase 17 (D-06c, HUB-01) — code-trim the hub draft body's prose block-list so
+// it is NOT duplicated by the card grid. Operates on the markdown STRING before
+// marked.parse (simpler + safer than post-render DOM surgery). The loaded hub
+// body (.planning/docs/00-hub.md) is: thesis + `## How to read this map`
+// framing, then the `## Tier 1 — The Substrate` / `## Tier 2 — The Behavior`
+// prose block-list (the 7 [Title →](#/map/<slug>) links — the duplication
+// source), then `## The thesis, restated`. Keep the head through the end of the
+// How-to-read section (cut on the literal `## Tier 1` heading), then re-append
+// the closing `## The thesis, restated` tail (Claude's Discretion default keeps
+// the restated thesis). Pure helper — no DB write, the loaded draft is
+// untouched/reversible. Returns the input unchanged if the cut heading is absent
+// (defensive: never silently drops content it cannot bound).
+function trimHubBody(md) {
+    if (!md) return md;
+    var TIER1 = '## Tier 1';
+    var RESTATED = '## The thesis, restated';
+    var cut = md.indexOf(TIER1);
+    if (cut === -1) return md;            // cut-point absent → leave body intact
+    var head = md.slice(0, cut).replace(/\s*(?:---\s*)?$/, '').trimEnd();
+    var tailIdx = md.indexOf(RESTATED, cut);
+    if (tailIdx === -1) return head;      // no restated-thesis tail → head only
+    var tail = md.slice(tailIdx).trimEnd();
+    return head + '\n\n' + tail + '\n';
+}
+
 // Resolve initial mode: URL param > localStorage > default 'technical'
 function getInitialMode() {
     var urlMode = new URL(window.location).searchParams.get('mode');
@@ -444,10 +469,28 @@ async function loadHub() {
     }
 
     window.currentBlocks = data;
-    renderHub(data);
+
+    // Phase 17 (D-06a, HUB-01) — preview-only hub draft body. Fetched the SAME
+    // way as the Task-2 D-03 block fallback but for slug 'agent-economy', gated
+    // by PREVIEW_ENABLED. DORMANT in prod (no flag) AND a NO-OP for anon even if
+    // reached (RLS exposes only status='published'). Graceful-degrade to null on
+    // any error/empty → renderHub falls back to the HUB_STORYLINE constant.
+    var hubBodyMd = null;
+    if (PREVIEW_ENABLED) {
+        var hubRes = await sb.schema('economy_map')
+            .from('block_body_versions')
+            .select('body_md')
+            .eq('block_slug', 'agent-economy')
+            .eq('status', 'draft')
+            .order('created_at', { ascending: false })
+            .limit(1);
+        if (!hubRes.error && hubRes.data && hubRes.data.length) hubBodyMd = hubRes.data[0].body_md;
+    }
+
+    renderHub(data, hubBodyMd);
 }
 
-function renderHub(data) {
+function renderHub(data, hubBodyMd) {
     // 1. Updated stamp — latest last_synthesized_at across all blocks (D-06).
     //    ISO string-sort orders correctly; omit the stamp entirely when every
     //    block has a null last_synthesized_at (v1 state). Phase 13: the hub
@@ -503,11 +546,25 @@ function renderHub(data) {
     // 5. In-content hub header (D-06) + three tier grids, written to the
     //    #map-view's .content-area. Order: serif "The Agent Economy" page-title,
     //    optional mono "updated {date}" sub-line (only when latest exists),
-    //    serif storyline, then the tier grids. No eyebrow kicker (UI-SPEC §5).
+    //    hub intro, then the tier grids. No eyebrow kicker (UI-SPEC §5).
+    //    Phase 17 (D-06a/c, HUB-01): when a hub draft body is present (preview
+    //    only), render the trimHubBody()'d intro via marked.parse (the same body
+    //    path as :586 — no new capability); the trim drops the Tier-1/Tier-2
+    //    prose block-list so it appears ONCE, as the cards. Graceful fallback to
+    //    the escapeHtml'd HUB_STORYLINE constant pre-publish (P15-D-04) — the
+    //    constant is NOT deleted. The marked.parse'd hub intro is also where the
+    //    7 hub→block #/map/<slug> links would render, but click-through is
+    //    already satisfied by the cards; the trimmed intro keeps the thesis +
+    //    two-tier framing only.
+    var trimmedHubBody = trimHubBody(hubBodyMd);
+    var hubIntroHtml = trimmedHubBody
+        ? '<div class="hub-storyline">' + marked.parse(trimmedHubBody) + '</div>'
+        : '<div class="hub-storyline">' + escapeHtml(HUB_STORYLINE) + '</div>';
+
     var html =
         '<h1 class="page-title">The Agent Economy</h1>' +
         subline +
-        '<div class="hub-storyline">' + escapeHtml(HUB_STORYLINE) + '</div>' +
+        hubIntroHtml +
         tierSection(TIER_LABELS.substrate, substrateBlocks) +
         tierSection(TIER_LABELS.behavior, behaviorBlocks) +
         tierSection(TIER_LABELS.frame, frameBlocks);
