@@ -90,8 +90,8 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 
 **Wave 1** *(parallel — no file overlap)*
 
-  - [ ] 16-01-PLAN.md — Migration 043 (structure): tier-CHECK relax → admit `'hub'`, INSERT hub + negotiation `blocks` rows, collision-free highest-first `sort_order` reshuffle to {0..8}; orchestrator applies via Supabase MCP (LOAD-01)
-  - [ ] 16-02-PLAN.md — Standalone PostgREST body loader (`scripts/load_economy_map_content.py`): validate-all-then-insert, `building→emerging` remap, idempotent skip-if-open-draft + deliberately-broken-fixture negative test (LOAD-01, LOAD-02, LOAD-03)
+  - [x] 16-01-PLAN.md — Migration 043 (structure): tier-CHECK relax → admit `'hub'`, INSERT hub + negotiation `blocks` rows, collision-free highest-first `sort_order` reshuffle to {0..8}; orchestrator applies via Supabase MCP (LOAD-01)
+  - [x] 16-02-PLAN.md — Standalone PostgREST body loader (`scripts/load_economy_map_content.py`): validate-all-then-insert, `building→emerging` remap, idempotent skip-if-open-draft + deliberately-broken-fixture negative test (LOAD-01, LOAD-02, LOAD-03)
 
 **Wave 2** *(blocked on Wave 1 — 043 live + loader authored)*
 
@@ -144,7 +144,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 | 13. Agent Economy Grid | v2.0 | 2/2 | Complete | 2026-06-05 |
 | 14. About Stub + Polish Pass | v2.0 | 2/2 | Complete | 2026-06-08 |
 | 15. Inventory & Roster Reconciliation | v2.1 | 2/2 | Complete    | 2026-06-08 |
-| 16. Content Load (unpublished) | v2.1 | 0/? | Not started | - |
+| 16. Content Load (unpublished) | v2.1 | 2/3 | In Progress|  |
 | 17. Cross-link Wiring & Preview | v2.1 | 0/? | Not started | - |
 | 18. Gated Batch Publish | v2.1 | 0/? | Not started | - |
 
