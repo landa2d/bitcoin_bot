@@ -4,8 +4,8 @@ milestone: v2.0
 milestone_name: Frontend Redesign
 status: verifying
 stopped_at: "Completed 14-02-PLAN.md (POLISH-01) — Phase 14 plans 1+2 done; ready for phase verification (status: ready_for_verification)"
-last_updated: "2026-06-07T18:05:57.766Z"
-last_activity: 2026-06-07
+last_updated: "2026-06-08T09:59:18.932Z"
+last_activity: 2026-06-08
 progress:
   total_phases: 4
   completed_phases: 4
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 
 ## Current Position
 
-Phase: 14 (about-stub-polish-pass) — EXECUTING
-Plan: 2 of 2
+Phase: 14
+Plan: Not started
 Status: Phase complete — ready for verification
-Last activity: 2026-06-07
+Last activity: 2026-06-08
 
 Progress: [█████████░] 88%
 
