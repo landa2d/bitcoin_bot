@@ -556,6 +556,32 @@ async function loadBlock(slug) {
         if (!bodyRes.error && bodyRes.data) bodyMd = bodyRes.data.body_md;
     }
 
+    // Phase 17 (D-03, LINK-01) — preview-only draft-fetch fallback. When no
+    // published version is pinned (current_body_version_id NULL pre-publish) AND
+    // the D-04 flag is set, fall back to the latest status='draft' body for this
+    // slug. DORMANT in prod (no flag) AND a NO-OP for anon even if reached (RLS
+    // exposes only status='published'). Migration 041 guarantees at most ONE
+    // open draft per slug, so .limit(1) returns 0 or 1 row; created_at is the
+    // append-ordering column (15-CONTRACT §Body storage). Use .limit(1)+array
+    // (NOT .single()) so a zero-draft prod read returns cleanly empty instead of
+    // erroring. The .eq('status','draft') here is the deliberate, flag-gated
+    // INVERSE of the D-17-forbidden defensive .eq('status','published') filter —
+    // functional scoping for the preview-only draft path, reachable only behind
+    // PREVIEW_ENABLED. Graceful-degrade: any error/empty leaves bodyMd null and
+    // renders body-less, never throws (matches the timeline/published posture).
+    // Once rendered, renderBlock's marked.parse (:586) turns the in-body
+    // #/map/<slug> cross-links into real <a href> elements (LINK-01).
+    if (!bodyMd && PREVIEW_ENABLED) {
+        var draftRes = await sb.schema('economy_map')
+            .from('block_body_versions')
+            .select('body_md')
+            .eq('block_slug', slug)
+            .eq('status', 'draft')
+            .order('created_at', { ascending: false })
+            .limit(1);
+        if (!draftRes.error && draftRes.data && draftRes.data.length) bodyMd = draftRes.data[0].body_md;
+    }
+
     // Stash for the Wave 3 idle poll (plan 04-05).
     window.currentBlock = blockRes.data;
     window.currentTimelineEntries = timelineEntries;
