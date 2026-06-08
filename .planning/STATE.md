@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Agent Economy Content
-status: executing
-stopped_at: Phase 16 complete (verified PASSED)
-last_updated: "2026-06-08T17:54:31.047Z"
-last_activity: 2026-06-08 -- Phase 16 executed + verified
+status: planning
+stopped_at: Phase 17 context gathered
+last_updated: "2026-06-08T18:32:48.757Z"
+last_activity: 2026-06-08 -- Phase 16 executed + verified (8 canonical bodies loaded as unpublished drafts)
 progress:
   total_phases: 4
   completed_phases: 2
@@ -100,9 +100,9 @@ Note: `negotiation-coordination` graduation (NEGB-01/02), previously deferred fr
 
 ## Session Continuity
 
-Last session: 2026-06-08T15:10:10.826Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-content-load-unpublished/16-CONTEXT.md
+Last session: 2026-06-08T18:32:48.753Z
+Stopped at: Phase 17 context gathered
+Resume file: .planning/phases/17-cross-link-wiring-preview/17-CONTEXT.md
 Next: `/gsd-plan-phase 16`
 Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
