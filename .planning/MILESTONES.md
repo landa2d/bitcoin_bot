@@ -1,5 +1,19 @@
 # Milestones
 
+## v2.0 Frontend Redesign (Shipped: 2026-06-08)
+
+**Phases completed:** 4 phases, 8 plans, 16 tasks
+
+**Key accomplishments:**
+
+- New style-base.css token layer — single light-mode violet-accent :root palette, Source Serif 4 / IBM Plex Mono typography with 18px/1.62 serif body + .page-title/.eyebrow display classes — loaded first in index.html, with the dark body.technical/strategic var blocks and body-level Courier retired from style-shared.css so the new palette actually takes effect (D-04).
+- Persistent sticky 3-tab nav shell — brand · Newsletter / Agent Economy / What is AgentPulse · Subscribe — replacing the old .top-nav, with route-derived active-tab state (setActiveTab wired into the existing hash router's route()), ← Back to [section] back-controls, the retired plain Map link, and a ≤640px wrap-to-scrollable-row responsive nav, all styled against the Plan-01 :root tokens.
+- Restyled every Newsletter rule in `style-shared.css` onto the Phase 11 serif/light system — TYPE-01 serif prose (no monospace body paragraphs), single serif headings, B1 `--line`-divided list rows, the A1 filled-accent segmented toggle pill + mono hint line, magazine article surfaces (accent blockquotes, code chips, emphasized lead), a token-based `.preview-banner`, and the minimal D3 header text rules.
+- Wired the Newsletter list + article markup/JS onto Plan 01's CSS: relocated the Technical/Strategic toggle to the Newsletter list (TGL-01) by scoping its `.hero` host to the `list` route in `showView()`, restructured the `.hero` into the minimal D3 header, date-appended the `renderList()` kicker, gave the reader view its own escaped magazine header in `renderArticle()`, and swapped the inline-amber PREVIEW banner for the class-based `.preview-banner` — with `setMode()` requiring zero logic change and no new XSS sink introduced.
+- Fleshed out the already-wired `#/about` route into the real "What is AgentPulse" page — eyebrow → title → page-sub → 3 accuracy-reconciled serif paragraphs → a 5-pill token-styled agent row — plus the net-new token-anchored `.about` / `.agent-pill` CSS, with `app.js` and the live deploy untouched.
+
+---
+
 ## v1.0 Agent Economy Map (Shipped: 2026-06-04)
 
 **Phases completed:** 11 phases (1–10 + 4.1), 29 plans, 46 tasks

@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Frontend Redesign
-status: milestone-shipped
-stopped_at: "v2.0 DEPLOYED 2026-06-08 — scoped agentpulse-web cutover (docker compose up -d web) live + verified end-to-end over https://aiagentspulse.com (About page, runtime substitution, 0 raw-px radii); drift-check web=ok. Remaining: operator browser perceptual/editorial walk + optional cleanups, then /gsd-complete-milestone"
-last_updated: "2026-06-08T10:19:22.000Z"
-last_activity: 2026-06-08
+status: Awaiting next milestone
+stopped_at: "Phase 14 executed end-to-end (14-01 ABOUT-01 + 14-02 POLISH-01), code-reviewed (0 blockers), verified 7/7, operator-approved + marked complete. v2.0 (all 4 phases, 8/8 plans) then DEPLOYED LIVE via scoped agentpulse-web cutover and verified end-to-end over https://aiagentspulse.com."
+last_updated: "2026-06-08T11:31:55.659Z"
+last_activity: 2026-06-08 — Milestone v2.0 completed and archived
 progress:
   total_phases: 4
   completed_phases: 4
@@ -25,12 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-04)
 
 ## Current Position
 
-Phase: 14 of 14 — COMPLETE (last v2.0 phase)
-Plan: 8 of 8 plans executed
-Status: Milestone v2.0 DEPLOYED + verified end-to-end over public HTTPS; awaiting operator browser perceptual/editorial UAT, then milestone close
-Last activity: 2026-06-08 -- v2.0 deployed live (agentpulse-web cutover) + verified
-
-Progress: [██████████] 100%
+Phase: Milestone v2.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-08 — Milestone v2.0 completed and archived
 
 ## Roadmap (v2.0 — Phases 11–14)
 
@@ -95,6 +93,21 @@ Items acknowledged and carried forward:
 | v-next — Dark mode | Dark-mode variant of the light palette (DARK-01) | Deferred — light mode ships first this pass | 2026-06-04 |
 | v-next — Richer About | Pipeline/architecture diagram on About (ABOUT-02) | Deferred — About ships as a stub this pass | 2026-06-04 |
 
+### Acknowledged at v2.0 close (2026-06-08)
+
+10 open items acknowledged and deferred at v2.0 milestone close (none are code gaps — v2.0 is deployed live + verified in code). The browser/perceptual/editorial items are testable on the LIVE site now; the backend todos are out of v2.0 (frontend) scope:
+
+| Category | Item | Status |
+|----------|------|--------|
+| UAT (browser) | Phase 13 HUMAN-UAT — 6 pending map scenarios | Deferred — operator browser walk on live site |
+| UAT (browser) | Phase 14 HUMAN-UAT — 4 pending (About render / nav active / POLISH perceptual / copy sign-off) | Deferred — operator browser walk on live site |
+| Verification | Phase 13 + Phase 14 VERIFICATION `human_needed` (visual only; 10/10 + 7/7 verified in code) | Deferred — clears when browser UAT passes |
+| Todo (backend) | analyst predictions title-expire bug (P2) | Deferred — v1.0 backend, out of v2.0 scope |
+| Todo (backend) | soft-cap allow-negative hardening (P5) | Deferred — v1.0 governance, out of v2.0 scope |
+| Todo (backend) | pay-endpoint 500 activation E2E (P2; RPC root-cause fixed m037) | Deferred — v1.0 backend, out of v2.0 scope |
+| Todo (backend) | phase-05 review follow-ups WR02/04/05 (P4) | Deferred — v1.0 intake, out of v2.0 scope |
+| Todo (backend) | research trigger file permissions (P4) | Deferred — v1.0 research, out of v2.0 scope |
+
 ### Acknowledged at v1.0 close (2026-06-04)
 
 14 open items carried forward at v1.0 close (not blockers — manual live-smoke verification + known follow-up todos): UAT/verification for phases 02/04/09/10 are partial/human_needed; 7 follow-up todos in `.planning/todos/pending/`. Full record in MILESTONES.md + RETROSPECTIVE.md.
@@ -108,14 +121,10 @@ Note: root .planning/.continue-here.md is a STALE v1.0 leftover (Phase 6→7, 20
 
 ## Operator Next Steps
 
-v2.0 is SHIPPED. Phases 11–14 are live on aiagentspulse.com (scoped `agentpulse-web` cutover, 2026-06-08; drift-check web=ok, only the accepted lab-data-provider D-07 drift remains). Remaining work is operator-side verification + milestone close:
-
-- **DONE — deploy** ✅ `docker compose up -d web` (new image `docker-web:latest`, 813f22f8…); rollback ref = prior image `sha256:b2303c94…`. Verified end-to-end over public HTTPS: `/` 200 (About page, 5 pills, "eight cooperating services"), `app.js` 200 (0 literal placeholders → SPA boots), `style-shared.css` 200 (0 raw-px radii). Caddy healthy (TLS for aiagentspulse.com).
-- **Operator browser walk (live site)** — the persisted HUMAN-UAT items now testable against the LIVE site (no preview needed): `14-HUMAN-UAT.md` (About visual render, nav active-state, POLISH perceptual "minimalist-but-not-sparse" feel, About copy editorial sign-off), `13-HUMAN-UAT.md` (6 map items), Phase 11 checks. `/gsd-audit-uat` lists them all; `/gsd-verify-work 14` walks them conversationally.
-- **About copy** — shipped as the UI-SPEC draft verbatim and verified accurate (8 services / Processor=background scheduler / 5 content pills / infra in prose). It is LIVE now; reword in `index.html` + redeploy `web` only if the editorial sign-off wants changes.
-- **Then** `/gsd-complete-milestone` once the browser walk passes.
+- Start the next milestone with /gsd-new-milestone
 
 ### Advisory follow-ups (non-blocking, from 14-REVIEW.md)
+
 - WR-01: dead `.about-lede` rule in `style-base.css` (its only consumer was deleted this phase) — left untouched because both plans fenced `style-base.css`; trivial cleanup, fold into the deploy commit or a quick task.
 - IN-03: the `.ad` class name can be hit by ad-blocker cosmetic filters (could hide agent role text) — consider a rename if observed.
 - Security: no `14-SECURITY.md` (threats all dispositioned "accept" — static HTML/CSS); `/gsd-secure-phase 14` available if you want the formal record.
