@@ -45,6 +45,20 @@ const TIER_LABELS = { substrate: 'SUBSTRATE', behavior: 'BEHAVIOR', frame: 'FRAM
 // seed exactly — do not substitute a hyphen.
 const LIVE_TENSION_PLACEHOLDER = 'TBD — set via /map-tension';
 
+// Phase 17 (D-04): dormant-in-prod preview flag. Read off the URL with the SAME
+// idiom as getInitialMode() (:49) — `?preview=1` (or `=true`) flips it on. It
+// gates BOTH the block + hub draft-fetch fallbacks (D-03). DOUBLE-SAFE: in
+// production the param is absent (flag stays false) AND published-only RLS
+// independently returns no draft to the anon key — either alone makes the new
+// path a no-op, so the deployed app.js renders byte-for-byte as today. The
+// local-only service_role preview container (Phase 17-02) sets ?preview=1 to
+// see the loaded-but-unpublished drafts. No new route/view/component — a
+// boolean read only.
+const PREVIEW_ENABLED = (function () {
+    var p = new URL(window.location).searchParams.get('preview');
+    return p === '1' || p === 'true';
+})();
+
 // Resolve initial mode: URL param > localStorage > default 'technical'
 function getInitialMode() {
     var urlMode = new URL(window.location).searchParams.get('mode');
