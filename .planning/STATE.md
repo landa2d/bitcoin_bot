@@ -2,9 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Agent Economy Content
-status: roadmapped
-last_updated: "2026-06-08T12:30:00.000Z"
-last_activity: 2026-06-08
+status: planning
+stopped_at: Phase 15 context gathered
+last_updated: "2026-06-08T12:42:07.884Z"
+last_activity: 2026-06-08 — v2.1 roadmap created (4 phases, 15–18); 10/10 requirements mapped
 progress:
   total_phases: 4
   completed_phases: 0
@@ -99,9 +100,9 @@ Note: `negotiation-coordination` graduation (NEGB-01/02), previously deferred fr
 
 ## Session Continuity
 
-Last session: 2026-06-08T12:30:00Z
-Stopped at: v2.1 (Agent Economy Content) roadmap created — 4 phases (15–18), 10/10 requirements mapped, ROADMAP.md updated in place (v1.0 + v2.0 SHIPPED history + Backlog preserved verbatim), REQUIREMENTS.md traceability populated.
-Resume file: None
+Last session: 2026-06-08T12:42:07.880Z
+Stopped at: Phase 15 context gathered
+Resume file: .planning/phases/15-inventory-roster-reconciliation/15-CONTEXT.md
 Next: `/gsd-plan-phase 15`
 Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
