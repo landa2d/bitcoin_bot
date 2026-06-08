@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Agent Economy Content
 status: executing
-stopped_at: Phase 15 context gathered
-last_updated: "2026-06-08T13:22:43.006Z"
-last_activity: 2026-06-08 -- Phase 15 execution started
+stopped_at: Phase 15 complete (verified passed)
+last_updated: "2026-06-08T14:31:50.945Z"
+last_activity: 2026-06-08 -- Phase 15 complete (operator-approved, verified)
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 0
-  percent: 0
+  completed_plans: 2
+  percent: 25
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 15 — inventory-roster-reconciliation
+**Current focus:** Phase 15 complete (contract + reconciliation operator-approved) — Phase 16 Content Load (unpublished) next.
 
 ## Current Position
 
-Phase: 15 (inventory-roster-reconciliation) — EXECUTING
-Plan: 1 of 2
-Status: Executing Phase 15
-Last activity: 2026-06-08 -- Phase 15 execution started
-Next: `/gsd-plan-phase 15`
+Phase: 16 — Content Load (unpublished) (next to plan)
+Plan: Not started
+Status: Phase 15 complete — ready to plan Phase 16
+Last activity: 2026-06-08 -- Phase 15 complete (verified passed)
+Next: `/gsd-plan-phase 16`
 
 ## Roadmap (v2.1 — Phases 15–18)
 
@@ -100,16 +100,16 @@ Note: `negotiation-coordination` graduation (NEGB-01/02), previously deferred fr
 
 ## Session Continuity
 
-Last session: 2026-06-08T12:42:07.880Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-inventory-roster-reconciliation/15-CONTEXT.md
-Next: `/gsd-plan-phase 15`
+Last session: 2026-06-08T14:31:50.945Z
+Stopped at: Phase 15 complete (operator-approved + verified passed)
+Resume file: .planning/phases/16-content-load-unpublished/16-CONTEXT.md (once discussed)
+Next: `/gsd-plan-phase 16`
 Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
 ## Operator Next Steps
 
-- Plan the first v2.1 phase: `/gsd-plan-phase 15`
-- Phase 15 ends on the "read before writing, I approve" gate — review the reconciliation plan (contract + maturity enum + per-slug roster disposition) before any load.
+- Plan the next v2.1 phase: `/gsd-plan-phase 16` (Content Load — unpublished). Phase 15's `15-APPROVAL.md` is the read-before-write gate clearing Phase 16's `economy_map` writes.
+- Phase 16 executes from the locked docs: load 8 canonical bodies unpublished (`building→emerging` on the substrate trio per D-01), insert `negotiation-coordination` as a new block, apply the D-03 collision-free sort_order reshuffle, and apply the D-04 Option-A hub-tier migration (relax tier CHECK + `'hub'` sentinel).
 
 ### Advisory follow-ups (non-blocking, from v2.0 14-REVIEW.md)
 
