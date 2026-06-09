@@ -103,3 +103,12 @@ None. `HUB_STORYLINE` is an intentional pre-publish fallback (D-02), not a stub 
 - This plan does NOT deploy and does NOT run any live DB publish — it only authors the renderer code. The Wave-2 go-live plan ships this via the scoped `agentpulse-web` rebuild (worktree-unsafe — run no-worktree/sequential from the main tree) and runs the gated publish batch that flips the hub body + 7 block bodies live.
 - Web-deploy gotcha (MEMORY: web_static_preview_substitution): the deployed image substitutes the `__SUPABASE_*__` placeholders at container start via entrypoint.sh; the tracked file must keep the placeholders (verified).
 - The published path is reached for anon visitors only after the publish RPC points `blocks.current_body_version_id` at the published hub body version (mig 039 atomic flip).
+
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/18-gated-batch-publish/18-01-SUMMARY.md`
+- FOUND commit 2ad3615 (Task 1 — published-hub-body fetch)
+- FOUND commit cec4d49 (Task 2 — verification milestone)
+- FOUND commit b65b12e (SUMMARY)
+- Task-1 app.js diff confined to 1 hunk inside `loadHub` (verified `@@` count == 1)
+- `.planning/STATE.md` / `.planning/ROADMAP.md` NOT in any of my commits (orchestrator-owned, correctly untouched; STATE.md shows a pre-existing working-tree modification not introduced by this plan)
