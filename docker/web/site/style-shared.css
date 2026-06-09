@@ -238,6 +238,17 @@ body {
     margin-bottom: var(--space-md);
 }
 
+/* Hub published body prose rhythm — the marked.parse'd hub body renders its
+   paragraphs as <p> children of .hub-storyline, which had NO child-paragraph
+   margin, so a multi-paragraph published body butted together with zero gap.
+   Reuse --space-lg (24px ≈ one line of leading at 18px/1.62) so paragraphs
+   show a full-line vertical gap. :last-child zeros out so the container's own
+   margin-bottom is not doubled. h2 gets a modest token top-margin for the
+   `## How to read this map` framing heading (typography itself unchanged). */
+.hub-storyline p { margin-bottom: var(--space-lg); }
+.hub-storyline p:last-child { margin-bottom: 0; }
+.hub-storyline h2 { margin-top: var(--space-lg); }
+
 /* Card grid (MAP-01) — 2-col desktop within each tier section, the tier
    label sits ABOVE this grid (emitted as a sibling by renderHub). */
 .grid {
@@ -386,7 +397,7 @@ body {
     font-weight: 400;
     color: var(--ink-soft);
     line-height: 1.62;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-lg);
 }
 
 .block-body ul,
@@ -600,7 +611,7 @@ article p {
     font-weight: 400;
     color: var(--ink-soft);
     line-height: 1.62;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-lg);
 }
 
 article ul, article ol {
