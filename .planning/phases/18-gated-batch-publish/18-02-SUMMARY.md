@@ -131,3 +131,12 @@ the located analogs as written.
   the operator approval gate, then re-run without `--dry-run` after approval.
 - After publish, run `python3 scripts/verify_economy_map_publish.py` (anon) — it must
   print `RESULT: PASS` (8 published, hub resolves, cross-links against published, 2 -> 8).
+
+## Self-Check: PASSED
+
+- scripts/publish_economy_map_batch.py — FOUND
+- scripts/verify_economy_map_publish.py — FOUND
+- .planning/phases/18-gated-batch-publish/18-02-SUMMARY.md — FOUND
+- Commit 6fce74b (Task 1) — FOUND
+- Commit 5bbf258 (Task 2) — FOUND
+- Commit 491c717 (SUMMARY) — FOUND
