@@ -33,7 +33,7 @@
 
 ### Gated Publish
 
-- [ ] **PUB-01**: The content is published live via the existing atomic publish RPC in ONE operator-approved batch (web-only scoped deploy) — afterward the hub renders at `#/map` and every published block renders at `#/map/<slug>` with back arrow, title, subtitle, maturity pill, and body.
+- [x] **PUB-01**: The content is published live via the existing atomic publish RPC in ONE operator-approved batch (web-only scoped deploy) — afterward the hub renders at `#/map` and every published block renders at `#/map/<slug>` with back arrow, title, subtitle, maturity pill, and body.
 
 ## Future Requirements (deferred)
 
@@ -61,4 +61,4 @@
 | LINK-01 | Phase 17 | Complete |
 | PREV-01 | Phase 17 | Complete |
 | HUB-01 | Phase 17 | Complete |
-| PUB-01 | Phase 18 | Pending |
+| PUB-01 | Phase 18 | Complete |

@@ -50,7 +50,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 - [x] **Phase 15: Inventory & Roster Reconciliation** — Confirm the live storage/serve contract + maturity enum, and resolve the per-slug roster diff before any write (read-before-write, operator-approved plan). (completed 2026-06-08)
 - [x] **Phase 16: Content Load (unpublished)** — Load all 8 canonical bodies into `economy_map` as unsorted/unpublished, fail-loud on missing fields, correct existing rows via the rewrite path — zero change for live visitors. (completed 2026-06-08)
 - [x] **Phase 17: Cross-link Wiring & Preview** — Make every `#/map/<slug>` cross-block + hub→block link resolve, and verify the loaded-but-unpublished content end-to-end on a non-published preview route. (completed 2026-06-09)
-- [ ] **Phase 18: Gated Batch Publish** — Publish the content live via the existing atomic publish RPC in ONE operator-approved batch (web-only scoped deploy).
+- [x] **Phase 18: Gated Batch Publish** — Publish the content live via the existing atomic publish RPC in ONE operator-approved batch (web-only scoped deploy). (completed 2026-06-09)
 
 ## Phase Details
 
@@ -139,7 +139,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 
 **Wave 2** *(blocked on Wave 1 — autonomous:false; worktree-unsafe scoped rebuild + operator-gated publish, orchestrator-owned from the main tree)*
 
-  - [ ] 18-03-PLAN.md — Go-live: deploy-first scoped agentpulse-web rebuild (visual no-op pre-publish) -> single operator-approval gate on the manifest -> run the publish batch over the 8 in-scope drafts -> programmatic anon verification (count 2->8, hub article + cross-links resolve published) (PUB-01)
+  - [x] 18-03-PLAN.md — Go-live: deploy-first scoped agentpulse-web rebuild (visual no-op pre-publish) -> single operator-approval gate on the manifest -> run the publish batch over the 8 in-scope drafts -> programmatic anon verification (count 2->8, hub article + cross-links resolve published) (PUB-01)
 
 ## Progress
 
@@ -163,7 +163,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 | 15. Inventory & Roster Reconciliation | v2.1 | 2/2 | Complete    | 2026-06-08 |
 | 16. Content Load (unpublished) | v2.1 | 3/3 | Complete    | 2026-06-08 |
 | 17. Cross-link Wiring & Preview | v2.1 | 2/2 | Complete    | 2026-06-09 |
-| 18. Gated Batch Publish | v2.1 | 2/3 | In Progress|  |
+| 18. Gated Batch Publish | v2.1 | 3/3 | Complete    | 2026-06-09 |
 
 ## Backlog
 
