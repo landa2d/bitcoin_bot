@@ -487,6 +487,37 @@ async function loadHub() {
         if (!hubRes.error && hubRes.data && hubRes.data.length) hubBodyMd = hubRes.data[0].body_md;
     }
 
+    // Phase 18 (D-01): prod published-hub-body fetch — mirrors the loadBlock
+    // published path (:674-677), flag-INDEPENDENT (NOT inside if (PREVIEW_ENABLED)),
+    // so prod renders the PUBLISHED hub article instead of the hardcoded
+    // HUB_STORYLINE constant once the hub body is published (D-01/D-02). The hub
+    // row is resolved from the EXISTING loadHub blocks select above (no separate
+    // hub-row read): the select reads all rows ordered by sort_order with NO tier
+    // filter, so the 'agent-economy' row (tier 'hub', migration 043) is returned.
+    // Gated on !hubBodyMd so the Phase-17 preview DRAFT fetch above keeps
+    // precedence in preview mode — the exact draft-first/published-fallback
+    // precedence loadBlock uses (:655-677). Per D-16 sb.schema('economy_map') sets
+    // Accept-Profile automatically; per D-17 NO defensive .eq('status','published')
+    // — anon RLS exposes ONLY published versions (the boundary). Graceful-degrade:
+    // any error/empty leaves hubBodyMd null, never throws (mirrors :676).
+    //
+    // DOUBLE-SAFE deploy-first no-op proof (D-04 — same reasoning as the Phase-17
+    // preview comment at :48-60): agent-economy.current_body_version_id is NULL
+    // until the Phase-18 publish batch runs → hubRow.current_body_version_id is
+    // null → this fetch is skipped → hubBodyMd stays null → renderHub falls back to
+    // the HUB_STORYLINE constant. So shipping this app.js is a PROVABLE visual
+    // no-op pre-publish (the NULL pointer → HUB_STORYLINE fallback is the proof).
+    // AND independently, anon RLS exposes only status='published' versions, so even
+    // a non-null pointer resolves only to published content — never a draft. No new
+    // route/view/component/CSS class and no new blocks-select column: the only
+    // behavioral change is populating hubBodyMd from the published path.
+    var hubRow = data.find(function (b) { return b.slug === 'agent-economy'; });
+    if (!hubBodyMd && hubRow && hubRow.current_body_version_id) {
+        var hubBodyRes = await sb.schema('economy_map').from('block_body_versions')
+            .select('body_md').eq('id', hubRow.current_body_version_id).single();
+        if (!hubBodyRes.error && hubBodyRes.data) hubBodyMd = hubBodyRes.data.body_md;
+    }
+
     // Phase 17 (preview-only) — draft proposed_maturity per loaded block.
     // blocks.maturity is stale until the Phase-18 publish watermark (mig 038), so
     // the cards must read the draft's proposed_maturity to preview publish-ready,
