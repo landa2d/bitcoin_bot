@@ -748,7 +748,33 @@ function renderBlock(block, bodyMd, entries) {
     //    gate (operator approval) is the compensating control.
     var bodyHtml = '';
     if (bodyMd) {
-        bodyHtml = '<section class="block-body">' + marked.parse(bodyMd) + '</section>';
+        // Bug fix (#/map/<slug> duplicate title): the header branch (A) already
+        // renders block.title, but the published canonical bodies begin with their
+        // own `# <Title>` H1 (Phase 16 load / Phase 18 publish), so marked.parse was
+        // rendering a SECOND identical title. Strip the body's FIRST markdown ATX
+        // heading line IFF its text matches block.title (trimmed, case-insensitive).
+        // Guarded so a body that legitimately opens with a DIFFERENT first heading is
+        // never altered; tagline and all other content are preserved untouched.
+        var renderMd = bodyMd;
+        var lines = renderMd.split('\n');
+        var firstIdx = -1;
+        for (var li = 0; li < lines.length; li++) {
+            if (lines[li].trim() !== '') { firstIdx = li; break; }
+        }
+        if (firstIdx !== -1) {
+            var headingMatch = lines[firstIdx].match(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/);
+            if (headingMatch) {
+                var headingText = headingMatch[1].trim().toLowerCase();
+                if (headingText === String(block.title).trim().toLowerCase()) {
+                    // Drop exactly that one heading line; leave the following blank
+                    // line and every subsequent line intact so paragraph spacing and
+                    // the tagline survive.
+                    lines.splice(firstIdx, 1);
+                    renderMd = lines.join('\n');
+                }
+            }
+        }
+        bodyHtml = '<section class="block-body">' + marked.parse(renderMd) + '</section>';
     }
 
     // D. Evolution — always renders (even with zero entries). Newest-first per
