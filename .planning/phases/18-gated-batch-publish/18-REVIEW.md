@@ -12,7 +12,8 @@ findings:
   warning: 3
   info: 3
   total: 7
-status: issues_found
+status: resolved
+resolution_commit: e183b75
 ---
 
 # Phase 18: Code Review Report
@@ -20,7 +21,7 @@ status: issues_found
 **Reviewed:** 2026-06-09
 **Depth:** standard
 **Files Reviewed:** 3
-**Status:** issues_found
+**Status:** resolved — all findings fixed in `e183b75` (see ## Resolution)
 
 ## Summary
 
@@ -130,6 +131,18 @@ The docstrings repeatedly promise that pre-flight verifies each slug resolves to
 
 ---
 
+## Resolution (2026-06-09, commit `e183b75`)
+
+All findings fixed before phase verification (per the standing rule: fix code-review findings that violate fail-loud / lose recoverability BEFORE verify, not as a later `--gaps` cycle). The live go-live had already succeeded 8/8 cleanly, so CR-01 was latent — but the script is a reusable artifact whose D-08 recovery contract must hold.
+
+- **CR-01 (FIXED):** Reworked the pre-flight in `publish_economy_map_batch.py` to classify each slug as TO-PUBLISH (open draft), ALREADY-PUBLISHED (no draft but `blocks.current_body_version_id` non-null — a new `published_pointer()` helper), or MISSING (neither). Pre-flight now halts ONLY on MISSING; the loop publishes the TO-PUBLISH set and reports ALREADY-PUBLISHED as skipped, so a re-run after a partial HALT completes the remainder. Chose the `current_body_version_id` check over the reviewer's `in.(draft,published)` suggestion because it directly reflects "is this slug live" and correctly handles the two pre-existing blocks (identity-trust, governance-accountability) that carried BOTH an old published body AND a new draft. **Proof:** post-publish dry-run + live re-run now classify all 8 as already-published and exit 0 with no POST (previously the pre-flight `missing` gate would `sys.exit(1)`).
+- **WR-03 (FIXED):** The mid-batch `not found or not in draft status` marker is now treated as an idempotent SKIP ONLY when `published_pointer(slug)` confirms a live published body (a benign resolve→POST race); a genuinely bad version_id has no published body → falls through to HALT. No longer swallows a real fault.
+- **WR-02 (FIXED):** Softened the module docstring + pre-flight comment to "the newest open draft (mig-041 guarantees ≤1)" so the contract matches the `limit(1)`/newest-wins implementation.
+- **WR-01 (FIXED):** Deleted the dead `count_published_blocks()` from `verify_economy_map_publish.py`; the count via `len(published_bodies)` is correct and reuses already-fetched bodies. Verify harness still PASSES (count 2→8) post-edit.
+- **IN-02 (FIXED):** Collapsed the redundant hub assertion to a single `HUB_SLUG not in published_bodies` clause.
+- **IN-01, IN-03 (NOT changed):** left as advisory — IN-01 (unused `slug` in a select) is cosmetic; IN-03 (per-target re-fetch in the cross-link loop) is a perf nicety on already-passing logic, deferred to a future `/simplify` rather than risk the verified cross-link check.
+
 _Reviewed: 2026-06-09_
 _Reviewer: Claude (gsd-code-reviewer)_
+_Resolution: Claude (execute-phase orchestrator)_
 _Depth: standard_
