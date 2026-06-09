@@ -103,13 +103,13 @@ Note: `negotiation-coordination` graduation (NEGB-01/02), previously deferred fr
 Last session: 2026-06-09T08:44:45.469Z
 Stopped at: Phase 18 context gathered
 Resume file: .planning/phases/18-gated-batch-publish/18-CONTEXT.md
-Next: `/gsd-plan-phase 16`
+Next: `/gsd-plan-phase 18`
 Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
 ## Operator Next Steps
 
-- Plan the next v2.1 phase: `/gsd-plan-phase 16` (Content Load — unpublished). Phase 15's `15-APPROVAL.md` is the read-before-write gate clearing Phase 16's `economy_map` writes.
-- Phase 16 executes from the locked docs: load 8 canonical bodies unpublished (`building→emerging` on the substrate trio per D-01), insert `negotiation-coordination` as a new block, apply the D-03 collision-free sort_order reshuffle, and apply the D-04 Option-A hub-tier migration (relax tier CHECK + `'hub'` sentinel).
+- Plan the final v2.1 phase: `/gsd-plan-phase 18` (Gated Batch Publish — PUB-01). Context locked in `18-CONTEXT.md`.
+- Phase 18 (per 18-CONTEXT): deploy-first (scoped `agentpulse-web` rebuild ships the new `app.js` rendering the published hub body as a framing article — a no-op pre-publish), then a single operator-approved batch script loops the existing `publish_block_version` RPC over the 8 open drafts (7 blocks first, hub last; fail-loud halt-and-report), then programmatic verification (anon read: 8 published + hub, cross-links resolve, count 2→8). `regulation-legal` stays deferred.
 
 ### Advisory follow-ups (non-blocking, from v2.0 14-REVIEW.md)
 
