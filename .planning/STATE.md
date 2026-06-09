@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Agent Economy Content
 status: executing
-stopped_at: Phase 17 plan 01 complete (preview render path shipped dormant)
-last_updated: "2026-06-08T19:13:29.590Z"
-last_activity: 2026-06-08 -- Phase 17 plan 01 executed (app.js preview path)
+stopped_at: Phase 17 complete — cross-link wiring & preview verified
+last_updated: "2026-06-09T08:13:51.146Z"
+last_activity: 2026-06-09
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 7
-  completed_plans: 6
-  percent: 50
+  completed_plans: 7
+  percent: 75
 ---
 
 # Project State
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 17 — cross-link-wiring-preview
+**Current focus:** Phase 17 complete (LINK-01/PREV-01/HUB-01 verified — flag-gated preview render path + fail-loud cross-link harness + operator-approved click-through; production path a byte-for-byte no-op); Phase 18 Gated Batch Publish next.
 
 ## Current Position
 
-Phase: 17 (cross-link-wiring-preview) — EXECUTING
-Plan: 2 of 2
-Status: Plan 17-01 complete (PREVIEW_ENABLED flag + block/hub draft-fetch + hub trim, all dormant in prod); 17-02 next
-Last activity: 2026-06-08 -- Phase 17 plan 01 executed (app.js preview render path; 3 tasks, 3 commits)
-Next: execute plan 17-02 (local service_role preview container + behavioral/no-op/leak-guard proofs)
+Phase: 18
+Plan: Not started
+Status: Phase 17 complete — 2/2 plans, verified 4/4 must-haves. Preview proved the loaded-but-unpublished content publish-ready; nothing published yet.
+Last activity: 2026-06-09 -- Phase 17 complete
+Next: `/gsd-discuss-phase 18` — Gated Batch Publish (PUB-01): publish all 8 bodies live via the atomic publish RPC in ONE operator-approved batch (web-only scoped deploy)
 
 ## Roadmap (v2.1 — Phases 15–18)
 

@@ -49,7 +49,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 
 - [x] **Phase 15: Inventory & Roster Reconciliation** — Confirm the live storage/serve contract + maturity enum, and resolve the per-slug roster diff before any write (read-before-write, operator-approved plan). (completed 2026-06-08)
 - [x] **Phase 16: Content Load (unpublished)** — Load all 8 canonical bodies into `economy_map` as unsorted/unpublished, fail-loud on missing fields, correct existing rows via the rewrite path — zero change for live visitors. (completed 2026-06-08)
-- [ ] **Phase 17: Cross-link Wiring & Preview** — Make every `#/map/<slug>` cross-block + hub→block link resolve, and verify the loaded-but-unpublished content end-to-end on a non-published preview route.
+- [x] **Phase 17: Cross-link Wiring & Preview** — Make every `#/map/<slug>` cross-block + hub→block link resolve, and verify the loaded-but-unpublished content end-to-end on a non-published preview route. (completed 2026-06-09)
 - [ ] **Phase 18: Gated Batch Publish** — Publish the content live via the existing atomic publish RPC in ONE operator-approved batch (web-only scoped deploy).
 
 ## Phase Details
@@ -117,7 +117,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 
 **Wave 2** *(blocked on Wave 1 — renders the path under test)*
 
-  - [ ] 17-02-PLAN.md — Fail-loud cross-link harness (D-05) + service_role-key diff guard (D-02), local elevated preview container (D-01/D-02), operator manual click-through checkpoint (PREV-01, LINK-01, HUB-01)
+  - [x] 17-02-PLAN.md — Fail-loud cross-link harness (D-05) + service_role-key diff guard (D-02), local elevated preview container (D-01/D-02), operator manual click-through checkpoint (PREV-01, LINK-01, HUB-01)
 
 ### Phase 18: Gated Batch Publish
 
@@ -153,7 +153,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 | 14. About Stub + Polish Pass | v2.0 | 2/2 | Complete | 2026-06-08 |
 | 15. Inventory & Roster Reconciliation | v2.1 | 2/2 | Complete    | 2026-06-08 |
 | 16. Content Load (unpublished) | v2.1 | 3/3 | Complete    | 2026-06-08 |
-| 17. Cross-link Wiring & Preview | v2.1 | 1/2 | In Progress|  |
+| 17. Cross-link Wiring & Preview | v2.1 | 2/2 | Complete    | 2026-06-09 |
 | 18. Gated Batch Publish | v2.1 | 0/? | Not started | - |
 
 ## Backlog

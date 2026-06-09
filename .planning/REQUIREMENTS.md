@@ -24,12 +24,12 @@
 
 ### Cross-link Wiring & Preview
 
-- [ ] **LINK-01**: Every `#/map/<slug>` cross-block link inside the bodies resolves to the correct block page, and the hub's block entries are clickable through to their deep-dive pages.
-- [ ] **PREV-01**: The loaded-but-unpublished content renders correctly on a non-published preview route before any publish — maturity pills show the three values, cross-links resolve, and hub→block click-through works end-to-end.
+- [x] **LINK-01**: Every `#/map/<slug>` cross-block link inside the bodies resolves to the correct block page, and the hub's block entries are clickable through to their deep-dive pages.
+- [x] **PREV-01**: The loaded-but-unpublished content renders correctly on a non-published preview route before any publish — maturity pills show the three values, cross-links resolve, and hub→block click-through works end-to-end.
 
 ### Hub Presentation
 
-- [ ] **HUB-01**: The hub renders as the `#/map` landing — thesis + two-tier framing as the intro above the block grid, with the block list appearing once (cards preferred), not duplicated as both prose links and cards.
+- [x] **HUB-01**: The hub renders as the `#/map` landing — thesis + two-tier framing as the intro above the block grid, with the block list appearing once (cards preferred), not duplicated as both prose links and cards.
 
 ### Gated Publish
 
@@ -58,7 +58,7 @@
 | LOAD-01 | Phase 16 | Complete |
 | LOAD-02 | Phase 16 | Complete |
 | LOAD-03 | Phase 16 | Complete |
-| LINK-01 | Phase 17 | Pending |
-| PREV-01 | Phase 17 | Pending |
-| HUB-01 | Phase 17 | Pending |
+| LINK-01 | Phase 17 | Complete |
+| PREV-01 | Phase 17 | Complete |
+| HUB-01 | Phase 17 | Complete |
 | PUB-01 | Phase 18 | Pending |
