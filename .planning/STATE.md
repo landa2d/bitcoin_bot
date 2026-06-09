@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 Phase: 18 — Gated Batch Publish (COMPLETE)
 Plan: 3/3 complete (18-01 render path, 18-02 publish+verify scripts, 18-03 gated go-live)
 Status: Phase complete + verified (passed); v2.1 milestone 100% (4/4 phases, 10/10 plans)
-Last activity: 2026-06-09 — Completed quick task 260609-fpc: fixed duplicate block title on `#/map/<slug>` (deployed live). Earlier today: PUB-01 live; code review CR-01/WR-01/02/03 fixed; verification passed (operator accepted block surface)
+Last activity: 2026-06-09 — Completed quick task 260609-ivq: map page rendering fixes (hub title de-dup, site-wide prose spacing, maturity/nav overlap) on branch `fix/map-rendering-issues`, deployed live. Earlier: quick task 260609-fpc (block title de-dup); PUB-01 live; code review fixed; verification passed
 Next: `/gsd-complete-milestone` — archive v2.1 and prepare the next version (or `/gsd-new-milestone` to scope new work)
 
 ## Roadmap (v2.1 — Phases 15–18)
@@ -70,6 +70,7 @@ None for v2.1 start. Source content (`.planning/docs/00-hub.md … 07-*.md` + `E
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260609-fpc | Fix duplicate block title on `#/map/<slug>` — `renderBlock` strips the body's leading `# <Title>` H1 (guarded by trimmed/case-insensitive title match) so the title renders once; deployed live via scoped `agentpulse-web` rebuild | 2026-06-09 | 19115b2 | [260609-fpc-fix-duplicate-block-title-on-map-slug](./quick/260609-fpc-fix-duplicate-block-title-on-map-slug/) |
+| 260609-ivq | Map page rendering fixes (3): (1) site-wide prose paragraph rhythm via `--space-lg` incl. the missing `.hub-storyline p` rule; (2) hub duplicate title de-dup — `stripLeadingTitleH1` shared helper wired into `renderHub`+`renderBlock` (title-only, bold tagline KEPT per operator); (3) maturity-pill/nav overlap fixed by re-scoping the bare `header{position:sticky}` rule to `body > header`. On branch `fix/map-rendering-issues`; deployed live via scoped `agentpulse-web` rebuild | 2026-06-09 | 9e350f3 | [260609-ivq-map-page-rendering-fixes-hub-duplicate-t](./quick/260609-ivq-map-page-rendering-fixes-hub-duplicate-t/) |
 
 ## Deferred Items
 
