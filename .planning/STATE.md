@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Agent Economy Content
 status: executing
-stopped_at: Phase 18 context gathered
+stopped_at: v2.1 milestone complete — Phase 18 PUB-01 published live (count 2→8)
 last_updated: "2026-06-09T11:06:58.423Z"
 last_activity: 2026-06-09
 progress:
@@ -21,15 +21,15 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 18 — gated-batch-publish
+**Current focus:** v2.1 "Agent Economy Content" COMPLETE — Phase 18 published all 8 in-scope bodies live via the atomic publish RPC in one operator-approved batch; the hub renders its published article at `#/map` and all 7 blocks render at `#/map/<slug>` (anon-verified, published-block count 2→8). Milestone ready to close.
 
 ## Current Position
 
-Phase: 18
-Plan: Not started
-Status: Executing Phase 18
-Last activity: 2026-06-09
-Next: `/gsd-discuss-phase 18` — Gated Batch Publish (PUB-01): publish all 8 bodies live via the atomic publish RPC in ONE operator-approved batch (web-only scoped deploy)
+Phase: 18 — Gated Batch Publish (COMPLETE)
+Plan: 3/3 complete (18-01 render path, 18-02 publish+verify scripts, 18-03 gated go-live)
+Status: Phase complete + verified (passed); v2.1 milestone 100% (4/4 phases, 10/10 plans)
+Last activity: 2026-06-09 — PUB-01 live; code review CR-01/WR-01/02/03 fixed; verification passed (operator accepted block surface)
+Next: `/gsd-complete-milestone` — archive v2.1 and prepare the next version (or `/gsd-new-milestone` to scope new work)
 
 ## Roadmap (v2.1 — Phases 15–18)
 
