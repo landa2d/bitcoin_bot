@@ -4,8 +4,8 @@ milestone: v2.1
 milestone_name: Agent Economy Content
 status: executing
 stopped_at: Phase 18 context gathered
-last_updated: "2026-06-09T09:56:57.923Z"
-last_activity: 2026-06-09 -- Phase 18 planning complete
+last_updated: "2026-06-09T10:03:04.151Z"
+last_activity: 2026-06-09 -- Phase 18 execution started
 progress:
   total_phases: 4
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 17 complete (LINK-01/PREV-01/HUB-01 verified — flag-gated preview render path + fail-loud cross-link harness + operator-approved click-through; production path a byte-for-byte no-op); Phase 18 Gated Batch Publish next.
+**Current focus:** Phase 18 — gated-batch-publish
 
 ## Current Position
 
-Phase: 18
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-09 -- Phase 18 planning complete
+Phase: 18 (gated-batch-publish) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 18
+Last activity: 2026-06-09 -- Phase 18 execution started
 Next: `/gsd-discuss-phase 18` — Gated Batch Publish (PUB-01): publish all 8 bodies live via the atomic publish RPC in ONE operator-approved batch (web-only scoped deploy)
 
 ## Roadmap (v2.1 — Phases 15–18)

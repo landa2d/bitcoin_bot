@@ -134,8 +134,8 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 
 **Wave 1** *(parallel — no file overlap)*
 
-  - [ ] 18-01-PLAN.md — Prod published-hub-body render path in app.js: flag-independent loadHub fetch mirroring loadBlock, trimmed published hub article, HUB_STORYLINE pre-publish fallback — a deploy-first visual no-op (D-01/D-02/D-03/D-04)
-  - [ ] 18-02-PLAN.md — Author the batch publish script (resolve 8 open drafts -> manifest -> single-gate publish_block_version RPC loop, blocks-first/hub-last, fail-loud + idempotent) and the anon-key post-publish verification harness (D-05/D-06/D-07/D-08)
+  - [x] 18-01-PLAN.md — Prod published-hub-body render path in app.js: flag-independent loadHub fetch mirroring loadBlock, trimmed published hub article, HUB_STORYLINE pre-publish fallback — a deploy-first visual no-op (D-01/D-02/D-03/D-04)
+  - [x] 18-02-PLAN.md — Author the batch publish script (resolve 8 open drafts -> manifest -> single-gate publish_block_version RPC loop, blocks-first/hub-last, fail-loud + idempotent) and the anon-key post-publish verification harness (D-05/D-06/D-07/D-08)
 
 **Wave 2** *(blocked on Wave 1 — autonomous:false; worktree-unsafe scoped rebuild + operator-gated publish, orchestrator-owned from the main tree)*
 
@@ -163,7 +163,7 @@ Fill the v2.0 grid — currently 5/7 blocks unpublished — with real editorial 
 | 15. Inventory & Roster Reconciliation | v2.1 | 2/2 | Complete    | 2026-06-08 |
 | 16. Content Load (unpublished) | v2.1 | 3/3 | Complete    | 2026-06-08 |
 | 17. Cross-link Wiring & Preview | v2.1 | 2/2 | Complete    | 2026-06-09 |
-| 18. Gated Batch Publish | v2.1 | 0/3 | Planned | - |
+| 18. Gated Batch Publish | v2.1 | 2/3 | In Progress|  |
 
 ## Backlog
 
