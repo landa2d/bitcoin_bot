@@ -84,6 +84,38 @@ function trimHubBody(md) {
     return head + '\n\n' + tail + '\n';
 }
 
+// Quick task 260609-ivq (TITLE-ONLY de-dup, operator decision 2026-06-09): the
+// chrome already renders the canonical title (hub <h1 class="page-title">, block
+// <header class="block-header"><h1>), but the stored canonical bodies still begin
+// with their own `# <Title>` ATX H1 (Phase 16 load / Phase 18 publish), so
+// marked.parse renders a SECOND identical title. Strip ONLY that leading
+// title-matching H1, defensively, mutating a LOCAL copy of the markdown string —
+// never the DB, never the block/title args. The bold tagline first line
+// (e.g. `**Capability is solved...**`) is KEPT: the chrome has NO subtitle
+// element, so the tagline is the SOLE instance, not a duplicate. This is the
+// EXACT guarded behavior factored out of the prior inline renderBlock strip
+// (commit 19115b2): the title is only ever used in a plain string equality
+// (never as a regex pattern), so regex-special title chars are inherently safe;
+// a non-match → byte-identical no-op (never silently drops content it cannot
+// bound). Returns md unchanged on falsy input.
+function stripLeadingTitleH1(md, title) {
+    if (!md || !title) return md;
+    var lines = md.split('\n');
+    var firstIdx = -1;
+    for (var li = 0; li < lines.length; li++) {
+        if (lines[li].trim() !== '') { firstIdx = li; break; }
+    }
+    if (firstIdx === -1) return md;
+    var headingMatch = lines[firstIdx].match(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/);
+    if (!headingMatch) return md;            // first line is not an ATX heading → no-op
+    var headingText = headingMatch[1].trim().toLowerCase();
+    if (headingText !== String(title).trim().toLowerCase()) return md;  // different heading → no-op
+    // Drop exactly that one title-H1 line; leave the following blank line and
+    // every subsequent line (including the bold tagline) intact.
+    lines.splice(firstIdx, 1);
+    return lines.join('\n');
+}
+
 // Resolve initial mode: URL param > localStorage > default 'technical'
 function getInitialMode() {
     var urlMode = new URL(window.location).searchParams.get('mode');
@@ -622,7 +654,15 @@ function renderHub(data, hubBodyMd, draftMaturity, draftSlugs) {
     //    7 hub→block #/map/<slug> links would render, but click-through is
     //    already satisfied by the cards; the trimmed intro keeps the thesis +
     //    two-tier framing only.
-    var trimmedHubBody = trimHubBody(hubBodyMd);
+    // Quick task 260609-ivq (HUB title de-dup): the hub chrome <h1> below renders
+    // the canonical 'The Agent Economy' title, but the stored hub body still opens
+    // with its own `# The Agent Economy` H1 → a duplicate under marked.parse. Run
+    // trimHubBody FIRST (cuts the Tier-1/Tier-2 prose block-list tail), THEN
+    // stripLeadingTitleH1 on the result (strips only the leading title H1 at the
+    // head, tagline KEPT). Pass the exact chrome literal 'The Agent Economy' so the
+    // body's leading H1 matches and is dropped. Pre-publish (null hubBodyMd) both
+    // helpers return null → the HUB_STORYLINE fallback path is an unchanged no-op.
+    var trimmedHubBody = stripLeadingTitleH1(trimHubBody(hubBodyMd), 'The Agent Economy');
     var hubIntroHtml = trimmedHubBody
         ? '<div class="hub-storyline">' + marked.parse(trimmedHubBody) + '</div>'
         : '<div class="hub-storyline">' + escapeHtml(HUB_STORYLINE) + '</div>';
@@ -751,29 +791,11 @@ function renderBlock(block, bodyMd, entries) {
         // Bug fix (#/map/<slug> duplicate title): the header branch (A) already
         // renders block.title, but the published canonical bodies begin with their
         // own `# <Title>` H1 (Phase 16 load / Phase 18 publish), so marked.parse was
-        // rendering a SECOND identical title. Strip the body's FIRST markdown ATX
-        // heading line IFF its text matches block.title (trimmed, case-insensitive).
-        // Guarded so a body that legitimately opens with a DIFFERENT first heading is
-        // never altered; tagline and all other content are preserved untouched.
-        var renderMd = bodyMd;
-        var lines = renderMd.split('\n');
-        var firstIdx = -1;
-        for (var li = 0; li < lines.length; li++) {
-            if (lines[li].trim() !== '') { firstIdx = li; break; }
-        }
-        if (firstIdx !== -1) {
-            var headingMatch = lines[firstIdx].match(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/);
-            if (headingMatch) {
-                var headingText = headingMatch[1].trim().toLowerCase();
-                if (headingText === String(block.title).trim().toLowerCase()) {
-                    // Drop exactly that one heading line; leave the following blank
-                    // line and every subsequent line intact so paragraph spacing and
-                    // the tagline survive.
-                    lines.splice(firstIdx, 1);
-                    renderMd = lines.join('\n');
-                }
-            }
-        }
+        // rendering a SECOND identical title. Strip that leading title H1 via the
+        // shared guarded helper (quick task 260609-ivq refactor of the prior inline
+        // strip — IDENTICAL behavior: title-matching H1 dropped, tagline KEPT, a
+        // body opening with a DIFFERENT first heading is a byte-identical no-op).
+        var renderMd = stripLeadingTitleH1(bodyMd, block.title);
         bodyHtml = '<section class="block-body">' + marked.parse(renderMd) + '</section>';
     }
 
