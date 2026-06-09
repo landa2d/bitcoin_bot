@@ -24,14 +24,22 @@ hardcoded key. Prefer the explicit SUPABASE_SERVICE_KEY; fall back to
 SUPABASE_KEY (the loader's fallback).
 
 FAIL-LOUD GOVERNANCE (D-08, MEMORY: fail_loud_governance):
-  - PRE-FLIGHT: every one of the 8 expected slugs MUST resolve to exactly one
-    open draft BEFORE any POST. If any is missing, print the missing list and
-    sys.exit(1) — no partial pass.
-  - MID-BATCH: the RPC's typed RAISE `version % not found or not in draft status`
-    (mig 039:59) is the idempotency signal — an already-published version is an
-    idempotent SKIP/success (so a re-run completes a halted batch). Any OTHER
-    RuntimeError HALTs immediately, reports which slugs published / which remain,
-    and sys.exit(1) — never continue silently to a partial-pass.
+  - PRE-FLIGHT: every one of the 8 expected slugs MUST be accounted for BEFORE any
+    POST — it either resolves to its (newest, mig-041 guarantees ≤1) open draft
+    [TO-PUBLISH] or already carries a live published body [ALREADY-PUBLISHED, a
+    legitimate idempotent-recovery state]. A slug with NEITHER an open draft NOR a
+    published body is MISSING — print the missing list and sys.exit(1), no partial
+    pass. Classifying already-published separately is what lets a re-run after a
+    partial batch COMPLETE the remainder instead of falsely halting (the published
+    slugs no longer have an open draft, so a "draft-only" pre-flight would wrongly
+    call them missing).
+  - MID-BATCH: any OTHER RuntimeError HALTs immediately, reports which slugs
+    published / which remain, and sys.exit(1) — never continue silently to a
+    partial-pass. The RPC's typed RAISE `version % not found or not in draft status`
+    (mig 039:59) is treated as an idempotent SKIP ONLY when the slug is CONFIRMED to
+    now carry a live published body (a benign race between resolve and POST) — a bad
+    version_id raising the same message is NOT swallowed (it has no published body →
+    HALT).
 
 Run HOST-SIDE from the main tree (needs config/.env + outbound HTTPS). The script
 self-loads config/.env if the env vars are not already exported, so a bare
@@ -242,6 +250,30 @@ def read_old_maturity(slug: str) -> str | None:
     return None
 
 
+def published_pointer(slug: str) -> str | None:
+    """Return the slug's live published-body pointer (blocks.current_body_version_id).
+
+    A non-null pointer means the slug ALREADY has a published body the visitor sees.
+    Used (1) by the pre-flight to distinguish a slug that is already published (no
+    open draft because it is done — a legitimate recovery state) from one that is
+    genuinely missing (no draft AND never published — a real fault, CR-01); and (2)
+    by the mid-batch idempotency guard so a `not in draft status` RPC error is only
+    treated as a benign SKIP when the body genuinely went live (WR-03). Per-slug
+    `eq.` read; raises on non-2xx (fail-loud) via _economy_map_get.
+    """
+    rows = _economy_map_get(
+        "blocks",
+        {
+            "select": "current_body_version_id",
+            "slug": f"eq.{slug}",
+            "limit": 1,
+        },
+    )
+    if rows:
+        return rows[0].get("current_body_version_id")
+    return None
+
+
 def resolve_all() -> dict:
     """Resolve every PUBLISH_ORDER slug to its open draft + old/new maturity.
 
@@ -266,27 +298,33 @@ def resolve_all() -> dict:
 # ── Manifest (D-06 step 2) ────────────────────────────────────────────────────
 
 
-def print_manifest(resolved: dict) -> None:
+def print_manifest(resolved: dict, to_publish: list, already_published: list) -> None:
     """Print the single-approval manifest (slug -> version_id -> old→new maturity).
 
     Printed in PUBLISH_ORDER (blocks first, hub last) for the ONE operator approval;
     the orchestrator surfaces the gate in-chat (mirrors the Phase-16 loader /
-    migration-apply pattern). The deferred legal frame is absent by construction
-    (P15-D-02 / D-06).
+    migration-apply pattern). Slugs WITH an open draft show their version_id + maturity
+    transition (the rows that will be published); slugs already carrying a live
+    published body (e.g. on a recovery re-run) are shown as `(already published)` for
+    transparency and are NOT re-published. The deferred legal frame is absent by
+    construction (P15-D-02 / D-06).
     """
     print("===== economy_map batch-publish MANIFEST (D-06 / D-07) =====")
     print(f"{'#':>2}  {'slug':<28}  {'maturity':<24}  version_id")
     print(f"{'-' * 2}  {'-' * 28}  {'-' * 24}  {'-' * 36}")
     for i, slug in enumerate(PUBLISH_ORDER, start=1):
-        entry = resolved[slug]
-        old = entry.get("old_maturity") or "?"
-        new = entry.get("proposed_maturity") or "?"
-        transition = f"{old}→{new}"
         tag = "  (hub — LAST)" if slug == HUB_SLUG else ""
-        print(f"{i:>2}  {slug:<28}  {transition:<24}  {entry['version_id']}{tag}")
+        if slug in resolved:
+            entry = resolved[slug]
+            old = entry.get("old_maturity") or "?"
+            new = entry.get("proposed_maturity") or "?"
+            transition = f"{old}→{new}"
+            print(f"{i:>2}  {slug:<28}  {transition:<24}  {entry['version_id']}{tag}")
+        else:
+            print(f"{i:>2}  {slug:<28}  {'(already published)':<24}  {'—':<36}{tag}")
     print(
-        f"\n{len(PUBLISH_ORDER)} in-scope draft(s) to publish — 7 blocks FIRST, the "
-        f"hub `{HUB_SLUG}` LAST (D-07)."
+        f"\n{len(to_publish)} draft(s) to publish, {len(already_published)} already "
+        f"published — 7 blocks FIRST, the hub `{HUB_SLUG}` LAST (D-07)."
     )
 
 
@@ -316,19 +354,40 @@ def main() -> None:
         print(f"ERROR resolving open drafts: {exc}")
         sys.exit(1)
 
-    # Step 2 (D-08 PRE-FLIGHT): every expected slug MUST resolve to exactly one open
-    # draft BEFORE any POST. Collect ALL misses, print them, and halt — no partial
-    # pass (MEMORY: fail_loud_governance).
-    missing = [s for s in PUBLISH_ORDER if s not in resolved]
+    # Step 2 (D-08 PRE-FLIGHT): classify every expected slug BEFORE any POST.
+    #   TO-PUBLISH        — has an open draft to flip live (in `resolved`).
+    #   ALREADY-PUBLISHED — no open draft but a live published body exists. This is a
+    #                       legitimate idempotent-recovery state: after a partial batch
+    #                       + HALT, the published slugs lost their draft, so a re-run
+    #                       must recognize them as DONE (not "missing") and complete the
+    #                       remainder (CR-01).
+    #   MISSING           — NEITHER an open draft NOR a published body (a real fault).
+    # Halt ONLY on MISSING — no partial pass (MEMORY: fail_loud_governance).
+    to_publish = [s for s in PUBLISH_ORDER if s in resolved]
+    already_published: list = []
+    missing: list = []
+    try:
+        for slug in PUBLISH_ORDER:
+            if slug in resolved:
+                continue
+            if published_pointer(slug):
+                already_published.append(slug)
+            else:
+                missing.append(slug)
+    except RuntimeError as exc:
+        print(f"ERROR checking published state during pre-flight: {exc}")
+        sys.exit(1)
+
     if missing:
         print(
-            f"ERROR: pre-flight failed — no open draft resolved for: {missing}. "
-            f"Halting BEFORE publishing anything (no partial pass)."
+            f"ERROR: pre-flight failed — these in-scope slug(s) have NEITHER an open "
+            f"draft NOR a published body: {missing}. Halting BEFORE publishing anything "
+            f"(no partial pass)."
         )
         sys.exit(1)
 
     # Step 3 (D-06 step 2): print the manifest for the ONE operator approval gate.
-    print_manifest(resolved)
+    print_manifest(resolved, to_publish, already_published)
 
     if dry_run:
         print(
@@ -337,34 +396,48 @@ def main() -> None:
         )
         return
 
-    # Step 4 (D-06 step 3 / D-07): loop the EXISTING publish RPC over PUBLISH_ORDER —
-    # 7 blocks FIRST, the hub LAST. Idempotent skip on already-published; HALT and
-    # report succeeded/remaining on any OTHER error (D-08, fail-loud).
+    # Idempotent full re-run: nothing left with an open draft → the batch is already
+    # complete. Exit 0 without any POST (never a partial/false pass).
+    if not to_publish:
+        print(
+            f"\nNothing to publish — all {len(PUBLISH_ORDER)} in-scope slug(s) already "
+            f"carry a live published body: {already_published}. (Idempotent re-run.)"
+        )
+        return
+
+    # Step 4 (D-06 step 3 / D-07): loop the EXISTING publish RPC over the TO-PUBLISH
+    # slugs in PUBLISH_ORDER — 7 blocks FIRST, the hub LAST. HALT and report
+    # succeeded/remaining on any error (D-08, fail-loud).
     published: list = []
-    skipped: list = []
-    for idx, slug in enumerate(PUBLISH_ORDER):
+    skipped: list = list(already_published)  # pre-flight-classified already-published
+    for idx, slug in enumerate(to_publish):
         version_id = resolved[slug]["version_id"]
         try:
             _economy_map_rpc("publish_block_version", {"p_version_id": version_id})
             published.append(slug)
             print(f"PUBLISHED {slug} ({version_id})")
         except RuntimeError as exc:
-            if _RPC_ALREADY_ACTIONED in str(exc):
-                # already published/rejected → idempotent SKIP (a re-run completes a
-                # halted batch). The RPC is the authoritative draft-status gate.
+            # Idempotent SKIP ONLY for a benign race: the RPC says the version is no
+            # longer a draft AND the slug now carries a live published body (someone
+            # published between our resolve and this POST). WR-03: requiring the
+            # published-body confirmation means a genuinely bad version_id raising the
+            # same `not in draft status` message is NOT swallowed — it has no published
+            # body, so it falls through to the HALT below.
+            if _RPC_ALREADY_ACTIONED in str(exc) and published_pointer(slug):
                 skipped.append(slug)
-                print(f"SKIP {slug}: already published (idempotent re-run)")
+                print(f"SKIP {slug}: already published (benign race — body live)")
                 continue
             # any OTHER failure: HALT immediately — report succeeded / remaining,
             # never continue silently to a partial pass (MEMORY: fail_loud_governance).
-            remaining = PUBLISH_ORDER[idx + 1:]
+            remaining = to_publish[idx + 1:]
             print(
                 f"HALT at {slug}: {exc}\n"
                 f"  published so far: {published}\n"
-                f"  skipped (already published): {skipped}\n"
+                f"  already-published (skipped): {skipped}\n"
                 f"  FAILED at: {slug}\n"
                 f"  remaining (NOT attempted): {remaining}\n"
-                f"  Fix the cause and re-run — the idempotent skip completes the batch."
+                f"  Fix the cause and re-run — already-published slugs are recognized "
+                f"in pre-flight and skipped, so the re-run completes the remainder."
             )
             sys.exit(1)
 

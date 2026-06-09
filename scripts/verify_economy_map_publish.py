@@ -226,22 +226,6 @@ def fetch_published_body(slug: str) -> str | None:
     return None
 
 
-def count_published_blocks() -> int:
-    """Count the anon-visible blocks whose published body the anon key can load.
-
-    A block is "published" from the visitor's perspective iff its
-    current_body_version_id resolves to an anon-visible (published) body. Counting
-    via fetch_published_body keeps the count consistent with the per-slug
-    assertions (a non-null pointer to a non-published body does NOT count). Counts
-    across the in-scope roster — exactly the set whose 2 → 8 transition D-05d asserts.
-    """
-    n = 0
-    for slug in SOURCE_SLUGS:
-        if fetch_published_body(slug) is not None:
-            n += 1
-    return n
-
-
 # ── Cross-link extraction ─────────────────────────────────────────────────────
 
 
@@ -310,8 +294,10 @@ def run_publish_verification() -> int:
             f"{missing_published}"
         )
 
-    # (b) the hub agent-economy specifically resolves its published body.
-    if HUB_SLUG in missing_published or HUB_SLUG not in published_bodies:
+    # (b) the hub agent-economy specifically resolves its published body. (For an
+    #     in-scope slug, "not in published_bodies" already implies it is in
+    #     missing_published — one check suffices.)
+    if HUB_SLUG not in published_bodies:
         failures.append(
             f"(b) the hub `{HUB_SLUG}` has NO anon-visible published body — the hub "
             f"would render a NULL pointer / the HUB_STORYLINE fallback, not its "
