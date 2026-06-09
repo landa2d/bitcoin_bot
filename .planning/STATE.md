@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 Phase: 18 — Gated Batch Publish (COMPLETE)
 Plan: 3/3 complete (18-01 render path, 18-02 publish+verify scripts, 18-03 gated go-live)
 Status: Phase complete + verified (passed); v2.1 milestone 100% (4/4 phases, 10/10 plans)
-Last activity: 2026-06-09 — PUB-01 live; code review CR-01/WR-01/02/03 fixed; verification passed (operator accepted block surface)
+Last activity: 2026-06-09 — Completed quick task 260609-fpc: fixed duplicate block title on `#/map/<slug>` (deployed live). Earlier today: PUB-01 live; code review CR-01/WR-01/02/03 fixed; verification passed (operator accepted block surface)
 Next: `/gsd-complete-milestone` — archive v2.1 and prepare the next version (or `/gsd-new-milestone` to scope new work)
 
 ## Roadmap (v2.1 — Phases 15–18)
@@ -64,6 +64,12 @@ Standing v1.0/v2.0 decisions still in force (PROJECT.md Key Decisions table): ap
 ### Blockers/Concerns
 
 None for v2.1 start. Source content (`.planning/docs/00-hub.md … 07-*.md` + `EXECUTION_BRIEF.md`) is staged and present.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260609-fpc | Fix duplicate block title on `#/map/<slug>` — `renderBlock` strips the body's leading `# <Title>` H1 (guarded by trimmed/case-insensitive title match) so the title renders once; deployed live via scoped `agentpulse-web` rebuild | 2026-06-09 | 19115b2 | [260609-fpc-fix-duplicate-block-title-on-map-slug](./quick/260609-fpc-fix-duplicate-block-title-on-map-slug/) |
 
 ## Deferred Items
 
