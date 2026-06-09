@@ -11,8 +11,11 @@ findings:
   warning: 4
   info: 3
   total: 7
-status: issues_found
+status: resolved
+resolved_in: 9b18dc0
 ---
+
+> **Resolution (2026-06-09, commit `9b18dc0`):** All 4 warnings + IN-03 fixed before phase verification (per the project's fix-review-blockers-before-verify discipline). WR-01 (env-quote stripping), WR-02 (case-insensitive drift regex — verified `#/map/Memory-Context` now extracts → off-roster miss), WR-03 (conflicting/unknown flags exit 3 loudly — verified), IN-03 (degenerate-key warning), WR-04 (hub non-deferred keyed off draft-body existence). 17-01 app.js gates still pass; harness still exits 0 (22→7 in-roster); production no-op preserved. IN-01/IN-02 are documentation-clarity notes (no behavior change required).
 
 # Phase 17: Code Review Report
 
