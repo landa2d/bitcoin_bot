@@ -494,6 +494,7 @@ async function loadHub() {
     // flag-gated; DORMANT in prod (no flag), NO-OP for anon (RLS exposes only
     // published). Migration 041 guarantees at most one open draft per slug.
     var draftMaturity = null;
+    var draftSlugs = null;
     if (PREVIEW_ENABLED) {
         var dmRes = await sb.schema('economy_map')
             .from('block_body_versions')
@@ -501,14 +502,22 @@ async function loadHub() {
             .eq('status', 'draft');
         if (!dmRes.error && dmRes.data) {
             draftMaturity = {};
-            dmRes.data.forEach(function(r) { if (r.proposed_maturity) draftMaturity[r.block_slug] = r.proposed_maturity; });
+            draftSlugs = {};
+            // A draft row for a slug means a loaded draft body exists — the same
+            // signal loadBlock keys body rendering off — so the card is NOT
+            // deferred in preview. proposed_maturity may be null on a draft; the
+            // pill then falls back to blocks.maturity rather than forcing DEFERRED.
+            dmRes.data.forEach(function(r) {
+                draftSlugs[r.block_slug] = true;
+                if (r.proposed_maturity) draftMaturity[r.block_slug] = r.proposed_maturity;
+            });
         }
     }
 
-    renderHub(data, hubBodyMd, draftMaturity);
+    renderHub(data, hubBodyMd, draftMaturity, draftSlugs);
 }
 
-function renderHub(data, hubBodyMd, draftMaturity) {
+function renderHub(data, hubBodyMd, draftMaturity, draftSlugs) {
     // 1. Updated stamp — latest last_synthesized_at across all blocks (D-06).
     //    ISO string-sort orders correctly; omit the stamp entirely when every
     //    block has a null last_synthesized_at (v1 state). Phase 13: the hub
@@ -534,11 +543,13 @@ function renderHub(data, hubBodyMd, draftMaturity) {
     //    already in the loadHub select — NO .eq('status',…) filter (D-17, RLS).
     function renderTile(b) {
         // Phase 17 (preview-only): a draft-bearing block previews as publish-ready
-        // — never DEFERRED, and its pill reflects the draft's proposed_maturity
-        // (blocks.maturity is stale pre-publish). draftMaturity is null in prod →
-        // identical pre-change behavior (deferred keyed off current_body_version_id).
+        // — never DEFERRED (keyed off draft-body existence, the same signal
+        // loadBlock uses), and its pill reflects the draft's proposed_maturity when
+        // present (blocks.maturity is stale pre-publish). Both maps are null in prod
+        // → identical pre-change behavior (deferred keyed off current_body_version_id).
+        var hasDraftBody = !!(draftSlugs && draftSlugs[b.slug]);
         var previewMaturity = (draftMaturity && draftMaturity[b.slug]) ? draftMaturity[b.slug] : null;
-        var deferred = !b.current_body_version_id && !previewMaturity;
+        var deferred = !b.current_body_version_id && !hasDraftBody;
         var pillArg = previewMaturity ? { maturity: previewMaturity } : b;
         var cls = deferred ? 'card card-deferred' : 'card';
         var dotsRow = deferred

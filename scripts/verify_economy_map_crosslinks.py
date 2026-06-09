@@ -84,7 +84,13 @@ def _load_env_file(path: str) -> None:
             key, _, val = line.partition("=")
             key = key.strip()
             if key:
-                last_value[key] = val.strip()  # LAST wins (overwrite)
+                val = val.strip()
+                # Strip matched surrounding quotes to match shell `source`
+                # semantics (a quoted SUPABASE_SERVICE_KEY="eyJ..." otherwise
+                # yields a quoted value → auth fails + mis-derived leak needle).
+                if len(val) >= 2 and val[0] == val[-1] and val[0] in ("'", '"'):
+                    val = val[1:-1]
+                last_value[key] = val  # LAST wins (overwrite)
     for key, val in last_value.items():
         if key not in os.environ:
             os.environ[key] = val
@@ -121,8 +127,12 @@ EXPECTED_DISTINCT_TARGETS = 7
 # The #/map/<slug> href pattern. A canonical-doc cross-link is `[text](#/map/<slug>)`
 # which marked.parse turns into `<a href="#/map/<slug>">`. We extract over the RAW
 # markdown (what is stored in block_body_versions.body_md) — the same target set the
-# rendered DOM carries. A slug is [a-z0-9-]+ (the reconciled slugs are lowercase-kebab).
-CROSSLINK_RE = re.compile(r"#/map/([a-z0-9][a-z0-9-]*)")
+# rendered DOM carries. Extract case-insensitively over a broad char class so a
+# drift-introduced variant (e.g. #/map/Memory-Context or #/map/Regulation_Legal)
+# is SURFACED as an off-roster miss (fail-loud) rather than silently escaping
+# extraction — roster membership below is exact-case, so any non-canonical target
+# correctly registers as a miss. marked.parse renders such a link as a dead <a>.
+CROSSLINK_RE = re.compile(r"#/map/([A-Za-z0-9][\w-]*)")
 
 
 # ── PostgREST reads (direct httpx + Accept-Profile, the Python-service idiom) ──
@@ -477,6 +487,11 @@ def _distinguishing_substring(service_key: str, anon_key: str, window: int = 24)
     if anon_key:
         n = min(len(service_key), len(anon_key))
         div = next((i for i in range(n) if service_key[i] != anon_key[i]), n)
+        if div == n:
+            print(
+                "WARNING: service_role and anon keys do not diverge within the "
+                "shared prefix — distinguishing needle may be ambiguous. Check env."
+            )
     else:
         # No anon key to compare — skip past the ~36-char shared JWT header region.
         div = 40
@@ -490,6 +505,20 @@ def _distinguishing_substring(service_key: str, anon_key: str, window: int = 24)
 def main() -> None:
     guard_only = "--guard-only" in sys.argv
     skip_guard = "--skip-guard" in sys.argv
+
+    # Fail-loud arg validation: a verification harness must never exit 0 having
+    # run nothing (MEMORY: fail_loud_governance). Reject the vacuous combination
+    # and any unknown flag rather than silently passing.
+    if guard_only and skip_guard:
+        print(
+            "ERROR: --guard-only and --skip-guard are mutually exclusive "
+            "(would run no checks — refusing to pass vacuously)."
+        )
+        sys.exit(3)
+    unknown = [a for a in sys.argv[1:] if a not in ("--guard-only", "--skip-guard")]
+    if unknown:
+        print(f"ERROR: unknown flag(s): {unknown}")
+        sys.exit(3)
 
     crosslink_rc = 0
     guard_rc = 0
