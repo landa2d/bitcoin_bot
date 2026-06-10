@@ -33,7 +33,11 @@
   --text-hint:var(--ink-faint);
   --border:var(--line);
   --btn-bg:var(--accent);
-  --btn-text:#fff;
+  /* On-accent text/icon color (RHYTHM-01): the semantic color for text on top
+     of a solid --accent fill. Aliases the on-accent whites so the color audit
+     is 100% token-only on loaded routes. */
+  --on-accent:#fff;
+  --btn-text:var(--on-accent);
   --btn-secondary-border:var(--line-strong);
   --input-bg:var(--surface);
   --code-bg:var(--line);
@@ -214,7 +218,7 @@ body > header { position:sticky;
   letter-spacing:.06em;
   text-transform:uppercase;
   background:var(--accent);
-  color:#fff;
+  color:var(--on-accent);
   border:none;
   border-radius:var(--radius-btn);
   padding:8px 16px;
