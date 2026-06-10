@@ -8,10 +8,15 @@ files_reviewed_list:
   - tests/test_19_smartquote.py
 findings:
   critical: 0
-  warning: 2
-  info: 4
-  total: 6
-status: issues_found
+  warning: 0
+  info: 3
+  total: 3
+status: resolved
+resolved_in: 36169a2
+resolution_note: >-
+  WR-01, WR-02, and IN-02 fixed before phase verification (commit 36169a2) and
+  redeployed via scoped newsletter rebuild. Remaining INFO items (IN-01, IN-03,
+  IN-04) are cosmetic/documentation-only and accepted as-is.
 ---
 
 # Phase 19: Code Review Report
@@ -19,7 +24,22 @@ status: issues_found
 **Reviewed:** 2026-06-10
 **Depth:** standard
 **Files Reviewed:** 2
-**Status:** issues_found
+**Status:** resolved (warnings fixed in 36169a2)
+
+## Resolution (2026-06-10, commit 36169a2)
+
+- **WR-02 — RESOLVED:** `_APOSTROPHE_CORRUPTION_RE` broadened to `(?<=[A-Za-z0-9])["“”](?=[A-Za-z0-9])`
+  so curly double-quote (U+201C/U+201D) recurrences are repaired + logged loudly instead of
+  silently passed through. New tests assert curly repair, genuine-curly-quotation preservation,
+  and the loud-on-repair / silent-on-clean logging contract.
+- **WR-01 — RESOLVED:** `title`, `title_impact`, `content_telegram` (and the A/B `bp_row` titles)
+  now route through `normalize_apostrophe_corruption`, closing the sibling-field recurrence gap.
+- **IN-02 — RESOLVED:** `field=` default changed to a neutral `"<unspecified>"` sentinel so a
+  future caller (e.g. the Plan 02 backfill) cannot mislabel a repair log as `content_markdown`.
+- **IN-01 / IN-03 / IN-04 — accepted as-is:** documentation/cosmetic only (no behavior change).
+
+Hardened guard redeployed live via scoped `docker compose up -d --build newsletter`
+(container `3e167226ae5a`, healthy); `web` untouched. Regression suite: 26 passed.
 
 ## Summary
 
