@@ -128,7 +128,8 @@ body {
 
 .content-area {
     padding: 0 0 var(--space-xl);
-    border-top: 0.5px solid var(--border);
+    /* D-05 major boundary (chrome/hero -> content) — 1px --line-strong */
+    border-top: 1px solid var(--line-strong);
     padding-top: var(--space-lg);
 }
 
@@ -137,7 +138,8 @@ body {
 
 .article-entry {
     padding: var(--space-lg) 0;
-    border-bottom: 1px solid var(--line);
+    /* D-05 within-section hairline — list rows read as 0.5px --line dividers */
+    border-bottom: 0.5px solid var(--line);
 }
 
 .article-entry:last-child {
@@ -225,6 +227,12 @@ body {
 .tier-label:first-of-type {
     margin-top: var(--space-sm);
 }
+
+/* D-05 major boundary between adjacent map tier sections (substrate <-> behavior
+   <-> frame) — a full-strength 1px --line-strong rule, matching the other major
+   section boundaries. Sections are emitted as <section class="tier-section"> by
+   renderHub/tierSection in app.js. */
+.tier-section + .tier-section { border-top: 1px solid var(--line-strong); padding-top: var(--space-xl); }
 
 /* Hub storyline — one-line serif editorial frame below the hub header
    (D-06). No rule existed before Phase 13; orphan class is now styled. */
@@ -743,7 +751,8 @@ article tr:last-child td {
 #subscribe-section {
     padding: var(--space-xl) 0;
     text-align: center;
-    border-top: 0.5px solid var(--border);
+    /* D-05 major boundary (content -> subscribe) — 1px --line-strong */
+    border-top: 1px solid var(--line-strong);
 }
 
 .subscribe-heading {
@@ -840,7 +849,8 @@ article tr:last-child td {
     justify-content: space-between;
     align-items: center;
     padding: 16px 0;
-    border-top: 0.5px solid var(--bar-border);
+    /* D-05 major boundary (body -> footer) — 1px --line-strong */
+    border-top: 1px solid var(--line-strong);
     background: var(--bar-bg);
 }
 
