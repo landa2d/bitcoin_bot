@@ -2,7 +2,13 @@
 phase: 19-smart-quote-apostrophe-corruption-fix
 plan: 02
 subsystem: newsletter-content-integrity
-tags: [content-integrity, apostrophe, backfill, confirm-and-close, scoped-update, operator-gate]
+tags: [content-integrity, apostrophe, backfill, scoped-update, operator-gate]
+
+# ⚠ SUPERSEDED: the "confirm-and-close (nothing to backfill)" disposition below was
+# WRONG — it relied on the original mis-diagnosis. The operator's live-site re-check
+# found the corruption (a DOUBLED apostrophe '') still present. A real operator-approved
+# scoped backfill of editions 26/29/30 (103 '' runs collapsed, 0 remaining) was then
+# applied. See the corrected 19-BACKFILL-REVIEW.md and 19-DIAGNOSIS.md CORRECTION block.
 
 # Dependency graph
 requires:

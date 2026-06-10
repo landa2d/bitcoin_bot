@@ -1,130 +1,64 @@
-# Phase 19 Plan 02 — Backfill Review (CONFIRM-AND-CLOSE)
+# Phase 19 — Backfill Review (CORRECTED)
+
+> **This supersedes the original "confirm-and-close" version of this file.** That
+> version concluded there was nothing to backfill, because it relied on the original
+> (wrong) diagnosis that searched for a literal `"` character. The operator's
+> live-site re-check proved corruption was still present; systematic re-investigation
+> found the real signature is a **doubled apostrophe** (`''`). See the CORRECTION
+> block at the top of `19-DIAGNOSIS.md`. A real, scoped, operator-approved backfill
+> was therefore performed.
 
 **Date:** 2026-06-10
-**Task:** 19-02 Task 1 — read-only scan + single-edition before/after review
-**Method:** READ-ONLY SELECT against the live production Supabase `newsletters` table
-(`SUPABASE_URL` + `SUPABASE_SERVICE_KEY`/`SUPABASE_KEY` from `config/.env`, supabase-py
-`create_client`, wired exactly as `tests/test_3c_newsletters.py`). **No data was mutated.**
-**Repair logic:** the canonical Plan 01 write-path fix
-`nl.normalize_apostrophe_corruption` (`import newsletter_poller as nl`), regex
-`(?<=[A-Za-z0-9])"(?=[A-Za-z0-9])` → `'`. **Not** a second, divergent regex — the scan's
-signature and the would-be repair are byte-identical to the write-path guard.
+**Mutation:** scoped per-row UPDATE on the `newsletters` table, by primary-key `id`
+**Approval:** operator approved "full remediation" after reviewing the edition-30
+before/after below (production data mutation — operator-gated, per the spine).
+**Repair logic:** the REAL production guard `newsletter_poller.normalize_apostrophe_corruption`
+(word-flanked `'{2,}` → `'`), reused — not a divergent regex.
 
-> **Bottom line for the operator: there is NOTHING to backfill.** The independent scan
-> reproduces Plan 01's diagnosis from live stored bytes — the corruption signature count
-> is **0** corpus-wide, the affected-edition list is **EMPTY**, and running the canonical
-> repair over edition 30 returns the **identical** string (zero replacements). This is a
-> **confirm-and-close** review: **no scoped UPDATE is warranted because there is no corrupt
-> data to repair.**
+## Affected editions (the real signature: word-flanked `''`)
 
----
+| Edition | Status | Row id | content_markdown | content_markdown_impact | Total |
+|---------|--------|--------|------------------|-------------------------|-------|
+| 30 | published | `d0d8c978-7feb-4e39-b0fa-9ae7a0426a73` | 35 | 33 | 68 |
+| 26 | published | `8cffa0d0-4e66-4b9e-81f8-2bf5d94090ef` | 6 | 24 | 30 |
+| 29 | published | `6dca40c3-87c4-4d63-b8c3-ff4b411f278f` | 5 | 0 | 5 |
+| **Total** | | | **46** | **57** | **103** |
 
-## 1. Affected-edition list (the scoped-UPDATE target set)
+`content_telegram`, `title`, `title_impact` were clean for all three (no `''`). Held
+rows of these editions were clean. Editions 1–25, 27, 28, 31–36, 99, 100 were clean.
 
-A read-only scan of **all 43** newsletter rows (every `edition_number`, every status),
-checking `content_markdown`, `content_markdown_impact`, and `content_telegram` for the
-proven corruption signature (a U+0022 `"` flanked by word characters — the literal `App"s`
-shape):
+## Edition-30 before/after (the operator-reviewed sample)
 
 ```
-Scanned 43 newsletter rows
-TOTAL mid-word U+0022 corruption-signature occurrences corpus-wide: 0
-AFFECTED EDITIONS: NONE (empty list)
+content_markdown:
+  BEFORE: ...bottleneck isn''t model pe...   AFTER: ...bottleneck isn't model pe...
+  BEFORE: ...erformance, it''s permissi...   AFTER: ...erformance, it's permissi...
+  BEFORE: ...ions), Workday''s engineer...   AFTER: ...ions), Workday's engineer...
+  BEFORE: ... because there''s no scala...   AFTER: ... because there's no scala...
+content_markdown_impact:
+  BEFORE: ...d off Cash App''s phased s...   AFTER: ...d off Cash App's phased s...
+  BEFORE: ...week the world''s second-l...   AFTER: ...week the world's second-l...
+  BEFORE: ...out — and that''s the poin...   AFTER: ...out — and that's the poin...
 ```
 
-| Edition | content_markdown | content_markdown_impact | content_telegram |
-|---------|------------------|-------------------------|------------------|
-| _(none)_ | 0 | 0 | 0 |
+Genuine double-quotes untouched: ed30 cm `"` 24→24, impact `"` 26→26 (asserted per
+column before each UPDATE; the transform only removes a duplicated apostrophe char).
 
-**Per-column occurrence counts: 0 / 0 / 0 across the entire table.** The affected-edition
-list is empty — including the ROADMAP-named exemplar, edition 30. No edition (held 25–29/32,
-published, or draft 34) carries the signature in any of the three columns.
+## Scope discipline
 
----
+- UPDATE targeted each affected row by its exact primary-key `id` (the tightest
+  possible scope), columns limited to those actually carrying `''`.
+- NOT a table-wide or unconditional statement; NOT a blind find-replace.
+- Genuine `"` quotations preserved (word-flank discipline + per-column count assert).
 
-## 2. Edition 30 BEFORE / AFTER (computed via the canonical Plan 01 fix)
+## Result (post-UPDATE re-read)
 
-Edition 30 has **two rows** (`status=held`, `status=published`). Each affected-candidate
-column was run through `nl.normalize_apostrophe_corruption(...)`. Because storage is clean,
-**BEFORE == AFTER** for every column (zero replacements):
-
-| Row | Column | len | mid-word U+0022 (BEFORE) | Repairs made | mid-word U+0022 (AFTER) | BEFORE == AFTER |
-|-----|--------|-----|--------------------------|--------------|--------------------------|-----------------|
-| published | `content_markdown` | 12202 | 0 | **0** | 0 | **YES (identical)** |
-| published | `content_markdown_impact` | 8389 | 0 | **0** | 0 | **YES (identical)** |
-| published | `content_telegram` | (empty/absent) | 0 | 0 | 0 | YES |
-| held | `content_markdown` | 6640 | 0 | **0** | 0 | **YES (identical)** |
-| held | `content_markdown_impact` | 5038 | 0 | **0** | 0 | **YES (identical)** |
-| held | `content_telegram` | 299 | 0 | 0 | 0 | YES |
-
-### ROADMAP tokens — apostrophe-slot codepoint (BEFORE) → (AFTER, unchanged)
-
-The four ROADMAP-named tokens (`Cash App's`, `It's`, `world's`, `agent's`) — wherever they
-occur in edition 30 — already store a clean straight apostrophe (U+0027 / ord 39) in the
-apostrophe slot. There is no stray `"` to repair, so AFTER is identical:
-
-| Row | Column | Token | BEFORE slot | AFTER slot |
-|-----|--------|-------|-------------|------------|
-| published | `content_markdown` | `Cash App's` | `...kicked off Cash App's phased stab...` → U+0027 (ord 39) | unchanged — U+0027 |
-| published | `content_markdown` | `week's` | `...Last week's BadHost...` → U+0027 (ord 39) | unchanged — U+0027 |
-| held | `content_markdown` | `agent's` | `...An agent's authority...` → U+0027 (ord 39) | unchanged — U+0027 |
-| held | `content_markdown_impact` | `It's` (×2) | `...gets lost. It's like giving...` / `...methods. It's the early...` → U+0027 | unchanged — U+0027 |
-| held | `content_markdown_impact` | `agent's` | `...An agent's authority...` → U+0027 (ord 39) | unchanged — U+0027 |
-
-`world's` does not occur as a token in edition 30's stored bodies (it was a ROADMAP example,
-not a guaranteed edition-30 string); every token that DOES occur is already clean. **AFTER ==
-BEFORE in every case — the canonical repair is a no-op on edition 30.**
-
----
-
-## 3. Genuine double-quote preservation (sanity)
-
-The transform repairs ONLY the apostrophe signature (word-char + `"` + word-char). Genuine
-double-quotes (flanked by whitespace/punctuation) are left untouched. Edition 30 contains
-genuine `"` quotes, and **all** are correctly classified as genuine (corruption-sig = 0):
-
-| Row | Column | total `"` | corruption-sig | genuine (untouched) |
-|-----|--------|-----------|----------------|---------------------|
-| published | `content_markdown` | 24 | 0 | **24** |
-| published | `content_markdown_impact` | 26 | 0 | **26** |
-| held | `content_markdown` | 2 | 0 | **2** |
-| held | `content_markdown_impact` | 4 | 0 | **4** |
-
-A scoped UPDATE (were one warranted) would leave every one of these genuine quotes intact,
-per threat T-19-03 / T-19-11.
-
----
-
-## 4. Scoped UPDATE plan — CONFIRM-AND-CLOSE: no UPDATE to run
-
-The spine (PROJECT.md) requires that any backfill be a **scoped, reviewed UPDATE** with a
-`WHERE edition_number IN (...)` clause targeting only the affected editions — **never a blind
-table-wide find-replace**. Applying that rule here:
-
-- **Affected `edition_number` set = `∅` (empty).** The scoped `WHERE edition_number IN (...)`
-  clause would have **no values** to populate. There is no in-scope row to mutate.
-- **Therefore no UPDATE statement is proposed or warranted.** Issuing any UPDATE here would
-  either be (a) a no-op rewriting already-correct bytes to themselves (pointless mutation of
-  production rows), or (b) — if widened to "have something to change" — a blind table-wide
-  find-replace, which the spine **forbids** (threat T-19-13). Both are rejected.
-- **This closes the backfill.** The QUOTE-01 "fix forward so it cannot recur" mandate is
-  already satisfied by Plan 01's fail-loud `nl.normalize_apostrophe_corruption` guard at the
-  shared `save_newsletter` insert (covers single-pass + block-pipeline write paths) and the
-  17-case QUOTE-02 regression. New editions are protected; existing editions need nothing.
-
-**Recommended disposition for the Task 2 operator gate:** approve **CONFIRM-AND-CLOSE** — no
-scoped UPDATE, no `web` rebuild (renderer ruled out in 19-DIAGNOSIS.md §3), proceed to close
-Plan 02 / Phase 19. The Task 3 live-mutation + content-service rebuild is **not needed**
-because there is no corrupt data to backfill and the write-path fix already shipped in Plan 01.
-
----
-
-## 5. Plan-01 consistency
-
-This scan **independently reproduces** 19-DIAGNOSIS.md and the 19-01-SUMMARY.md conclusion
-from live stored bytes (43 rows, signature count 0, edition-30 slots all U+0027). There is
-**no contradiction** with Plan 01 — both agree the stored corpus is clean and the ROADMAP's
-stray double-quote is a presentation/glyph artifact, not a data defect. No "fabricated"
-corruption was invented to manufacture a backfill; the honest result is an empty affected set.
-
-**No data was mutated by this task (SELECT only).**
+- ed26: doubled-apostrophe runs remaining = 0 — clean tokens present: `it's`, `isn't`
+- ed29: doubled-apostrophe runs remaining = 0 — clean tokens present: `it's`
+- ed30: doubled-apostrophe runs remaining = 0 — clean tokens present: `Cash App's`, `It's`, `agent's`, `isn't`
+- **103/103 repaired, 0 remaining corpus-wide.**
+- Live render re-verified end-to-end: edition 30 anon REST fetch → marked v15.0.12 →
+  `Cash App&#39;s` (single apostrophe), zero word-flanked double-quotes in output.
+- `newsletter` service rebuilt so the corrected guard runs for future editions.
+- `web` NOT rebuilt — the renderer is unchanged; correcting stored bytes fixes the
+  live render directly.

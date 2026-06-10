@@ -6,9 +6,9 @@ tags: [content-integrity, apostrophe, fail-loud, regression-test, diagnosis]
 requires:
   - "Live production Supabase newsletters table (read-only) — config/.env credentials"
 provides:
-  - "19-DIAGNOSIS.md — byte-evidenced storage-vs-render root-cause finding (storage is CLEAN)"
-  - "nl.normalize_apostrophe_corruption() — fail-loud write-path guard (the canonical fix; Plan 02 backfill MUST reuse it)"
-  - "tests/test_19_smartquote.py — QUOTE-02 regression locking the corruption out"
+  - "19-DIAGNOSIS.md — byte-evidenced root-cause finding [PARTIALLY SUPERSEDED: original 'storage is CLEAN' conclusion was WRONG; real cause is a DOUBLED apostrophe '' rendering as a visual double-quote — see the CORRECTION block at the top of 19-DIAGNOSIS.md]"
+  - "nl.normalize_apostrophe_corruption() — fail-loud write-path guard [signature CORRECTED post-operator-feedback to collapse word-flanked '' -> '; commit 437cdb1]"
+  - "tests/test_19_smartquote.py — QUOTE-02 regression (36 tests after correction) locking the corruption out"
 affects:
   - "docker/newsletter/newsletter_poller.py (save_newsletter + A/B insert)"
 tech-stack:

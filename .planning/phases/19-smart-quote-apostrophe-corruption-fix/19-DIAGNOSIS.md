@@ -1,5 +1,38 @@
 # Phase 19 — Apostrophe Corruption Root-Cause Diagnosis
 
+> ## ⚠ CORRECTION (2026-06-10, supersedes §4 below)
+>
+> **The original conclusion in this document was WRONG.** The operator confirmed at
+> phase verification that the live site still rendered `Cash App"s`. A systematic
+> re-investigation of the full storage→render pipeline found the true root cause:
+>
+> **The corruption is a DOUBLED APOSTROPHE (`''` — two adjacent U+0027), not a
+> double-quote character.** Two straight apostrophes side-by-side render as a *visual*
+> double-quote in the Source Serif 4 body face, so `Cash App''s` looks like
+> `Cash App"s`. Proven: **103 `''` runs across published editions 26, 29, 30**
+> (ed30 cm=35/impact=33, ed26 cm=6/impact=24, ed29 cm=5). Recent editions (31–36)
+> are clean, so the source (model emission of `''` in those runs) is dormant.
+>
+> **Why the original diagnosis missed it:** it searched only for a literal U+0022 `"`
+> (and curly variants) and spot-checked the *first* `Cash App's` occurrence — which is
+> a clean single apostrophe — so it never saw the doubled `''` in the *other*
+> occurrences and wrongly declared the corpus clean. The real signature is `'{2}`,
+> not `"`. The render layer is genuinely clean (verified end-to-end: anon REST
+> delivery → marked v15.0.12 → `App&#39;s`); the corruption was in stored bytes.
+>
+> **Resolution:**
+> - Write-path guard `normalize_apostrophe_corruption` corrected to collapse
+>   word-flanked `''` → `'` (proven signature) + keep the defensive mid-word
+>   double-quote repair; fail-loud. Regression suite 36 passing.
+> - Scoped backfill applied to the 3 published rows (by primary-key `id`): 103
+>   doubled runs collapsed; post-UPDATE re-read = 0 remaining; genuine `"` quotes
+>   preserved (counts unchanged). `newsletter` service rebuilt to ship the guard.
+> - Live render re-verified clean (edition 30 anon-fetch → marked → `Cash App's`).
+>
+> The original byte analysis below remains accurate *as far as it went* (edition 30
+> does contain clean U+0027 apostrophes and zero U+0022) — it simply asked the wrong
+> question and never counted `''`. Kept for the record.
+
 **Date:** 2026-06-10
 **Method:** READ-ONLY SELECT against the live production Supabase `newsletters` table
 (`SUPABASE_URL` + `SUPABASE_SERVICE_KEY` from `config/.env`, supabase-py `create_client`,
