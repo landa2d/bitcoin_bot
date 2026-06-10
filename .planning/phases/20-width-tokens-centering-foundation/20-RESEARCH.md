@@ -423,20 +423,25 @@ All JS innerHTML inline styles are already token-based (app.js:281/337/499/702/8
 | A3 | Strategy A (markup-only wrappers in index.html) cleanly achieves the prose-vs-wide split for the map without an app.js touch | WIDTH-01 apply-map | renderHub writes BOTH the prose intro and the wide grid into one `.content-area` (app.js:670-678). A pure markup wrapper makes the whole map-view one axis. Achieving prose-intro + wide-grid likely needs a small app.js wrap in renderHub. Flagged in the apply-map; planner decides. Medium-low risk — acceptable fallback is rendering the short hub header at wide width. |
 | A4 | Removing `.container` entirely (option a) has no other consumers | WIDTH-01.3 | grep found `.container` in exactly index.html:30 and style-shared.css:20,954. If a later/legacy file references it, removal could regress — but those files are unloaded. Verified bounded. Low risk. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All three were Claude's-Discretion items per CONTEXT.md and are resolved by the Phase 20 plans following the recommendations below.
 
 1. **Prose-vs-wide on the map: markup-only or small app.js touch?**
    - What we know: renderHub emits header + grid into one `.content-area` (app.js:670-678).
    - What's unclear: whether the operator wants the hub header (title + one-line storyline) constrained to 64ch prose or allowed to sit at wide width.
    - Recommendation: small app.js wrap of the header trio in `.prose` for consistency with the mockup; or accept wide header (it is short). Planner picks; both satisfy D-03 (the GRID is what must be wide).
+   - **RESOLVED:** small `renderHub` `.prose` wrap chosen — the map's header trio is wrapped in `.prose`, the tier grids stay `.wide`. (Plan 20-01, Task 3.)
 
 2. **On-accent white: alias to a token or leave literal?**
    - What we know: three on-accent whites (style-base.css:36 token, :190, style-shared.css:100), all correct white-on-violet.
    - What's unclear: whether "token-only verified holistically" requires zero raw `#fff` or accepts documented on-accent literals.
    - Recommendation: alias the two raw `#fff` to `--btn-text` (or add `--on-accent:#fff`) so the audit is literally 100% token-only — lowest-risk reading of the success criterion. Operator discretion per CONTEXT.md.
+   - **RESOLVED:** alias the two raw `#fff` (style-base.css:190, style-shared.css:100) to a new `--on-accent` token, making the audit literally 100% token-only. (Plan 20-02, Task 1.)
 
 3. **Hero band treatment (D-04 deferred to researcher/planner).**
    - Recommendation: wrap `.hero` in `.wide` (band on the wide axis), keep its `text-align:center` so headline/date/toggle read centered and narrow within the band. No new prose wrapper needed — the hero content is already short and centered.
+   - **RESOLVED:** wrap `.hero` in `.wide`, preserve `text-align:center` — band on the wide axis, copy reads centered/narrow within it. (Plan 20-01, Task 2.)
 
 ## Project Constraints (from CLAUDE.md)
 
@@ -502,10 +507,10 @@ All JS innerHTML inline styles are already token-based (app.js:281/337/499/702/8
 | Architecture (D-06 + apply-map) | HIGH | Fully traced end-to-end with file:line evidence; single constraining axis confirmed. |
 | Pitfalls | HIGH | Each tied to a documented constraint or saved MEMORY lesson. |
 
-### Open Questions
-1. Map prose-intro vs wide-grid: markup-only (whole map wide) vs small renderHub app.js wrap (prose intro). Recommend the small wrap; both satisfy D-03.
-2. On-accent white: alias the two raw `#fff` to a token (recommended) vs leave as documented literals. Operator discretion.
-3. Hero band (D-04): wrap `.hero` in `.wide`, keep `text-align:center`. Recommended.
+### Open Questions (RESOLVED — see the `## Open Questions (RESOLVED)` section above)
+1. Map prose-intro vs wide-grid → RESOLVED: small renderHub `.prose` wrap (Plan 20-01 T3).
+2. On-accent white → RESOLVED: alias the two raw `#fff` to `--on-accent` token (Plan 20-02 T1).
+3. Hero band (D-04) → RESOLVED: wrap `.hero` in `.wide`, keep `text-align:center` (Plan 20-01 T2).
 
 ### Ready for Planning
 Research complete. The planner has the D-06 root cause, the exact token/class additions with file:line targets, a per-route apply-map, the full color audit, the section-rhythm mapping, and the scope guards. Planner can now create PLAN.md files.
