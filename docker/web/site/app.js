@@ -667,10 +667,18 @@ function renderHub(data, hubBodyMd, draftMaturity, draftSlugs) {
         ? '<div class="hub-storyline">' + marked.parse(trimmedHubBody) + '</div>'
         : '<div class="hub-storyline">' + escapeHtml(HUB_STORYLINE) + '</div>';
 
+    // WIDTH-01 (D-03, RESEARCH Open Question #1): wrap the hub header trio — the
+    // page-title, optional subline, and hub intro — in a .prose div so the
+    // narrative reads at ~64ch, while the three tier card grids render OUTSIDE the
+    // wrapper at the wide band established by the #map-view .content-area.wide
+    // wrapper (index.html). Pure presentational wrap — no change to the trim/strip/
+    // fallback body path, tierSection, or the grid column count.
     var html =
-        '<h1 class="page-title">The Agent Economy</h1>' +
-        subline +
-        hubIntroHtml +
+        '<div class="prose">' +
+            '<h1 class="page-title">The Agent Economy</h1>' +
+            subline +
+            hubIntroHtml +
+        '</div>' +
         tierSection(TIER_LABELS.substrate, substrateBlocks) +
         tierSection(TIER_LABELS.behavior, behaviorBlocks) +
         tierSection(TIER_LABELS.frame, frameBlocks);
