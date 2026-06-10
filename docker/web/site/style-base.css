@@ -63,6 +63,15 @@
   --radius-sm:7px;
   --radius-btn:8px;
   --radius-dot:3px;
+
+  /* Width axes (WIDTH-01, D-01) — two coexisting, both-centered max-widths that
+     kill the dead left gutter (D-06). Operator-locked mockup values, verbatim:
+     --measure for reading copy (~60–70 char lines), --wide for tiled content,
+     --gutter as responsive side padding applied via padding-inline. Defined here
+     in style-base.css (loads FIRST) so the tokens win the cascade. */
+  --measure: 64ch;
+  --wide: 1080px;
+  --gutter: clamp(1.25rem, 5vw, 3.5rem);
 }
 
 /* ── Base Body Typography (TYPE-01/TYPE-03) ──────────────────── */
@@ -96,6 +105,24 @@ body {
   color:var(--accent-ink);
 }
 
+/* ── Centered width axes (WIDTH-01, D-01) ────────────────────── */
+/* Two reusable, both-centered containers that replace the single 720px
+   .container. .prose holds a ~60–70 char reading line (--measure); .wide holds
+   tiled content (lists, the map grid, card grids) on the --wide band. Both center
+   via margin-inline:auto and carry the responsive --gutter as padding-inline.
+   Naming is .wide/.prose (NOT .container-wide) per D-01. */
+.prose {
+  max-width: var(--measure);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.wide {
+  max-width: var(--wide);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
 /* ── Nav Shell: sticky 3-tab header (NAV-01..04, Plan 02) ─────── */
 /* All colors reference :root tokens except the two locked literals the UI-SPEC
    specifies: the translucent header bg rgba(250,248,245,.86) and the active-tab
@@ -122,7 +149,7 @@ body > header { position:sticky;
   align-items:center;
   gap:var(--space-md);
   padding:12px var(--space-lg);
-  max-width:880px;       /* mockup --maxw — centered chrome, room for 3 one-line tabs */
+  max-width: var(--wide);  /* D-02 — share ONE centered axis with the wide content below so nav and content edges align (was 880px) */
   margin:0 auto;
 }
 
