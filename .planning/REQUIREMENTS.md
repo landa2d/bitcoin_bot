@@ -101,31 +101,41 @@ Explicitly excluded for this milestone.
 
 ## Traceability
 
-Which phases cover which requirements. Empty until roadmap creation.
+Which phases cover which requirements. Mapped at roadmap creation (2026-06-10).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| QUOTE-01 | — | Pending |
-| QUOTE-02 | — | Pending |
-| WIDTH-01 | — | Pending |
-| HEAD-01 | — | Pending |
-| GRID-01 | — | Pending |
-| GRID-02 | — | Pending |
-| AGENTS-01 | — | Pending |
-| EXCERPT-01 | — | Pending |
-| SIGNAL-01 | — | Pending |
-| SIGNAL-02 | — | Pending |
-| SIGNAL-03 | — | Pending |
-| SIGNAL-04 | — | Pending |
-| RESP-01 | — | Pending |
-| A11Y-01 | — | Pending |
-| RHYTHM-01 | — | Pending |
+| QUOTE-01 | Phase 19 | Pending |
+| QUOTE-02 | Phase 19 | Pending |
+| WIDTH-01 | Phase 20 | Pending |
+| RHYTHM-01 | Phase 20 | Pending |
+| HEAD-01 | Phase 21 | Pending |
+| GRID-01 | Phase 21 | Pending |
+| GRID-02 | Phase 21 | Pending |
+| AGENTS-01 | Phase 21 | Pending |
+| EXCERPT-01 | Phase 22 | Pending |
+| SIGNAL-01 | Phase 23 | Pending |
+| SIGNAL-02 | Phase 23 | Pending |
+| SIGNAL-03 | Phase 23 | Pending |
+| SIGNAL-04 | Phase 23 | Pending |
+| RESP-01 | Phase 24 | Pending |
+| A11Y-01 | Phase 24 | Pending |
 
 **Coverage:**
 - v2.2 requirements: 15 total
-- Mapped to phases: 0 (filled by roadmap)
-- Unmapped: 15 ⚠️ (resolved at roadmap creation)
+- Mapped to phases: 15 ✓ (each to exactly one phase)
+- Unmapped: 0 ✓ — no orphans, no duplicates
+
+**Phase rollup:**
+- Phase 19 — Smart-Quote / Apostrophe Corruption Fix: QUOTE-01, QUOTE-02 (2)
+- Phase 20 — Width Tokens & Centering Foundation: WIDTH-01, RHYTHM-01 (2)
+- Phase 21 — Per-Route Visual Fixes: HEAD-01, GRID-01, GRID-02, AGENTS-01 (4)
+- Phase 22 — Distinct Newsletter Excerpts: EXCERPT-01 (1)
+- Phase 23 — Signals Feed: SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04 (4)
+- Phase 24 — Responsive & Accessibility Pass: RESP-01, A11Y-01 (2)
+
+Cross-cutting note: RESP-01, A11Y-01 (Phase 24) and RHYTHM-01 (Phase 20) are applied across every phase but are each owned and verified holistically in exactly one phase — RHYTHM-01 at the width/token foundation it establishes, RESP-01 + A11Y-01 in the final responsive/a11y pass over the whole redesigned surface.
 
 ---
 *Requirements defined: 2026-06-10*
-*Last updated: 2026-06-10 after initial definition*
+*Last updated: 2026-06-10 — roadmap created; all 15 requirements mapped to Phases 19–24 (Traceability + Coverage filled).*

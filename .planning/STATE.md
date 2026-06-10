@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: planning
-last_updated: "2026-06-10T10:43:39.933Z"
+status: roadmapped
+last_updated: "2026-06-10T11:00:00.000Z"
 last_activity: 2026-06-10
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,58 +17,71 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
+See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** v2.1 "Agent Economy Content" COMPLETE — Phase 18 published all 8 in-scope bodies live via the atomic publish RPC in one operator-approved batch; the hub renders its published article at `#/map` and all 7 blocks render at `#/map/<slug>` (anon-verified, published-block count 2→8). Milestone ready to close.
+**Current focus:** v2.2 "Landing Redesign + Signals Feed" — re-skin the public `aiagentspulse.com` SPA to the new editorial mockup across the existing separate routes, fix four live-site defects (smart-quote corruption, dead left gutter, edition-header triplication, map maturity bars reading as decoration, orphaned About card, duplicate excerpts), and add a new tier-1 Signals feed. NOT frontend-only: Phase 19 touches the content write-path + a scoped backfill; Phase 23 adds the milestone's one Supabase migration (anon RLS on `source_posts`).
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Not started — roadmap created, ready to plan Phase 19
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-10 — Milestone v2.2 started
+Status: Roadmapped (6 phases, 15/15 requirements mapped)
+Last activity: 2026-06-10 — v2.2 roadmap created (Phases 19–24)
 
-## Roadmap (v2.1 — Phases 15–18)
+## Roadmap (v2.2 — Phases 19–24)
 
 | Phase | Goal | Requirements |
 |-------|------|--------------|
-| 15. Inventory & Roster Reconciliation | Document the live storage/serve contract + verify the maturity enum + resolve the per-slug roster diff before any write (operator-approved plan) | INV-01, INV-02, ROST-01 |
-| 16. Content Load (unpublished) | Load all 8 canonical bodies into `economy_map` as unsorted/unpublished, fail-loud on missing fields, correct existing rows via the rewrite path — zero visitor-facing change | LOAD-01, LOAD-02, LOAD-03 |
-| 17. Cross-link Wiring & Preview | Make every `#/map/<slug>` cross-block + hub→block link resolve; verify the loaded-but-unpublished content end-to-end on a non-published preview route; hub renders as `#/map` landing (single block list) | LINK-01, PREV-01, HUB-01 |
-| 18. Gated Batch Publish | Publish live via the existing atomic publish RPC in ONE operator-approved batch (web-only scoped deploy) | PUB-01 |
+| 19. Smart-Quote / Apostrophe Corruption Fix | Root-cause + fix-forward the apostrophe→straight-quote corruption (write path / stored markdown), scoped reviewed backfill of existing editions, regression-tested | QUOTE-01, QUOTE-02 |
+| 20. Width Tokens & Centering Foundation | Two coexisting both-centered max-widths (`--measure` prose / `--wide` grids) kill the dead left gutter; token-only color + section-rhythm baseline everything else sits on | WIDTH-01, RHYTHM-01 |
+| 21. Per-Route Visual Fixes | Three non-conflicting per-route fixes: edition-header de-dup, map 3-col grid + maturity legend, About pipeline-vs-supporting agent grid + approval callout | HEAD-01, GRID-01, GRID-02, AGENTS-01 |
+| 22. Distinct Newsletter Excerpts | Strip the boilerplate intro at render + show the first distinct sentence in the indexed-row archive format — no schema change | EXCERPT-01 |
+| 23. Signals Feed | New `#/signals` route + nav tab, tier-1 `source_posts` newest-first (capped, safe external links), gated on the one Supabase migration (anon tier-1 RLS on `source_posts`, fail-loud) | SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04 |
+| 24. Responsive & Accessibility Pass | Holistic cross-cutting verify: grids/rows reflow (3→2→1, nav condenses, rows stack), visible `:focus-visible`, `prefers-reduced-motion`, real `<a>` links | RESP-01, A11Y-01 |
 
-**Coverage:** 10/10 v2.1 requirements mapped — no orphans, no duplicates.
+**Coverage:** 15/15 v2.2 requirements mapped — no orphans, no duplicates.
 
-These are backend/content/data phases (NOT `ui_phase`) — the v2.0 renderer already displays hub + blocks; this milestone fills it with content. Standing constraints apply: direct PostgREST + `Accept-Profile` (no `.in_()`); append-only trigger → canonical-body-rewrite (never raw UPDATE); fail-loud on missing fields; web-only scoped deploy; no pipeline / proxy / agent-service changes.
+**Phase nature:** Mostly `ui_phase` (Phases 20–24 touch `docker/web/site/` — `app.js`, `style-base.css`, `style-shared.css`; the other CSS files are legacy/unloaded; `marked.js` renders markdown, no typographer). Two phases reach the backend and are deliberately isolated from the CSS work: Phase 19 (content write-path + scoped data backfill) and Phase 23 (the milestone's only Supabase migration — anon tier-1 RLS on `source_posts`). Ordering is low-to-high risk, each phase independently shippable.
+
+**Standing constraints apply throughout:** keep separate routes (not single-scroll); all LLM via `llm-proxy:8200`; isolated-schema / `economy_map` access via direct PostgREST + `Accept-Profile` (never supabase-py `.in_()`); append-only — corrections via the canonical-body-rewrite path, never a raw UPDATE; fail-loud on missing fields; the apostrophe backfill is a scoped reviewed UPDATE shown before/after on ONE edition first, never a blind find-replace; deploy via prod↔main drift check → branch → `/diff` per work group → scoped `docker compose up -d --build web` (NO `--delete`) → operator approval. Worktree-unsafe steps (scoped web rebuild, the Phase 23 migration apply) are orchestrator-owned from the main tree, never a worktree executor.
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table. v2.1 open items to resolve in discuss/plan (per EXECUTION_BRIEF.md §5 — do NOT decide unilaterally):
+Operator decisions locked at v2.2 start (2026-06-10, in PROJECT.md Current Milestone):
 
-- **Roster diff vs the live map** (ROST-01, Phase 15): docs ADD `negotiation-coordination` (v2.0-deferred NEGB-01/02), OMIT the live `regulation-legal` (FRAME tier), and use 2 tiers (substrate/behavior) vs the live 3 (substrate/behavior/frame). Decide first-publish vs body-rewrite vs retire-block per slug BEFORE any load.
-- **Maturity enum** (INV-02, Phase 15): verify the live enum against the three doc values (`building` / `contested` / `nascent`); surface any mismatch explicitly — never silently remap.
-- **Hub block list as cards (preferred) vs prose links** (HUB-01, Phase 17): confirm in the plan; block list appears once, not duplicated as both prose + cards.
-- **Distinct visual treatment for `nascent` blocks** beyond the pill — open item; default is pill-only unless discuss decides otherwise.
+- **Keep separate routes** (NOT single-scroll) — apply width tokens / centering / visual fixes per-route; preserve v2.0's persistent 3-tab nav shell (add a Signals tab); deep-linkable editions & block pages + SEO retained. The mockup is intent reference, not markup to copy.
+- **Signals = its own route + tab** (`#/signals`).
+- **Excerpts = strip-at-render** (no schema / pipeline change; the stored-`summary` path is the deferred EXCERPT-F1).
+- **No domain research** — the 7-task brief + mockup specify the work on an existing, well-understood codebase.
 
-Standing v1.0/v2.0 decisions still in force (PROJECT.md Key Decisions table): append-only `block_body_versions` + `timeline_entries`; schema isolation via `economy_map` + direct PostgREST; sentinels flag-never-block; synthesis via `llm-proxy:8200`; scoped `agentpulse-web` rebuild (no new infra).
+Open items to resolve in discuss/plan (do NOT decide unilaterally):
+
+- **Phase 19 root cause** (QUOTE-01): is the corruption at storage (write path) or render? Query raw `body_md` bytes around an apostrophe FIRST; the fix follows from the finding (render-layer if data is clean; write-path-first-then-backfill if corrupt). `marked.js` has no typographer, so a render-layer smartquote transform is unlikely — diagnose stored bytes before choosing.
+- **Phase 19 backfill scope** (QUOTE-01): which editions are affected, and the exact before/after on ONE edition shown for operator approval before any batch UPDATE.
+- **Phase 23 RLS shape** (SIGNAL-04): the precise tier-1 predicate for the read-only anon SELECT policy on `source_posts` (which tier column/value defines tier-1), and the migration number (next after 043).
+- **Phase 22 distinct-sentence rule** (EXCERPT-01): the exact boilerplate-intro pattern to strip and the first-distinct-sentence heuristic (verified on editions 29 vs 30).
+
+Standing v1.0/v2.0/v2.1 decisions still in force (PROJECT.md Key Decisions table): append-only `block_body_versions` + `timeline_entries`; schema isolation via direct PostgREST + `Accept-Profile`; sentinels flag-never-block; synthesis via `llm-proxy:8200`; scoped `agentpulse-web` rebuild (no new infra); single light-mode violet accent (dark mode deferred); Source Serif 4 body + IBM Plex Mono chrome.
 
 ### Pending Todos
 
-7 carried-forward backend todos in `.planning/todos/pending/` (all v1.0 follow-ups — analyst/governance/intake/research/phase-review). Out of v2.1 (content) scope; parked in the ROADMAP Backlog.
+7 carried-forward backend todos in `.planning/todos/pending/` (all v1.0 follow-ups — analyst/governance/intake/research/phase-review). Out of v2.2 scope; parked in the ROADMAP Backlog (candidate backend-hardening milestone).
 
 ### Blockers/Concerns
 
-None for v2.1 start. Source content (`.planning/docs/00-hub.md … 07-*.md` + `EXECUTION_BRIEF.md`) is staged and present.
+None for v2.2 start. Source brief (`.planning/docs/REDESIGN_CC_BRIEF.md`, 7 work groups) + the visual mockup (`agentpulse-redesign (1).html`) are present and staged. Frontend files known: `docker/web/site/app.js`, `style-base.css`, `style-shared.css`; migrations live in `supabase/migrations/` (highest is 043).
+
+Carry-over advisories (non-blocking): a PRE-EXISTING service_role leak in tracked `.claude/settings.local.json` (logged DEF-17-01 in v2.1 — recommend key rotation + scrub + gitignore); dead `.about-lede` rule in `style-base.css` (trivial cleanup, fold into a future commit — likely touched in Phase 21/24).
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 260609-fpc | Fix duplicate block title on `#/map/<slug>` — `renderBlock` strips the body's leading `# <Title>` H1 (guarded by trimmed/case-insensitive title match) so the title renders once; deployed live via scoped `agentpulse-web` rebuild | 2026-06-09 | 19115b2 | [260609-fpc-fix-duplicate-block-title-on-map-slug](./quick/260609-fpc-fix-duplicate-block-title-on-map-slug/) |
-| 260609-ivq | Map page rendering fixes (3): (1) site-wide prose paragraph rhythm via `--space-lg` incl. the missing `.hub-storyline p` rule; (2) hub duplicate title de-dup — `stripLeadingTitleH1` shared helper wired into `renderHub`+`renderBlock` (title-only, bold tagline KEPT per operator); (3) maturity-pill/nav overlap fixed by re-scoping the bare `header{position:sticky}` rule to `body > header`. On branch `fix/map-rendering-issues`; deployed live via scoped `agentpulse-web` rebuild | 2026-06-09 | 9e350f3 | [260609-ivq-map-page-rendering-fixes-hub-duplicate-t](./quick/260609-ivq-map-page-rendering-fixes-hub-duplicate-t/) |
+| 260609-ivq | Map page rendering fixes (3): site-wide prose paragraph rhythm via `--space-lg` incl. `.hub-storyline p`; hub duplicate-title de-dup via `stripLeadingTitleH1` shared helper; maturity-pill/nav overlap fixed by re-scoping the bare `header{position:sticky}` rule to `body > header`. Deployed live via scoped `agentpulse-web` rebuild | 2026-06-09 | 9e350f3 | [260609-ivq-map-page-rendering-fixes-hub-duplicate-t](./quick/260609-ivq-map-page-rendering-fixes-hub-duplicate-t/) |
 
 ## Deferred Items
 
@@ -76,51 +89,39 @@ Items acknowledged and carried forward:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| v-next — Per-block tuning | Threshold overrides per block (TUNE-01..03) | Deferred — kept separate from content milestone | 2026-05-26 |
-| v-next — EU AI Act integration | Wire `eu_ai_act` tracker into regulation-legal block (EUAI-01, EUAI-02) | Deferred — out of v2.1 content scope | 2026-05-26 |
-| v-next — Dark mode | Dark-mode variant of the light palette (DARK-01) | Deferred — light mode shipped v2.0 | 2026-06-04 |
-| v-next — Richer About | Pipeline/architecture diagram on About (ABOUT-02) | Deferred — About shipped as a stub in v2.0 | 2026-06-04 |
-| v2.1 — Timeline content | Manual timeline authoring — bodies publish now with possibly-empty timelines; intake fills weekly | Deferred — future requirement, not this milestone | 2026-06-08 |
+| v2.2 future — Excerpts | Stored `summary` field on `newsletters`, agent-emitted (EXCERPT-F1) | Deferred — strip-at-render chosen this milestone | 2026-06-10 |
+| v2.2 future — Signals | Full Signals archive page behind "view all signals" (SIGNAL-F1) | Deferred — capped feed ships first | 2026-06-10 |
+| v2.2 future — Layout | Single-page scroll + scroll-spy nav (WIDTH-F1) | Deferred — separate routes chosen (SEO / deep-linking / lower risk) | 2026-06-10 |
+| v-next — Dark mode | Dark-mode variant of the light palette (DARK-01 / THEME-F1) | Deferred — light mode shipped v2.0 | 2026-06-04 |
+| v-next — Richer About | Pipeline/architecture diagram on About (ABOUT-02 / THEME-F2) | Deferred — About ships as the v2.0 stub + agent-grid fix only | 2026-06-04 |
+| v-next — Per-block tuning | Threshold overrides per block (TUNE-01..03) | Deferred — kept separate from UI milestones | 2026-05-26 |
+| v-next — EU AI Act integration | Wire `eu_ai_act` tracker into regulation-legal block (EUAI-01, EUAI-02) | Deferred — out of v2.2 UI scope | 2026-05-26 |
 
-Note: `negotiation-coordination` graduation (NEGB-01/02), previously deferred from v2.0, re-enters scope under ROST-01 (Phase 15) — its first-publish vs body-rewrite vs retire disposition is decided there.
+### Backend follow-ups (candidate: a backend-hardening milestone)
 
-### Acknowledged at v2.0 close (2026-06-08)
+Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlog, detail in `.planning/todos/pending/`):
 
-10 open items acknowledged and deferred at v2.0 milestone close (none are code gaps — v2.0 is deployed live + verified in code). The browser/perceptual/editorial items are testable on the LIVE site; the backend todos are out of content-milestone scope:
-
-| Category | Item | Status |
-|----------|------|--------|
-| UAT (browser) | Phase 13 HUMAN-UAT — 6 pending map scenarios | Deferred — operator browser walk on live site |
-| UAT (browser) | Phase 14 HUMAN-UAT — 4 pending (About render / nav active / POLISH perceptual / copy sign-off) | Deferred — operator browser walk on live site |
-| Verification | Phase 13 + Phase 14 VERIFICATION `human_needed` (visual only; 10/10 + 7/7 verified in code) | Deferred — clears when browser UAT passes |
-| Todo (backend) | analyst predictions title-expire bug (P2) | Deferred — v1.0 backend, out of content scope |
-| Todo (backend) | soft-cap allow-negative hardening (P5) | Deferred — v1.0 governance, out of content scope |
-| Todo (backend) | pay-endpoint 500 activation E2E (P2; RPC root-cause fixed m037) | Deferred — v1.0 backend, out of content scope |
-| Todo (backend) | phase-05 review follow-ups WR02/04/05 (P4) | Deferred — v1.0 intake, out of content scope |
-| Todo (backend) | research trigger file permissions (P4) | Deferred — v1.0 research, out of content scope |
-
-### Acknowledged at v1.0 close (2026-06-04)
-
-14 open items carried forward at v1.0 close (not blockers — manual live-smoke verification + known follow-up todos): UAT/verification for phases 02/04/09/10 are partial/human_needed; 7 follow-up todos in `.planning/todos/pending/`. Full record in MILESTONES.md + RETROSPECTIVE.md.
+| Item | Priority |
+|------|----------|
+| analyst predictions `title` expire bug | P2 |
+| soft-cap allow-negative hardening | P5 |
+| pay-endpoint 500 activation E2E (RPC root-cause fixed m037) | P2 |
+| phase-05 intake-classifier review follow-ups WR02/04/05 | P4 |
+| research trigger file permissions | P4 |
 
 ## Session Continuity
 
-Last session: 2026-06-09T08:44:45.469Z
-Stopped at: Phase 18 context gathered
-Resume file: .planning/phases/18-gated-batch-publish/18-CONTEXT.md
-Next: `/gsd-plan-phase 18`
-Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
+Last session: 2026-06-10T11:00:00.000Z
+Stopped at: v2.2 roadmap created (Phases 19–24), all 15 requirements mapped
+Resume file: .planning/ROADMAP.md
+Next: `/gsd-plan-phase 19` (Smart-Quote / Apostrophe Corruption Fix — QUOTE-01, QUOTE-02)
+Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete. `.planning/phases/` is empty (v2.1 phases 15–18 archived to `.planning/milestones/v2.1-phases/`).
 
 ## Operator Next Steps
 
-- Plan the final v2.1 phase: `/gsd-plan-phase 18` (Gated Batch Publish — PUB-01). Context locked in `18-CONTEXT.md`.
-- Phase 18 (per 18-CONTEXT): deploy-first (scoped `agentpulse-web` rebuild ships the new `app.js` rendering the published hub body as a framing article — a no-op pre-publish), then a single operator-approved batch script loops the existing `publish_block_version` RPC over the 8 open drafts (7 blocks first, hub last; fail-loud halt-and-report), then programmatic verification (anon read: 8 published + hub, cross-links resolve, count 2→8). `regulation-legal` stays deferred.
-
-### Advisory follow-ups (non-blocking, from v2.0 14-REVIEW.md)
-
-- WR-01: dead `.about-lede` rule in `style-base.css` (its only consumer was deleted in v2.0) — trivial cleanup, fold into a future commit.
-- IN-03: the `.ad` class name can be hit by ad-blocker cosmetic filters (could hide agent role text) — consider a rename if observed.
-- Security: no `14-SECURITY.md` (threats all dispositioned "accept" — static HTML/CSS); `/gsd-secure-phase 14` available if you want the formal record.
+- **Plan the first v2.2 phase:** `/gsd-plan-phase 19` (Smart-Quote / Apostrophe Corruption Fix). It is the isolated, highest-visibility content-integrity fix and ships first per the brief's low-to-high-risk order. Diagnose stored `body_md` bytes BEFORE choosing render-layer vs write-path-then-backfill; the backfill is a scoped reviewed UPDATE shown before/after on ONE edition first, never a blind find-replace.
+- Phases 20–24 build on Phase 19: Phase 20 (width-token foundation) is the layout substrate every later visual phase sits on; Phases 21/22/23 are the per-route + Signals work; Phase 24 is the final holistic responsive/a11y pass.
+- Phase 23 carries the milestone's ONLY Supabase migration (anon tier-1 RLS on `source_posts`, next after 043) — orchestrator-owned apply, fail-loud on absence.
 
 ## Performance Metrics
 
