@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: executing
-stopped_at: "Phase 19 COMPLETE (2/2). Root cause was a DOUBLED apostrophe ('' renders as a visual \"); original diagnosis was wrong and the operator caught it at verification. Corrected the write-path guard (collapse word-flanked ''->'), applied an operator-approved scoped backfill of editions 26/29/30 (103 repaired, 0 remaining), rebuilt newsletter, operator confirmed live render. Next: Phase 20 (Width Tokens & Centering Foundation)."
-last_updated: "2026-06-10T18:43:54.964Z"
+status: completed
+stopped_at: Phase 20 context gathered
+last_updated: "2026-06-10T19:25:15.558Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 6
@@ -115,9 +115,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-10T15:02:52Z
-Stopped at: Completed 19-02-PLAN.md (confirm-and-close: empty affected set; operator approved Close+rebuild; write-path guard live). Phase 19 complete (2/2).
-Resume file: None
+Last session: 2026-06-10T19:25:15.553Z
+Stopped at: Phase 20 context gathered
+Resume file: .planning/phases/20-width-tokens-centering-foundation/20-CONTEXT.md
 Next: `/gsd-plan-phase 20` (Width Tokens & Centering Foundation — WIDTH-01, RHYTHM-01). The layout substrate every later v2.2 visual phase sits on.
 Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
