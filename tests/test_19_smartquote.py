@@ -134,6 +134,48 @@ def test_genuine_quotes_and_apostrophe_together():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# REAL corruption (Phase 19 debug): a DOUBLED apostrophe ('' , two U+0027) standing
+# where a single apostrophe belongs. Two adjacent apostrophes render as a VISUAL
+# double-quote in the serif body face (it''s looks like it"s) — this is what the
+# operator actually saw on the live site, NOT a literal double-quote character.
+# Confirmed: 103 runs across published editions 26/29/30, all word-flanked.
+# ──────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("corrupt,clean", [
+    ("it''s", "it's"),
+    ("the agent''s wallet", "the agent's wallet"),
+    ("Cash App''s rollout", "Cash App's rollout"),
+    ("bottleneck isn''t model perf", "bottleneck isn't model perf"),
+    ("the world''s second-largest", "the world's second-largest"),
+    ("we''ve been pointing", "we've been pointing"),
+])
+def test_doubled_apostrophe_collapsed(corrupt, clean):
+    """A word-flanked doubled apostrophe ('') is collapsed to a single apostrophe."""
+    out = fix(corrupt)
+    assert out == clean, f"expected {clean!r}, got {out!r}"
+    assert _has_real_apostrophe(out)
+    # no run of 2+ apostrophes remains word-flanked
+    assert not re.search(r"(?<=\w)'{2,}(?=\w)", out), f"doubled apostrophe remains in {out!r}"
+
+
+def test_doubled_apostrophe_preserves_genuine_double_quotes():
+    """Collapsing '' must NOT touch genuine double-quote quotations."""
+    # Double-quoted Python literal so the inner '' is a real doubled apostrophe.
+    body = "It''s what they call \"shipping fast\" — that''s the world''s view."
+    out = fix(body)
+    assert out.count('"') == 2, f"genuine double-quotes altered: {out!r}"
+    assert "It's" in out and "that's" in out and "world's" in out
+    assert not re.search(r"(?<=\w)'{2,}(?=\w)", out)
+
+
+def test_genuine_empty_string_literal_untouched():
+    """A space/punct-flanked '' (e.g. an empty-string literal) is NOT word-flanked → untouched."""
+    body = "Set the value to '' when missing."
+    out = fix(body)
+    assert "''" in out, f"non-word-flanked '' should be preserved: {out!r}"
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # WR-02: curly double-quote (U+201C/U+201D) corruption is the more-likely
 # typographer recurrence shape — it MUST be repaired, not silently passed through.
 # ──────────────────────────────────────────────────────────────────────────────
@@ -170,9 +212,9 @@ def test_fail_loud_on_non_str():
         fix(123)
 
 
-@pytest.mark.parametrize("corrupt", ['App"s', 'App“s', 'App”s'])
+@pytest.mark.parametrize("corrupt", ['App"s', 'App“s', 'App”s', "App''s", "it''s"])
 def test_repair_logs_loudly(corrupt, caplog):
-    """Every repair (straight OR curly) emits a loud error — never silent (fail-loud)."""
+    """Every repair (doubled-apostrophe, straight OR curly DQ) emits a loud error — never silent."""
     with caplog.at_level(logging.ERROR):
         out = fix(corrupt, field="content_telegram", edition=42)
     assert "'" in out or chr(0x2019) in out

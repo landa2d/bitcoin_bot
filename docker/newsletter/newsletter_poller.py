@@ -1457,39 +1457,51 @@ def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -
     return edited
 
 
-# Corruption signature: a DOUBLE-quote standing where an apostrophe belongs —
-# i.e. flanked by word characters (``App"s``, ``It"s``, ``world"s``). We repair
-# BOTH the straight ASCII double-quote (U+0022) AND the curly variants
-# (U+201C ``"`` / U+201D ``"``): a typographer / smart-quote recurrence emits
-# *curly* quotes, so that is the MORE likely future shape, not a less likely one
-# (WR-02). This is the ONLY shape we repair. A genuine quotation such as
-# ``He said "ship it"`` (or curly ``"ship it"``) has its quotes flanked by
-# whitespace/punctuation, never by word chars, so it is left untouched (threat
-# T-19-03). This is deliberately NOT a blanket ``"`` -> ``'`` replacement.
-_APOSTROPHE_CORRUPTION_RE = re.compile(r'(?<=[A-Za-z0-9])["“”](?=[A-Za-z0-9])')
+# Apostrophe-position corruption in stored newsletter bodies, in two shapes — BOTH
+# flanked by word characters, so genuine quotations / empty-string literals (flanked
+# by whitespace or punctuation) are NEVER touched (threat T-19-03), and this is NOT
+# a blanket replacement:
+#
+#   1. DOUBLED apostrophe (``''`` — two+ straight U+0027) standing where a SINGLE
+#      apostrophe belongs (``it''s``, ``Cash App''s``, ``world''s``). This is the
+#      PROVEN corruption (Phase 19 debug: 103 runs across published editions
+#      26/29/30). Two adjacent apostrophes render as a VISUAL double-quote in the
+#      serif body face (``it''s`` looks like ``it"s``) — the exact artifact the
+#      operator saw on the live site. The model emitted ``''`` in those generation
+#      runs; collapse a word-flanked run to a single U+0027.
+#   2. A straight/curly DOUBLE-quote (U+0022 / U+201C / U+201D) standing mid-word
+#      (``App"s``). Defensive: zero such occurrences exist today, but this is the
+#      ROADMAP's literal description and a typographer recurrence would emit curly.
+#
+# Both map to a single straight apostrophe U+0027.
+_APOSTROPHE_DOUBLED_RE = re.compile(r"(?<=[A-Za-z0-9])'{2,}(?=[A-Za-z0-9])")
+_APOSTROPHE_DQ_RE = re.compile(r'(?<=[A-Za-z0-9])["“”](?=[A-Za-z0-9])')
 
 
 def normalize_apostrophe_corruption(text: str, *, field: str = "<unspecified>",
                                     edition: int | str = "?") -> str:
-    """Fail-loud write-path guard against the apostrophe -> double-quote corruption.
+    """Fail-loud write-path guard against apostrophe-position corruption.
 
-    Phase 19 diagnosis (19-DIAGNOSIS.md) proved the stored newsletter corpus is
-    already clean (every apostrophe is U+0027, zero mid-word U+0022 corpus-wide)
-    and that ``marked.parse`` has no typographer — so this guard is a NO-OP on all
-    existing editions and on genuine quotations. It exists so the corruption
-    *cannot recur* (QUOTE-01): if a future model emission or upstream step ever
-    introduces the ``App"s`` shape, this repairs ONLY that signature (a straight
-    U+0022 OR a curly U+201C/U+201D double-quote flanked by word chars -> a
-    straight apostrophe U+0027) and logs loudly, rather than silently passing a
-    corrupt body through to storage.
+    Phase 19 (QUOTE-01/QUOTE-02). The corruption the operator observed on the live
+    site as ``Cash App"s`` is actually a DOUBLED apostrophe (``Cash App''s`` — two
+    U+0027) emitted by the model in some generation runs: two adjacent apostrophes
+    render as a visual double-quote in the serif body face. The renderer
+    (``marked.parse``) has no typographer, so the fix belongs at the write path.
+
+    This guard repairs ONLY word-flanked corruption signatures and logs loudly:
+      * a doubled apostrophe ``''`` flanked by word chars -> a single U+0027
+        (the proven corruption — editions 26/29/30 carried 103 occurrences);
+      * defensively, a straight/curly double-quote (U+0022/U+201C/U+201D) flanked
+        by word chars -> U+0027 (the ROADMAP's literal ``App"s`` shape; 0 today).
+
+    It is a NO-OP on clean bodies and on genuine quotations / empty-string literals
+    (those quotes are flanked by whitespace or punctuation, never by word chars), and
+    it is NOT a blanket ``"``/``''`` -> ``'`` replacement (threat T-19-03).
 
     Fail-loud (project "the wallet bug" rule):
       * raises ``TypeError`` on non-``str`` input — never silently coerces;
-      * ``logger.error``s with edition + field + count whenever it actually
-        rewrites a character, so a real recurrence is surfaced, not hidden.
-
-    It does NOT touch genuine double-quotes (those are not flanked by word chars),
-    and it is NOT a blanket ``"`` -> ``'`` replacement.
+      * ``logger.error``s with edition + field + counts whenever it rewrites, so a
+        real recurrence is surfaced, not silently passed to storage.
 
     Args:
         text: the body string about to be stored (may be empty).
@@ -1497,8 +1509,7 @@ def normalize_apostrophe_corruption(text: str, *, field: str = "<unspecified>",
         edition: edition number (for log context).
 
     Returns:
-        The text with the apostrophe-corruption signature repaired (usually the
-        identical string, since storage is clean).
+        The text with apostrophe-position corruption repaired (usually identical).
     """
     if text is None:
         # An absent body is a legitimate empty field; preserve the caller's value.
@@ -1512,17 +1523,19 @@ def normalize_apostrophe_corruption(text: str, *, field: str = "<unspecified>",
     if not text:
         return text
 
-    matches = _APOSTROPHE_CORRUPTION_RE.findall(text)
-    if not matches:
-        return text  # Clean — the corpus-wide common case. No-op.
+    n_doubled = len(_APOSTROPHE_DOUBLED_RE.findall(text))
+    n_dq = len(_APOSTROPHE_DQ_RE.findall(text))
+    if not n_doubled and not n_dq:
+        return text  # Clean — the common case. No-op.
 
-    fixed = _APOSTROPHE_CORRUPTION_RE.sub("'", text)
-    # Loud surfacing: this should essentially never fire given a clean corpus.
+    fixed = _APOSTROPHE_DOUBLED_RE.sub("'", text)
+    fixed = _APOSTROPHE_DQ_RE.sub("'", fixed)
+    # Loud surfacing: a recurrence past the (now-corrected) corpus must be visible.
     logger.error(
-        "[QUOTE-FIX] Repaired %d apostrophe-corruption occurrence(s) "
-        "(mid-word straight/curly double-quote -> U+0027) in %s for edition %s. "
+        "[QUOTE-FIX] Repaired apostrophe-position corruption in %s for edition %s: "
+        "%d doubled-apostrophe run(s), %d mid-word double-quote(s) -> U+0027. "
         "This signals upstream corruption — investigate the generator.",
-        len(matches), field, edition,
+        field, edition, n_doubled, n_dq,
     )
     return fixed
 
