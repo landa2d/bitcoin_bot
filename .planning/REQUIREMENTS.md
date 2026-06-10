@@ -1,64 +1,131 @@
-# Requirements — Milestone v2.1: Agent Economy Content
+# Requirements — Milestone v2.2: Landing Redesign + Signals Feed
 
-**Goal:** Publish the Agent Economy hub + 7 block bodies live on `aiagentspulse.com/#/map`, with the hub's blocks clickable through to their deep-dive pages — filling the v2.0 grid (currently 5/7 blocks unpublished) with real editorial content.
+**Defined:** 2026-06-10
+**Core Value:** Synthesis with editorial integrity — autonomous drafting accelerates output, but every consequential publication is gated by human approval.
 
-**Source content:** `.planning/docs/00-hub.md` … `07-psychology-disposition.md` (+ `EXECUTION_BRIEF.md`). YAML frontmatter (slug/tier/title/subtitle/order/maturity) is the metadata source of truth.
+**Goal:** Re-skin the public site (`aiagentspulse.com`) to the new editorial mockup across the existing separate-route SPA, fix the four live-site defects the redesign brief calls out, and add a new Signals feed of tier-1 source links.
 
-**The spine (standing constraints):** Intake/load is reversible and unpublished by default; **publishing is the gated, operator-approved step**. Direct PostgREST + `Accept-Profile` for `economy_map` (never supabase-py `.in_()`); append-only trigger — corrections via the canonical-body-rewrite path, never a raw UPDATE; fail-loud on any missing field; branch + `/diff` + web-only scoped deploy — no pipeline / proxy / agent-service changes.
+**Source brief:** `.planning/docs/REDESIGN_CC_BRIEF.md` (7 work groups, ordered low-to-high risk) + `.planning/docs/agentpulse-redesign (1).html` (visual mockup — intent reference, not markup to copy).
 
-## v2.1 Requirements
+**Operator decisions locked at milestone start (2026-06-10):** keep separate routes (not single-scroll) · Signals as its own `#/signals` route + nav tab · excerpts fixed strip-at-render (no schema/pipeline change) · no domain research.
 
-### Inventory & Roster Reconciliation
+---
 
-<!-- The brief's section 0 + 5: confirm the contract and resolve the slug/tier diff BEFORE any load. -->
+## v2.2 Requirements
 
-- [x] **INV-01**: The current `economy_map` storage + serve contract is confirmed before any write — block data contract (slug/tier/title/subtitle/order/maturity/body/timeline), the append-only trigger behavior, and the atomic publish RPC are documented from the live schema (not assumed).
-- [x] **INV-02**: The maturity enum is verified against the three doc values (`building` / `contested` / `nascent`); any mismatch with the live enum is surfaced and resolved explicitly — never silently remapped.
-- [x] **ROST-01**: The block-roster diff vs the live map is resolved with an explicit per-slug disposition before load — `negotiation-coordination` (added; v2.0-deferred), the live `regulation-legal` (omitted from docs; retire vs keep), and the tier model (docs' 2 tiers vs the live 3) — first-publish vs body-rewrite vs retire decided for each.
+Each maps to exactly one roadmap phase (see Traceability).
 
-### Content Load (unpublished)
+### Content Integrity (smart-quote fix — Task 1)
 
-- [x] **LOAD-01**: All canonical bodies (hub `agent-economy` + the in-scope blocks) are loaded into `economy_map` as unsorted/unpublished, using the frontmatter as the metadata source of truth — content lands with zero change for live visitors.
-- [x] **LOAD-02**: The load fails loud on any missing/empty required field (empty body, null maturity) — it halts with a clear error and never lands a blank or partial block.
-- [x] **LOAD-03**: Existing live rows for matching slugs are corrected via the canonical-body-rewrite path (not a raw UPDATE the append-only trigger rejects); no duplicate block rows are created.
+> **Not frontend-only.** The `marked.js` renderer runs with no typographer config, so the apostrophe corruption originates in stored markdown / the write path, not the renderer. Fix forward + scoped reviewed backfill.
 
-### Cross-link Wiring & Preview
+- [ ] **QUOTE-01**: Edition bodies render apostrophes correctly — e.g. `Cash App's`, `It's`, `world's`, `agent's` — with zero straight-double-quote corruption, on both existing editions (backfilled) and newly generated ones (write-path fixed). Root cause is documented, not just patched.
+- [ ] **QUOTE-02**: The corruption cannot silently regress — a test feeds `it's` and `the agent's wallet` through the fixed path and asserts the output contains an apostrophe and zero stray `"`.
 
-- [x] **LINK-01**: Every `#/map/<slug>` cross-block link inside the bodies resolves to the correct block page, and the hub's block entries are clickable through to their deep-dive pages.
-- [x] **PREV-01**: The loaded-but-unpublished content renders correctly on a non-published preview route before any publish — maturity pills show the three values, cross-links resolve, and hub→block click-through works end-to-end.
+### Layout & Centering (Task 2)
 
-### Hub Presentation
+- [ ] **WIDTH-01**: On a wide viewport there is no large empty band on the left — content is centered via two coexisting max-widths: narrow prose (`--measure`, ~60–70 char lines) for edition body + intro copy, and a wider container (`--wide`) for the newsletter list, map grid, Signals, and card grids.
 
-- [x] **HUB-01**: The hub renders as the `#/map` landing — thesis + two-tier framing as the intro above the block grid, with the block list appearing once (cards preferred), not duplicated as both prose links and cards.
+### Article Header (Task 3)
 
-### Gated Publish
+- [ ] **HEAD-01**: An edition page shows the edition number, date, and mode (Technical/Strategic) exactly once — in the meta line below the title — with the H1 containing only the headline (no `— Edition #N | <date>` suffix). If the suffix is baked into stored data it is stripped at render, not mutated in storage.
 
-- [x] **PUB-01**: The content is published live via the existing atomic publish RPC in ONE operator-approved batch (web-only scoped deploy) — afterward the hub renders at `#/map` and every published block renders at `#/map/<slug>` with back arrow, title, subtitle, maturity pill, and body.
+### Agent Economy Map (Task 4)
 
-## Future Requirements (deferred)
+- [ ] **GRID-01**: The Agent Economy map renders as a 3-column grid on desktop so all blocks tile cleanly, collapsing responsively (3 → 2 at ≤880px → 1 at ≤600px).
+- [ ] **GRID-02**: A maturity legend appears under the map heading so the per-block bars read as a scale, not decoration; each block's filled-segment count matches its stored `economy_map` maturity value.
 
-- Evolution timeline content — intake fills the per-block append-only timeline weekly; bodies publish now with timelines that may be empty. No manual timeline authoring this milestone.
-- Distinct visual treatment for `nascent`-maturity blocks beyond the pill (open item — default is pill-only unless discuss-phase decides otherwise).
-- Carried-forward v1.0 backend todos (analyst title bug, soft-cap hardening, pay-endpoint E2E, phase-05 review follow-ups, research perms) — out of this content milestone; in the ROADMAP backlog.
+### About / "What is AgentPulse" (Task 5)
+
+- [ ] **AGENTS-01**: The About page presents the pipeline agents (Processor / Analyst / Research / Newsletter) as an ordered, numbered sequence and the supporting layer (Gato / LLM proxy / web front end) as an unordered bulleted list — no orphaned single card — with the "nothing publishes without human approval" line rendered as its own distinct (violet) callout.
+
+### Newsletter Excerpts (Task 6)
+
+- [ ] **EXCERPT-01**: Consecutive editions show distinct preview text in the archive list — the standard "Read This, Skip the Rest" boilerplate intro is skipped and the first genuinely-distinct sentence is shown — presented in the indexed-row format (number · title · one-line summary · date). Editions 29 and 30 show different preview text. Strip-at-render; no schema change.
+
+### Signals Feed (Task 7 — new section)
+
+- [ ] **SIGNAL-01**: A Signals section lists tier-1 `source_posts` newest-first, capped to ~12–15, with a "view all signals" affordance so a heavy news week can't make the section enormous.
+- [ ] **SIGNAL-02**: Each Signals row is an external link showing date · headline · source domain, opening off-site safely (`target="_blank"` + `rel="noopener noreferrer"`) with an `↗` hover affordance.
+- [ ] **SIGNAL-03**: Signals is reachable at its own `#/signals` route via a tab in the persistent nav shell (consistent with the v2.0 nav + ← Back pattern).
+- [ ] **SIGNAL-04**: tier-1 `source_posts` are readable by the anon key via a new, read-only, tier-1-scoped Supabase RLS policy (the table is currently RLS-blocked from anon) — fail-loud if the policy is absent rather than silently rendering an empty feed.
+
+### Cross-Cutting (all groups)
+
+- [ ] **RESP-01**: All grids and rows reflow responsively — map 3→2→1, nav condenses on mobile, and signal/archive rows stack (date above headline) below the mobile breakpoint.
+- [ ] **A11Y-01**: Keyboard focus is visible (`:focus-visible` violet outline), `prefers-reduced-motion` is respected, and every link is a real `<a>` element.
+- [ ] **RHYTHM-01**: No hardcoded colors — every surface themes from the existing CSS variable system (warm off-white + violet); section rhythm uses one full-strength rule between major sections and hairline (`0.5px`) rules within.
+
+---
+
+## Future Requirements
+
+Deferred to a later release. Tracked, not in this roadmap.
+
+### Excerpts
+
+- **EXCERPT-F1**: Stored `summary` field on `newsletters`, emitted by the Newsletter agent at generation time (the "cleaner long-term" excerpt path — deferred in favor of strip-at-render this milestone; touches schema + pipeline + backfill).
+
+### Signals
+
+- **SIGNAL-F1**: A full Signals archive page behind the "view all signals" affordance (if the capped feed proves insufficient).
+
+### Layout
+
+- **WIDTH-F1**: Single-page scroll landing with scroll-spy nav (the mockup's literal form — deferred in favor of separate routes for SEO/deep-linking/lower risk).
+
+### Theming
+
+- **THEME-F1**: Dark-mode variant of the light palette (DARK-01, carried from v2.0).
+- **THEME-F2**: Richer About page with a pipeline/architecture diagram (ABOUT-02, carried from v2.0).
+
+---
 
 ## Out of Scope
 
-- **Pipeline / proxy / agent-service changes** — content-publish only; the brief forbids touching the pipeline, LLM proxy, or agent services.
-- **New frontend features / restyle** — the v2.0 renderer already displays hub + blocks correctly (verified in v2.0 UAT); this milestone fills it with content, it does not change the UI. Router/renderer bug-fixes needed to make existing links resolve are in scope under LINK-01; net-new UI is not.
-- **Schema redesign** — reuse the existing append-only `economy_map` schema and publish RPC; no migration beyond what reconciliation strictly requires.
-- **Blind/full deploy** — never a blanket `scripts/deploy.sh`; web-only scoped, branch + diff + approved batch publish.
+Explicitly excluded for this milestone.
+
+| Feature | Reason |
+|---------|--------|
+| Single-page scroll rebuild | Operator chose separate routes — lower risk, SEO, deep-linkable editions & block pages; mockup is intent reference only |
+| Stored `summary` field / pipeline change for excerpts | Operator chose strip-at-render; no schema or content-pipeline change for the excerpt fix (see EXCERPT-F1) |
+| Dark mode | Deferred since v2.0; ship the single light-mode violet system (see THEME-F1) |
+| Richer About / pipeline diagram | About ships as the v2.0 stub with the agent-grid fix only (see THEME-F2) |
+| New brand / color system | Keep the existing token palette (Source Serif 4 / IBM Plex Mono / off-white + violet); the mockup's `:root` matches it |
+| Backend changes beyond Task 1 + Task 7 | The only backend touches are the smart-quote write-path fix + backfill and the `source_posts` anon RLS policy — no pipeline/proxy/agent-service refactors |
+| Mockup's placeholder block taxonomy | The map uses the canonical `economy_map` block list, not the mockup's illustrative blocks (consistent with v2.0/v2.1) |
+| Carried-forward backend todos | analyst title-expire, soft-cap hardening, pay-endpoint E2E, intake review follow-ups, research file perms — remain parked (`.planning/todos/pending/`) |
+| EU AI Act tracker / per-block synthesis tuning / negotiation graduation | Parked backend items kept in separate milestones |
+
+---
 
 ## Traceability
 
+Which phases cover which requirements. Empty until roadmap creation.
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INV-01 | Phase 15 | Complete |
-| INV-02 | Phase 15 | Complete |
-| ROST-01 | Phase 15 | Complete |
-| LOAD-01 | Phase 16 | Complete |
-| LOAD-02 | Phase 16 | Complete |
-| LOAD-03 | Phase 16 | Complete |
-| LINK-01 | Phase 17 | Complete |
-| PREV-01 | Phase 17 | Complete |
-| HUB-01 | Phase 17 | Complete |
-| PUB-01 | Phase 18 | Complete |
+| QUOTE-01 | — | Pending |
+| QUOTE-02 | — | Pending |
+| WIDTH-01 | — | Pending |
+| HEAD-01 | — | Pending |
+| GRID-01 | — | Pending |
+| GRID-02 | — | Pending |
+| AGENTS-01 | — | Pending |
+| EXCERPT-01 | — | Pending |
+| SIGNAL-01 | — | Pending |
+| SIGNAL-02 | — | Pending |
+| SIGNAL-03 | — | Pending |
+| SIGNAL-04 | — | Pending |
+| RESP-01 | — | Pending |
+| A11Y-01 | — | Pending |
+| RHYTHM-01 | — | Pending |
+
+**Coverage:**
+- v2.2 requirements: 15 total
+- Mapped to phases: 0 (filled by roadmap)
+- Unmapped: 15 ⚠️ (resolved at roadmap creation)
+
+---
+*Requirements defined: 2026-06-10*
+*Last updated: 2026-06-10 after initial definition*
