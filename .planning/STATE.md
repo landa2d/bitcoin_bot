@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
-stopped_at: v2.2 roadmap created (Phases 19–24), all 15 requirements mapped
-last_updated: "2026-06-10T11:31:13.479Z"
-last_activity: 2026-06-10 -- Phase 19 planning complete
+stopped_at: "Completed 19-01-PLAN.md (diagnosis: storage clean; write-path guard + QUOTE-02 test)"
+last_updated: "2026-06-10T14:31:25.515Z"
+last_activity: 2026-06-10
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 2
-  completed_plans: 0
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** v2.2 "Landing Redesign + Signals Feed" — re-skin the public `aiagentspulse.com` SPA to the new editorial mockup across the existing separate routes, fix four live-site defects (smart-quote corruption, dead left gutter, edition-header triplication, map maturity bars reading as decoration, orphaned About card, duplicate excerpts), and add a new tier-1 Signals feed. NOT frontend-only: Phase 19 touches the content write-path + a scoped backfill; Phase 23 adds the milestone's one Supabase migration (anon RLS on `source_posts`).
+**Current focus:** Phase 19 — smart-quote-apostrophe-corruption-fix
 
 ## Current Position
 
-Phase: Not started — roadmap created, ready to plan Phase 19
-Plan: —
-Status: Ready to execute
-Last activity: 2026-06-10 -- Phase 19 planning complete
+Phase: 19 (smart-quote-apostrophe-corruption-fix) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute (Plan 01 complete — diagnosis + write-path guard + QUOTE-02 test)
+Last activity: 2026-06-10 -- Plan 19-01 executed: storage proven clean, fail-loud guard shipped, 17/17 regression tests pass
 
 ## Roadmap (v2.2 — Phases 19–24)
 
@@ -66,6 +66,8 @@ Open items to resolve in discuss/plan (do NOT decide unilaterally):
 - **Phase 22 distinct-sentence rule** (EXCERPT-01): the exact boilerplate-intro pattern to strip and the first-distinct-sentence heuristic (verified on editions 29 vs 30).
 
 Standing v1.0/v2.0/v2.1 decisions still in force (PROJECT.md Key Decisions table): append-only `block_body_versions` + `timeline_entries`; schema isolation via direct PostgREST + `Accept-Profile`; sentinels flag-never-block; synthesis via `llm-proxy:8200`; scoped `agentpulse-web` rebuild (no new infra); single light-mode violet accent (dark mode deferred); Source Serif 4 body + IBM Plex Mono chrome.
+
+- [Phase ?]: Phase 19: stored newsletter corpus is CLEAN (zero mid-word U+0022 corpus-wide); apostrophe corruption is NOT a write-path/storage defect. Fix-forward = fail-loud no-op-on-clean guard nl.normalize_apostrophe_corruption at the shared save_newsletter insert; Plan 02 backfill has no corrupt data to UPDATE (confirm-and-close, reuse the same function).
 
 ### Pending Todos
 
@@ -112,9 +114,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-10T11:00:00.000Z
-Stopped at: v2.2 roadmap created (Phases 19–24), all 15 requirements mapped
-Resume file: .planning/ROADMAP.md
+Last session: 2026-06-10T14:31:20.467Z
+Stopped at: Completed 19-01-PLAN.md (diagnosis: storage clean; write-path guard + QUOTE-02 test)
+Resume file: None
 Next: `/gsd-plan-phase 19` (Smart-Quote / Apostrophe Corruption Fix — QUOTE-01, QUOTE-02)
 Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete. `.planning/phases/` is empty (v2.1 phases 15–18 archived to `.planning/milestones/v2.1-phases/`).
 
@@ -137,3 +139,4 @@ Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 
 | Phase 14 P01 | 4min | 2 tasks | 2 files |
 | Phase 14 P02 | 6min | 2 tasks | 1 file |
 | Phase 17 P01 | 7min | 3 tasks | 1 files |
+| Phase 19 P01 | ~10min | 3 tasks | 3 files |

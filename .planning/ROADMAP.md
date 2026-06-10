@@ -90,7 +90,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 **Notes**: Backend phase — content pipeline + a scoped data backfill, NOT frontend-only. Spine: the backfill is a scoped, reviewed UPDATE shown before/after on ONE edition first (operator approval), never a blind table-wide find-replace; append-only/canonical-rewrite discipline applies to any body correction; fail-loud rather than silently default. `marked.js` (CDN) runs with no typographer, so a render-layer smartquote transform is unlikely to be the cause — diagnose stored bytes first.**Plans**: 2 plans
 **Wave 1**
 
-- [ ] 19-01-diagnose-and-fix-write-path-PLAN.md — Diagnose root cause from raw stored bytes, fix the write path, regression test (QUOTE-01, QUOTE-02)
+- [x] 19-01-diagnose-and-fix-write-path-PLAN.md — Diagnose root cause from raw stored bytes, fix the write path, regression test (QUOTE-01, QUOTE-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -197,7 +197,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 | 16. Content Load (unpublished) | v2.1 | 3/3 | Complete | 2026-06-08 |
 | 17. Cross-link Wiring & Preview | v2.1 | 2/2 | Complete | 2026-06-09 |
 | 18. Gated Batch Publish | v2.1 | 3/3 | Complete | 2026-06-09 |
-| 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 0/2 | Planned | - |
+| 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 1/2 | In Progress|  |
 | 20. Width Tokens & Centering Foundation | v2.2 | 0/? | Not started | - |
 | 21. Per-Route Visual Fixes | v2.2 | 0/? | Not started | - |
 | 22. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |

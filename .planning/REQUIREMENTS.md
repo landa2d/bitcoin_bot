@@ -19,8 +19,8 @@ Each maps to exactly one roadmap phase (see Traceability).
 
 > **Not frontend-only.** The `marked.js` renderer runs with no typographer config, so the apostrophe corruption originates in stored markdown / the write path, not the renderer. Fix forward + scoped reviewed backfill.
 
-- [ ] **QUOTE-01**: Edition bodies render apostrophes correctly — e.g. `Cash App's`, `It's`, `world's`, `agent's` — with zero straight-double-quote corruption, on both existing editions (backfilled) and newly generated ones (write-path fixed). Root cause is documented, not just patched.
-- [ ] **QUOTE-02**: The corruption cannot silently regress — a test feeds `it's` and `the agent's wallet` through the fixed path and asserts the output contains an apostrophe and zero stray `"`.
+- [ ] **QUOTE-01**: Edition bodies render apostrophes correctly — e.g. `Cash App's`, `It's`, `world's`, `agent's` — with zero straight-double-quote corruption, on both existing editions (backfilled) and newly generated ones (write-path fixed). Root cause is documented, not just patched. _(Plan 01: root cause documented + write-path guard shipped — diagnosis proved storage is already clean, zero corrupt rows to backfill; final confirm-and-close is Plan 02.)_
+- [x] **QUOTE-02**: The corruption cannot silently regress — a test feeds `it's` and `the agent's wallet` through the fixed path and asserts the output contains an apostrophe and zero stray `"`.
 
 ### Layout & Centering (Task 2)
 
@@ -105,8 +105,8 @@ Which phases cover which requirements. Mapped at roadmap creation (2026-06-10).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| QUOTE-01 | Phase 19 | Pending |
-| QUOTE-02 | Phase 19 | Pending |
+| QUOTE-01 | Phase 19 | In Progress (P01 done; P02 confirm-and-close) |
+| QUOTE-02 | Phase 19 | Complete |
 | WIDTH-01 | Phase 20 | Pending |
 | RHYTHM-01 | Phase 20 | Pending |
 | HEAD-01 | Phase 21 | Pending |
@@ -122,11 +122,13 @@ Which phases cover which requirements. Mapped at roadmap creation (2026-06-10).
 | A11Y-01 | Phase 24 | Pending |
 
 **Coverage:**
+
 - v2.2 requirements: 15 total
 - Mapped to phases: 15 ✓ (each to exactly one phase)
 - Unmapped: 0 ✓ — no orphans, no duplicates
 
 **Phase rollup:**
+
 - Phase 19 — Smart-Quote / Apostrophe Corruption Fix: QUOTE-01, QUOTE-02 (2)
 - Phase 20 — Width Tokens & Centering Foundation: WIDTH-01, RHYTHM-01 (2)
 - Phase 21 — Per-Route Visual Fixes: HEAD-01, GRID-01, GRID-02, AGENTS-01 (4)
