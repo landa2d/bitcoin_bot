@@ -85,7 +85,9 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
   3. Newly generated editions come out clean — the write path is fixed so the corruption stops recurring, not just hidden at render.
   4. A regression test feeds `it's` and `the agent's wallet` through the fixed path and asserts the output contains an apostrophe and zero stray `"` — the corruption cannot silently regress.
 **Notes**: Backend phase — content pipeline + a scoped data backfill, NOT frontend-only. Spine: the backfill is a scoped, reviewed UPDATE shown before/after on ONE edition first (operator approval), never a blind table-wide find-replace; append-only/canonical-rewrite discipline applies to any body correction; fail-loud rather than silently default. `marked.js` (CDN) runs with no typographer, so a render-layer smartquote transform is unlikely to be the cause — diagnose stored bytes first.
-**Plans**: TBD
+**Plans**: 2 plans
+- [ ] 19-01-diagnose-and-fix-write-path-PLAN.md — Diagnose root cause from raw stored bytes, fix the write path, regression test (QUOTE-01, QUOTE-02)
+- [ ] 19-02-scoped-reviewed-backfill-PLAN.md — Scoped reviewed backfill of existing editions (operator-gated, before/after on edition 30 first) + content-service rebuild (QUOTE-01)
 
 ### Phase 20: Width Tokens & Centering Foundation
 **Goal**: The dead left gutter is gone — on a wide viewport content is centered, with narrow prose for reading copy and a wider container for everything tiled — and the token-only color system + section-rhythm rules are established as the shared baseline every later visual phase builds on.
@@ -173,7 +175,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 | 16. Content Load (unpublished) | v2.1 | 3/3 | Complete | 2026-06-08 |
 | 17. Cross-link Wiring & Preview | v2.1 | 2/2 | Complete | 2026-06-09 |
 | 18. Gated Batch Publish | v2.1 | 3/3 | Complete | 2026-06-09 |
-| 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 0/? | Not started | - |
+| 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 0/2 | Planned | - |
 | 20. Width Tokens & Centering Foundation | v2.2 | 0/? | Not started | - |
 | 21. Per-Route Visual Fixes | v2.2 | 0/? | Not started | - |
 | 22. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
