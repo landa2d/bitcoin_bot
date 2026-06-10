@@ -4,13 +4,13 @@ milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
 stopped_at: Phase 20 context gathered
-last_updated: "2026-06-10T20:16:06.481Z"
-last_activity: 2026-06-10 -- Phase 20 planning complete
+last_updated: "2026-06-10T21:01:47.001Z"
+last_activity: 2026-06-10
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 17
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 19 complete — next up Phase 20 (Width Tokens & Centering Foundation)
+**Current focus:** Phase 20 — width-tokens-centering-foundation
 
 ## Current Position
 
-Phase: 20
-Plan: Not started — 20-CONTEXT.md gathered (ready to plan)
-Status: Ready to execute
-Last activity: 2026-06-10 -- Phase 20 planning complete
+Phase: 20 (width-tokens-centering-foundation) — EXECUTING
+Plan: 2 of 2
+Status: Plan 01 complete (3/3 tasks) — Plan 02 (live-render verification) next
+Last activity: 2026-06-10 -- Phase 20 Plan 01 executed (width tokens + per-route axes; 720px .container retired)
 
 ## Roadmap (v2.2 — Phases 19–24)
 
@@ -69,6 +69,7 @@ Standing v1.0/v2.0/v2.1 decisions still in force (PROJECT.md Key Decisions table
 
 - [Phase 19 — CORRECTED]: the apostrophe corruption is a DOUBLED apostrophe (`''`, two U+0027), which renders as a *visual* double-quote in the Source Serif 4 body face — NOT a literal `"` character and NOT a clean corpus. The original diagnosis (searched for U+0022, spot-checked one clean `Cash App's`) was WRONG; the operator caught it at live-site verification. Real signature = word-flanked `'{2,}`. 103 occurrences across published editions 26/29/30. Render path is genuinely clean (verified end-to-end: anon REST → marked v15.0.12 → `App&#39;s`). Lesson saved: [[feedback_verify_render_bugs_end_to_end]].
 - [Phase 19 / fix + backfill]: write-path guard `nl.normalize_apostrophe_corruption` corrected to collapse word-flanked `''`→`'` (+ defensive mid-word double-quote repair), fail-loud, genuine quotes preserved; 36 regression tests. Operator-approved scoped backfill (by row id) of editions 26/29/30 — 103 repaired, 0 remaining, genuine `"` counts unchanged. `newsletter` rebuilt to ship the corrected guard; `web` NOT rebuilt (renderer unchanged — stored bytes render directly). Operator confirmed the live site. QUOTE-01 + QUOTE-02 satisfied; Phase 19 closed.
+- [Phase 20 / Plan 01 — WIDTH-01 foundation]: two coexisting centered axes shipped in source — `.prose` (`--measure:64ch`) for reading copy, `.wide` (`--wide:1080px`) for tiled content, `--gutter:clamp(1.25rem,5vw,3.5rem)` side padding (D-01, operator-locked mockup values verbatim). The single 720px `.container` (the D-06 dead-gutter root cause — centered but too narrow, so wide content read as a left gutter) is fully retired (0 refs in index.html + style-shared.css); each route re-homed onto its correct axis per the D-03 apply-map (list/map/status/about-grid/subscribe → wide; reader/block/about-intro → prose; About explicitly split). Nav widened 880px→`var(--wide)` so chrome and content share ONE centered axis (D-02), via the `.nav` rule only — no `.wide` on nav markup (Pitfall 3). `body > header` sticky scoping preserved (Pitfall 1); map grid still 2-col (3-col is Phase 21). Source-only — live-render verification is Plan 02 (orchestrator-owned). 3 atomic commits: 5ce580e / 76888c9 / c974018.
 
 ### Pending Todos
 
@@ -115,10 +116,10 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-10T19:25:15.553Z
-Stopped at: Phase 20 context gathered
-Resume file: .planning/phases/20-width-tokens-centering-foundation/20-CONTEXT.md
-Next: `/gsd-plan-phase 20` (Width Tokens & Centering Foundation — WIDTH-01, RHYTHM-01). The layout substrate every later v2.2 visual phase sits on.
+Last session: 2026-06-10T20:56:44Z
+Stopped at: Phase 20 Plan 01 complete (3/3 tasks, 3 atomic commits: 5ce580e, 76888c9, c974018)
+Resume file: .planning/phases/20-width-tokens-centering-foundation/20-01-SUMMARY.md
+Next: Phase 20 Plan 02 (RHYTHM-01 + the holistic live-render verification — no large left band, both axes centered, ~60-70 char reading line, nav edges == content edges). Plan 02's live check is orchestrator-owned / worktree-unsafe (scoped `docker compose ... web` rebuild → operator approval).
 Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
 ## Operator Next Steps
@@ -143,3 +144,4 @@ Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 
 | Phase 17 P01 | 7min | 3 tasks | 1 files |
 | Phase 19 P01 | ~10min | 3 tasks | 3 files |
 | Phase 19 P02 | ~5min | 3 tasks | 1 file (confirm-and-close; no DB mutation, newsletter rebuilt) |
+| Phase 20 P01 | ~4min | 3 tasks | 4 files (width tokens + .prose/.wide axes; 720px .container retired; source-only) |

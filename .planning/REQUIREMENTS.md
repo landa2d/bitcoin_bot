@@ -107,7 +107,7 @@ Which phases cover which requirements. Mapped at roadmap creation (2026-06-10).
 |-------------|-------|--------|
 | QUOTE-01 | Phase 19 | Complete (P01 fix-forward + P02 confirm-and-close; storage clean, guard live) |
 | QUOTE-02 | Phase 19 | Complete |
-| WIDTH-01 | Phase 20 | Pending |
+| WIDTH-01 | Phase 20 | In progress (P01 source foundation: .prose/.wide axes + tokens shipped, 720px .container retired, nav on wide axis; live-render verify owned by P02) |
 | RHYTHM-01 | Phase 20 | Pending |
 | HEAD-01 | Phase 21 | Pending |
 | GRID-01 | Phase 21 | Pending |

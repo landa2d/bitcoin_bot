@@ -112,7 +112,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 **Plans**: 2 plans
 **Wave 1**
 
-- [ ] 20-01-PLAN.md — Width-token foundation: add `--measure`/`--wide`/`--gutter` + `.prose`/`.wide` to `style-base.css :root`, widen the nav to `--wide`, retire the 720px `.container`, apply the per-route axis map, wrap the map prose intro (WIDTH-01)
+- [x] 20-01-PLAN.md — Width-token foundation: add `--measure`/`--wide`/`--gutter` + `.prose`/`.wide` to `style-base.css :root`, widen the nav to `--wide`, retire the 720px `.container`, apply the per-route axis map, wrap the map prose intro (WIDTH-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -206,7 +206,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 | 17. Cross-link Wiring & Preview | v2.1 | 2/2 | Complete | 2026-06-09 |
 | 18. Gated Batch Publish | v2.1 | 3/3 | Complete | 2026-06-09 |
 | 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete    | 2026-06-10 |
-| 20. Width Tokens & Centering Foundation | v2.2 | 0/2 | Planned | - |
+| 20. Width Tokens & Centering Foundation | v2.2 | 1/2 | In Progress|  |
 | 21. Per-Route Visual Fixes | v2.2 | 0/? | Not started | - |
 | 22. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
 | 23. Signals Feed | v2.2 | 0/? | Not started | - |
