@@ -27,49 +27,59 @@
       </nav>
   </header>
 
-  <div class="container">
+  <!-- WIDTH-01 (D-03/D-04): the single 720px .container is retired. Each route now
+       carries its correct centered axis — .wide (1080px, tiled) or .prose (64ch,
+       reading copy) — so wide content fills a centered band (no dead left gutter)
+       while reading copy holds a ~60–70 char line. Both axes center via the
+       shared .prose/.wide classes in style-base.css. -->
+
     <!-- Minimal D3 Newsletter header (list route only — scoped by showView()).
-         Hosts the relocated Technical/Strategic toggle (TGL-01). -->
-    <div class="hero">
-        <h1 class="page-title hero-headline" id="hero-headline"></h1>
-        <p class="hero-date" id="hero-date"></p>
-        <div class="mode-toggle">
-            <button class="toggle-btn active" id="btn-technical" onclick="setMode('technical')">Technical</button>
-            <button class="toggle-btn" id="btn-strategic" onclick="setMode('strategic')">Strategic</button>
+         Hosts the relocated Technical/Strategic toggle (TGL-01). On the wide
+         centered axis; the hero keeps its own text-align:center (D-04). -->
+    <div class="wide">
+        <div class="hero">
+            <h1 class="page-title hero-headline" id="hero-headline"></h1>
+            <p class="hero-date" id="hero-date"></p>
+            <div class="mode-toggle">
+                <button class="toggle-btn active" id="btn-technical" onclick="setMode('technical')">Technical</button>
+                <button class="toggle-btn" id="btn-strategic" onclick="setMode('strategic')">Strategic</button>
+            </div>
+            <p class="mode-subtitle" id="mode-subtitle">Architecture, code, implementation</p>
         </div>
-        <p class="mode-subtitle" id="mode-subtitle">Architecture, code, implementation</p>
     </div>
 
     <main>
-        <!-- List view -->
+        <!-- List view — tiled rows on the wide axis (D-03) -->
         <div id="list-view">
-            <div class="content-area" id="newsletter-list"></div>
+            <div class="content-area wide" id="newsletter-list"></div>
         </div>
 
-        <!-- Reader view -->
+        <!-- Reader view — article body reads narrow on the prose axis (D-03) -->
         <div id="reader-view" style="display:none">
-            <div class="content-area">
+            <div class="content-area prose">
                 <a href="#/" class="backlink">&larr; Back to Newsletter</a>
                 <article id="newsletter-content"></article>
             </div>
         </div>
 
-        <!-- Map (hub) view -->
+        <!-- Map (hub) view — the grid is wide (D-03); the prose intro inside is
+             wrapped in .prose by renderHub (Task 3), so the header reads narrow
+             while the tier grids span the wide band. -->
         <div id="map-view" style="display:none">
-            <div class="content-area"></div>
+            <div class="content-area wide"></div>
         </div>
 
-        <!-- Block (single-block page) view -->
+        <!-- Block (single-block page) view — reading view, prose axis (D-03) -->
         <div id="block-view" style="display:none">
-            <div class="content-area">
+            <div class="content-area prose">
                 <a href="#/map" class="backlink">&larr; Back to the map</a>
                 <div id="block-content"></div>
             </div>
         </div>
 
-        <!-- Status (maturity snapshot) view -->
+        <!-- Status (maturity snapshot) view — tiled rows, wide axis (D-03) -->
         <div id="status-view" style="display:none">
-            <div class="content-area">
+            <div class="content-area wide">
                 <a href="#/map" class="backlink">&larr; Back to the map</a>
                 <div id="status-content"></div>
             </div>
@@ -81,67 +91,79 @@
              "eight cooperating services"; 5 content-agent pills only — Gato Brain /
              LLM Proxy / Web stay in prose P3, not pills). -->
         <div id="about-view" style="display:none">
+            <!-- D-03 explicit split: the intro prose (eyebrow/title/sub + .about)
+                 reads narrow on the prose axis; the .agent-row tiled grid spans the
+                 wide axis. The content-area class is retained for its own padding;
+                 about-stub stays for the Phase-14 spacing rules. -->
             <div class="content-area about-stub">
-                <p class="eyebrow">Behind the Briefing</p>
-                <h1 class="page-title">What is AgentPulse</h1>
-                <p class="page-sub">A newsletter written by a multi-agent system</p>
-                <div class="about">
-                    <p>AgentPulse is a weekly intelligence briefing on the AI agent economy — its economics, governance, and trust infrastructure. Each edition is produced by eight cooperating services that ingest the week's signals, synthesize findings, and draft the briefing.</p>
-                    <p class="body-soft">Specialized agents each own one job and hand work between each other through a background scheduler. Every model call is metered against a per-agent wallet, so the cost of producing an edition is itself part of what we track — and nothing is published without human approval.</p>
-                    <p class="body-soft">Behind the five content agents sits a supporting layer: a conversational middleware that routes operator commands, an LLM proxy that governs budgets and wallets across every model call, and a web front end that serves what you are reading now.</p>
-                </div>
-                <div class="agent-row">
-                    <div class="agent-pill">
-                        <span class="an">Processor</span>
-                        <span class="ad">Background scheduler — scrapes sources, runs the pipelines, and posts.</span>
-                    </div>
-                    <div class="agent-pill">
-                        <span class="an">Analyst</span>
-                        <span class="ad">Scores and clusters incoming signals into findings.</span>
-                    </div>
-                    <div class="agent-pill">
-                        <span class="an">Research</span>
-                        <span class="ad">Deepens context on the week's tier-1 stories.</span>
-                    </div>
-                    <div class="agent-pill">
-                        <span class="an">Newsletter</span>
-                        <span class="ad">Synthesizes the dual-mode (Technical / Strategic) editions.</span>
-                    </div>
-                    <div class="agent-pill">
-                        <span class="an">Gato</span>
-                        <span class="ad">Telegram operator interface and coding surface.</span>
+                <div class="prose">
+                    <p class="eyebrow">Behind the Briefing</p>
+                    <h1 class="page-title">What is AgentPulse</h1>
+                    <p class="page-sub">A newsletter written by a multi-agent system</p>
+                    <div class="about">
+                        <p>AgentPulse is a weekly intelligence briefing on the AI agent economy — its economics, governance, and trust infrastructure. Each edition is produced by eight cooperating services that ingest the week's signals, synthesize findings, and draft the briefing.</p>
+                        <p class="body-soft">Specialized agents each own one job and hand work between each other through a background scheduler. Every model call is metered against a per-agent wallet, so the cost of producing an edition is itself part of what we track — and nothing is published without human approval.</p>
+                        <p class="body-soft">Behind the five content agents sits a supporting layer: a conversational middleware that routes operator commands, an LLM proxy that governs budgets and wallets across every model call, and a web front end that serves what you are reading now.</p>
                     </div>
                 </div>
-                <a href="#/" class="backlink">&larr; Back to Newsletter</a>
+                <div class="wide">
+                    <div class="agent-row">
+                        <div class="agent-pill">
+                            <span class="an">Processor</span>
+                            <span class="ad">Background scheduler — scrapes sources, runs the pipelines, and posts.</span>
+                        </div>
+                        <div class="agent-pill">
+                            <span class="an">Analyst</span>
+                            <span class="ad">Scores and clusters incoming signals into findings.</span>
+                        </div>
+                        <div class="agent-pill">
+                            <span class="an">Research</span>
+                            <span class="ad">Deepens context on the week's tier-1 stories.</span>
+                        </div>
+                        <div class="agent-pill">
+                            <span class="an">Newsletter</span>
+                            <span class="ad">Synthesizes the dual-mode (Technical / Strategic) editions.</span>
+                        </div>
+                        <div class="agent-pill">
+                            <span class="an">Gato</span>
+                            <span class="ad">Telegram operator interface and coding surface.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="prose">
+                    <a href="#/" class="backlink">&larr; Back to Newsletter</a>
+                </div>
             </div>
         </div>
     </main>
 
-    <!-- Subscribe section -->
-    <section id="subscribe-section">
-        <div class="subscribe-inner">
-            <h2 class="subscribe-heading">Get the Intelligence Brief</h2>
-            <p class="subscribe-tagline">Weekly analysis delivered to your inbox. Choose your lens.</p>
-            <div class="subscribe-form">
-                <input type="email" id="subscribe-email" placeholder="you@example.com" required />
-                <div class="mode-preference">
-                    <label><input type="radio" name="pref" value="technical" checked /> Technical</label>
-                    <label><input type="radio" name="pref" value="strategic" /> Strategic</label>
-                    <label><input type="radio" name="pref" value="both" /> Both</label>
+    <!-- Subscribe section + footer — centered on the wide axis (D-04); the
+         subscribe form keeps its own max-width:400px. -->
+    <div class="wide">
+        <!-- Subscribe section -->
+        <section id="subscribe-section">
+            <div class="subscribe-inner">
+                <h2 class="subscribe-heading">Get the Intelligence Brief</h2>
+                <p class="subscribe-tagline">Weekly analysis delivered to your inbox. Choose your lens.</p>
+                <div class="subscribe-form">
+                    <input type="email" id="subscribe-email" placeholder="you@example.com" required />
+                    <div class="mode-preference">
+                        <label><input type="radio" name="pref" value="technical" checked /> Technical</label>
+                        <label><input type="radio" name="pref" value="strategic" /> Strategic</label>
+                        <label><input type="radio" name="pref" value="both" /> Both</label>
+                    </div>
+                    <button id="subscribe-btn" onclick="handleSubscribe()">Subscribe</button>
+                    <p id="subscribe-status" class="subscribe-status"></p>
                 </div>
-                <button id="subscribe-btn" onclick="handleSubscribe()">Subscribe</button>
-                <p id="subscribe-status" class="subscribe-status"></p>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <!-- Bottom subscribe bar -->
-    <footer class="bottom-bar">
-        <span class="bottom-bar-text">Weekly conviction-driven analysis on the agent economy</span>
-        <button class="btn-subscribe-secondary" onclick="scrollToSubscribe()">Subscribe</button>
-    </footer>
-
-  </div>
+        <!-- Bottom subscribe bar -->
+        <footer class="bottom-bar">
+            <span class="bottom-bar-text">Weekly conviction-driven analysis on the agent economy</span>
+            <button class="btn-subscribe-secondary" onclick="scrollToSubscribe()">Subscribe</button>
+        </footer>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

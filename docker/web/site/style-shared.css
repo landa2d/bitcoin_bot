@@ -17,12 +17,11 @@ body {
     min-height: 100vh;
 }
 
-.container {
-    max-width: 720px;
-    width: 100%;
-    margin: 0 auto;
-    padding: 0 24px;
-}
+/* Legacy 720px container axis retired (WIDTH-01, D-03/D-06): the single centered
+   720px column that crammed every route — hero, all six route-views, subscribe,
+   footer — into one too-narrow band (the dead-left-gutter root cause) is gone.
+   Routes now carry per-axis prose (--measure) / wide (--wide) wrappers from
+   style-base.css applied in index.html. */
 
 /* ── Mode Transitions ────────────────────────────────────────── */
 
@@ -951,7 +950,9 @@ article tr:last-child td {
 /* ── Responsive ──────────────────────────────────────────────── */
 
 @media (max-width: 600px) {
-    .container { padding: 0 16px; }
+    /* Legacy container rule retired (WIDTH-01) — mobile side padding now comes
+       from the --gutter token on the prose/wide axes (clamp lower bound
+       1.25rem ≈ 20px). */
 
     /* .hero top padding snapped to the 4px grid; the .hero-headline clamp()
        (clamp(30px,5vw,46px)) already scales down, so no font-size override.
