@@ -19,7 +19,17 @@ from dotenv import load_dotenv
 from pydantic import ValidationError
 from supabase import create_client, Client
 from openai import OpenAI
-import anthropic
+
+# `anthropic` is only needed at runtime when actually instantiating the Claude
+# client (see init_clients). Import it softly so the module — and pure helpers
+# like normalize_apostrophe_corruption — can be imported for testing in
+# environments where the SDK is not installed (it IS installed in the production
+# Docker image). A hard top-level import would otherwise block the QUOTE-02
+# regression test from importing the real fixed function.
+try:
+    import anthropic
+except ModuleNotFoundError:  # pragma: no cover - production always has it
+    anthropic = None
 
 from schemas import TASK_INPUT_SCHEMAS, NewsletterOutput
 
@@ -59,7 +69,7 @@ logger = logging.getLogger("newsletter-agent")
 supabase: Client | None = None
 client: OpenAI | None = None
 deepseek_client: OpenAI | None = None
-claude_client: anthropic.Anthropic | None = None
+claude_client: "anthropic.Anthropic | None" = None  # str annotation: anthropic may be unimported in test env
 
 # ---------------------------------------------------------------------------
 # Identity + Skill loading (from disk, with mtime caching)
@@ -267,6 +277,12 @@ def init():
     else:
         logger.warning("[INIT] DEEPSEEK_API_KEY missing — all DeepSeek calls will fall back to OpenAI")
     # Claude client via LLM proxy (for strategic editor pass)
+    if anthropic is None:
+        # Fail loud — at runtime the SDK must be present; never silently skip.
+        raise RuntimeError(
+            "anthropic SDK is not installed but init_clients() needs it for the "
+            "strategic editor pass. Install it in the service image."
+        )
     claude_client = anthropic.Anthropic(
         api_key=OPENAI_API_KEY,  # Proxy uses the agent's ap_ key
         base_url=f"{LLM_PROXY_URL}/anthropic",
@@ -1441,6 +1457,72 @@ def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -
     return edited
 
 
+# Corruption signature: a straight DOUBLE-quote (U+0022) standing where an
+# apostrophe belongs — i.e. flanked by word characters (``App"s``, ``It"s``,
+# ``world"s``). This is the ONLY shape we repair. A genuine quotation such as
+# ``He said "ship it"`` has its ``"`` flanked by whitespace/punctuation, never by
+# word chars, so it is left untouched (threat T-19-03). This is deliberately NOT
+# a blanket ``"`` -> ``'`` replacement.
+_APOSTROPHE_CORRUPTION_RE = re.compile(r'(?<=[A-Za-z0-9])"(?=[A-Za-z0-9])')
+
+
+def normalize_apostrophe_corruption(text: str, *, field: str = "content_markdown",
+                                    edition: object = "?") -> str:
+    """Fail-loud write-path guard against the apostrophe -> double-quote corruption.
+
+    Phase 19 diagnosis (19-DIAGNOSIS.md) proved the stored newsletter corpus is
+    already clean (every apostrophe is U+0027, zero mid-word U+0022 corpus-wide)
+    and that ``marked.parse`` has no typographer — so this guard is a NO-OP on all
+    existing editions and on genuine quotations. It exists so the corruption
+    *cannot recur* (QUOTE-01): if a future model emission or upstream step ever
+    introduces the ``App"s`` shape, this repairs ONLY that signature (the straight
+    double-quote flanked by word chars -> a straight apostrophe U+0027) and logs
+    loudly, rather than silently passing a corrupt body through to storage.
+
+    Fail-loud (project "the wallet bug" rule):
+      * raises ``TypeError`` on non-``str`` input — never silently coerces;
+      * ``logger.error``s with edition + field + count whenever it actually
+        rewrites a character, so a real recurrence is surfaced, not hidden.
+
+    It does NOT touch genuine double-quotes (those are not flanked by word chars),
+    and it is NOT a blanket ``"`` -> ``'`` replacement.
+
+    Args:
+        text: the body string about to be stored (may be empty).
+        field: which field this is (for log context).
+        edition: edition number (for log context).
+
+    Returns:
+        The text with the apostrophe-corruption signature repaired (usually the
+        identical string, since storage is clean).
+    """
+    if text is None:
+        # An absent body is a legitimate empty field; preserve the caller's value.
+        return text
+    if not isinstance(text, str):
+        # Fail loud — do not silently coerce an unexpected type into storage.
+        raise TypeError(
+            f"normalize_apostrophe_corruption expected str for {field} "
+            f"(edition {edition}), got {type(text).__name__}"
+        )
+    if not text:
+        return text
+
+    matches = _APOSTROPHE_CORRUPTION_RE.findall(text)
+    if not matches:
+        return text  # Clean — the corpus-wide common case. No-op.
+
+    fixed = _APOSTROPHE_CORRUPTION_RE.sub("'", text)
+    # Loud surfacing: this should essentially never fire given a clean corpus.
+    logger.error(
+        "[QUOTE-FIX] Repaired %d apostrophe-corruption occurrence(s) "
+        "(mid-word U+0022 -> U+0027) in %s for edition %s. "
+        "This signals upstream corruption — investigate the generator.",
+        len(matches), field, edition,
+    )
+    return fixed
+
+
 def save_newsletter(result: dict, input_data: dict, blocks_data: dict | None = None) -> str | None:
     """Save newsletter to Supabase and local file. Returns inserted row UUID or None.
 
@@ -1464,12 +1546,24 @@ def save_newsletter(result: dict, input_data: dict, blocks_data: dict | None = N
     title_impact = result.get("title_impact", result.get("title", ""))
     content_markdown_impact = result.get("content_markdown_impact", "")
 
+    # Phase 19 (QUOTE-01): fail-loud write-path guard against the apostrophe ->
+    # straight-double-quote corruption. No-op on the (clean) corpus and on genuine
+    # quotes; repairs ONLY the App"s signature; logs loudly if it ever fires. This
+    # is the single shared insert for BOTH the single-pass and block-pipeline
+    # write paths, so guarding here covers both. (See 19-DIAGNOSIS.md.)
+    content_markdown = normalize_apostrophe_corruption(
+        result.get("content_markdown", ""), field="content_markdown", edition=edition
+    )
+    content_markdown_impact = normalize_apostrophe_corruption(
+        content_markdown_impact, field="content_markdown_impact", edition=edition
+    )
+
     # Insert into newsletters table
     row = {
         "edition_number": edition,
         "title": result.get("title", f"Edition #{edition}"),
         "title_impact": title_impact,
-        "content_markdown": result.get("content_markdown", ""),
+        "content_markdown": content_markdown,
         "content_markdown_impact": content_markdown_impact,
         "content_telegram": result.get("content_telegram", ""),
         "data_snapshot": {**input_data, **(result.get('data_snapshot') or {})},
@@ -1487,7 +1581,8 @@ def save_newsletter(result: dict, input_data: dict, blocks_data: dict | None = N
     # ── Phase D: Post-generation verification ──
     try:
         from verification import verify_draft
-        tech_prose = result.get("content_markdown", "")
+        # Verify the normalized bodies — the same bytes that were stored (Phase 19).
+        tech_prose = content_markdown
         impact_prose = content_markdown_impact or ""
 
         # Build the fact base for verification.
@@ -1555,7 +1650,7 @@ def save_newsletter(result: dict, input_data: dict, blocks_data: dict | None = N
     # Save local markdown (builder version)
     md_file = NEWSLETTERS_DIR / f"brief_{edition}_{date_str}.md"
     try:
-        md_file.write_text(result.get("content_markdown", ""))
+        md_file.write_text(content_markdown)
         logger.info(f"Saved local file: {md_file.name}")
     except OSError as e:
         logger.error(f"Failed to write newsletter file {md_file}: {e}")
@@ -2177,8 +2272,12 @@ def process_task(task: dict):
                         "edition_number": edition,
                         "title": f"[BLOCK PIPELINE A/B] {result.get('title', '')}",
                         "title_impact": f"[BLOCK PIPELINE A/B] {result.get('title_impact', '')}",
-                        "content_markdown": bp_result.get('content_markdown', ''),
-                        "content_markdown_impact": bp_result.get('content_markdown_impact', ''),
+                        "content_markdown": normalize_apostrophe_corruption(
+                            bp_result.get('content_markdown', ''),
+                            field="content_markdown", edition=edition),
+                        "content_markdown_impact": normalize_apostrophe_corruption(
+                            bp_result.get('content_markdown_impact', ''),
+                            field="content_markdown_impact", edition=edition),
                         "status": "held",
                         "data_snapshot": {
                             "do_not_publish": True,
