@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: executing
+status: completed
 stopped_at: "Completed 19-02-PLAN.md (confirm-and-close: empty affected set; operator approved Close+rebuild; write-path guard live). Phase 19 complete (2/2)."
-last_updated: "2026-06-10T15:02:52Z"
+last_updated: "2026-06-10T18:43:54.964Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 6
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 ## Current Position
 
-Phase: 19 (smart-quote-apostrophe-corruption-fix) — COMPLETE (2/2 plans)
-Plan: 2 of 2 — complete
+Phase: 20
+Plan: Not started
 Status: Phase 19 complete. QUOTE-01 + QUOTE-02 satisfied. Storage proven clean (both Plan 01 and Plan 02's independent live scan); fail-loud write-path guard live in the recreated newsletter container; 17/17 regression tests pass; no backfill UPDATE needed (empty affected set, confirm-and-close). Next: plan Phase 20 (Width Tokens & Centering Foundation).
-Last activity: 2026-06-10 -- Plan 19-02 executed: independent scan of 43 newsletter rows reproduced storage-clean (0 corrupt corpus-wide), operator approved "Close + rebuild newsletter", scoped newsletter rebuild shipped the Plan 01 guard live (web untouched, no DB mutation)
+Last activity: 2026-06-10
 
 ## Roadmap (v2.2 — Phases 19–24)
 

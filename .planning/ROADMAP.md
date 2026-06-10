@@ -197,7 +197,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 | 16. Content Load (unpublished) | v2.1 | 3/3 | Complete | 2026-06-08 |
 | 17. Cross-link Wiring & Preview | v2.1 | 2/2 | Complete | 2026-06-09 |
 | 18. Gated Batch Publish | v2.1 | 3/3 | Complete | 2026-06-09 |
-| 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete   | 2026-06-10 |
+| 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete    | 2026-06-10 |
 | 20. Width Tokens & Centering Foundation | v2.2 | 0/? | Not started | - |
 | 21. Per-Route Visual Fixes | v2.2 | 0/? | Not started | - |
 | 22. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
