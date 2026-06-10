@@ -1457,17 +1457,20 @@ def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -
     return edited
 
 
-# Corruption signature: a straight DOUBLE-quote (U+0022) standing where an
-# apostrophe belongs — i.e. flanked by word characters (``App"s``, ``It"s``,
-# ``world"s``). This is the ONLY shape we repair. A genuine quotation such as
-# ``He said "ship it"`` has its ``"`` flanked by whitespace/punctuation, never by
-# word chars, so it is left untouched (threat T-19-03). This is deliberately NOT
-# a blanket ``"`` -> ``'`` replacement.
-_APOSTROPHE_CORRUPTION_RE = re.compile(r'(?<=[A-Za-z0-9])"(?=[A-Za-z0-9])')
+# Corruption signature: a DOUBLE-quote standing where an apostrophe belongs —
+# i.e. flanked by word characters (``App"s``, ``It"s``, ``world"s``). We repair
+# BOTH the straight ASCII double-quote (U+0022) AND the curly variants
+# (U+201C ``"`` / U+201D ``"``): a typographer / smart-quote recurrence emits
+# *curly* quotes, so that is the MORE likely future shape, not a less likely one
+# (WR-02). This is the ONLY shape we repair. A genuine quotation such as
+# ``He said "ship it"`` (or curly ``"ship it"``) has its quotes flanked by
+# whitespace/punctuation, never by word chars, so it is left untouched (threat
+# T-19-03). This is deliberately NOT a blanket ``"`` -> ``'`` replacement.
+_APOSTROPHE_CORRUPTION_RE = re.compile(r'(?<=[A-Za-z0-9])["“”](?=[A-Za-z0-9])')
 
 
-def normalize_apostrophe_corruption(text: str, *, field: str = "content_markdown",
-                                    edition: object = "?") -> str:
+def normalize_apostrophe_corruption(text: str, *, field: str = "<unspecified>",
+                                    edition: int | str = "?") -> str:
     """Fail-loud write-path guard against the apostrophe -> double-quote corruption.
 
     Phase 19 diagnosis (19-DIAGNOSIS.md) proved the stored newsletter corpus is
@@ -1475,9 +1478,10 @@ def normalize_apostrophe_corruption(text: str, *, field: str = "content_markdown
     and that ``marked.parse`` has no typographer — so this guard is a NO-OP on all
     existing editions and on genuine quotations. It exists so the corruption
     *cannot recur* (QUOTE-01): if a future model emission or upstream step ever
-    introduces the ``App"s`` shape, this repairs ONLY that signature (the straight
-    double-quote flanked by word chars -> a straight apostrophe U+0027) and logs
-    loudly, rather than silently passing a corrupt body through to storage.
+    introduces the ``App"s`` shape, this repairs ONLY that signature (a straight
+    U+0022 OR a curly U+201C/U+201D double-quote flanked by word chars -> a
+    straight apostrophe U+0027) and logs loudly, rather than silently passing a
+    corrupt body through to storage.
 
     Fail-loud (project "the wallet bug" rule):
       * raises ``TypeError`` on non-``str`` input — never silently coerces;
@@ -1516,7 +1520,7 @@ def normalize_apostrophe_corruption(text: str, *, field: str = "content_markdown
     # Loud surfacing: this should essentially never fire given a clean corpus.
     logger.error(
         "[QUOTE-FIX] Repaired %d apostrophe-corruption occurrence(s) "
-        "(mid-word U+0022 -> U+0027) in %s for edition %s. "
+        "(mid-word straight/curly double-quote -> U+0027) in %s for edition %s. "
         "This signals upstream corruption — investigate the generator.",
         len(matches), field, edition,
     )
@@ -1557,15 +1561,28 @@ def save_newsletter(result: dict, input_data: dict, blocks_data: dict | None = N
     content_markdown_impact = normalize_apostrophe_corruption(
         content_markdown_impact, field="content_markdown_impact", edition=edition
     )
+    # WR-01: the same LLM emission also populates these sibling user-visible text
+    # fields. Route them through the same guard so the corruption cannot recur in a
+    # title or the Telegram body either (QUOTE-01 "cannot recur"). No-op on clean
+    # input; never a blanket "->' replacement.
+    title = normalize_apostrophe_corruption(
+        result.get("title", f"Edition #{edition}"), field="title", edition=edition
+    )
+    title_impact = normalize_apostrophe_corruption(
+        title_impact, field="title_impact", edition=edition
+    )
+    content_telegram = normalize_apostrophe_corruption(
+        result.get("content_telegram", ""), field="content_telegram", edition=edition
+    )
 
     # Insert into newsletters table
     row = {
         "edition_number": edition,
-        "title": result.get("title", f"Edition #{edition}"),
+        "title": title,
         "title_impact": title_impact,
         "content_markdown": content_markdown,
         "content_markdown_impact": content_markdown_impact,
-        "content_telegram": result.get("content_telegram", ""),
+        "content_telegram": content_telegram,
         "data_snapshot": {**input_data, **(result.get('data_snapshot') or {})},
         "primary_theme": primary_theme,
         "status": "draft",
@@ -2270,8 +2287,12 @@ def process_task(task: dict):
                     # Save as a separate held edition for comparison
                     bp_row = {
                         "edition_number": edition,
-                        "title": f"[BLOCK PIPELINE A/B] {result.get('title', '')}",
-                        "title_impact": f"[BLOCK PIPELINE A/B] {result.get('title_impact', '')}",
+                        "title": normalize_apostrophe_corruption(
+                            f"[BLOCK PIPELINE A/B] {result.get('title', '')}",
+                            field="title", edition=edition),
+                        "title_impact": normalize_apostrophe_corruption(
+                            f"[BLOCK PIPELINE A/B] {result.get('title_impact', '')}",
+                            field="title_impact", edition=edition),
                         "content_markdown": normalize_apostrophe_corruption(
                             bp_result.get('content_markdown', ''),
                             field="content_markdown", edition=edition),

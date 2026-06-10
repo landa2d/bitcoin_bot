@@ -19,6 +19,7 @@ This test imports the REAL production function via the conftest-preloaded
 pass while production regresses). Plan 02's backfill must reuse this same
 function (see 19-DIAGNOSIS.md).
 """
+import logging
 import re
 import sys
 from pathlib import Path
@@ -41,6 +42,9 @@ APOSTROPHES = (chr(0x2019), chr(0x0027))  # U+2019 curly, U+0027 straight
 # A straight double-quote (U+0022) standing in for an apostrophe == flanked by
 # word characters. This is the corruption signature that must be absent.
 _WORD_FLANKED_DQ = re.compile(r'(?<=[A-Za-z0-9])"(?=[A-Za-z0-9])')
+# WR-02: the same signature with a CURLY double-quote (U+201C/U+201D) — the more
+# likely typographer/smart-quote recurrence shape. Must also be absent post-fix.
+_WORD_FLANKED_DQ_ANY = re.compile(r'(?<=[A-Za-z0-9])["“”](?=[A-Za-z0-9])')
 
 
 def _has_real_apostrophe(s: str) -> bool:
@@ -49,6 +53,11 @@ def _has_real_apostrophe(s: str) -> bool:
 
 def _stray_apostrophe_quote_count(s: str) -> int:
     return len(_WORD_FLANKED_DQ.findall(s))
+
+
+def _stray_any_dq_count(s: str) -> int:
+    """Word-flanked double-quote of ANY shape (straight U+0022 or curly U+201C/D)."""
+    return len(_WORD_FLANKED_DQ_ANY.findall(s))
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -125,6 +134,33 @@ def test_genuine_quotes_and_apostrophe_together():
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# WR-02: curly double-quote (U+201C/U+201D) corruption is the more-likely
+# typographer recurrence shape — it MUST be repaired, not silently passed through.
+# ──────────────────────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("corrupt,clean", [
+    ('Cash App“s', "Cash App's"),   # U+201C left curly
+    ('Cash App”s', "Cash App's"),   # U+201D right curly
+    ('It“s', "It's"),
+    ('the agent”s wallet', "the agent's wallet"),
+])
+def test_quote02_curly_double_quote_corruption_repaired(corrupt, clean):
+    """A mid-word CURLY double-quote standing in for an apostrophe is repaired."""
+    out = fix(corrupt)
+    assert _has_real_apostrophe(out), f"no real apostrophe in {out!r}"
+    assert _stray_any_dq_count(out) == 0, f"stray (straight/curly) DQ remains in {out!r}"
+    assert out == clean, f"expected {clean!r}, got {out!r}"
+
+
+def test_genuine_curly_quotation_preserved():
+    """A real curly quotation (flanked by spaces) keeps its curly quotes untouched."""
+    body = "They called it “shipping fast” this week."
+    out = fix(body)
+    assert out == body, f"genuine curly quotes mutated: {out!r}"
+    assert out.count("“") == 1 and out.count("”") == 1
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Fail-loud + no-op safety
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -132,6 +168,23 @@ def test_fail_loud_on_non_str():
     """Non-str input raises (never silently coerced into storage)."""
     with pytest.raises(TypeError):
         fix(123)
+
+
+@pytest.mark.parametrize("corrupt", ['App"s', 'App“s', 'App”s'])
+def test_repair_logs_loudly(corrupt, caplog):
+    """Every repair (straight OR curly) emits a loud error — never silent (fail-loud)."""
+    with caplog.at_level(logging.ERROR):
+        out = fix(corrupt, field="content_telegram", edition=42)
+    assert "'" in out or chr(0x2019) in out
+    assert any("[QUOTE-FIX]" in r.message for r in caplog.records), \
+        "a repair must surface a loud [QUOTE-FIX] error, not pass silently"
+
+
+def test_clean_input_does_not_log(caplog):
+    """A no-op on clean input emits no error (no false alarms)."""
+    with caplog.at_level(logging.ERROR):
+        fix("the agent's wallet", field="title", edition=42)
+    assert not any("[QUOTE-FIX]" in r.message for r in caplog.records)
 
 
 def test_none_and_empty_passthrough():
