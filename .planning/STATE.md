@@ -2,7 +2,7 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: completed
+status: executing
 stopped_at: Phase 20 context gathered
 last_updated: "2026-06-10T19:25:15.558Z"
 last_activity: 2026-06-10
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 ## Current Position
 
 Phase: 20
-Plan: Not started
-Status: Phase 19 complete. QUOTE-01 + QUOTE-02 satisfied. Storage proven clean (both Plan 01 and Plan 02's independent live scan); fail-loud write-path guard live in the recreated newsletter container; 17/17 regression tests pass; no backfill UPDATE needed (empty affected set, confirm-and-close). Next: plan Phase 20 (Width Tokens & Centering Foundation).
+Plan: Not started — 20-CONTEXT.md gathered (ready to plan)
+Status: Phase 19 complete (CORRECTED outcome). QUOTE-01 + QUOTE-02 satisfied. Real root cause was a DOUBLED apostrophe ('' renders as a visual " in the serif face) — the original "storage clean" diagnosis was WRONG and the operator caught it at verification. Corrected the write-path guard to collapse word-flanked ''→' (36 regression tests), applied an operator-approved scoped backfill of published editions 26/29/30 (103 occurrences repaired, 0 remaining, genuine quotes preserved), rebuilt newsletter, operator confirmed the live render. Phase 20 context gathered. Next: /gsd-plan-phase 20 (Width Tokens & Centering Foundation).
 Last activity: 2026-06-10
 
 ## Roadmap (v2.2 — Phases 19–24)
@@ -67,8 +67,8 @@ Open items to resolve in discuss/plan (do NOT decide unilaterally):
 
 Standing v1.0/v2.0/v2.1 decisions still in force (PROJECT.md Key Decisions table): append-only `block_body_versions` + `timeline_entries`; schema isolation via direct PostgREST + `Accept-Profile`; sentinels flag-never-block; synthesis via `llm-proxy:8200`; scoped `agentpulse-web` rebuild (no new infra); single light-mode violet accent (dark mode deferred); Source Serif 4 body + IBM Plex Mono chrome.
 
-- [Phase 19]: stored newsletter corpus is CLEAN (zero mid-word U+0022 corpus-wide); apostrophe corruption is NOT a write-path/storage defect. Fix-forward = fail-loud no-op-on-clean guard nl.normalize_apostrophe_corruption at the shared save_newsletter insert; Plan 02 backfill has no corrupt data to UPDATE (confirm-and-close, reuse the same function).
-- [Phase 19 / Plan 02]: CONFIRM-AND-CLOSE executed. Independent live read-only scan of all 43 newsletter rows reproduced the storage-clean finding (0 corrupt corpus-wide; canonical repair a no-op on edition 30); affected-edition set EMPTY → NO scoped UPDATE (an empty WHERE set means a no-op or the spine-forbidden table-wide find-replace — both rejected). Operator chose "Close + rebuild newsletter" at the blocking-human gate. Scoped `docker compose up -d --build newsletter` recreated agentpulse-newsletter (healthy, guard live in container); web NOT rebuilt (renderer unchanged); no DB mutation. QUOTE-01 + QUOTE-02 satisfied; Phase 19 closed.
+- [Phase 19 — CORRECTED]: the apostrophe corruption is a DOUBLED apostrophe (`''`, two U+0027), which renders as a *visual* double-quote in the Source Serif 4 body face — NOT a literal `"` character and NOT a clean corpus. The original diagnosis (searched for U+0022, spot-checked one clean `Cash App's`) was WRONG; the operator caught it at live-site verification. Real signature = word-flanked `'{2,}`. 103 occurrences across published editions 26/29/30. Render path is genuinely clean (verified end-to-end: anon REST → marked v15.0.12 → `App&#39;s`). Lesson saved: [[feedback_verify_render_bugs_end_to_end]].
+- [Phase 19 / fix + backfill]: write-path guard `nl.normalize_apostrophe_corruption` corrected to collapse word-flanked `''`→`'` (+ defensive mid-word double-quote repair), fail-loud, genuine quotes preserved; 36 regression tests. Operator-approved scoped backfill (by row id) of editions 26/29/30 — 103 repaired, 0 remaining, genuine `"` counts unchanged. `newsletter` rebuilt to ship the corrected guard; `web` NOT rebuilt (renderer unchanged — stored bytes render directly). Operator confirmed the live site. QUOTE-01 + QUOTE-02 satisfied; Phase 19 closed.
 
 ### Pending Todos
 
