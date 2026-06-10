@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: completed
-stopped_at: "Completed 19-02-PLAN.md (confirm-and-close: empty affected set; operator approved Close+rebuild; write-path guard live). Phase 19 complete (2/2)."
+status: executing
+stopped_at: "Phase 19 COMPLETE (2/2). Root cause was a DOUBLED apostrophe ('' renders as a visual \"); original diagnosis was wrong and the operator caught it at verification. Corrected the write-path guard (collapse word-flanked ''->'), applied an operator-approved scoped backfill of editions 26/29/30 (103 repaired, 0 remaining), rebuilt newsletter, operator confirmed live render. Next: Phase 20 (Width Tokens & Centering Foundation)."
 last_updated: "2026-06-10T18:43:54.964Z"
 last_activity: 2026-06-10
 progress:
