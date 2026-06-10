@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Agent Economy Content
-status: executing
-stopped_at: v2.1 milestone complete — Phase 18 PUB-01 published live (count 2→8)
-last_updated: "2026-06-09T11:06:58.423Z"
-last_activity: 2026-06-09
+milestone: v2.2
+milestone_name: Landing Redesign + Signals Feed
+status: planning
+last_updated: "2026-06-10T10:43:39.933Z"
+last_activity: 2026-06-10
 progress:
-  total_phases: 4
-  completed_phases: 4
-  total_plans: 10
-  completed_plans: 10
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,11 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-08 after v2.0 milestone)
 
 ## Current Position
 
-Phase: 18 — Gated Batch Publish (COMPLETE)
-Plan: 3/3 complete (18-01 render path, 18-02 publish+verify scripts, 18-03 gated go-live)
-Status: Phase complete + verified (passed); v2.1 milestone 100% (4/4 phases, 10/10 plans)
-Last activity: 2026-06-09 — Completed quick task 260609-ivq: map page rendering fixes (hub title de-dup, site-wide prose spacing, maturity/nav overlap) on branch `fix/map-rendering-issues`, deployed live. Earlier: quick task 260609-fpc (block title de-dup); PUB-01 live; code review fixed; verification passed
-Next: `/gsd-complete-milestone` — archive v2.1 and prepare the next version (or `/gsd-new-milestone` to scope new work)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-10 — Milestone v2.2 started
 
 ## Roadmap (v2.1 — Phases 15–18)
 
