@@ -1,8 +1,8 @@
 ---
 phase: 19-smart-quote-apostrophe-corruption-fix
-verified: 2026-06-10T00:00:00Z
-status: human_needed
-score: 5/5 must-haves verified
+verified: 2026-06-10T18:55:00Z
+status: passed
+score: 5/5 must-haves verified (corrected fix + backfill; operator confirmed live render)
 overrides_applied: 0
 human_verification:
   - test: "Visit the live site (aiagentspulse.com), navigate to edition 30 (or any published edition containing apostrophes such as 'Cash App's', 'It's', 'world's', 'agent's'). Inspect the rendered body in the browser."
