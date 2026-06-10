@@ -109,7 +109,15 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
   4. Section rhythm reads as a hierarchy: one full-strength rule between major sections, hairline (`0.5px`) rules within.
 
 **Notes**: Foundational — everything downstream sits on these width tokens, so it lands before the per-route fixes. RHYTHM-01 (token-only colors + section rhythm) is applied site-wide but is established and verified holistically HERE as the baseline; later phases conform to it rather than redefining it. Frontend-only (`style-base.css` / `style-shared.css` / `app.js` class application). Mockup is intent reference only.
-**Plans**: TBD
+**Plans**: 2 plans
+**Wave 1**
+
+- [ ] 20-01-PLAN.md — Width-token foundation: add `--measure`/`--wide`/`--gutter` + `.prose`/`.wide` to `style-base.css :root`, widen the nav to `--wide`, retire the 720px `.container`, apply the per-route axis map, wrap the map prose intro (WIDTH-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 20-02-PLAN.md — RHYTHM-01 baseline: alias the on-accent `#fff` to `--on-accent`, apply the D-05 section-rhythm hierarchy, then a holistic orchestrator-run live-render verification of WIDTH-01 + RHYTHM-01 (RHYTHM-01)
+
 **UI hint**: yes
 
 ### Phase 21: Per-Route Visual Fixes
@@ -198,7 +206,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 | 17. Cross-link Wiring & Preview | v2.1 | 2/2 | Complete | 2026-06-09 |
 | 18. Gated Batch Publish | v2.1 | 3/3 | Complete | 2026-06-09 |
 | 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete    | 2026-06-10 |
-| 20. Width Tokens & Centering Foundation | v2.2 | 0/? | Not started | - |
+| 20. Width Tokens & Centering Foundation | v2.2 | 0/2 | Planned | - |
 | 21. Per-Route Visual Fixes | v2.2 | 0/? | Not started | - |
 | 22. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
 | 23. Signals Feed | v2.2 | 0/? | Not started | - |
