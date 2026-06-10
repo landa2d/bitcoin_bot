@@ -4,12 +4,12 @@ milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
 stopped_at: Phase 20 context gathered
-last_updated: "2026-06-10T19:25:15.558Z"
-last_activity: 2026-06-10
+last_updated: "2026-06-10T20:16:06.481Z"
+last_activity: 2026-06-10 -- Phase 20 planning complete
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 2
+  total_plans: 4
   completed_plans: 2
   percent: 17
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 Phase: 20
 Plan: Not started — 20-CONTEXT.md gathered (ready to plan)
-Status: Phase 19 complete (CORRECTED outcome). QUOTE-01 + QUOTE-02 satisfied. Real root cause was a DOUBLED apostrophe ('' renders as a visual " in the serif face) — the original "storage clean" diagnosis was WRONG and the operator caught it at verification. Corrected the write-path guard to collapse word-flanked ''→' (36 regression tests), applied an operator-approved scoped backfill of published editions 26/29/30 (103 occurrences repaired, 0 remaining, genuine quotes preserved), rebuilt newsletter, operator confirmed the live render. Phase 20 context gathered. Next: /gsd-plan-phase 20 (Width Tokens & Centering Foundation).
-Last activity: 2026-06-10
+Status: Ready to execute
+Last activity: 2026-06-10 -- Phase 20 planning complete
 
 ## Roadmap (v2.2 — Phases 19–24)
 
