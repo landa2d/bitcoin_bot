@@ -66,7 +66,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 
 **The spine (from PROJECT.md):** keep separate routes (preserve v2.0's 3-tab nav shell + ← Back pattern; add a Signals tab); all LLM via `llm-proxy:8200`; `economy_map`/isolated-schema access via direct PostgREST + `Accept-Profile` (never supabase-py `.in_()`); append-only — corrections via the canonical-body-rewrite path, never a raw UPDATE; fail-loud on missing fields; the apostrophe backfill is a scoped reviewed UPDATE shown before/after on ONE edition first, never a blind find-replace.
 
-- [ ] **Phase 19: Smart-Quote / Apostrophe Corruption Fix** — Root-cause the apostrophe→straight-quote corruption (renderer has no typographer, so it is in stored markdown / the write path), fix forward + a scoped reviewed backfill of existing editions, guarded by a regression test. (QUOTE-01, QUOTE-02)
+- [x] **Phase 19: Smart-Quote / Apostrophe Corruption Fix** — Root-cause the apostrophe→straight-quote corruption (renderer has no typographer, so it is in stored markdown / the write path), fix forward + a scoped reviewed backfill of existing editions, guarded by a regression test. (QUOTE-01, QUOTE-02) (completed 2026-06-10)
 - [ ] **Phase 20: Width Tokens & Centering Foundation** — Introduce the two coexisting, both-centered max-widths (`--measure` narrow prose, `--wide` grids) that kill the dead left gutter, and establish the token-only color + section-rhythm baseline everything downstream sits on. (WIDTH-01, RHYTHM-01)
 - [ ] **Phase 21: Per-Route Visual Fixes** — Three non-conflicting per-route fixes on the new width foundation: edition-header de-dup, the Agent Economy 3-col grid + maturity legend, and the About pipeline-vs-supporting agent grid + approval callout. (HEAD-01, GRID-01, GRID-02, AGENTS-01)
 - [ ] **Phase 22: Distinct Newsletter Excerpts** — Strip the boilerplate "Read This, Skip the Rest" intro at render and pull the first genuinely-distinct sentence into the indexed-row archive format — no schema change. (EXCERPT-01)
@@ -94,7 +94,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 19-02-scoped-reviewed-backfill-PLAN.md — Scoped reviewed backfill of existing editions (operator-gated, before/after on edition 30 first) + content-service rebuild (QUOTE-01)
+- [x] 19-02-scoped-reviewed-backfill-PLAN.md — Scoped reviewed backfill of existing editions (operator-gated, before/after on edition 30 first) + content-service rebuild (QUOTE-01)
 
 ### Phase 20: Width Tokens & Centering Foundation
 
@@ -197,7 +197,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 | 16. Content Load (unpublished) | v2.1 | 3/3 | Complete | 2026-06-08 |
 | 17. Cross-link Wiring & Preview | v2.1 | 2/2 | Complete | 2026-06-09 |
 | 18. Gated Batch Publish | v2.1 | 3/3 | Complete | 2026-06-09 |
-| 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 1/2 | In Progress|  |
+| 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete   | 2026-06-10 |
 | 20. Width Tokens & Centering Foundation | v2.2 | 0/? | Not started | - |
 | 21. Per-Route Visual Fixes | v2.2 | 0/? | Not started | - |
 | 22. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
-stopped_at: "Completed 19-01-PLAN.md (diagnosis: storage clean; write-path guard + QUOTE-02 test)"
-last_updated: "2026-06-10T14:31:25.515Z"
+stopped_at: "Completed 19-02-PLAN.md (confirm-and-close: empty affected set; operator approved Close+rebuild; write-path guard live). Phase 19 complete (2/2)."
+last_updated: "2026-06-10T15:02:52Z"
 last_activity: 2026-06-10
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 17
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 19 — smart-quote-apostrophe-corruption-fix
+**Current focus:** Phase 19 complete — next up Phase 20 (Width Tokens & Centering Foundation)
 
 ## Current Position
 
-Phase: 19 (smart-quote-apostrophe-corruption-fix) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute (Plan 01 complete — diagnosis + write-path guard + QUOTE-02 test)
-Last activity: 2026-06-10 -- Plan 19-01 executed: storage proven clean, fail-loud guard shipped, 17/17 regression tests pass
+Phase: 19 (smart-quote-apostrophe-corruption-fix) — COMPLETE (2/2 plans)
+Plan: 2 of 2 — complete
+Status: Phase 19 complete. QUOTE-01 + QUOTE-02 satisfied. Storage proven clean (both Plan 01 and Plan 02's independent live scan); fail-loud write-path guard live in the recreated newsletter container; 17/17 regression tests pass; no backfill UPDATE needed (empty affected set, confirm-and-close). Next: plan Phase 20 (Width Tokens & Centering Foundation).
+Last activity: 2026-06-10 -- Plan 19-02 executed: independent scan of 43 newsletter rows reproduced storage-clean (0 corrupt corpus-wide), operator approved "Close + rebuild newsletter", scoped newsletter rebuild shipped the Plan 01 guard live (web untouched, no DB mutation)
 
 ## Roadmap (v2.2 — Phases 19–24)
 
@@ -67,7 +67,8 @@ Open items to resolve in discuss/plan (do NOT decide unilaterally):
 
 Standing v1.0/v2.0/v2.1 decisions still in force (PROJECT.md Key Decisions table): append-only `block_body_versions` + `timeline_entries`; schema isolation via direct PostgREST + `Accept-Profile`; sentinels flag-never-block; synthesis via `llm-proxy:8200`; scoped `agentpulse-web` rebuild (no new infra); single light-mode violet accent (dark mode deferred); Source Serif 4 body + IBM Plex Mono chrome.
 
-- [Phase ?]: Phase 19: stored newsletter corpus is CLEAN (zero mid-word U+0022 corpus-wide); apostrophe corruption is NOT a write-path/storage defect. Fix-forward = fail-loud no-op-on-clean guard nl.normalize_apostrophe_corruption at the shared save_newsletter insert; Plan 02 backfill has no corrupt data to UPDATE (confirm-and-close, reuse the same function).
+- [Phase 19]: stored newsletter corpus is CLEAN (zero mid-word U+0022 corpus-wide); apostrophe corruption is NOT a write-path/storage defect. Fix-forward = fail-loud no-op-on-clean guard nl.normalize_apostrophe_corruption at the shared save_newsletter insert; Plan 02 backfill has no corrupt data to UPDATE (confirm-and-close, reuse the same function).
+- [Phase 19 / Plan 02]: CONFIRM-AND-CLOSE executed. Independent live read-only scan of all 43 newsletter rows reproduced the storage-clean finding (0 corrupt corpus-wide; canonical repair a no-op on edition 30); affected-edition set EMPTY → NO scoped UPDATE (an empty WHERE set means a no-op or the spine-forbidden table-wide find-replace — both rejected). Operator chose "Close + rebuild newsletter" at the blocking-human gate. Scoped `docker compose up -d --build newsletter` recreated agentpulse-newsletter (healthy, guard live in container); web NOT rebuilt (renderer unchanged); no DB mutation. QUOTE-01 + QUOTE-02 satisfied; Phase 19 closed.
 
 ### Pending Todos
 
@@ -114,16 +115,17 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-10T14:31:20.467Z
-Stopped at: Completed 19-01-PLAN.md (diagnosis: storage clean; write-path guard + QUOTE-02 test)
+Last session: 2026-06-10T15:02:52Z
+Stopped at: Completed 19-02-PLAN.md (confirm-and-close: empty affected set; operator approved Close+rebuild; write-path guard live). Phase 19 complete (2/2).
 Resume file: None
-Next: `/gsd-plan-phase 19` (Smart-Quote / Apostrophe Corruption Fix — QUOTE-01, QUOTE-02)
-Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete. `.planning/phases/` is empty (v2.1 phases 15–18 archived to `.planning/milestones/v2.1-phases/`).
+Next: `/gsd-plan-phase 20` (Width Tokens & Centering Foundation — WIDTH-01, RHYTHM-01). The layout substrate every later v2.2 visual phase sits on.
+Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
 ## Operator Next Steps
 
-- **Plan the first v2.2 phase:** `/gsd-plan-phase 19` (Smart-Quote / Apostrophe Corruption Fix). It is the isolated, highest-visibility content-integrity fix and ships first per the brief's low-to-high-risk order. Diagnose stored `body_md` bytes BEFORE choosing render-layer vs write-path-then-backfill; the backfill is a scoped reviewed UPDATE shown before/after on ONE edition first, never a blind find-replace.
-- Phases 20–24 build on Phase 19: Phase 20 (width-token foundation) is the layout substrate every later visual phase sits on; Phases 21/22/23 are the per-route + Signals work; Phase 24 is the final holistic responsive/a11y pass.
+- **Phase 19 is COMPLETE** (2/2): storage proven clean (twice — Plan 01 diagnosis + Plan 02 independent live scan), fail-loud write-path guard live in the recreated newsletter container, QUOTE-02 regression locks it, no backfill UPDATE needed (confirm-and-close on an empty affected set). QUOTE-01 + QUOTE-02 satisfied.
+- **Plan the next v2.2 phase:** `/gsd-plan-phase 20` (Width Tokens & Centering Foundation — WIDTH-01, RHYTHM-01). It is the layout substrate every later visual phase sits on; lands before the per-route fixes.
+- Phases 21/22/23 are the per-route + Signals work; Phase 24 is the final holistic responsive/a11y pass.
 - Phase 23 carries the milestone's ONLY Supabase migration (anon tier-1 RLS on `source_posts`, next after 043) — orchestrator-owned apply, fail-loud on absence.
 
 ## Performance Metrics
@@ -140,3 +142,4 @@ Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 
 | Phase 14 P02 | 6min | 2 tasks | 1 file |
 | Phase 17 P01 | 7min | 3 tasks | 1 files |
 | Phase 19 P01 | ~10min | 3 tasks | 3 files |
+| Phase 19 P02 | ~5min | 3 tasks | 1 file (confirm-and-close; no DB mutation, newsletter rebuilt) |
