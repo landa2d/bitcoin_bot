@@ -18,10 +18,17 @@
               <span class="dot"></span>
               <span class="brand-wordmark">AGENTPULSE</span>
           </a>
+          <!-- SCROLL-01: bare section anchors (single-scroll landing) in the LOCKED
+               order Newsletter -> Signals -> Agent-Economy -> About. href ↔ section id
+               ↔ scroll-spy array (Plan 02) all agree. data-tab is the join key reused
+               by setActiveTab (detail routes) + the Plan-02 scroll-spy IO. No inline
+               handlers — navigation is href/hashchange-driven. Brand #/ stays (resolves
+               to landing at the Newsletter section). -->
           <div class="tabs">
-              <a href="#/" class="tab" data-tab="newsletter">Newsletter</a>
-              <a href="#/map" class="tab" data-tab="map">Agent Economy</a>
-              <a href="#/about" class="tab" data-tab="about">What is AgentPulse</a>
+              <a href="#newsletter" class="tab" data-tab="newsletter">Newsletter</a>
+              <a href="#signals" class="tab" data-tab="signals">Signals</a>
+              <a href="#map" class="tab" data-tab="map">Agent Economy</a>
+              <a href="#about" class="tab" data-tab="about">What is AgentPulse</a>
           </div>
           <button class="subscribe" onclick="scrollToSubscribe()">SUBSCRIBE</button>
       </nav>
@@ -33,109 +40,153 @@
        while reading copy holds a ~60–70 char line. Both axes center via the
        shared .prose/.wide classes in style-base.css. -->
 
-    <!-- Minimal D3 Newsletter header (list route only — scoped by showView()).
-         Hosts the relocated Technical/Strategic toggle (TGL-01). On the wide
-         centered axis; the hero keeps its own text-align:center (D-04). -->
-    <div class="wide">
-        <div class="hero">
-            <h1 class="page-title hero-headline" id="hero-headline"></h1>
-            <p class="hero-date" id="hero-date"></p>
-            <div class="mode-toggle">
-                <button class="toggle-btn active" id="btn-technical" onclick="setMode('technical')">Technical</button>
-                <button class="toggle-btn" id="btn-strategic" onclick="setMode('strategic')">Strategic</button>
+    <!-- SCROLL-01: the four top-level sections render on ONE single-scroll landing.
+         <main id="landing"> stacks four <section> anchors in the LOCKED order
+         Newsletter -> Signals -> Agent-Economy -> About. Each section REUSES the
+         existing top-level view DOM verbatim (every Phase 12-20 CSS selector +
+         render fn is preserved — these are wrapped, not rebuilt). The .wide/.prose
+         Phase-20 axis wrappers stay AROUND the existing blocks. The landing is
+         always visible (no per-section display:none); the JS show/hide toggle now
+         lives at the #landing-vs-detail boundary, not per top-level view. The
+         deep-linkable detail containers (#reader-view / #block-view / #status-view)
+         are siblings OUTSIDE #landing, below, each keeping its display:none default. -->
+    <main id="landing">
+
+        <!-- #newsletter — the Newsletter section. Hosts the relocated .hero
+             (Technical/Strategic toggle, TGL-01) so the toggle is physically scoped
+             to this section + the existing #list-view (tiled rows on the wide axis,
+             D-03). The .hero keeps its own text-align:center (D-04). -->
+        <section id="newsletter">
+            <div class="wide">
+                <div class="hero">
+                    <h1 class="page-title hero-headline" id="hero-headline"></h1>
+                    <p class="hero-date" id="hero-date"></p>
+                    <div class="mode-toggle">
+                        <button class="toggle-btn active" id="btn-technical" onclick="setMode('technical')">Technical</button>
+                        <button class="toggle-btn" id="btn-strategic" onclick="setMode('strategic')">Strategic</button>
+                    </div>
+                    <p class="mode-subtitle" id="mode-subtitle">Architecture, code, implementation</p>
+                </div>
             </div>
-            <p class="mode-subtitle" id="mode-subtitle">Architecture, code, implementation</p>
+            <div id="list-view">
+                <div class="content-area wide" id="newsletter-list"></div>
+            </div>
+        </section>
+
+        <!-- #signals — STATIC placeholder shell (Pitfall 7 / SIGNAL-04). Mirrors the
+             About-stub prose structure (eyebrow → page-title → page-sub → empty
+             container) on the .prose axis. ZERO Supabase fetch, ZERO source-feed read,
+             and NO new <script>: Phase 24 owns the data + the anon tier-1 RLS migration
+             on the source table. A premature anon fetch on the RLS-blocked table would
+             render silently empty (fail-loud violation) — forbidden until Phase 24. -->
+        <section id="signals">
+            <div class="content-area about-stub">
+                <div class="prose">
+                    <p class="eyebrow">Tier-1 Source Links</p>
+                    <h1 class="page-title">Signals</h1>
+                    <p class="page-sub">The week's tier-1 sources, newest first</p>
+                    <div class="about">
+                        <p>The Signals feed surfaces the primary sources behind each edition — the tier-1 posts the pipeline ingests, linked straight through. Coming soon.</p>
+                    </div>
+                    <!-- Empty list container — Phase 24 fills this with the tier-1 source
+                         feed (capped, newest-first, safe external links). No data here. -->
+                    <div class="wide" id="signals-list"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- #map — the Agent Economy section. REUSES the existing #map-view body
+             verbatim: the grid is wide (D-03); the prose intro inside is wrapped in
+             .prose by renderHub, so the header reads narrow while the tier grids span
+             the wide band. -->
+        <section id="map">
+            <div id="map-view">
+                <div class="content-area wide"></div>
+            </div>
+        </section>
+
+        <!-- #about — the What is AgentPulse section. REUSES the existing #about-view
+             body verbatim: real ABOUT-01 stub (eyebrow → title → page-sub → 3
+             reconciled prose paragraphs → 5-pill agent row). Copy is an
+             operator-reviewable draft (D-02/D-03 accuracy bar locked: "eight
+             cooperating services"; 5 content-agent pills only — Gato Brain / LLM Proxy
+             / Web stay in prose P3, not pills). D-03 explicit split: the intro prose
+             reads narrow on the prose axis; the .agent-row tiled grid spans the wide
+             axis. The content-area/about-stub classes are retained for their padding +
+             the Phase-14 spacing rules. -->
+        <section id="about">
+            <div id="about-view">
+                <div class="content-area about-stub">
+                    <div class="prose">
+                        <p class="eyebrow">Behind the Briefing</p>
+                        <h1 class="page-title">What is AgentPulse</h1>
+                        <p class="page-sub">A newsletter written by a multi-agent system</p>
+                        <div class="about">
+                            <p>AgentPulse is a weekly intelligence briefing on the AI agent economy — its economics, governance, and trust infrastructure. Each edition is produced by eight cooperating services that ingest the week's signals, synthesize findings, and draft the briefing.</p>
+                            <p class="body-soft">Specialized agents each own one job and hand work between each other through a background scheduler. Every model call is metered against a per-agent wallet, so the cost of producing an edition is itself part of what we track — and nothing is published without human approval.</p>
+                            <p class="body-soft">Behind the five content agents sits a supporting layer: a conversational middleware that routes operator commands, an LLM proxy that governs budgets and wallets across every model call, and a web front end that serves what you are reading now.</p>
+                        </div>
+                    </div>
+                    <div class="wide">
+                        <div class="agent-row">
+                            <div class="agent-pill">
+                                <span class="an">Processor</span>
+                                <span class="ad">Background scheduler — scrapes sources, runs the pipelines, and posts.</span>
+                            </div>
+                            <div class="agent-pill">
+                                <span class="an">Analyst</span>
+                                <span class="ad">Scores and clusters incoming signals into findings.</span>
+                            </div>
+                            <div class="agent-pill">
+                                <span class="an">Research</span>
+                                <span class="ad">Deepens context on the week's tier-1 stories.</span>
+                            </div>
+                            <div class="agent-pill">
+                                <span class="an">Newsletter</span>
+                                <span class="ad">Synthesizes the dual-mode (Technical / Strategic) editions.</span>
+                            </div>
+                            <div class="agent-pill">
+                                <span class="an">Gato</span>
+                                <span class="ad">Telegram operator interface and coding surface.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- DETAIL containers — siblings OUTSIDE #landing, shown only in detail mode by
+         showDetail() (Task 3). Each keeps its style="display:none" inline default
+         (the house idiom paired with the JS show/hide toggle). Editions
+         (#/edition/<n>) render in #reader-view; block pages (#/map/<slug>) in
+         #block-view; the orphan #/status deep-link in #status-view. These stay
+         deep-linkable detail routes — opening one hides the landing. -->
+
+    <!-- Reader view — article body reads narrow on the prose axis (D-03) -->
+    <div id="reader-view" style="display:none">
+        <div class="content-area prose">
+            <a href="#/" class="backlink">&larr; Back to Newsletter</a>
+            <article id="newsletter-content"></article>
         </div>
     </div>
 
-    <main>
-        <!-- List view — tiled rows on the wide axis (D-03) -->
-        <div id="list-view">
-            <div class="content-area wide" id="newsletter-list"></div>
+    <!-- Block (single-block page) view — reading view, prose axis (D-03) -->
+    <div id="block-view" style="display:none">
+        <div class="content-area prose">
+            <a href="#map" class="backlink">&larr; Back to the map</a>
+            <div id="block-content"></div>
         </div>
+    </div>
 
-        <!-- Reader view — article body reads narrow on the prose axis (D-03) -->
-        <div id="reader-view" style="display:none">
-            <div class="content-area prose">
-                <a href="#/" class="backlink">&larr; Back to Newsletter</a>
-                <article id="newsletter-content"></article>
-            </div>
+    <!-- Status (maturity snapshot) view — tiled rows, wide axis (D-03) -->
+    <div id="status-view" style="display:none">
+        <div class="content-area wide">
+            <a href="#map" class="backlink">&larr; Back to the map</a>
+            <div id="status-content"></div>
         </div>
-
-        <!-- Map (hub) view — the grid is wide (D-03); the prose intro inside is
-             wrapped in .prose by renderHub (Task 3), so the header reads narrow
-             while the tier grids span the wide band. -->
-        <div id="map-view" style="display:none">
-            <div class="content-area wide"></div>
-        </div>
-
-        <!-- Block (single-block page) view — reading view, prose axis (D-03) -->
-        <div id="block-view" style="display:none">
-            <div class="content-area prose">
-                <a href="#/map" class="backlink">&larr; Back to the map</a>
-                <div id="block-content"></div>
-            </div>
-        </div>
-
-        <!-- Status (maturity snapshot) view — tiled rows, wide axis (D-03) -->
-        <div id="status-view" style="display:none">
-            <div class="content-area wide">
-                <a href="#/map" class="backlink">&larr; Back to the map</a>
-                <div id="status-content"></div>
-            </div>
-        </div>
-
-        <!-- About (What is AgentPulse) — real ABOUT-01 stub: eyebrow → title →
-             page-sub → 3 reconciled prose paragraphs → 5-pill agent row.
-             Copy is an operator-reviewable draft (D-02/D-03 accuracy bar locked:
-             "eight cooperating services"; 5 content-agent pills only — Gato Brain /
-             LLM Proxy / Web stay in prose P3, not pills). -->
-        <div id="about-view" style="display:none">
-            <!-- D-03 explicit split: the intro prose (eyebrow/title/sub + .about)
-                 reads narrow on the prose axis; the .agent-row tiled grid spans the
-                 wide axis. The content-area class is retained for its own padding;
-                 about-stub stays for the Phase-14 spacing rules. -->
-            <div class="content-area about-stub">
-                <div class="prose">
-                    <p class="eyebrow">Behind the Briefing</p>
-                    <h1 class="page-title">What is AgentPulse</h1>
-                    <p class="page-sub">A newsletter written by a multi-agent system</p>
-                    <div class="about">
-                        <p>AgentPulse is a weekly intelligence briefing on the AI agent economy — its economics, governance, and trust infrastructure. Each edition is produced by eight cooperating services that ingest the week's signals, synthesize findings, and draft the briefing.</p>
-                        <p class="body-soft">Specialized agents each own one job and hand work between each other through a background scheduler. Every model call is metered against a per-agent wallet, so the cost of producing an edition is itself part of what we track — and nothing is published without human approval.</p>
-                        <p class="body-soft">Behind the five content agents sits a supporting layer: a conversational middleware that routes operator commands, an LLM proxy that governs budgets and wallets across every model call, and a web front end that serves what you are reading now.</p>
-                    </div>
-                </div>
-                <div class="wide">
-                    <div class="agent-row">
-                        <div class="agent-pill">
-                            <span class="an">Processor</span>
-                            <span class="ad">Background scheduler — scrapes sources, runs the pipelines, and posts.</span>
-                        </div>
-                        <div class="agent-pill">
-                            <span class="an">Analyst</span>
-                            <span class="ad">Scores and clusters incoming signals into findings.</span>
-                        </div>
-                        <div class="agent-pill">
-                            <span class="an">Research</span>
-                            <span class="ad">Deepens context on the week's tier-1 stories.</span>
-                        </div>
-                        <div class="agent-pill">
-                            <span class="an">Newsletter</span>
-                            <span class="ad">Synthesizes the dual-mode (Technical / Strategic) editions.</span>
-                        </div>
-                        <div class="agent-pill">
-                            <span class="an">Gato</span>
-                            <span class="ad">Telegram operator interface and coding surface.</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="prose">
-                    <a href="#/" class="backlink">&larr; Back to Newsletter</a>
-                </div>
-            </div>
-        </div>
-    </main>
+    </div>
 
     <!-- Subscribe section + footer — centered on the wide axis (D-04); the
          subscribe form keeps its own max-width:400px. -->
