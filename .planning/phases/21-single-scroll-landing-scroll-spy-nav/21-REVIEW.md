@@ -12,7 +12,12 @@ findings:
   warning: 4
   info: 4
   total: 8
-status: issues_found
+status: resolved
+resolution:
+  warnings_fixed: 4
+  warnings_commit: e4a54eb
+  info_deferred: 4
+  note: "All 4 WARNINGs (WR-01..04) fixed in e4a54eb (operator-approved 2026-06-11) + redeployed/re-verified. The 4 INFO items are non-blocking maintainability nits, deferred (IN-03 .about-lede is a pre-existing carry-over advisory)."
 ---
 
 # Phase 21: Code Review Report
