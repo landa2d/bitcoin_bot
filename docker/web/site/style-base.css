@@ -283,3 +283,30 @@ body > header { position:sticky;
 .about-stub .backlink {
   font-size:12.5px;
 }
+
+/* ── Phase 21: single-scroll landing — scroll behavior + section rhythm (SCROLL-02) ──── */
+/* The ONLY net-new scroll/motion CSS in the codebase (no pre-existing scroll-behavior /
+   scroll-margin / prefers-reduced-motion rule). Source: mockup :231 + 21-RESEARCH Code
+   Examples. Token-only — never a hex literal. Does NOT touch the Phase-20 width tokens or
+   the body > header sticky rule. The scroll-spy reuses the existing .tab.active fill (no
+   new active-state rule). Rule bodies are kept on ONE physical line each per the gate. */
+
+/* (A) Smooth-scroll on nav-anchor clicks, declaratively — reduced-motion-gated below for
+   free (A11Y-01 must-not-regress; the net-new motion this phase introduces is motion-safe). */
+html { scroll-behavior: smooth; }
+
+/* (B) Sticky-header offset: an anchor jump (deep-link or nav click) lands the section
+   heading BELOW the sticky body > header, not hidden under it (Pitfall 2). 60px ≈ rendered
+   header height (nav padding 12px + mono content) — tune at live-render verify (research A7). */
+#landing > section { scroll-margin-top: calc(60px + var(--space-md)); }
+
+/* (C) Section rhythm: one full-strength rule between each major landing section — extends
+   the existing .tier-section + .tier-section major-boundary adjacent-sibling pattern; token
+   only (--line-strong / --space-*). Within-section Phase-20 hairlines are unchanged. */
+#landing > section + section { border-top: 1px solid var(--line-strong); padding-top: var(--space-xl); }
+
+/* (A, gate) MANDATORY reduced-motion gate — suppresses the smooth-scroll motion under the
+   user's reduce-motion preference (net-new motion must be motion-safe; A11Y-01 not regressed). */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
