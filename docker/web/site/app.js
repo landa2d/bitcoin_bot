@@ -136,6 +136,9 @@ var timelineExpanded = false;
 // Interval handle for the block-page Evolution refresh poll (D-05, D-06, D-07).
 var evolutionPollHandle = null;
 
+// SCROLL-01: Landing scrollY stashed on landing->detail; restored on detail->back (Plan 02 scroll-restore).
+var landingScrollY = 0;
+
 function setMode(mode) {
     if (!MODES[mode]) return;
     currentMode = mode;
@@ -185,27 +188,35 @@ function updateHero(title, dateText) {
 
 // ─── Router ──────────────────────────────────────────────────────────────────
 
+// SCROLL-01: two-mode router. DETAIL routes (slashed/deep-link hashes) are tested
+// FIRST and tagged mode:'detail' so editions (#/edition/<n>) and block pages
+// (#/map/<slug>) stay deep-linkable; the bare-anchor + root fallthrough resolves to
+// the single-scroll landing (mode:'landing'). The bare-anchor match is an ANCHORED
+// allowlist regex /^#(...)$/ so #/map/<slug> can never match the bare #map anchor
+// (Pitfall 1 / Security V5 allowlist — no hash value reaches a DOM sink). The old
+// plain #/map (-> view:'map') and #/about (-> view:'about') top-level detail routes
+// are REMOVED — those views are landing sections now (their nav links are bare
+// anchors). The #/map/<slug> block detail STAYS (tested first, with the trailing slash).
 function getRoute() {
     var hash = window.location.hash || '#/';
     if (hash.startsWith('#/map/')) {
-        return { view: 'block', slug: hash.split('/')[2] };
-    }
-    if (hash.startsWith('#/map')) {
-        return { view: 'map' };
+        return { mode: 'detail', view: 'block', slug: hash.split('/')[2] };
     }
     if (hash.startsWith('#/status')) {
-        return { view: 'status' };
+        return { mode: 'detail', view: 'status' };
     }
     if (hash.startsWith('#/edition/')) {
-        return { view: 'reader', edition: parseInt(hash.split('/')[2]) };
+        return { mode: 'detail', view: 'reader', edition: parseInt(hash.split('/')[2]) };
     }
     if (hash.startsWith('#/unsubscribe')) {
-        return { view: 'unsubscribe' };
+        return { mode: 'detail', view: 'unsubscribe' };
     }
-    if (hash.startsWith('#/about')) {
-        return { view: 'about' };
-    }
-    return { view: 'list' };
+    // Landing — a bare section anchor (#newsletter/#signals/#map/#about), '#/', or an
+    // empty hash all resolve to the ONE landing page; the section to scroll to is the
+    // bare anchor id (default 'newsletter'). The anchored ^...$ allowlist cannot match
+    // the slashed detail hashes (e.g. '#/map/foo'), so detail routes are unaffected.
+    var section = /^#(newsletter|signals|map|about)$/.test(hash) ? hash.slice(1) : 'newsletter';
+    return { mode: 'landing', section: section };
 }
 
 function showView(viewName) {
@@ -1052,18 +1063,28 @@ function setActiveTab(view) {
 
 // ─── Init ────────────────────────────────────────────────────────────────────
 
+// SCROLL-01: branch on r.mode. DETAIL -> stash the landing scrollY (only when
+// LEAVING a currently-visible landing, so detail->back can restore it in Plan 02),
+// then setActiveTab (detail-only now) + the existing dispatch. LANDING -> showLanding;
+// do NOT call setActiveTab on the landing — the Plan-02 scroll-spy IO owns the landing
+// active state, and calling both would race/flicker (Anti-Pattern, research :218).
 function route() {
     window.currentNewsletter = null;
     var r = getRoute();
-    setActiveTab(r.view);
-    switch (r.view) {
-        case 'list': loadList(); break;
-        case 'reader': loadEdition(r.edition); break;
-        case 'unsubscribe': handleUnsubscribe(); break;
-        case 'map': loadHub(); break;
-        case 'block': loadBlock(r.slug); break;
-        case 'status': loadStatus(); break;
-        case 'about': showView('about'); window.scrollTo(0, 0); break;
+    if (r.mode === 'detail') {
+        var landing = document.getElementById('landing');
+        if (landing && landing.style.display !== 'none') {
+            landingScrollY = window.scrollY;
+        }
+        setActiveTab(r.view);
+        switch (r.view) {
+            case 'reader': loadEdition(r.edition); break;
+            case 'unsubscribe': handleUnsubscribe(); break;
+            case 'block': loadBlock(r.slug); break;
+            case 'status': loadStatus(); break;
+        }
+    } else {
+        showLanding(r.section);
     }
 }
 
