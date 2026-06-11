@@ -310,3 +310,17 @@ html { scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }
+
+/* (D) Uniform landing-section width (operator live-verify 2026-06-11): all four landing
+   sections must present the SAME centered --wide band — the mockup contract is
+   <section class="wide"><div class="prose"> with the prose reading LEFT-ALIGNED inside the
+   band (mockup .prose = max-width:var(--measure) only, no margin-inline:auto). Production
+   .prose is centered (margin-inline:auto) for detail-route reading copy, which on the
+   assembled landing left Newsletter/Map on --wide but Signals/About-intro centered-narrow.
+   Scoped to #landing so edition/block reading prose stays centered (D-01/WIDTH-01 untouched).
+   Pair with index.html: #signals + #about content wrappers carry .wide like #newsletter/#map. */
+#landing .prose { margin-inline: 0; padding-inline: 0; max-width: var(--measure); }
+/* De-dupe nested width wrappers (#signals-list inside .prose, the About .agent-row .wide):
+   the outer .content-area.wide already owns the centered band + gutter — neutralize the
+   inner .wide so it fills the band instead of re-capping/re-centering/double-guttering. */
+#landing .wide .wide { max-width: none; margin-inline: 0; padding-inline: 0; }
