@@ -10,7 +10,7 @@ A multi-agent intelligence platform for the AI agent economy: eight cooperating 
 
 ## Current Milestone: v2.2 Landing Redesign + Signals Feed
 
-**Goal:** Re-skin the public site (`aiagentspulse.com`) to the new editorial mockup across the existing separate-route SPA, fix the four live-site defects the redesign brief calls out, and add a new Signals feed of tier-1 source links.
+**Goal:** Re-skin the public site (`aiagentspulse.com`) to the new editorial mockup — including its single-scroll landing + scroll-spy nav for the top-level sections (REVISED 2026-06-11, see decisions below), with editions & block pages kept as deep-linkable routes — fix the four live-site defects the redesign brief calls out, and add a new Signals feed of tier-1 source links.
 
 **Target features:**
 - **Smart-quote / apostrophe corruption fix** — diagnose root cause (the `marked.js` renderer runs with no typographer config, so the corruption is in stored markdown / the write path, not the renderer), fix forward + a scoped reviewed backfill of existing editions, guarded by a regression test
@@ -23,8 +23,8 @@ A multi-agent intelligence platform for the AI agent economy: eight cooperating 
 - **Cross-cutting** — responsive collapse, accessibility (`:focus-visible`, `prefers-reduced-motion`, real `<a>` links), token-only colors, section rhythm (full rule between sections, hairline within)
 
 **Decisions locked at milestone start (operator-confirmed 2026-06-10):**
-- **Keep separate routes** (NOT single-scroll) — apply the new width tokens / centering / visual fixes per-route; preserve v2.0's persistent 3-tab nav shell (add a Signals tab); deep-linkable editions & block pages and SEO retained. The mockup is intent reference, not markup to copy.
-- **Signals = its own route + tab** (`#/signals`).
+- **~~Keep separate routes (NOT single-scroll)~~ → REVISED 2026-06-11: Hybrid single-scroll landing.** Operator reconsidered: the four top-level sections (newsletter / about / agent-economy / signals) merge into ONE scroll page with scroll-spy nav, matching the mockup (`agentpulse-redesign (1).html` — in-page anchors `#index`/`#made`/`#map`/`#signals` + `IntersectionObserver` scroll-spy). Individual **editions** (`#/<edition>`) and **block pages** (`#/map/<slug>`) STAY deep-linkable routes — preserving the SEO / deep-linking benefit that drove the original separate-routes call. The persistent nav shell becomes scroll-spy on the landing and route-aware on detail pages. Phase 20's width/centering/color/rhythm foundation is layout-agnostic and carries over unchanged. *(Supersedes the 2026-06-10 "keep separate routes" decision; re-scopes the back half of v2.2 — see ROADMAP.)*
+- **Signals = a section in the single-scroll landing** (`#signals` anchor), ~~its own route + tab~~ — REVISED 2026-06-11 with the hybrid decision. The new anon tier-1 RLS migration on `source_posts` is unchanged (still required).
 - **Excerpts = strip-at-render** (no schema / pipeline change).
 - **No domain research** — the 7-task brief + mockup already specify the work on an existing, well-understood codebase.
 

@@ -5,7 +5,7 @@
 - ✅ **v1.0 Agent Economy Map** — Phases 1–10 + 4.1 (shipped 2026-06-04) — full details: [`milestones/v1.0-ROADMAP.md`](milestones/v1.0-ROADMAP.md)
 - ✅ **v2.0 Frontend Redesign** — Phases 11–14 (shipped 2026-06-08) — full details: [`milestones/v2.0-ROADMAP.md`](milestones/v2.0-ROADMAP.md)
 - ✅ **v2.1 Agent Economy Content** — Phases 15–18 (shipped 2026-06-09) — full details: [`milestones/v2.1-ROADMAP.md`](milestones/v2.1-ROADMAP.md)
-- 🚧 **v2.2 Landing Redesign + Signals Feed** — Phases 19–24 (planning) — re-skin the public site to the new editorial mockup across the existing separate-route SPA, fix four live-site defects, and add a tier-1 Signals feed.
+- 🚧 **v2.2 Landing Redesign + Signals Feed** — Phases 19–25 (planning) — re-skin the public site to the new editorial mockup, convert the top-level sections to a single-scroll landing + scroll-spy nav (editions/blocks stay routes — REVISED 2026-06-11), fix four live-site defects, and add a tier-1 Signals feed.
 
 _Active milestone: v2.2. Phase numbering continues from 18._
 
@@ -58,20 +58,23 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 </details>
 
-### 🚧 v2.2 Landing Redesign + Signals Feed (Phases 19–24)
+### 🚧 v2.2 Landing Redesign + Signals Feed (Phases 19–25)
 
-Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across the existing separate-route structure** (NOT single-scroll), fix the four live-site defects the redesign brief calls out, and add a new tier-1 Signals feed. The 7 work groups consolidate into 6 phases, ordered **low-to-high risk, each independently shippable** — every phase ends in a branch + `/diff` per work group + a prod↔main drift check + a scoped `docker compose up -d --build web` (no `--delete`) + operator approval before any deploy.
+Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **convert the top-level sections (newsletter / about / agent-economy / signals) into a single-scroll landing + scroll-spy nav** (REVISED 2026-06-11 — see below), fix the four live-site defects the redesign brief calls out, and add a new tier-1 Signals feed. Ordered **low-to-high risk, each independently shippable** — every phase ends in a branch + `/diff` per work group + a prod↔main drift check + a scoped `docker compose up -d --build web` (no `--delete`) + operator approval before any deploy.
 
-**NOT frontend-only (unlike v2.0).** Two phases reach the backend and are deliberately isolated from the pure-CSS work: **Phase 19** (smart-quotes) touches the content write-path + a scoped reviewed data backfill; **Phase 23** (Signals) adds the milestone's only Supabase migration (an anon RLS policy on `source_posts`). Everything else lives in `docker/web/site/` (`app.js`, `style-base.css`, `style-shared.css` — the other CSS files are legacy/unloaded; markdown renders via `marked.js`, CDN, no typographer).
+**Layout direction REVISED 2026-06-11 — hybrid single-scroll landing.** The milestone originally locked "keep separate routes (not single-scroll)"; the operator reversed it after confirming the mockup (`agentpulse-redesign (1).html`) is a single-page scroll with `IntersectionObserver` scroll-spy. The four TOP-LEVEL sections now merge into ONE scroll page with scroll-spy nav; individual **editions** (`#/<edition>`) and **block pages** (`#/map/<slug>`) STAY deep-linkable routes (preserving SEO / deep-linking — the original rationale). This pulls the deferred WIDTH-F1 into scope as a new **Phase 21** and renumbers the per-section fixes / excerpts / Signals / responsive pass down by one. Phase 20's width/centering/color/rhythm foundation is layout-agnostic and carries over unchanged.
 
-**The spine (from PROJECT.md):** keep separate routes (preserve v2.0's 3-tab nav shell + ← Back pattern; add a Signals tab); all LLM via `llm-proxy:8200`; `economy_map`/isolated-schema access via direct PostgREST + `Accept-Profile` (never supabase-py `.in_()`); append-only — corrections via the canonical-body-rewrite path, never a raw UPDATE; fail-loud on missing fields; the apostrophe backfill is a scoped reviewed UPDATE shown before/after on ONE edition first, never a blind find-replace.
+**NOT frontend-only (unlike v2.0).** Two phases reach the backend and are deliberately isolated from the pure-CSS work: **Phase 19** (smart-quotes) touches the content write-path + a scoped reviewed data backfill; **Phase 24** (Signals) adds the milestone's only Supabase migration (an anon RLS policy on `source_posts`). Everything else lives in `docker/web/site/` (`app.js`, `style-base.css`, `style-shared.css` — the other CSS files are legacy/unloaded; markdown renders via `marked.js`, CDN, no typographer).
+
+**The spine (from PROJECT.md):** hybrid single-scroll landing (top-level sections scroll; editions/blocks stay deep-linkable routes; nav becomes scroll-spy on the landing, route-aware on detail pages); all LLM via `llm-proxy:8200`; `economy_map`/isolated-schema access via direct PostgREST + `Accept-Profile` (never supabase-py `.in_()`); append-only — corrections via the canonical-body-rewrite path, never a raw UPDATE; fail-loud on missing fields; the apostrophe backfill is a scoped reviewed UPDATE shown before/after on ONE edition first, never a blind find-replace.
 
 - [x] **Phase 19: Smart-Quote / Apostrophe Corruption Fix** — Root-cause the apostrophe→straight-quote corruption (renderer has no typographer, so it is in stored markdown / the write path), fix forward + a scoped reviewed backfill of existing editions, guarded by a regression test. (QUOTE-01, QUOTE-02) (completed 2026-06-10)
-- [ ] **Phase 20: Width Tokens & Centering Foundation** — Introduce the two coexisting, both-centered max-widths (`--measure` narrow prose, `--wide` grids) that kill the dead left gutter, and establish the token-only color + section-rhythm baseline everything downstream sits on. (WIDTH-01, RHYTHM-01)
-- [ ] **Phase 21: Per-Route Visual Fixes** — Three non-conflicting per-route fixes on the new width foundation: edition-header de-dup, the Agent Economy 3-col grid + maturity legend, and the About pipeline-vs-supporting agent grid + approval callout. (HEAD-01, GRID-01, GRID-02, AGENTS-01)
-- [ ] **Phase 22: Distinct Newsletter Excerpts** — Strip the boilerplate "Read This, Skip the Rest" intro at render and pull the first genuinely-distinct sentence into the indexed-row archive format — no schema change. (EXCERPT-01)
-- [ ] **Phase 23: Signals Feed** — A new `#/signals` route + nav tab listing tier-1 `source_posts` newest-first (capped, external links), gated on the milestone's one Supabase migration: a read-only, tier-1-scoped anon RLS policy on `source_posts`, fail-loud if absent. (SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04)
-- [ ] **Phase 24: Responsive & Accessibility Pass** — A holistic cross-cutting verification: all grids/rows reflow (3→2→1, nav condenses, rows stack date-above-headline) and keyboard focus is visible / motion-reduced / every link is a real `<a>`. (RESP-01, A11Y-01)
+- [x] **Phase 20: Width Tokens & Centering Foundation** — Introduce the two coexisting, both-centered max-widths (`--measure` narrow prose, `--wide` grids) that kill the dead left gutter, and establish the token-only color + section-rhythm baseline everything downstream sits on. (WIDTH-01, RHYTHM-01) (completed 2026-06-11)
+- [ ] **Phase 21: Single-Scroll Landing + Scroll-Spy Nav** — Convert the four top-level sections (newsletter / about / agent-economy / signals) into one single-scroll landing with a scroll-spy nav, on the Phase 20 width foundation; editions & block pages stay deep-linkable detail routes; the nav becomes scroll-spy on the landing and route-aware on detail, with back-to-landing scroll restore. (SCROLL-01, SCROLL-02)
+- [ ] **Phase 22: Per-Section Visual Fixes** — Three non-conflicting fixes on the new landing: edition-header de-dup (detail route), the Agent Economy 3-col grid + maturity legend (map section), and the About pipeline-vs-supporting agent grid + approval callout (about section). (HEAD-01, GRID-01, GRID-02, AGENTS-01)
+- [ ] **Phase 23: Distinct Newsletter Excerpts** — Strip the boilerplate "Read This, Skip the Rest" intro at render and pull the first genuinely-distinct sentence into the indexed-row archive format — no schema change. (EXCERPT-01)
+- [ ] **Phase 24: Signals Section** — A new `#signals` section in the single-scroll landing listing tier-1 `source_posts` newest-first (capped, external links), gated on the milestone's one Supabase migration: a read-only, tier-1-scoped anon RLS policy on `source_posts`, fail-loud if absent. (SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04)
+- [ ] **Phase 25: Responsive & Accessibility Pass** — A holistic cross-cutting verification: all grids/rows reflow (3→2→1, nav condenses, rows stack date-above-headline), scroll-spy is keyboard/motion-safe, and focus is visible / motion-reduced / every link is a real `<a>`. (RESP-01, A11Y-01)
 
 ## Phase Details
 
@@ -116,14 +119,30 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 20-02-PLAN.md — RHYTHM-01 baseline: alias the on-accent `#fff` to `--on-accent`, apply the D-05 section-rhythm hierarchy, then a holistic orchestrator-run live-render verification of WIDTH-01 + RHYTHM-01 (RHYTHM-01)
+- [x] 20-02-PLAN.md — RHYTHM-01 baseline: alias the on-accent `#fff` to `--on-accent`, apply the D-05 section-rhythm hierarchy, then a holistic orchestrator-run live-render verification of WIDTH-01 + RHYTHM-01 (RHYTHM-01) — code committed (`c813005`, `33002fa`) + deployed live 2026-06-11; per-route visual sign-off folded into Phase 21 per the hybrid pivot
 
 **UI hint**: yes
 
-### Phase 21: Per-Route Visual Fixes
+### Phase 21: Single-Scroll Landing + Scroll-Spy Nav
 
-**Goal**: Three independent per-route defects are fixed on the new width foundation: an edition page states its number/date/mode exactly once, the Agent Economy map tiles cleanly as a legible 3-column scale, and the About page reads as an ordered pipeline + an unordered supporting layer with the human-approval line as its own callout.
-**Depends on**: Phase 20 (sits on the width tokens + rhythm baseline)
+**Goal**: The four top-level sections (newsletter / about / agent-economy / signals) render on ONE single-scroll landing with a scroll-spy nav that tracks the active section, matching the mockup — while individual editions and block pages remain deep-linkable detail routes, and the WIDTH-01 + RHYTHM-01 foundation is re-verified holistically on the assembled scroll page.
+**Depends on**: Phase 20 (sits on the `--measure`/`--wide` width tokens + the token-color/rhythm baseline)
+**Requirements**: SCROLL-01, SCROLL-02
+**Success Criteria** (what must be TRUE):
+
+  1. The landing scrolls through the top-level sections in order (newsletter list → about → agent-economy → signals) as one page; the persistent nav smooth-scrolls to a section on click and highlights the active section as the user scrolls (scroll-spy), replacing the separate top-level routes.
+  2. Individual editions (`#/<edition>`) and block pages (`#/map/<slug>`) remain deep-linkable detail routes; opening one leaves the landing, and returning ("← Back" / nav) restores the landing with scroll position preserved.
+  3. On the assembled landing, WIDTH-01 holds (no dead left gutter, reading copy ~60–70 chars via `--measure`, tiled sections on `--wide`, nav edges == content edges) and RHYTHM-01 holds (token-only color, major/within section-rhythm hierarchy) — verified holistically on the live render.
+  4. No regression: the mode toggle, subscribe form, and existing deep links still work; the maturity pill does not overlap the nav.
+
+**Notes**: The milestone's one navigation-architecture change (the deferred WIDTH-F1, pulled into scope 2026-06-11). Refactors `app.js`'s hash router to a two-mode model — "landing" (one page + section anchors + scroll-spy via `IntersectionObserver`) vs "detail" (edition / block routes). The Signals section ships its shell here; its data + RLS migration land in Phase 24 (a `#signals` placeholder section is acceptable until then). Frontend-only (`app.js` + `style-base.css`/`style-shared.css`); the mockup's `IntersectionObserver` scroll-spy is the intent reference. Deploy gated: branch + `/diff` + prod↔main drift check + scoped web rebuild + operator approval. This is also where Phase 20's holistic WIDTH-01/RHYTHM-01 visual sign-off lands (the foundation is layout-agnostic and re-verified on the merged page).
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 22: Per-Section Visual Fixes
+
+**Goal**: Three independent defects are fixed on the new single-scroll landing: an edition page states its number/date/mode exactly once, the Agent Economy section tiles cleanly as a legible 3-column scale, and the About section reads as an ordered pipeline + an unordered supporting layer with the human-approval line as its own callout.
+**Depends on**: Phase 21 (the sections live in the single-scroll landing) and Phase 20 (the width foundation)
 **Requirements**: HEAD-01, GRID-01, GRID-02, AGENTS-01
 **Success Criteria** (what must be TRUE):
 
@@ -131,14 +150,14 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
   2. The Agent Economy map renders as a 3-column grid on desktop (collapsing 3→2 at ≤880px → 1 at ≤600px), with a maturity legend under the heading and each block's filled-segment count matching its stored `economy_map` maturity value.
   3. The About page shows the pipeline agents (Processor / Analyst / Research / Newsletter) as an ordered numbered sequence and the supporting layer (Gato / LLM proxy / web) as an unordered bulleted list — no orphaned single card — with "nothing publishes without human approval" rendered as its own distinct violet callout.
 
-**Notes**: Three non-conflicting per-route fixes share this phase per the brief (Tasks 3/4/5 touch different routes, no file contention). HEAD-01 strips at render — no stored-data mutation (consistent with v2.0, which appends edition/date at render). GRID-02 reads `economy_map` maturity via the existing renderer / direct PostgREST + `Accept-Profile` (never `.in_()`); read-only, no schema change. Frontend-only.
+**Notes**: Three non-conflicting fixes share this phase per the brief (Tasks 3/4/5 touch different sections/routes, no file contention): the edition fix is on the detail route, the map + About fixes are in their landing sections. HEAD-01 strips at render — no stored-data mutation (consistent with v2.0, which appends edition/date at render). GRID-02 reads `economy_map` maturity via the existing renderer / direct PostgREST + `Accept-Profile` (never `.in_()`); read-only, no schema change. Frontend-only.
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 22: Distinct Newsletter Excerpts
+### Phase 23: Distinct Newsletter Excerpts
 
 **Goal**: The archive list stops showing the same opening words on consecutive editions — the boilerplate intro is skipped and each row shows a genuinely-distinct first sentence in the indexed-row format — with no schema or pipeline change.
-**Depends on**: Phase 20 (uses the `--wide` container + indexed-row treatment)
+**Depends on**: Phase 20 (uses the `--wide` container + indexed-row treatment); Phase 21 (the newsletter list lives in the landing)
 **Requirements**: EXCERPT-01
 **Success Criteria** (what must be TRUE):
 
@@ -150,35 +169,35 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 23: Signals Feed
+### Phase 24: Signals Section
 
-**Goal**: A new Signals section exists — its own `#/signals` route and nav tab listing tier-1 `source_posts` newest-first as safe external links — backed by the milestone's one Supabase migration: a read-only, tier-1-scoped anon RLS policy on `source_posts` that fails loud rather than silently rendering an empty feed.
-**Depends on**: Phase 20 (Signals uses the `--wide` container + indexed-row pattern) and Phase 23's own RLS migration
+**Goal**: A new Signals section exists in the single-scroll landing (`#signals`) listing tier-1 `source_posts` newest-first as safe external links — backed by the milestone's one Supabase migration: a read-only, tier-1-scoped anon RLS policy on `source_posts` that fails loud rather than silently rendering an empty feed.
+**Depends on**: Phase 21 (the Signals section shell lives in the single-scroll landing) and this phase's own RLS migration
 **Requirements**: SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04
 **Success Criteria** (what must be TRUE):
 
-  1. Visiting `#/signals` shows tier-1 `source_posts` newest-first, capped to ~12–15, with a "view all signals" affordance so a heavy news week can't make the section enormous.
+  1. The `#signals` landing section shows tier-1 `source_posts` newest-first, capped to ~12–15, with a "view all signals" affordance so a heavy news week can't make the section enormous.
   2. Each Signals row is a real external `<a>` showing date · headline · source domain, opening off-site safely (`target="_blank"` + `rel="noopener noreferrer"`) with an `↗` hover affordance.
-  3. Signals is reachable from a tab in the persistent v2.0 nav shell (consistent with the existing tabs + ← Back pattern), deep-linkable at `#/signals`.
+  3. Signals is reachable as a `#signals` section in the single-scroll landing via the scroll-spy nav (consistent with the other landing sections), deep-linkable at `#signals`.
   4. The anon key can read tier-1 `source_posts` via a new read-only, tier-1-scoped RLS policy; if that policy is absent the feed fails loud (surfaced error), never silently renders empty.
 
-**Notes**: Backend phase — the milestone's ONLY Supabase migration (next in sequence after 043), deliberately isolated from the pure-CSS phases. The migration grants a narrow, read-only, tier-1-scoped anon SELECT on `source_posts` (currently anon-blocked) — fail-loud on absence is a hard requirement (the empty-feed-on-missing-policy failure mode is exactly the silent-failure class the spine guards against). New `#/signals` route + nav tab in `app.js`; rows are real `<a>` (A11Y consistency carried into Phase 24's holistic pass). Deploy gated: branch + `/diff` + scoped web rebuild + operator approval; migration applied by the orchestrator (worktree-unsafe), not a worktree executor.
+**Notes**: Backend phase — the milestone's ONLY Supabase migration (next in sequence after 043), deliberately isolated from the pure-CSS phases. The migration grants a narrow, read-only, tier-1-scoped anon SELECT on `source_posts` (currently anon-blocked) — fail-loud on absence is a hard requirement (the empty-feed-on-missing-policy failure mode is exactly the silent-failure class the spine guards against). Fills in the Signals section shell built in Phase 21 with live data; rows are real `<a>` (A11Y consistency carried into Phase 25's holistic pass). Deploy gated: branch + `/diff` + scoped web rebuild + operator approval; migration applied by the orchestrator (worktree-unsafe), not a worktree executor.
 **Plans**: TBD
 **UI hint**: yes
 
-### Phase 24: Responsive & Accessibility Pass
+### Phase 25: Responsive & Accessibility Pass
 
-**Goal**: The whole redesigned surface holds up on small screens and for keyboard/assistive users — every grid and row reflows correctly at the breakpoints, focus is always visible, motion is reduced on request, and every link is a real anchor — verified holistically across all the routes the milestone touched.
-**Depends on**: Phases 20, 21, 22, 23 (verifies the responsive + a11y behavior of everything built before it)
+**Goal**: The whole redesigned surface holds up on small screens and for keyboard/assistive users — every grid and row reflows correctly at the breakpoints, scroll-spy is keyboard- and motion-safe, focus is always visible, motion is reduced on request, and every link is a real anchor — verified holistically across the single-scroll landing and the detail routes the milestone touched.
+**Depends on**: Phases 20, 21, 22, 23, 24 (verifies the responsive + a11y behavior of everything built before it)
 **Requirements**: RESP-01, A11Y-01
 **Success Criteria** (what must be TRUE):
 
   1. All grids and rows reflow responsively at the breakpoints: the map collapses 3→2→1, the nav condenses on mobile, and signal/archive rows stack (date above headline) below the mobile breakpoint.
-  2. Keyboard focus is visible everywhere — a `:focus-visible` violet outline appears as you tab through nav, list rows, and links.
-  3. `prefers-reduced-motion` is respected (hover lifts / transitions suppressed when the user requests reduced motion).
-  4. Every link across the touched routes is a real `<a>` element (no click-handler-only pseudo-links) — keyboard- and screen-reader-navigable.
+  2. Keyboard focus is visible everywhere — a `:focus-visible` violet outline appears as you tab through nav, list rows, and links — and the scroll-spy nav is keyboard-operable.
+  3. `prefers-reduced-motion` is respected (hover lifts / transitions and the scroll-spy smooth-scroll suppressed when the user requests reduced motion).
+  4. Every link across the landing + touched routes is a real `<a>` element (no click-handler-only pseudo-links) — keyboard- and screen-reader-navigable.
 
-**Notes**: Cross-cutting requirements applied throughout every phase but verified holistically HERE as the final responsive/a11y pass over the whole redesigned surface (the natural place to confirm them end-to-end rather than re-checking each per-route phase). Frontend-only (`style-base.css` / `style-shared.css` media queries + `:focus-visible` / `prefers-reduced-motion` rules + an `<a>` audit). Deploy gated: branch + `/diff` + scoped web rebuild + operator approval.
+**Notes**: Cross-cutting requirements applied throughout every phase but verified holistically HERE as the final responsive/a11y pass over the whole redesigned surface (the natural place to confirm them end-to-end rather than re-checking each phase) — now including the single-scroll landing's scroll-spy behavior. Frontend-only (`style-base.css` / `style-shared.css` media queries + `:focus-visible` / `prefers-reduced-motion` rules + an `<a>` audit). Deploy gated: branch + `/diff` + scoped web rebuild + operator approval.
 **Plans**: TBD
 **UI hint**: yes
 
@@ -205,12 +224,13 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup **across 
 | 16. Content Load (unpublished) | v2.1 | 3/3 | Complete | 2026-06-08 |
 | 17. Cross-link Wiring & Preview | v2.1 | 2/2 | Complete | 2026-06-09 |
 | 18. Gated Batch Publish | v2.1 | 3/3 | Complete | 2026-06-09 |
-| 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete    | 2026-06-10 |
-| 20. Width Tokens & Centering Foundation | v2.2 | 1/2 | In Progress|  |
-| 21. Per-Route Visual Fixes | v2.2 | 0/? | Not started | - |
-| 22. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
-| 23. Signals Feed | v2.2 | 0/? | Not started | - |
-| 24. Responsive & Accessibility Pass | v2.2 | 0/? | Not started | - |
+| 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete | 2026-06-10 |
+| 20. Width Tokens & Centering Foundation | v2.2 | 2/2 | Complete | 2026-06-11 |
+| 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 0/? | Not started | - |
+| 22. Per-Section Visual Fixes | v2.2 | 0/? | Not started | - |
+| 23. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
+| 24. Signals Section | v2.2 | 0/? | Not started | - |
+| 25. Responsive & Accessibility Pass | v2.2 | 0/? | Not started | - |
 
 ## Backlog
 
@@ -222,7 +242,7 @@ Tracked in `.planning/REQUIREMENTS.md` → Future Requirements.
 
 - **EXCERPT-F1** — stored `summary` field on `newsletters`, emitted by the Newsletter agent at generation time (the cleaner long-term excerpt path; deferred in favor of strip-at-render — touches schema + pipeline + backfill).
 - **SIGNAL-F1** — a full Signals archive page behind the "view all signals" affordance (if the capped feed proves insufficient).
-- **WIDTH-F1** — single-page-scroll landing with scroll-spy nav (the mockup's literal form; deferred in favor of separate routes for SEO / deep-linking / lower risk).
+- ~~**WIDTH-F1**~~ — single-page-scroll landing with scroll-spy nav — **PROMOTED into v2.2 (2026-06-11) as Phase 21** (hybrid: top-level sections scroll, editions/blocks stay deep-linkable routes — keeps the SEO/deep-linking benefit).
 - **THEME-F1** — dark-mode variant of the light palette (DARK-01, carried from v2.0).
 - **THEME-F2** — richer About page with a pipeline/architecture diagram (ABOUT-02, carried from v2.0).
 

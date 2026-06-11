@@ -3,11 +3,11 @@
 **Defined:** 2026-06-10
 **Core Value:** Synthesis with editorial integrity — autonomous drafting accelerates output, but every consequential publication is gated by human approval.
 
-**Goal:** Re-skin the public site (`aiagentspulse.com`) to the new editorial mockup across the existing separate-route SPA, fix the four live-site defects the redesign brief calls out, and add a new Signals feed of tier-1 source links.
+**Goal:** Re-skin the public site (`aiagentspulse.com`) to the new editorial mockup — including its single-scroll landing + scroll-spy nav for the top-level sections (REVISED 2026-06-11; editions/blocks stay deep-linkable routes) — fix the four live-site defects the redesign brief calls out, and add a new Signals feed of tier-1 source links.
 
-**Source brief:** `.planning/docs/REDESIGN_CC_BRIEF.md` (7 work groups, ordered low-to-high risk) + `.planning/docs/agentpulse-redesign (1).html` (visual mockup — intent reference, not markup to copy).
+**Source brief:** `.planning/docs/REDESIGN_CC_BRIEF.md` (7 work groups, ordered low-to-high risk) + `.planning/docs/agentpulse-redesign (1).html` (visual mockup — single-scroll + `IntersectionObserver` scroll-spy; now the form reference for Phase 21, not just intent).
 
-**Operator decisions locked at milestone start (2026-06-10):** keep separate routes (not single-scroll) · Signals as its own `#/signals` route + nav tab · excerpts fixed strip-at-render (no schema/pipeline change) · no domain research.
+**Operator decisions (locked 2026-06-10; layout REVISED 2026-06-11):** ~~keep separate routes~~ → **hybrid single-scroll landing** (top-level sections scroll + scroll-spy nav; editions/blocks stay deep-linkable routes) · ~~Signals as its own `#/signals` route + tab~~ → **Signals as a `#signals` section in the landing** · excerpts fixed strip-at-render (no schema/pipeline change) · no domain research.
 
 ---
 
@@ -25,6 +25,13 @@ Each maps to exactly one roadmap phase (see Traceability).
 ### Layout & Centering (Task 2)
 
 - [ ] **WIDTH-01**: On a wide viewport there is no large empty band on the left — content is centered via two coexisting max-widths: narrow prose (`--measure`, ~60–70 char lines) for edition body + intro copy, and a wider container (`--wide`) for the newsletter list, map grid, Signals, and card grids.
+
+### Single-Scroll Landing (REVISED 2026-06-11 — formerly deferred WIDTH-F1)
+
+> Layout direction reversed mid-milestone: the mockup is a single-page scroll with `IntersectionObserver` scroll-spy. The four top-level sections merge into one scroll page; editions/blocks stay deep-linkable routes (keeps SEO/deep-linking).
+
+- [ ] **SCROLL-01**: The four top-level sections (newsletter list, about, agent-economy, signals) render on ONE single-scroll landing page (stacked sections with anchors), replacing the separate top-level routes. Individual editions (`#/<edition>`) and block pages (`#/map/<slug>`) remain deep-linkable detail routes.
+- [ ] **SCROLL-02**: The persistent nav is a scroll-spy — it smooth-scrolls to a section on click and highlights the active section as the user scrolls (`IntersectionObserver`). Opening a detail route (edition/block) leaves the landing; returning ("← Back" / nav) restores the landing with scroll position preserved. Scroll-spy degrades safely under `prefers-reduced-motion` (verified holistically in Phase 25).
 
 ### Article Header (Task 3)
 
@@ -47,7 +54,7 @@ Each maps to exactly one roadmap phase (see Traceability).
 
 - [ ] **SIGNAL-01**: A Signals section lists tier-1 `source_posts` newest-first, capped to ~12–15, with a "view all signals" affordance so a heavy news week can't make the section enormous.
 - [ ] **SIGNAL-02**: Each Signals row is an external link showing date · headline · source domain, opening off-site safely (`target="_blank"` + `rel="noopener noreferrer"`) with an `↗` hover affordance.
-- [ ] **SIGNAL-03**: Signals is reachable at its own `#/signals` route via a tab in the persistent nav shell (consistent with the v2.0 nav + ← Back pattern).
+- [ ] **SIGNAL-03**: Signals is reachable as a `#signals` section in the single-scroll landing via the scroll-spy nav (consistent with the other landing sections), deep-linkable at `#signals`. _(REVISED 2026-06-11 — was its own `#/signals` route + tab.)_
 - [ ] **SIGNAL-04**: tier-1 `source_posts` are readable by the anon key via a new, read-only, tier-1-scoped Supabase RLS policy (the table is currently RLS-blocked from anon) — fail-loud if the policy is absent rather than silently rendering an empty feed.
 
 ### Cross-Cutting (all groups)
@@ -72,7 +79,7 @@ Deferred to a later release. Tracked, not in this roadmap.
 
 ### Layout
 
-- **WIDTH-F1**: Single-page scroll landing with scroll-spy nav (the mockup's literal form — deferred in favor of separate routes for SEO/deep-linking/lower risk).
+- ~~**WIDTH-F1**~~: Single-page scroll landing with scroll-spy nav — **PROMOTED into v2.2 (2026-06-11)** as SCROLL-01/SCROLL-02 (Phase 21), in hybrid form (top-level sections scroll; editions/blocks stay deep-linkable routes).
 
 ### Theming
 
@@ -87,7 +94,7 @@ Explicitly excluded for this milestone.
 
 | Feature | Reason |
 |---------|--------|
-| Single-page scroll rebuild | Operator chose separate routes — lower risk, SEO, deep-linkable editions & block pages; mockup is intent reference only |
+| ~~Single-page scroll rebuild~~ | **REVISED 2026-06-11 — now IN scope (Phase 21, SCROLL-01/02)** as a hybrid: top-level sections become a single-scroll landing + scroll-spy; editions & block pages stay deep-linkable routes (keeps the SEO/deep-link benefit) |
 | Stored `summary` field / pipeline change for excerpts | Operator chose strip-at-render; no schema or content-pipeline change for the excerpt fix (see EXCERPT-F1) |
 | Dark mode | Deferred since v2.0; ship the single light-mode violet system (see THEME-F1) |
 | Richer About / pipeline diagram | About ships as the v2.0 stub with the agent-grid fix only (see THEME-F2) |
@@ -107,37 +114,40 @@ Which phases cover which requirements. Mapped at roadmap creation (2026-06-10).
 |-------------|-------|--------|
 | QUOTE-01 | Phase 19 | Complete (P01 fix-forward + P02 confirm-and-close; storage clean, guard live) |
 | QUOTE-02 | Phase 19 | Complete |
-| WIDTH-01 | Phase 20 | In progress (P01 source foundation: .prose/.wide axes + tokens shipped, 720px .container retired, nav on wide axis; live-render verify owned by P02) |
-| RHYTHM-01 | Phase 20 | Pending |
-| HEAD-01 | Phase 21 | Pending |
-| GRID-01 | Phase 21 | Pending |
-| GRID-02 | Phase 21 | Pending |
-| AGENTS-01 | Phase 21 | Pending |
-| EXCERPT-01 | Phase 22 | Pending |
-| SIGNAL-01 | Phase 23 | Pending |
-| SIGNAL-02 | Phase 23 | Pending |
-| SIGNAL-03 | Phase 23 | Pending |
-| SIGNAL-04 | Phase 23 | Pending |
-| RESP-01 | Phase 24 | Pending |
-| A11Y-01 | Phase 24 | Pending |
+| WIDTH-01 | Phase 20 | Complete (P01 .prose/.wide axes + tokens, 720px .container retired, nav on wide axis; deployed live 2026-06-11; holistic visual re-verify carried into Phase 21) |
+| RHYTHM-01 | Phase 20 | Complete (P02 on-accent token + D-05 rhythm; deployed live 2026-06-11) |
+| SCROLL-01 | Phase 21 | Pending (NEW 2026-06-11 — single-scroll landing) |
+| SCROLL-02 | Phase 21 | Pending (NEW 2026-06-11 — scroll-spy nav + detail-route coexistence) |
+| HEAD-01 | Phase 22 | Pending |
+| GRID-01 | Phase 22 | Pending |
+| GRID-02 | Phase 22 | Pending |
+| AGENTS-01 | Phase 22 | Pending |
+| EXCERPT-01 | Phase 23 | Pending |
+| SIGNAL-01 | Phase 24 | Pending |
+| SIGNAL-02 | Phase 24 | Pending |
+| SIGNAL-03 | Phase 24 | Pending |
+| SIGNAL-04 | Phase 24 | Pending |
+| RESP-01 | Phase 25 | Pending |
+| A11Y-01 | Phase 25 | Pending |
 
 **Coverage:**
 
-- v2.2 requirements: 15 total
-- Mapped to phases: 15 ✓ (each to exactly one phase)
+- v2.2 requirements: 17 total (15 original + SCROLL-01/SCROLL-02 added 2026-06-11)
+- Mapped to phases: 17 ✓ (each to exactly one phase)
 - Unmapped: 0 ✓ — no orphans, no duplicates
 
 **Phase rollup:**
 
 - Phase 19 — Smart-Quote / Apostrophe Corruption Fix: QUOTE-01, QUOTE-02 (2)
 - Phase 20 — Width Tokens & Centering Foundation: WIDTH-01, RHYTHM-01 (2)
-- Phase 21 — Per-Route Visual Fixes: HEAD-01, GRID-01, GRID-02, AGENTS-01 (4)
-- Phase 22 — Distinct Newsletter Excerpts: EXCERPT-01 (1)
-- Phase 23 — Signals Feed: SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04 (4)
-- Phase 24 — Responsive & Accessibility Pass: RESP-01, A11Y-01 (2)
+- Phase 21 — Single-Scroll Landing + Scroll-Spy Nav: SCROLL-01, SCROLL-02 (2)
+- Phase 22 — Per-Section Visual Fixes: HEAD-01, GRID-01, GRID-02, AGENTS-01 (4)
+- Phase 23 — Distinct Newsletter Excerpts: EXCERPT-01 (1)
+- Phase 24 — Signals Section: SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04 (4)
+- Phase 25 — Responsive & Accessibility Pass: RESP-01, A11Y-01 (2)
 
-Cross-cutting note: RESP-01, A11Y-01 (Phase 24) and RHYTHM-01 (Phase 20) are applied across every phase but are each owned and verified holistically in exactly one phase — RHYTHM-01 at the width/token foundation it establishes, RESP-01 + A11Y-01 in the final responsive/a11y pass over the whole redesigned surface.
+Cross-cutting note: RESP-01, A11Y-01 (Phase 25) and RHYTHM-01 (Phase 20) are applied across every phase but are each owned and verified holistically in exactly one phase — RHYTHM-01 at the width/token foundation it establishes, RESP-01 + A11Y-01 in the final responsive/a11y pass over the whole redesigned surface (now including scroll-spy behavior).
 
 ---
 *Requirements defined: 2026-06-10*
-*Last updated: 2026-06-10 — roadmap created; all 15 requirements mapped to Phases 19–24 (Traceability + Coverage filled).*
+*Last updated: 2026-06-11 — layout direction REVISED to hybrid single-scroll landing; SCROLL-01/02 added (Phase 21, from promoted WIDTH-F1); Phases 22–25 renumbered; Phase 20 (WIDTH-01/RHYTHM-01) complete + deployed. 17 requirements mapped to Phases 19–25.*
