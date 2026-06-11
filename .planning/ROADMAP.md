@@ -136,7 +136,18 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
   4. No regression: the mode toggle, subscribe form, and existing deep links still work; the maturity pill does not overlap the nav.
 
 **Notes**: The milestone's one navigation-architecture change (the deferred WIDTH-F1, pulled into scope 2026-06-11). Refactors `app.js`'s hash router to a two-mode model — "landing" (one page + section anchors + scroll-spy via `IntersectionObserver`) vs "detail" (edition / block routes). The Signals section ships its shell here; its data + RLS migration land in Phase 24 (a `#signals` placeholder section is acceptable until then). Frontend-only (`app.js` + `style-base.css`/`style-shared.css`); the mockup's `IntersectionObserver` scroll-spy is the intent reference. Deploy gated: branch + `/diff` + prod↔main drift check + scoped web rebuild + operator approval. This is also where Phase 20's holistic WIDTH-01/RHYTHM-01 visual sign-off lands (the foundation is layout-agnostic and re-verified on the merged page).
-**Plans**: TBD
+**Plans**: 2 plans
+
+> **Section-order note (LOCKED in 21-CONTEXT.md):** the operator locked the **mockup order** — Newsletter → Signals → Agent-Economy → About — over the success-criterion #1 text ("newsletter → about → agent-economy → signals"). The DOM order, nav-link order, and scroll-spy section array all follow the mockup (Signals 2nd, About last). Conscious divergence, not a silent one.
+
+**Wave 1**
+
+- [ ] 21-01-PLAN.md — SCROLL-01 structural foundation: bare-anchor nav + `#landing` wrapper with 4 stacked `<section>` (reusing the existing list/about/map DOM) + a static `#signals` shell in index.html; two-mode `getRoute()`/`route()` + `showLanding()`/`showDetail()` split + decoupled loaders + `landingScrollY` in app.js (SCROLL-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 21-02-PLAN.md — SCROLL-02 scroll-spy + scroll-restore: `initScrollSpy()` IntersectionObserver + landing scroll/active-sync + detail→back restore (app.js); smooth-scroll + reduced-motion gate + sticky-header `scroll-margin-top` + `#landing>section` rhythm (style-base.css); then the orchestrator-owned scoped `web` rebuild + holistic live-render verify of SCROLL-01/02 + folded WIDTH-01/RHYTHM-01 (blocking-human, autonomous:false) (SCROLL-02)
+
 **UI hint**: yes
 
 ### Phase 22: Per-Section Visual Fixes
@@ -226,7 +237,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 18. Gated Batch Publish | v2.1 | 3/3 | Complete | 2026-06-09 |
 | 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete | 2026-06-10 |
 | 20. Width Tokens & Centering Foundation | v2.2 | 2/2 | Complete | 2026-06-11 |
-| 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 0/? | Not started | - |
+| 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 0/2 | Planned | - |
 | 22. Per-Section Visual Fixes | v2.2 | 0/? | Not started | - |
 | 23. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
 | 24. Signals Section | v2.2 | 0/? | Not started | - |
