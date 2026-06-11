@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: verifying
-stopped_at: "Phase 20 COMPLETE — Plan 02 code committed (c813005 on-accent alias, 33002fa D-05 rhythm; both gates pass) + scoped `web` rebuild DEPLOYED live 2026-06-11 (drift clean: newsletter drift was a false build-then-commit artifact, guard 437cdb1 confirmed live; lab-data-provider = D-07; migration 043 unapplied = pre-existing advisory → now owned by Phase 24). Served CSS confirmed over-the-wire (HTTP 200). 20-02-SUMMARY written. Then: v2.2 RE-SCOPED to hybrid single-scroll landing — ROADMAP/REQUIREMENTS/PROJECT/STATE updated, Phase 21 (Single-Scroll Landing + Scroll-Spy Nav, SCROLL-01/02) inserted, old 21–24 renumbered to 22–25. Phase 20's per-route visual sign-off folded into Phase 21."
+status: executing
+stopped_at: "Phase 21 COMPLETE (single-scroll landing + scroll-spy, SCROLL-01/02) — verifier PASSED 4/4, operator holistic live-render sign-off 2026-06-11. Plan 01 (router two-mode + #landing/4-section restructure) + Plan 02 (scroll-spy IO + scroll-restore + 4 net-new CSS rules) shipped + DEPLOYED live via scoped `web` rebuild (orchestrator-owned, main tree). Post-verify iterations all redeployed + re-approved: width-consistency (77da515 uniform --wide band, 33cef15 full-band landing copy), 4 code-review warnings (e4a54eb WR-01 deep-link scroll timing / WR-02 legacy #/map+#/about redirect / WR-03 instant scroll-restore / WR-04 clamp+reset), scroll-spy height-robust detection (7e4a341 — replaced viewport-centre rootMargin with a ~96px-below-top band so the short #signals placeholder highlights correctly). 21-REVIEW.md status=resolved (4 INFO deferred). Next: Phase 22 (per-section visual fixes — HEAD-01/GRID-01/GRID-02/AGENTS-01)."
 last_updated: "2026-06-11T14:18:42.091Z"
 last_activity: 2026-06-11
 progress:
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 21 — single-scroll-landing-scroll-spy-nav
+**Current focus:** Phase 22 — per-section-visual-fixes (Phase 21 single-scroll landing + scroll-spy COMPLETE)
 
 ## Current Position
 
-Phase: 22
+Phase: 22 (per-section-visual-fixes) — NOT STARTED
 Plan: Not started
-Status: Plan 01 complete (SCROLL-01 source foundation); Plan 02 next (scroll-spy + live verify, orchestrator-owned)
-Last activity: 2026-06-11
+Status: Phase 21 complete + verified + deployed live (operator-approved). Phase 22 next — three non-conflicting per-section fixes: edition-header de-dup (detail route), map 3-col grid + maturity legend, About pipeline-vs-supporting agent grid + approval callout (HEAD-01, GRID-01, GRID-02, AGENTS-01).
+Last activity: 2026-06-11 -- Phase 21 complete (single-scroll landing + scroll-spy, deployed + verified)
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
