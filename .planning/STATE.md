@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
-stopped_at: Phase 20 complete + deployed live; v2.2 re-scoped to hybrid single-scroll (new Phase 21); planning Phase 21 next
-last_updated: "2026-06-11T09:40:00.000Z"
-last_activity: 2026-06-11
+stopped_at: "Phase 20 COMPLETE — Plan 02 code committed (c813005 on-accent alias, 33002fa D-05 rhythm; both gates pass) + scoped `web` rebuild DEPLOYED live 2026-06-11 (drift clean: newsletter drift was a false build-then-commit artifact, guard 437cdb1 confirmed live; lab-data-provider = D-07; migration 043 unapplied = pre-existing advisory → now owned by Phase 24). Served CSS confirmed over-the-wire (HTTP 200). 20-02-SUMMARY written. Then: v2.2 RE-SCOPED to hybrid single-scroll landing — ROADMAP/REQUIREMENTS/PROJECT/STATE updated, Phase 21 (Single-Scroll Landing + Scroll-Spy Nav, SCROLL-01/02) inserted, old 21–24 renumbered to 22–25. Phase 20's per-route visual sign-off folded into Phase 21."
+last_updated: "2026-06-11T10:55:40.192Z"
+last_activity: 2026-06-11 -- Phase 21 planning complete
 progress:
   total_phases: 7
   completed_phases: 2
-  total_plans: 4
+  total_plans: 6
   completed_plans: 4
   percent: 29
 ---
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 ## Current Position
 
-Phase: 21 (single-scroll-landing-scroll-spy-nav) — READY TO PLAN
-Plan: none yet (Phase 20 complete + deployed live 2026-06-11)
-Status: v2.2 re-scoped 2026-06-11 to a hybrid single-scroll landing (top-level sections scroll + scroll-spy; editions/blocks stay routes). Phase 20 closed (code committed + deployed). Next: `/gsd-plan-phase 21`.
-Last activity: 2026-06-11 -- Phase 20 Plan 02 committed (on-accent token + D-05 rhythm) + scoped web rebuild deployed live; v2.2 roadmap re-scoped (Phase 21 inserted, 22–25 renumbered)
+Phase: 21 (single-scroll-landing-scroll-spy-nav) — PLANNED, READY TO EXECUTE
+Plan: 2 plans — 21-01 (structural foundation, SCROLL-01, autonomous) / 21-02 (scroll-spy + deploy, SCROLL-02, autonomous:false). Plan-checker PASSED iteration 2 (2 blockers + 2 warnings fixed in b62512e; never-pass `.eq('status')` gate corrected).
+Status: Ready to execute
+Last activity: 2026-06-11 -- Phase 21 planning complete
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
