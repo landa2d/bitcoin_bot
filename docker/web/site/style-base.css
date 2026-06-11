@@ -312,14 +312,18 @@ html { scroll-behavior: smooth; }
 }
 
 /* (D) Uniform landing-section width (operator live-verify 2026-06-11): all four landing
-   sections must present the SAME centered --wide band — the mockup contract is
-   <section class="wide"><div class="prose"> with the prose reading LEFT-ALIGNED inside the
-   band (mockup .prose = max-width:var(--measure) only, no margin-inline:auto). Production
-   .prose is centered (margin-inline:auto) for detail-route reading copy, which on the
-   assembled landing left Newsletter/Map on --wide but Signals/About-intro centered-narrow.
-   Scoped to #landing so edition/block reading prose stays centered (D-01/WIDTH-01 untouched).
-   Pair with index.html: #signals + #about content wrappers carry .wide like #newsletter/#map. */
-#landing .prose { margin-inline: 0; padding-inline: 0; max-width: var(--measure); }
+   sections must present the SAME --wide band AND their copy must FILL that band edge-to-edge.
+   Two coordinated parts:
+     1. index.html: #signals + #about content wrappers carry .wide like #newsletter/#map, so
+        every section frames at the centered --wide band.
+     2. here: landing .prose drops BOTH the centering (margin-inline:auto) AND the ~64ch reading
+        cap (max-width:var(--measure)) so the text spans the full band, left-aligned to the same
+        left edge as the tiled rows/grids/pills — not a short centered/left column inside a wide
+        frame (operator: "the text within is still shorter and doesn't expand to the same width").
+   Scoped to #landing ONLY — detail-route (edition/block) reading prose keeps the centered ~64ch
+   measure (D-01/WIDTH-01 reading-line is untouched); the wide landing copy is the operator's
+   explicit landing-specific call. */
+#landing .prose { margin-inline: 0; padding-inline: 0; max-width: none; }
 /* De-dupe nested width wrappers (#signals-list inside .prose, the About .agent-row .wide):
    the outer .content-area.wide already owns the centered band + gutter — neutralize the
    inner .wide so it fills the band instead of re-capping/re-centering/double-guttering. */
