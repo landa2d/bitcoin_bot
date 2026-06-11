@@ -148,6 +148,10 @@ var cameFromDetail = false;
 // (the landing's list + map fetch). Same flag-guarded one-shot idiom as timelineExpanded.
 var landingDataLoaded = false;
 
+// SCROLL-02 (WR-01 fix): the settle Promise of the one-time list+hub load, so showLanding()
+// can defer a deep-link scroll until the async section content has rendered.
+var landingDataLoadedPromise = null;
+
 function setMode(mode) {
     if (!MODES[mode]) return;
     currentMode = mode;
@@ -220,6 +224,12 @@ function getRoute() {
     if (hash.startsWith('#/unsubscribe')) {
         return { mode: 'detail', view: 'unsubscribe' };
     }
+    // WR-02: legacy top-level routes #/map and #/about were removed (they are landing
+    // sections now). Normalize old bookmarks / history entries to their bare-anchor section
+    // so they land on the right section instead of silently falling through to Newsletter.
+    // Placed AFTER the #/map/<slug> block-detail check above, so block deep-links are unaffected.
+    if (hash === '#/map') return { mode: 'landing', section: 'map' };
+    if (hash === '#/about') return { mode: 'landing', section: 'about' };
     // Landing — a bare section anchor (#newsletter/#signals/#map/#about), '#/', or an
     // empty hash all resolve to the ONE landing page; the section to scroll to is the
     // bare anchor id (default 'newsletter'). The anchored ^...$ allowlist cannot match
@@ -241,7 +251,7 @@ function getRoute() {
 // the old viewName==='list' gate to landing-mode-true — Pitfall 5 / TGL-01). The
 // scroll-to-section + initial active-toggle sync are Plan 02 (this task only owns the
 // show/hide + one-time data load + toggle/hero show).
-function showLanding(section) {
+function showLanding(section, skipScroll) {
     var landing = document.getElementById('landing');
     if (landing) landing.style.display = 'block';
     var reader = document.getElementById('reader-view');
@@ -251,7 +261,10 @@ function showLanding(section) {
     var status = document.getElementById('status-view');
     if (status) status.style.display = 'none';
 
-    ensureLandingDataLoaded();
+    // WR-01: capture whether this is the FIRST landing show (content not yet rendered)
+    // BEFORE the guard flips, so the scroll below can wait for the async list/hub render.
+    var wasLoaded = landingDataLoaded;
+    var dataPromise = ensureLandingDataLoaded();
 
     // The mode toggle / subtitle / hero belong to the Newsletter section and are
     // always present on the landing now (re-homed from the list route — Pitfall 5 /
@@ -271,18 +284,30 @@ function showLanding(section) {
     // setActiveTab() call on the landing — IO + this sync own it, Anti-Pattern.)
     setActiveTabForSection(section);
 
+    // WR-03: when route() will run a detail->back scroll RESTORE, it owns the final position
+    // (instant + clamped) — skip showLanding's own scroll to avoid a double / competing scroll.
+    if (skipScroll) return;
+
     // SCROLL-02: scroll to the target section (deep-link load + nav clicks land on it).
     // Declarative path: Task 2's CSS owns the smoothness (scroll-behavior:smooth, reduced-
     // motion-gated) + the sticky-header offset (scroll-margin-top), so a plain scrollIntoView
-    // with NO JS behavior branch is sufficient. Fall back to top if the section is missing.
-    // The id is a static literal from getRoute()'s anchored allowlist (Security V5), never
-    // raw location.hash. NOTE: the detail->back scroll restore (route()) runs AFTER this
-    // and overrides it for the root-landing return case.
-    var sectionEl = document.getElementById(section);
-    if (sectionEl) {
-        sectionEl.scrollIntoView({ block: 'start' });
+    // with NO JS behavior branch is sufficient. The id is a static literal from getRoute()'s
+    // anchored allowlist (Security V5), never raw location.hash.
+    function scrollToSection() {
+        var el = document.getElementById(section);
+        if (el) el.scrollIntoView({ block: 'start' });
+        else window.scrollTo(0, 0);
+    }
+    // WR-01: on the FIRST landing show, loadList()/loadHub() inject content asynchronously
+    // (and each scrolls to top on render), so a synchronous scroll to a below-the-fold section
+    // lands at a stale offset. Defer the scroll until the landing data has settled; when the
+    // landing is already loaded (nav between sections) scroll immediately. The settle handler
+    // fires on either outcome so a failed load still attempts the scroll (no stale highlight).
+    if (!wasLoaded && dataPromise && dataPromise.then) {
+        dataPromise.then(function () { requestAnimationFrame(scrollToSection); },
+                         function () { requestAnimationFrame(scrollToSection); });
     } else {
-        window.scrollTo(0, 0);
+        scrollToSection();
     }
 }
 
@@ -314,10 +339,12 @@ function showDetail(view) {
 // /'map') first line was removed from each), so visibility is owned by showLanding above.
 // Guarded by the module flag landingDataLoaded — re-entry short-circuits.
 function ensureLandingDataLoaded() {
-    if (landingDataLoaded) return;
+    if (landingDataLoaded) return landingDataLoadedPromise;
     landingDataLoaded = true;
-    loadList();
-    loadHub();
+    // WR-01: keep the settle promise so a deep-link scroll can wait for the list + hub
+    // content (and their own scrollTo(0,0) on render) before landing on a below-fold section.
+    landingDataLoadedPromise = Promise.all([loadList(), loadHub()]);
+    return landingDataLoadedPromise;
 }
 
 // ─── List View ───────────────────────────────────────────────────────────────
@@ -1227,13 +1254,21 @@ function route() {
         var isExplicitSectionAnchor = /^#(newsletter|signals|map|about)$/.test(rawHash);
         var returningFromDetail = cameFromDetail;
         cameFromDetail = false;  // one-shot: clear regardless of branch taken below
-        showLanding(r.section);
         // Detail->back to the ROOT landing hash restores the stashed scroll position
         // (module-var restore — no history.scrollRestoration/sessionStorage, locked choice)
-        // instead of the showLanding scroll-to-section. A SPECIFIC section anchor (handled by
-        // showLanding's scrollIntoView above) scrolls to that section instead — no restore.
-        if (returningFromDetail && !isExplicitSectionAnchor && landingScrollY > 0) {
-            window.scrollTo(0, landingScrollY);
+        // instead of scrolling to a section. A SPECIFIC section anchor scrolls to that section
+        // (showLanding owns that). willRestore tells showLanding to SKIP its own scroll so the
+        // restore below is the single, authoritative scroll for the root-landing return.
+        var willRestore = returningFromDetail && !isExplicitSectionAnchor && landingScrollY > 0;
+        showLanding(r.section, willRestore);
+        if (willRestore) {
+            // WR-03: behavior:'auto' so the restore does NOT animate under the global
+            // scroll-behavior:smooth — an instant jump, not a competing smooth scroll.
+            // WR-04: clamp to the current document height (guards overshoot if the landing
+            // shrank since capture) and reset landingScrollY so it cannot leak into a later nav.
+            var maxY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+            window.scrollTo({ top: Math.min(landingScrollY, maxY), behavior: 'auto' });
+            landingScrollY = 0;
         }
     }
 }
