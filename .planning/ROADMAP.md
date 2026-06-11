@@ -142,7 +142,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 
 **Wave 1**
 
-- [ ] 21-01-PLAN.md — SCROLL-01 structural foundation: bare-anchor nav + `#landing` wrapper with 4 stacked `<section>` (reusing the existing list/about/map DOM) + a static `#signals` shell in index.html; two-mode `getRoute()`/`route()` + `showLanding()`/`showDetail()` split + decoupled loaders + `landingScrollY` in app.js (SCROLL-01)
+- [x] 21-01-PLAN.md — SCROLL-01 structural foundation: bare-anchor nav + `#landing` wrapper with 4 stacked `<section>` (reusing the existing list/about/map DOM) + a static `#signals` shell in index.html; two-mode `getRoute()`/`route()` + `showLanding()`/`showDetail()` split + decoupled loaders + `landingScrollY` in app.js (SCROLL-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -237,7 +237,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 18. Gated Batch Publish | v2.1 | 3/3 | Complete | 2026-06-09 |
 | 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete | 2026-06-10 |
 | 20. Width Tokens & Centering Foundation | v2.2 | 2/2 | Complete | 2026-06-11 |
-| 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 0/2 | Planned | - |
+| 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 1/2 | In Progress|  |
 | 22. Per-Section Visual Fixes | v2.2 | 0/? | Not started | - |
 | 23. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
 | 24. Signals Section | v2.2 | 0/? | Not started | - |

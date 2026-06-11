@@ -103,3 +103,8 @@ Two explanatory comments I added in Task 1 (`#signals` shell) and Task 3 (`loadL
 ## Threat Surface Scan
 
 No new security-relevant surface introduced. The only new input path (URL hash → bare-anchor landing-section detection) is matched by an ANCHORED allowlist regex `/^#(newsletter|signals|map|about)$/`; anything outside the allowlist falls to the static-literal default section `newsletter`. No hash value reaches `getElementById`/`scrollIntoView`/`innerHTML` — section ids passed to DOM APIs are static literals. The `#signals` shell makes no fetch (T-21-02 mitigated). The `__SUPABASE_*__` substitution path is untouched (T-21-03 mitigated). Zero package installs (T-21-SC). Consistent with the plan's `<threat_model>` — no flags.
+
+## Self-Check: PASSED
+
+- Files: `21-01-SUMMARY.md`, `docker/web/site/index.html`, `docker/web/site/app.js` — all FOUND.
+- Commits: `a000039` (Task 1), `4941e57` (Task 2), `040bdc7` (Task 3), `80c1e05` (SUMMARY) — all FOUND in git history.

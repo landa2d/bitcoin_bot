@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
-stopped_at: "Phase 20 COMPLETE — Plan 02 code committed (c813005 on-accent alias, 33002fa D-05 rhythm; both gates pass) + scoped `web` rebuild DEPLOYED live 2026-06-11 (drift clean: newsletter drift was a false build-then-commit artifact, guard 437cdb1 confirmed live; lab-data-provider = D-07; migration 043 unapplied = pre-existing advisory → now owned by Phase 24). Served CSS confirmed over-the-wire (HTTP 200). 20-02-SUMMARY written. Then: v2.2 RE-SCOPED to hybrid single-scroll landing — ROADMAP/REQUIREMENTS/PROJECT/STATE updated, Phase 21 (Single-Scroll Landing + Scroll-Spy Nav, SCROLL-01/02) inserted, old 21–24 renumbered to 22–25. Phase 20's per-route visual sign-off folded into Phase 21."
-last_updated: "2026-06-11T10:55:40.192Z"
-last_activity: 2026-06-11 -- Phase 21 planning complete
+stopped_at: "Phase 21 Plan 01 COMPLETE (SCROLL-01 structural foundation, source-only). 3 atomic commits: a000039 index.html single-scroll restructure (bare-anchor nav + <main id='landing'> with 4 stacked <section> reusing existing DOM + static #signals shell + detail containers moved outside #landing); 4941e57 two-mode getRoute() ({mode:'landing'|'detail'}, anchored allowlist /^#(newsletter|signals|map|about)$/, old plain-#/map + #/about routes removed, route() mode branch, landingScrollY var); 040bdc7 showView() split into showLanding()/showDetail() + ensureLandingDataLoaded() guard + loaders decoupled/re-pointed. All 3 task gates PASS (node --check green; .eq('status' count frozen at 11; __SUPABASE_*__ placeholders intact; #signals = zero source_posts/no fetch). 80c1e05 SUMMARY. Next: Plan 02 (scroll-spy IO + scroll-restore + scroll-margin CSS + holistic WIDTH-01/RHYTHM-01 live re-verify — orchestrator-owned scoped `web` rebuild; SCROLL-01/02 marked complete after that live verify, NOT here)."
+last_updated: "2026-06-11T11:27:00.000Z"
+last_activity: 2026-06-11 -- Phase 21 Plan 01 executed (SCROLL-01 source foundation)
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 6
-  completed_plans: 4
-  percent: 29
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 21 — single-scroll-landing-scroll-spy-nav (NEW, from the 2026-06-11 hybrid pivot)
+**Current focus:** Phase 21 — single-scroll-landing-scroll-spy-nav
 
 ## Current Position
 
-Phase: 21 (single-scroll-landing-scroll-spy-nav) — PLANNED, READY TO EXECUTE
-Plan: 2 plans — 21-01 (structural foundation, SCROLL-01, autonomous) / 21-02 (scroll-spy + deploy, SCROLL-02, autonomous:false). Plan-checker PASSED iteration 2 (2 blockers + 2 warnings fixed in b62512e; never-pass `.eq('status')` gate corrected).
-Status: Ready to execute
-Last activity: 2026-06-11 -- Phase 21 planning complete
+Phase: 21 (single-scroll-landing-scroll-spy-nav) — EXECUTING
+Plan: 2 of 2
+Status: Plan 01 complete (SCROLL-01 source foundation); Plan 02 next (scroll-spy + live verify, orchestrator-owned)
+Last activity: 2026-06-11 -- Phase 21 Plan 01 executed
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
@@ -71,6 +71,7 @@ Standing v1.0/v2.0/v2.1 decisions still in force (PROJECT.md Key Decisions table
 - [Phase 19 — CORRECTED]: the apostrophe corruption is a DOUBLED apostrophe (`''`, two U+0027), which renders as a *visual* double-quote in the Source Serif 4 body face — NOT a literal `"` character and NOT a clean corpus. The original diagnosis (searched for U+0022, spot-checked one clean `Cash App's`) was WRONG; the operator caught it at live-site verification. Real signature = word-flanked `'{2,}`. 103 occurrences across published editions 26/29/30. Render path is genuinely clean (verified end-to-end: anon REST → marked v15.0.12 → `App&#39;s`). Lesson saved: [[feedback_verify_render_bugs_end_to_end]].
 - [Phase 19 / fix + backfill]: write-path guard `nl.normalize_apostrophe_corruption` corrected to collapse word-flanked `''`→`'` (+ defensive mid-word double-quote repair), fail-loud, genuine quotes preserved; 36 regression tests. Operator-approved scoped backfill (by row id) of editions 26/29/30 — 103 repaired, 0 remaining, genuine `"` counts unchanged. `newsletter` rebuilt to ship the corrected guard; `web` NOT rebuilt (renderer unchanged — stored bytes render directly). Operator confirmed the live site. QUOTE-01 + QUOTE-02 satisfied; Phase 19 closed.
 - [Phase 20 / Plan 01 — WIDTH-01 foundation]: two coexisting centered axes shipped in source — `.prose` (`--measure:64ch`) for reading copy, `.wide` (`--wide:1080px`) for tiled content, `--gutter:clamp(1.25rem,5vw,3.5rem)` side padding (D-01, operator-locked mockup values verbatim). The single 720px `.container` (the D-06 dead-gutter root cause — centered but too narrow, so wide content read as a left gutter) is fully retired (0 refs in index.html + style-shared.css); each route re-homed onto its correct axis per the D-03 apply-map (list/map/status/about-grid/subscribe → wide; reader/block/about-intro → prose; About explicitly split). Nav widened 880px→`var(--wide)` so chrome and content share ONE centered axis (D-02), via the `.nav` rule only — no `.wide` on nav markup (Pitfall 3). `body > header` sticky scoping preserved (Pitfall 1); map grid still 2-col (3-col is Phase 22 post-renumber). Source-only — live-render verification is Plan 02 (orchestrator-owned). 3 atomic commits: 5ce580e / 76888c9 / c974018.
+- [Phase 21 / Plan 01 — SCROLL-01 structural foundation]: the four top-level sections now render on ONE single-scroll `<main id="landing">` (4 stacked `<section>` — `#newsletter`/`#signals`/`#map`/`#about`, LOCKED mockup order, Signals 2nd) REUSING the existing `#list-view`/`#map-view`/`#about-view` DOM verbatim; editions (`#/edition/<n>`) + block pages (`#/map/<slug>`) stay deep-linkable detail routes (siblings outside `#landing`). `getRoute()` is now two-mode (`{mode:'landing'|'detail'}`) — detail prefixes tested FIRST, bare-anchor landing fallthrough via an ANCHORED allowlist `/^#(newsletter|signals|map|about)$/` (Pitfall 1 / Security V5); the old plain-`#/map` (`view:'map'`) + `#/about` (`view:'about'`) routes are REMOVED (now landing sections). `route()` branches on mode (detail → stash `landingScrollY` + `setActiveTab` + dispatch; landing → `showLanding`, NO `setActiveTab` so the Plan-02 scroll-spy IO owns landing active state). `showView()` split into `showLanding()`/`showDetail()`; `loadList()`/`loadHub()` decoupled from view-switching behind an idempotent `ensureLandingDataLoaded()` guard; the mode-toggle/`.hero` re-homed into `#newsletter` (TGL-01). `#signals` is a PURE static shell (zero `source_posts`, no fetch, no new `<script>` — Phase 24 owns data + RLS). All Supabase queries byte-identical (no new `.eq('status','published')`, `.eq('status'` count frozen at 11, D-17); `__SUPABASE_*__` placeholders intact. Source-only — NO `docker compose` build/deploy run (Plan 02 / orchestrator-owned). Deviation: the two detail "Back to the map" backlinks re-pointed `#/map`→bare `#map` (the removed route would land on the wrong section). 3 task gates PASS. 4 commits: a000039 / 4941e57 / 040bdc7 / 80c1e05.
 
 ### Pending Todos
 
@@ -117,9 +118,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-11T09:40Z
+Last session: 2026-06-11T11:26:49.426Z
 Stopped at: Phase 20 COMPLETE — Plan 02 code committed (c813005 on-accent alias, 33002fa D-05 rhythm; both gates pass) + scoped `web` rebuild DEPLOYED live 2026-06-11 (drift clean: newsletter drift was a false build-then-commit artifact, guard 437cdb1 confirmed live; lab-data-provider = D-07; migration 043 unapplied = pre-existing advisory → now owned by Phase 24). Served CSS confirmed over-the-wire (HTTP 200). 20-02-SUMMARY written. Then: v2.2 RE-SCOPED to hybrid single-scroll landing — ROADMAP/REQUIREMENTS/PROJECT/STATE updated, Phase 21 (Single-Scroll Landing + Scroll-Spy Nav, SCROLL-01/02) inserted, old 21–24 renumbered to 22–25. Phase 20's per-route visual sign-off folded into Phase 21.
-Resume file: .planning/ROADMAP.md (Phase 21 details) + memory `project_v22_hybrid_single_scroll_pivot`
+Resume file: None
 Next: `/gsd-plan-phase 21` (operator chose "approve + plan directly" — design unknowns surfaced inside planning research: scroll-spy ↔ detail-route coexistence, app.js router two-mode refactor, back-to-landing scroll restore, Signals section shell vs Phase 24 data). Do NOT re-run the web rebuild (Phase 20 already deployed).
 Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
@@ -146,3 +147,4 @@ Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 
 | Phase 19 P01 | ~10min | 3 tasks | 3 files |
 | Phase 19 P02 | ~5min | 3 tasks | 1 file (confirm-and-close; no DB mutation, newsletter rebuilt) |
 | Phase 20 P01 | ~4min | 3 tasks | 4 files (width tokens + .prose/.wide axes; 720px .container retired; source-only) |
+| Phase 21 P01 | ~6min | 3 tasks | 2 files |
