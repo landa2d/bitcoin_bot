@@ -30,8 +30,8 @@ Each maps to exactly one roadmap phase (see Traceability).
 
 > Layout direction reversed mid-milestone: the mockup is a single-page scroll with `IntersectionObserver` scroll-spy. The four top-level sections merge into one scroll page; editions/blocks stay deep-linkable routes (keeps SEO/deep-linking).
 
-- [ ] **SCROLL-01**: The four top-level sections (newsletter list, about, agent-economy, signals) render on ONE single-scroll landing page (stacked sections with anchors), replacing the separate top-level routes. Individual editions (`#/<edition>`) and block pages (`#/map/<slug>`) remain deep-linkable detail routes.
-- [ ] **SCROLL-02**: The persistent nav is a scroll-spy — it smooth-scrolls to a section on click and highlights the active section as the user scrolls (`IntersectionObserver`). Opening a detail route (edition/block) leaves the landing; returning ("← Back" / nav) restores the landing with scroll position preserved. Scroll-spy degrades safely under `prefers-reduced-motion` (verified holistically in Phase 25).
+- [x] **SCROLL-01**: The four top-level sections (newsletter list, about, agent-economy, signals) render on ONE single-scroll landing page (stacked sections with anchors), replacing the separate top-level routes. Individual editions (`#/<edition>`) and block pages (`#/map/<slug>`) remain deep-linkable detail routes.
+- [x] **SCROLL-02**: The persistent nav is a scroll-spy — it smooth-scrolls to a section on click and highlights the active section as the user scrolls (`IntersectionObserver`). Opening a detail route (edition/block) leaves the landing; returning ("← Back" / nav) restores the landing with scroll position preserved. Scroll-spy degrades safely under `prefers-reduced-motion` (verified holistically in Phase 25).
 
 ### Article Header (Task 3)
 

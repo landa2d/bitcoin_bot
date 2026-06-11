@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: executing
-stopped_at: "Phase 21 Plan 01 COMPLETE (SCROLL-01 structural foundation, source-only). 3 atomic commits: a000039 index.html single-scroll restructure (bare-anchor nav + <main id='landing'> with 4 stacked <section> reusing existing DOM + static #signals shell + detail containers moved outside #landing); 4941e57 two-mode getRoute() ({mode:'landing'|'detail'}, anchored allowlist /^#(newsletter|signals|map|about)$/, old plain-#/map + #/about routes removed, route() mode branch, landingScrollY var); 040bdc7 showView() split into showLanding()/showDetail() + ensureLandingDataLoaded() guard + loaders decoupled/re-pointed. All 3 task gates PASS (node --check green; .eq('status' count frozen at 11; __SUPABASE_*__ placeholders intact; #signals = zero source_posts/no fetch). 80c1e05 SUMMARY. Next: Plan 02 (scroll-spy IO + scroll-restore + scroll-margin CSS + holistic WIDTH-01/RHYTHM-01 live re-verify — orchestrator-owned scoped `web` rebuild; SCROLL-01/02 marked complete after that live verify, NOT here)."
-last_updated: "2026-06-11T11:27:00.000Z"
-last_activity: 2026-06-11 -- Phase 21 Plan 01 executed (SCROLL-01 source foundation)
+status: verifying
+stopped_at: "Phase 20 COMPLETE — Plan 02 code committed (c813005 on-accent alias, 33002fa D-05 rhythm; both gates pass) + scoped `web` rebuild DEPLOYED live 2026-06-11 (drift clean: newsletter drift was a false build-then-commit artifact, guard 437cdb1 confirmed live; lab-data-provider = D-07; migration 043 unapplied = pre-existing advisory → now owned by Phase 24). Served CSS confirmed over-the-wire (HTTP 200). 20-02-SUMMARY written. Then: v2.2 RE-SCOPED to hybrid single-scroll landing — ROADMAP/REQUIREMENTS/PROJECT/STATE updated, Phase 21 (Single-Scroll Landing + Scroll-Spy Nav, SCROLL-01/02) inserted, old 21–24 renumbered to 22–25. Phase 20's per-route visual sign-off folded into Phase 21."
+last_updated: "2026-06-11T14:18:42.091Z"
+last_activity: 2026-06-11
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 6
+  percent: 43
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 ## Current Position
 
-Phase: 21 (single-scroll-landing-scroll-spy-nav) — EXECUTING
-Plan: 2 of 2
+Phase: 22
+Plan: Not started
 Status: Plan 01 complete (SCROLL-01 source foundation); Plan 02 next (scroll-spy + live verify, orchestrator-owned)
-Last activity: 2026-06-11 -- Phase 21 Plan 01 executed
+Last activity: 2026-06-11
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
