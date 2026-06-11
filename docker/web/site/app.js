@@ -139,6 +139,10 @@ var evolutionPollHandle = null;
 // SCROLL-01: Landing scrollY stashed on landing->detail; restored on detail->back (Plan 02 scroll-restore).
 var landingScrollY = 0;
 
+// SCROLL-01: one-time guard so ensureLandingDataLoaded() runs loadList()+loadHub() once
+// (the landing's list + map fetch). Same flag-guarded one-shot idiom as timelineExpanded.
+var landingDataLoaded = false;
+
 function setMode(mode) {
     if (!MODES[mode]) return;
     currentMode = mode;
@@ -219,30 +223,74 @@ function getRoute() {
     return { mode: 'landing', section: section };
 }
 
-function showView(viewName) {
-    document.getElementById('list-view').style.display = viewName === 'list' ? 'block' : 'none';
-    document.getElementById('reader-view').style.display = viewName === 'reader' ? 'block' : 'none';
-    document.getElementById('map-view').style.display = viewName === 'map' ? 'block' : 'none';
-    document.getElementById('block-view').style.display = viewName === 'block' ? 'block' : 'none';
-    document.getElementById('status-view').style.display = viewName === 'status' ? 'block' : 'none';
-    var aboutView = document.getElementById('about-view');
-    if (aboutView) aboutView.style.display = viewName === 'about' ? 'block' : 'none';
+// SCROLL-01: showView() is split into showLanding() + showDetail(view). The
+// el.style.display = cond ? 'block':'none' view-toggle idiom and the defensive
+// null-check idiom are preserved throughout. Visibility now toggles at the
+// #landing-vs-detail boundary, not per top-level view: the four top-level sections
+// live INSIDE #landing (always shown together on the landing) and the three detail
+// containers are siblings outside it.
 
-    // The Technical/Strategic toggle lives ONLY inside the Newsletter list (TGL-01,
-    // D-01). Its host is the .hero block, scoped to the list route below; these
-    // belt-and-suspenders display lines keep the toggle/subtitle hidden off-list.
-    // Defensive null-checks per PATTERNS §3.
-    var showToggle = (viewName === 'list');
+// Show the single-scroll landing (#landing) + hide the three detail containers; load
+// the landing data once. The Technical/Strategic toggle + subtitle + .hero live inside
+// the Newsletter section, so they are SHOWN whenever the landing is shown (re-homed off
+// the old viewName==='list' gate to landing-mode-true — Pitfall 5 / TGL-01). The
+// scroll-to-section + initial active-toggle sync are Plan 02 (this task only owns the
+// show/hide + one-time data load + toggle/hero show).
+function showLanding(section) {
+    var landing = document.getElementById('landing');
+    if (landing) landing.style.display = 'block';
+    var reader = document.getElementById('reader-view');
+    if (reader) reader.style.display = 'none';
+    var block = document.getElementById('block-view');
+    if (block) block.style.display = 'none';
+    var status = document.getElementById('status-view');
+    if (status) status.style.display = 'none';
+
+    ensureLandingDataLoaded();
+
+    // The mode toggle / subtitle / hero belong to the Newsletter section and are
+    // always present on the landing now (re-homed from the list route — Pitfall 5 /
+    // TGL-01). Defensive null-checks per PATTERNS §3.
     var toggle = document.querySelector('.mode-toggle');
-    if (toggle) toggle.style.display = showToggle ? 'inline-flex' : 'none';
+    if (toggle) toggle.style.display = 'inline-flex';
     var subtitle = document.getElementById('mode-subtitle');
-    if (subtitle) subtitle.style.display = showToggle ? 'block' : 'none';
-
-    // The .hero is the list-scoped minimal D3 header (it hosts the toggle). Render
-    // it ONLY on the list route (TGL-01); the reader/map/block/status/about views
-    // carry their own headers. Phase 13 owns the map/status hero behavior.
+    if (subtitle) subtitle.style.display = 'block';
     var hero = document.querySelector('.hero');
-    if (hero) hero.style.display = viewName === 'list' ? 'block' : 'none';
+    if (hero) hero.style.display = 'block';
+}
+
+// Show exactly one detail container for the given view (reader/unsubscribe ->
+// #reader-view, block -> #block-view, status -> #status-view) + hide #landing. The
+// mode toggle / subtitle / .hero are HIDDEN on detail — they belong to the Newsletter
+// section and must never appear on a block/edition page (Pitfall 5 / TGL-01). Same
+// cond ? 'block':'none' toggle idiom + defensive null-checks as showLanding.
+function showDetail(view) {
+    var landing = document.getElementById('landing');
+    if (landing) landing.style.display = 'none';
+    var reader = document.getElementById('reader-view');
+    if (reader) reader.style.display = (view === 'reader' || view === 'unsubscribe') ? 'block' : 'none';
+    var block = document.getElementById('block-view');
+    if (block) block.style.display = view === 'block' ? 'block' : 'none';
+    var status = document.getElementById('status-view');
+    if (status) status.style.display = view === 'status' ? 'block' : 'none';
+
+    var toggle = document.querySelector('.mode-toggle');
+    if (toggle) toggle.style.display = 'none';
+    var subtitle = document.getElementById('mode-subtitle');
+    if (subtitle) subtitle.style.display = 'none';
+    var hero = document.querySelector('.hero');
+    if (hero) hero.style.display = 'none';
+}
+
+// Idempotent one-time landing data load: render the newsletter list + the map hub
+// once. loadList()/loadHub() now ONLY render into their containers (the showView('list'
+// /'map') first line was removed from each), so visibility is owned by showLanding above.
+// Guarded by the module flag landingDataLoaded — re-entry short-circuits.
+function ensureLandingDataLoaded() {
+    if (landingDataLoaded) return;
+    landingDataLoaded = true;
+    loadList();
+    loadHub();
 }
 
 // ─── List View ───────────────────────────────────────────────────────────────
@@ -276,10 +324,13 @@ function renderList(data) {
 }
 
 async function loadList() {
-    showView('list');
-    // Set the hero synchronously so the previous section's title (e.g. the hub
-    // HUB_STORYLINE) doesn't flash here during the async fetch. renderList()
-    // refines the date once data arrives.
+    // SCROLL-01: visibility is owned by showLanding() now — loadList only RENDERS into
+    // #newsletter-list. (The old showView('list') first line is removed.) The Supabase
+    // read is byte-identical: .from('newsletters').in('status', ['published','preview'])
+    // — Phase 21 adds NO new query and NO new defensive published-status filter (D-17,
+    // RLS is the boundary). Set the hero synchronously so the previous section's title
+    // (e.g. the hub HUB_STORYLINE) doesn't flash here during the async fetch.
+    // renderList() refines the date once data arrives.
     updateHero('AI Agents Pulse', '');
     var { data, error } = await sb
         .from('newsletters')
@@ -334,7 +385,7 @@ function renderArticle(data) {
 }
 
 async function loadEdition(editionNumber) {
-    showView('reader');
+    showDetail('reader');
 
     var { data, error } = await sb
         .from('newsletters')
@@ -403,7 +454,7 @@ function scrollToSubscribe() {
 // ─── Unsubscribe Handler ────────────────────────────────────────────────────
 
 async function handleUnsubscribe() {
-    showView('reader');
+    showDetail('unsubscribe');
     var container = document.getElementById('newsletter-content');
     updateHero('Unsubscribe', '');
 
@@ -490,7 +541,10 @@ function renderMaturityPill(b, deferred) {
 // visibility via showView() so the shell works before the Wave 2 renderers
 // plug in the data + markup.
 async function loadHub() {
-    showView('map');
+    // SCROLL-01: visibility is owned by showLanding() now — loadHub only RENDERS into
+    // the #map-view .content-area. (The old showView('map') first line is removed.) The
+    // economy_map read is byte-identical (D-16 sb.schema('economy_map'), D-17 NO
+    // defensive status filter — RLS is the boundary). Phase 21 adds NO new query.
     // Phase 13 (D-06): the hub header renders inside #map-view .content-area in
     // renderHub() — the shared .hero is scoped to the list route (Phase 12), so
     // no updateHero() call here. The grid fills in once data arrives.
@@ -699,7 +753,7 @@ function renderHub(data, hubBodyMd, draftMaturity, draftSlugs) {
 }
 
 async function loadBlock(slug) {
-    showView('block');
+    showDetail('block');
 
     // D-11: reset expand state on every entry into a block page. The Wave 3
     // idle poll (plan 04-05) reads this flag to choose limit(30) vs unbounded.
@@ -895,7 +949,7 @@ async function expandTimeline() {
 // vs loadHub). Per D-15 rows are non-clickable divs; per D-17 NO defensive
 // .eq('status', ...) filter — RLS is the boundary.
 async function loadStatus() {
-    showView('status');
+    showDetail('status');
 
     var { data, error } = await sb
         .schema('economy_map')
