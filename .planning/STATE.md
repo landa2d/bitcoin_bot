@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: executing
-stopped_at: "Phase 21 COMPLETE (single-scroll landing + scroll-spy, SCROLL-01/02) — verifier PASSED 4/4, operator holistic live-render sign-off 2026-06-11. Plan 01 (router two-mode + #landing/4-section restructure) + Plan 02 (scroll-spy IO + scroll-restore + 4 net-new CSS rules) shipped + DEPLOYED live via scoped `web` rebuild (orchestrator-owned, main tree). Post-verify iterations all redeployed + re-approved: width-consistency (77da515 uniform --wide band, 33cef15 full-band landing copy), 4 code-review warnings (e4a54eb WR-01 deep-link scroll timing / WR-02 legacy #/map+#/about redirect / WR-03 instant scroll-restore / WR-04 clamp+reset), scroll-spy height-robust detection (7e4a341 — replaced viewport-centre rootMargin with a ~96px-below-top band so the short #signals placeholder highlights correctly). 21-REVIEW.md status=resolved (4 INFO deferred). Next: Phase 22 (per-section visual fixes — HEAD-01/GRID-01/GRID-02/AGENTS-01)."
-last_updated: "2026-06-11T14:18:42.091Z"
-last_activity: 2026-06-11
+status: verifying
+stopped_at: Phase 22 context gathered
+last_updated: "2026-06-11T15:43:41.931Z"
+last_activity: 2026-06-11 -- Phase 21 complete (single-scroll landing + scroll-spy, deployed + verified)
 progress:
   total_phases: 7
   completed_phases: 3
@@ -118,9 +118,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-11T11:26:49.426Z
-Stopped at: Phase 20 COMPLETE — Plan 02 code committed (c813005 on-accent alias, 33002fa D-05 rhythm; both gates pass) + scoped `web` rebuild DEPLOYED live 2026-06-11 (drift clean: newsletter drift was a false build-then-commit artifact, guard 437cdb1 confirmed live; lab-data-provider = D-07; migration 043 unapplied = pre-existing advisory → now owned by Phase 24). Served CSS confirmed over-the-wire (HTTP 200). 20-02-SUMMARY written. Then: v2.2 RE-SCOPED to hybrid single-scroll landing — ROADMAP/REQUIREMENTS/PROJECT/STATE updated, Phase 21 (Single-Scroll Landing + Scroll-Spy Nav, SCROLL-01/02) inserted, old 21–24 renumbered to 22–25. Phase 20's per-route visual sign-off folded into Phase 21.
-Resume file: None
+Last session: 2026-06-11T15:43:41.926Z
+Stopped at: Phase 22 context gathered
+Resume file: .planning/phases/22-per-section-visual-fixes/22-CONTEXT.md
 Next: `/gsd-plan-phase 21` (operator chose "approve + plan directly" — design unknowns surfaced inside planning research: scroll-spy ↔ detail-route coexistence, app.js router two-mode refactor, back-to-landing scroll restore, Signals section shell vs Phase 24 data). Do NOT re-run the web rebuild (Phase 20 already deployed).
 Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
 
