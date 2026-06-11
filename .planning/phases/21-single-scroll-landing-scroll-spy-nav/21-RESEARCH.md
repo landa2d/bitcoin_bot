@@ -383,19 +383,24 @@ function prefersReducedMotion() {
 
 **If this table needs nothing locked:** A1 (section order) is the one genuine decision — everything else is a recommendation the planner can adopt as-is.
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> All three questions are LOCKED in `21-CONTEXT.md` `## Decisions` (operator decisions 2026-06-11). Resolutions inlined below; downstream plans follow the CONTEXT decisions, not the original recommendations.
 
 1. **Section order: mockup vs ROADMAP text.** (A1)
    - What we know: Mockup `:502` = `['index','signals','map','made']` (Newsletter, Signals, Map, About). ROADMAP success criterion = "newsletter list → about → agent-economy → signals."
    - What's unclear: Which order ships.
    - Recommendation: Follow the **mockup** (the operator-approved form reference) and flag the ROADMAP-text discrepancy in the plan so it's a conscious choice. The scroll-spy `sections` array + nav-link order + DOM order must all agree with whatever is locked.
+   - **RESOLVED:** 21-CONTEXT.md §"Section order" (LOCKED 2026-06-11) — ship the **mockup order Newsletter → Signals → Agent-Economy → About** (operator picked the mockup order over the ROADMAP-text order; Signals lands 2nd by design). DOM order, nav-link order, and the scroll-spy section array all match this single order. Planned in 21-01 (DOM + nav) and 21-02 (scroll-spy array `['newsletter','signals','map','about']`).
 
 2. **About anchor id: `#made` (mockup) vs `#about` (clearer).** (A5)
    - Recommendation: `#about` for readability; keep nav href ↔ section id ↔ IO array in sync. Low-stakes.
+   - **RESOLVED:** 21-CONTEXT.md §"Anchor ids" (LOCKED 2026-06-11) — use the clearer **`#about`** (operator: prefer `#about` over the mockup's literal `#made`). The self-describing anchor set `#newsletter`/`#signals`/`#map`/`#about` is the locked choice; nav href == section id == scroll-spy array agree. Planned in 21-01 Task 1 (nav + section ids) and 21-02 Task 1 (IO array).
 
 3. **Does the operator want browser-Back (not just the in-page "← Back" link) to restore scroll?**
    - What we know: All "← Back" controls in the codebase are `<a href="#/">`/`href="#/map">` (hashchange), which the module-var restore covers.
    - Recommendation: Ship module-var restore (covers the in-app Back links). Note `history.scrollRestoration='manual'` as the upgrade if the hardware Back button proves insufficient at verification.
+   - **RESOLVED:** 21-CONTEXT.md §"Router two-mode model" + §"Claude's Discretion" (LOCKED 2026-06-11) — use the **module-var scroll restore** (`landingScrollY`), matching the codebase idiom; `history.scrollRestoration` is the flagged low-risk fallback only if the hardware Back button proves insufficient at the live-render verify. Planned in 21-01 Task 2 (stash `landingScrollY`) and 21-02 Task 1 (detail→back restore via `window.scrollTo(0, landingScrollY)`).
 
 ## Environment Availability
 
