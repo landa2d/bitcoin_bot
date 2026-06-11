@@ -139,6 +139,11 @@ var evolutionPollHandle = null;
 // SCROLL-01: Landing scrollY stashed on landing->detail; restored on detail->back (Plan 02 scroll-restore).
 var landingScrollY = 0;
 
+// SCROLL-02: set true when route() dispatches a DETAIL view; consumed (and cleared) by
+// the next landing-branch entry so the detail->back return restores landingScrollY only
+// when we genuinely came from a detail route (not on a fresh load or a bare-anchor nav).
+var cameFromDetail = false;
+
 // SCROLL-01: one-time guard so ensureLandingDataLoaded() runs loadList()+loadHub() once
 // (the landing's list + map fetch). Same flag-guarded one-shot idiom as timelineExpanded.
 var landingDataLoaded = false;
@@ -257,6 +262,28 @@ function showLanding(section) {
     if (subtitle) subtitle.style.display = 'block';
     var hero = document.querySelector('.hero');
     if (hero) hero.style.display = 'block';
+
+    // SCROLL-02: set the initial nav-active explicitly on the target section's tab
+    // BEFORE the IO takes over — the scroll-spy fires zero events while #landing was
+    // display:none (Pitfall 3), so returning from a detail route would otherwise leave
+    // a stale tab highlighted. setActiveTabForSection replicates the setActiveTab
+    // .active + aria-current pair; the IO refines it on the next scroll. (No
+    // setActiveTab() call on the landing — IO + this sync own it, Anti-Pattern.)
+    setActiveTabForSection(section);
+
+    // SCROLL-02: scroll to the target section (deep-link load + nav clicks land on it).
+    // Declarative path: Task 2's CSS owns the smoothness (scroll-behavior:smooth, reduced-
+    // motion-gated) + the sticky-header offset (scroll-margin-top), so a plain scrollIntoView
+    // with NO JS behavior branch is sufficient. Fall back to top if the section is missing.
+    // The id is a static literal from getRoute()'s anchored allowlist (Security V5), never
+    // raw location.hash. NOTE: the detail->back scroll restore (route()) runs AFTER this
+    // and overrides it for the root-landing return case.
+    var sectionEl = document.getElementById(section);
+    if (sectionEl) {
+        sectionEl.scrollIntoView({ block: 'start' });
+    } else {
+        window.scrollTo(0, 0);
+    }
 }
 
 // Show exactly one detail container for the given view (reader/unsubscribe ->
@@ -1115,6 +1142,58 @@ function setActiveTab(view) {
     });
 }
 
+// ─── Scroll-Spy (SCROLL-02) ───────────────────────────────────────────────────
+
+// SCROLL-02: the LOCKED landing section order (Newsletter -> Signals -> Agent-Economy
+// -> About per 21-CONTEXT.md). STATIC LITERALS only — these ids are passed to
+// getElementById/observe and NEVER come from location.hash (Security V5 / T-21-04 —
+// no hash value reaches a DOM sink). The array order MUST equal the index.html
+// <section> order MUST equal the nav-link order.
+var LANDING_SECTION_IDS = ['newsletter', 'signals', 'map', 'about'];
+
+// Toggle the nav .active class + aria-current onto the .tab anchor whose href matches
+// '#' + sectionId, clearing the rest. This replicates setActiveTab's classList.toggle
+// + aria-current pair EXACTLY (NAV-02 a11y parity) — used by both the IO (on scroll)
+// and showLanding's initial sync (Pitfall 3, before the IO takes over). Defensive
+// null-check per PATTERNS §3.
+function setActiveTabForSection(sectionId) {
+    var tabs = document.querySelectorAll('.tab');
+    if (!tabs || !tabs.length) return;
+    tabs.forEach(function(el) {
+        var isActive = el.getAttribute('href') === '#' + sectionId;
+        el.classList.toggle('active', isActive);
+        if (isActive) {
+            el.setAttribute('aria-current', 'page');
+        } else {
+            el.removeAttribute('aria-current');
+        }
+    });
+}
+
+// SCROLL-02: the scroll-spy. ONE IntersectionObserver over the four landing section
+// elements (looked up by the static-literal LANDING_SECTION_IDS, defensively skipping
+// any that are absent). rootMargin '-50% 0px -50% 0px' collapses the root to a 1px band
+// at the viewport centre, so the intersecting section is whichever straddles the midline
+// (the canonical viewport-centre scroll-spy — mockup :503). On an entry's isIntersecting
+// we highlight the matching nav tab (setActiveTabForSection -> .active + aria-current,
+// replicating setActiveTab). Registered ONCE at init alongside the other top-level
+// listeners; observing hidden sections is harmless (IO fires zero events while #landing
+// is display:none on a detail route — correct). Defensive: no-op if IO unavailable.
+function initScrollSpy() {
+    if (typeof IntersectionObserver === 'undefined') return;
+    var obs = new IntersectionObserver(function(entries) {
+        entries.forEach(function(e) {
+            if (e.isIntersecting) {
+                setActiveTabForSection(e.target.id);
+            }
+        });
+    }, { rootMargin: '-50% 0px -50% 0px' });
+    LANDING_SECTION_IDS.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) obs.observe(el);
+    });
+}
+
 // ─── Init ────────────────────────────────────────────────────────────────────
 
 // SCROLL-01: branch on r.mode. DETAIL -> stash the landing scrollY (only when
@@ -1130,6 +1209,7 @@ function route() {
         if (landing && landing.style.display !== 'none') {
             landingScrollY = window.scrollY;
         }
+        cameFromDetail = true;  // consumed by the next landing-branch entry (scroll-restore)
         setActiveTab(r.view);
         switch (r.view) {
             case 'reader': loadEdition(r.edition); break;
@@ -1138,13 +1218,34 @@ function route() {
             case 'status': loadStatus(); break;
         }
     } else {
+        // SCROLL-02: is this a return to the ROOT landing hash ('#/' / '#' / empty) rather
+        // than an explicit bare-section anchor (#map/#signals/#about/#newsletter)? getRoute()
+        // maps BOTH '#/'/'' and '#newsletter' to section:'newsletter', so re-inspect the raw
+        // hash here: the anchored allowlist matches an EXPLICIT section anchor; anything else
+        // (incl. '#/'/'') is the root return.
+        var rawHash = window.location.hash || '';
+        var isExplicitSectionAnchor = /^#(newsletter|signals|map|about)$/.test(rawHash);
+        var returningFromDetail = cameFromDetail;
+        cameFromDetail = false;  // one-shot: clear regardless of branch taken below
         showLanding(r.section);
+        // Detail->back to the ROOT landing hash restores the stashed scroll position
+        // (module-var restore — no history.scrollRestoration/sessionStorage, locked choice)
+        // instead of the showLanding scroll-to-section. A SPECIFIC section anchor (handled by
+        // showLanding's scrollIntoView above) scrolls to that section instead — no restore.
+        if (returningFromDetail && !isExplicitSectionAnchor && landingScrollY > 0) {
+            window.scrollTo(0, landingScrollY);
+        }
     }
 }
 
 document.addEventListener('DOMContentLoaded', function() {
     setMode(currentMode);
     route();
+    // SCROLL-02: register the scroll-spy ONCE at init, after route() — the IO persists for
+    // the page session; observing hidden sections is harmless (silent while #landing is
+    // display:none on a detail route). Same flat top-level registration style as the
+    // hashchange/visibilitychange listeners below.
+    initScrollSpy();
 });
 
 window.addEventListener('hashchange', route);
