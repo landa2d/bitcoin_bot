@@ -1198,27 +1198,43 @@ function setActiveTabForSection(sectionId) {
 }
 
 // SCROLL-02: the scroll-spy. ONE IntersectionObserver over the four landing section
-// elements (looked up by the static-literal LANDING_SECTION_IDS, defensively skipping
-// any that are absent). rootMargin '-50% 0px -50% 0px' collapses the root to a 1px band
-// at the viewport centre, so the intersecting section is whichever straddles the midline
-// (the canonical viewport-centre scroll-spy — mockup :503). On an entry's isIntersecting
-// we highlight the matching nav tab (setActiveTabForSection -> .active + aria-current,
-// replicating setActiveTab). Registered ONCE at init alongside the other top-level
-// listeners; observing hidden sections is harmless (IO fires zero events while #landing
-// is display:none on a detail route — correct). Defensive: no-op if IO unavailable.
+// elements (looked up by the static-literal LANDING_SECTION_IDS, defensively skipping any
+// that are absent). The root is collapsed to a thin ~1px band a FIXED distance below the
+// viewport top — just under the sticky body>header (~60px) and the scroll-margin-top
+// heading offset (~76px) — so the ACTIVE section is whichever sits under the nav (its
+// heading at the top of the content area), independent of section height. This replaces the
+// earlier viewport-CENTRE '-50% 0px -50% 0px' band, which mis-highlighted a SHORT section:
+// clicking the #signals placeholder scrolled to it, but the taller Agent-Economy section
+// below straddled the centre line and won the highlight (operator live-verify). On an
+// entry's isIntersecting we highlight the matching nav tab (setActiveTabForSection ->
+// .active + aria-current, replicating setActiveTab). The band is rebuilt on resize so the
+// px offsets track the viewport. Registered ONCE at init; observing hidden sections is
+// harmless (IO fires zero events while #landing is display:none on a detail route).
+// Defensive: no-op if IO unavailable.
 function initScrollSpy() {
     if (typeof IntersectionObserver === 'undefined') return;
-    var obs = new IntersectionObserver(function(entries) {
-        entries.forEach(function(e) {
-            if (e.isIntersecting) {
-                setActiveTabForSection(e.target.id);
-            }
+    // ~96px below the viewport top: clears the ~60px sticky header + the 76px scroll-margin
+    // heading offset, so a section becomes active the moment its heading lands under the nav.
+    var LINE_TOP = 96;
+    var obs = null;
+    function build() {
+        if (obs) obs.disconnect();
+        var bottom = Math.max(0, window.innerHeight - LINE_TOP - 1);
+        obs = new IntersectionObserver(function(entries) {
+            entries.forEach(function(e) {
+                if (e.isIntersecting) {
+                    setActiveTabForSection(e.target.id);
+                }
+            });
+        }, { rootMargin: '-' + LINE_TOP + 'px 0px -' + bottom + 'px 0px' });
+        LANDING_SECTION_IDS.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) obs.observe(el);
         });
-    }, { rootMargin: '-50% 0px -50% 0px' });
-    LANDING_SECTION_IDS.forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el) obs.observe(el);
-    });
+    }
+    build();
+    // Recompute the px band when the viewport height changes (the bottom inset is height-derived).
+    window.addEventListener('resize', build);
 }
 
 // ─── Init ────────────────────────────────────────────────────────────────────
