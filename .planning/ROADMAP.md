@@ -70,7 +70,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 
 - [x] **Phase 19: Smart-Quote / Apostrophe Corruption Fix** — Root-cause the apostrophe→straight-quote corruption (renderer has no typographer, so it is in stored markdown / the write path), fix forward + a scoped reviewed backfill of existing editions, guarded by a regression test. (QUOTE-01, QUOTE-02) (completed 2026-06-10)
 - [x] **Phase 20: Width Tokens & Centering Foundation** — Introduce the two coexisting, both-centered max-widths (`--measure` narrow prose, `--wide` grids) that kill the dead left gutter, and establish the token-only color + section-rhythm baseline everything downstream sits on. (WIDTH-01, RHYTHM-01) (completed 2026-06-11)
-- [ ] **Phase 21: Single-Scroll Landing + Scroll-Spy Nav** — Convert the four top-level sections (newsletter / about / agent-economy / signals) into one single-scroll landing with a scroll-spy nav, on the Phase 20 width foundation; editions & block pages stay deep-linkable detail routes; the nav becomes scroll-spy on the landing and route-aware on detail, with back-to-landing scroll restore. (SCROLL-01, SCROLL-02)
+- [x] **Phase 21: Single-Scroll Landing + Scroll-Spy Nav** — Convert the four top-level sections (newsletter / about / agent-economy / signals) into one single-scroll landing with a scroll-spy nav, on the Phase 20 width foundation; editions & block pages stay deep-linkable detail routes; the nav becomes scroll-spy on the landing and route-aware on detail, with back-to-landing scroll restore. (SCROLL-01, SCROLL-02) (completed 2026-06-11)
 - [ ] **Phase 22: Per-Section Visual Fixes** — Three non-conflicting fixes on the new landing: edition-header de-dup (detail route), the Agent Economy 3-col grid + maturity legend (map section), and the About pipeline-vs-supporting agent grid + approval callout (about section). (HEAD-01, GRID-01, GRID-02, AGENTS-01)
 - [ ] **Phase 23: Distinct Newsletter Excerpts** — Strip the boilerplate "Read This, Skip the Rest" intro at render and pull the first genuinely-distinct sentence into the indexed-row archive format — no schema change. (EXCERPT-01)
 - [ ] **Phase 24: Signals Section** — A new `#signals` section in the single-scroll landing listing tier-1 `source_posts` newest-first (capped, external links), gated on the milestone's one Supabase migration: a read-only, tier-1-scoped anon RLS policy on `source_posts`, fail-loud if absent. (SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04)
@@ -146,7 +146,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 21-02-PLAN.md — SCROLL-02 scroll-spy + scroll-restore: `initScrollSpy()` IntersectionObserver + landing scroll/active-sync + detail→back restore (app.js); smooth-scroll + reduced-motion gate + sticky-header `scroll-margin-top` + `#landing>section` rhythm (style-base.css); then the orchestrator-owned scoped `web` rebuild + holistic live-render verify of SCROLL-01/02 + folded WIDTH-01/RHYTHM-01 (blocking-human, autonomous:false) (SCROLL-02)
+- [x] 21-02-PLAN.md — SCROLL-02 scroll-spy + scroll-restore: `initScrollSpy()` IntersectionObserver + landing scroll/active-sync + detail→back restore (app.js); smooth-scroll + reduced-motion gate + sticky-header `scroll-margin-top` + `#landing>section` rhythm (style-base.css); then the orchestrator-owned scoped `web` rebuild + holistic live-render verify of SCROLL-01/02 + folded WIDTH-01/RHYTHM-01 (blocking-human, autonomous:false) (SCROLL-02)
 
 **UI hint**: yes
 
@@ -237,7 +237,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 18. Gated Batch Publish | v2.1 | 3/3 | Complete | 2026-06-09 |
 | 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete | 2026-06-10 |
 | 20. Width Tokens & Centering Foundation | v2.2 | 2/2 | Complete | 2026-06-11 |
-| 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 1/2 | In Progress|  |
+| 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 2/2 | Complete   | 2026-06-11 |
 | 22. Per-Section Visual Fixes | v2.2 | 0/? | Not started | - |
 | 23. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
 | 24. Signals Section | v2.2 | 0/? | Not started | - |

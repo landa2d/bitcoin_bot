@@ -31,11 +31,11 @@ decisions:
   - "Detail->back restore guarded by a cameFromDetail one-shot flag (set in the detail branch, cleared on the next landing entry) AND a raw-hash check: the ROOT landing hash ('#/'/'') restores landingScrollY; an EXPLICIT section anchor (#map/#signals/#about/#newsletter) scrolls to that section instead (no restore)"
   - "Smooth-scroll + reduced-motion + sticky offset are ALL declarative CSS (scroll-behavior + scroll-margin-top + @media) — so showLanding's programmatic scrollIntoView needs no JS reduced-motion branch (CSS owns it)"
 metrics:
-  duration: ~7min
+  duration: ~7min code + orchestrator deploy/verify
   completed: 2026-06-11
-  tasks: "2 of 3 (Task 3 = orchestrator/operator-owned checkpoint, PENDING)"
-  files: 2
-  commits: 2
+  tasks: "3 of 3 (Task 3 deploy + holistic live-verify COMPLETE — operator-approved 2026-06-11)"
+  files: 3
+  commits: 4
 ---
 
 # Phase 21 Plan 02: Scroll-Spy + Scroll-Restore (SCROLL-02) Summary
@@ -67,19 +67,21 @@ Each task's `<verify><automated>` gate was run against live code and confirmed P
 
 Live-render verification is **Task 3 / orchestrator-owned** (post the scoped `web` rebuild) — NOT run here. Per the Phase-19 lesson ([[feedback_verify_render_bugs_end_to_end]]) the live verify must reproduce the rendered output, not infer a clean result from source bytes.
 
-## Task 3 (deploy + holistic live-verify): PENDING — orchestrator/operator-owned
+## Task 3 (deploy + holistic live-verify): COMPLETE — operator-approved 2026-06-11
 
-Task 3 is a `checkpoint:human-verify` (gate `blocking-human`) bundling a scoped `docker compose up -d --build web` DEPLOY + a holistic live-render verification of SCROLL-01/02 + the folded WIDTH-01/RHYTHM-01 sign-off. Both the deploy and the live verification are **worktree-unsafe and orchestrator/operator-owned** (the scoped rebuild cds to the absolute main-tree path; a worktree executor would build stale code — MEMORY scoped-rebuild-worktree-unsafe) and were **explicitly outside this executor's scope**. This executor:
-- Did NOT run any `docker compose` command, any deploy, or any live-site verification.
-- Did NOT mark SCROLL-02 complete and did NOT mark the plan complete — both are gated on the operator's live-render sign-off, which the orchestrator owns.
+Orchestrator-owned, run from the MAIN tree (worktree-unsafe — the scoped rebuild cds to the absolute main-tree path). Sequence executed:
+1. **Prod↔main drift check (clean):** `docker/web/site/` working tree clean (all Phase 21 changes committed); the running `agentpulse-web` container predated every Phase 21 commit → drift = exactly the Phase 21 web changes. Out-of-scope uncommitted files (`.claude/settings.local.json`, untracked `.planning/docs/*`) are outside the web build context. Work group shown to operator; **deploy approved** before any rebuild (standing v2.2 deploy discipline).
+2. **Scoped rebuild** ONLY the `web` SERVICE key: `cd /root/bitcoin_bot/docker && docker compose up -d --build web` (NO `--delete`, did NOT use `--remove-orphans` against the pre-existing `openclaw-rivalscope` orphan).
+3. **Substitution confirmed over the wire:** served `/app.js` has no literal `__SUPABASE_*__` placeholder (real Supabase URL substituted), carries the Phase 21 code (`initScrollSpy`), 66510 bytes; SPA loads. Automated over-the-wire structural checks PASS: served section order = locked Newsletter→Signals→Agent-Economy→About; nav tabs correct; `#signals` static (no `source_posts`); scroll-spy IO + `scrollTo(0, landingScrollY)` wiring served; all 4 net-new CSS rules served; routes resolve 200.
+4–14. **Operator holistic live-render sign-off: APPROVED.**
 
-**Remaining for the orchestrator + operator (Task 3 in 21-02-PLAN.md):**
-1. Prod↔main drift check FIRST; operator approval BEFORE any deploy (standing v2.2 deploy discipline).
-2. Scoped rebuild ONLY the `web` SERVICE key (`cd /root/bitcoin_bot/docker && docker compose up -d --build web`, NOT the `agentpulse-web` container_name; NO `--delete`).
-3. Confirm the served `app.js` is the `__SUPABASE_URL__`-substituted version over the wire (SPA loads, not a blank page).
-4–14. Live-verify on a wide (~1440px) viewport: SCROLL-01 (single-scroll landing in the locked order; editions/blocks still deep-linkable via `#/edition/<n>` + `#/map/<slug>`; the `#signals` shell static, no console 401 on `source_posts`); SCROLL-02 (scroll-spy highlight on scroll, smooth-scroll-on-click landing below the sticky nav, detail→back scroll-restore, reduced-motion instant-jump); the folded WIDTH-01 (no dead gutter, ~60–70 char reading line, tiled on `--wide`, nav edges == content edges) + RHYTHM-01 (token color, major/within section rhythm); plus the regression guards (mode toggle landing-scoped + working, maturity pill not overlapping nav, deep links resolve) and no Phase 22–25 scope creep.
+### Width-consistency fix (operator live-verify iterations)
 
-**Resume signal:** Operator types "approved" once the live render shows the single-scroll landing with a working scroll-spy + smooth-scroll + scroll-restore + reduced-motion gate, editions/blocks still deep-linkable, the `#signals` shell static, and WIDTH-01/RHYTHM-01 holding holistically — or describes a specific issue (e.g. a `scroll-margin-top` tune, a stale active tab on back) to fix. On approval the orchestrator finalizes this SUMMARY, marks SCROLL-02 complete, and advances STATE/ROADMAP.
+The operator caught a holistic-assembly WIDTH issue during live verification (not visible per-route pre-merge): each landing section rendered at a different width — Newsletter widest on `--wide`, Signals/About-intro centered-narrow on the production (centered, 64ch) `.prose`. Two follow-up fixes (mockup contract = uniform `<section class="wide">` with full-band copy), redeployed + re-verified each time:
+- **`77da515`** — `#signals` + `#about` content wrappers carry `.wide` (like `#newsletter`/`#map`) so all four sections frame at the same centered `--wide` band; `#landing`-scoped CSS left-aligns `.prose` + de-dupes nested `.wide`. Detail-route reading prose untouched (scoped to `#landing`).
+- **`33cef15`** — lift the `--measure` (~64ch) cap on `#landing .prose` (`max-width: none`) so the landing copy spans the full band edge-to-edge (operator: "the text within is still shorter and doesn't expand to the same width"). Detail-route (edition/block) reading prose keeps the centered ~64ch measure — WIDTH-01 reading-line untouched; the wide landing copy is the operator's explicit landing-specific call.
+
+SCROLL-01 + SCROLL-02 satisfied and verified holistically on the live render (incl. the folded WIDTH-01/RHYTHM-01). Phase 21 complete.
 
 ## Deviations from Plan
 
@@ -95,6 +97,6 @@ No new security-relevant surface. The scroll-spy IO + `scrollIntoView` operate o
 
 ## Self-Check: PASSED
 
-- Files: `21-02-SUMMARY.md`, `docker/web/site/app.js`, `docker/web/site/style-base.css` — all FOUND.
-- Commits: `921f6dd` (Task 1), `b9bb5bc` (Task 2) — both FOUND in git history.
-- Task 3 (deploy + holistic live-verify): PENDING — orchestrator/operator-owned, not run here (by design).
+- Files: `21-02-SUMMARY.md`, `docker/web/site/app.js`, `docker/web/site/style-base.css`, `docker/web/site/index.html` — all FOUND.
+- Commits: `921f6dd` (Task 1), `b9bb5bc` (Task 2), `77da515` + `33cef15` (Task 3 width-consistency fixes) — all FOUND in git history.
+- Task 3 (deploy + holistic live-verify): COMPLETE — scoped `web` rebuild deployed from the main tree, substitution confirmed over the wire, operator-approved live-render sign-off 2026-06-11 (incl. two width-fix iterations).
