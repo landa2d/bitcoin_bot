@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
-stopped_at: Phase 22 context gathered → resumed, proceeding to plan Phase 22 (--skip-ui)
+stopped_at: Phase 22 (per-section-visual-fixes) COMPLETE + deployed live + verified (passed); Phase 23 not started
 last_updated: "2026-06-12T13:41:10.153Z"
-last_activity: 2026-06-12
+last_activity: 2026-06-12 -- Phase 22 complete (deployed + verified passed)
 progress:
   total_phases: 7
   completed_phases: 4
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 22 — per-section-visual-fixes
+**Current focus:** Phase 23 — distinct-newsletter-excerpts (Phase 22 per-section-visual-fixes COMPLETE + deployed live)
 
 ## Current Position
 
 Phase: 23
 Plan: Not started
-Status: Executing Phase 22
-Last activity: 2026-06-12
+Status: Phase 22 complete (deployed + verified passed) — Phase 23 not started
+Last activity: 2026-06-12 -- Phase 22 complete
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
@@ -118,11 +118,11 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-11 (resumed via /gsd-resume-work)
-Stopped at: Phase 22 context gathered → resumed, proceeding to plan Phase 22 (--skip-ui)
-Resume file: .planning/phases/22-per-section-visual-fixes/22-CONTEXT.md
-Next: `/gsd-plan-phase 22 --skip-ui` in progress (operator confirmed). Research SKIPPED (config research_enabled=false + locked v2.2 "No domain research" decision + CONTEXT.md is the design contract). D-04 stored-title-bytes check folded into the HEAD-01 plan, not a research task. Do NOT re-run the web rebuild (Phase 21 already deployed).
-Note: stale root `.planning/.continue-here.md` (v1.0 Phase 6→7 leftover) DELETED during resume housekeeping.
+Last session: 2026-06-12 (/gsd-execute-phase 22)
+Stopped at: Phase 22 COMPLETE — all 4 plans executed, deployed live via scoped web rebuild, operator-approved + verified (passed). Phase 23 not started.
+Resume file: n/a (Phase 22 closed)
+Next: `/gsd-discuss-phase 23` or `/gsd-plan-phase 23` (distinct-newsletter-excerpts — EXCERPT-01). Phase 22 ran no-worktree/sequential on the main tree (config/.env gitignored→absent in worktrees would break 22-01's D-04 curl; 22-04 deploy worktree-unsafe). Code review 22-REVIEW.md: 0 crit / 0 warn / 4 info (advisory; IN-01/IN-04 plan-deferred dead-CSS cleanup → Phase 25). D-04: ` — Edition #N | <date>` suffix (em-dash U+2014) IS baked into both newsletters.title + title_impact; render-only strip handles both.
+Carry-over (NOT Phase 22): newsletter image drift (Phase 19 commit 437cdb1, unrebuilt); migration 043 unapplied (Phase-24-owned); lab-data-provider known carry-over.
 
 ## Operator Next Steps
 
