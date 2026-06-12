@@ -256,11 +256,13 @@ body {
 .hub-storyline p:last-child { margin-bottom: 0; }
 .hub-storyline h2 { margin-top: var(--space-lg); }
 
-/* Card grid (MAP-01) — 2-col desktop within each tier section, the tier
-   label sits ABOVE this grid (emitted as a sibling by renderHub). */
+/* Card grid (GRID-01 / D-06) — 3-col desktop within each tier section, the
+   tier label sits ABOVE this grid (emitted as a sibling by renderHub).
+   Phase 22: was repeat(2, 1fr); now 3-col, collapsing 3→2 (≤880px) → 1
+   (≤600px) via the breakpoints below. */
 .grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
     gap: var(--space-md);
     margin-top: var(--space-sm);
 }
@@ -334,13 +336,11 @@ body {
     color: var(--ink-faint);
 }
 
-/* Mobile (MAP-01) — collapse to a single column. At 1 column the full-width
-   modifier is a no-op (every card already spans). */
-@media (max-width: 640px) {
-    .grid {
-        grid-template-columns: 1fr;
-    }
-}
+/* Responsive collapse (GRID-01 / D-06) — the 3-col tier grid steps down
+   3→2 at ≤880px → 1 at ≤600px, replacing the prior single mobile rule. At 1
+   column the .card-deferred full-width modifier is a no-op (every card spans). */
+@media (max-width: 880px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
 
 /* ── Block detail (D-03 — restrained system pass) ────────────── */
 /* De-darkened out of style-map.css (delete-and-fold). The block reading view
