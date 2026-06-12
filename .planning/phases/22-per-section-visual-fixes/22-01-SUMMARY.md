@@ -113,6 +113,11 @@ None - no external service configuration required.
 ## Note for Orchestrator
 - Per sequential-executor instructions, I did NOT modify `.planning/STATE.md` or `.planning/ROADMAP.md` (orchestrator-owned). REQUIREMENTS.md traceability (mark HEAD-01 complete) requires the GSD SDK — left for the orchestrator.
 
+## Self-Check: PASSED
+- `22-01-SUMMARY.md` exists.
+- Commits present: `3e0d450` (Task 1), `ccef387` (Task 2), `0916e3a` (summary).
+- Source assertions hold: `EDITION_SUFFIX_RE` + `replace(EDITION_SUFFIX_RE` present, no `.eyebrow` edition line, `__SUPABASE_URL__` placeholder intact.
+
 ---
 *Phase: 22-per-section-visual-fixes*
 *Completed: 2026-06-12*
