@@ -432,15 +432,16 @@ function renderArticle(data) {
     }
 
     // Magazine header (D-05) — the reader view's own header, sitting under the
-    // static "← Back to Newsletter" control in #reader-view. Mono .eyebrow kicker,
-    // serif .page-title display title, mono byline. The {Technical|Strategic} label
-    // is resolved from MODES (not hardcoded); every DB-derived string (title) is
-    // escapeHtml'd exactly as the list rows are (edition_number is numeric).
+    // static "← Back to Newsletter" control in #reader-view. Serif .page-title
+    // display title (headline-only after the HEAD-01 suffix strip) + one mono
+    // byline carrying edition/date/mode exactly once (the duplicate .eyebrow line
+    // was dropped per HEAD-01/D-01). The {Technical|Strategic} label is resolved
+    // from MODES (not hardcoded); every DB-derived string (title) is escapeHtml'd
+    // exactly as the list rows are (edition_number is numeric).
     var sep = ' ' + String.fromCharCode(0xB7) + ' ';
     var modeLabel = MODES[currentMode].label;
     var header =
         '<div class="article-header">' +
-            '<p class="eyebrow">Edition #' + data.edition_number + sep + modeLabel + '</p>' +
             '<h1 class="page-title">' + escapeHtml(title) + '</h1>' +
             '<p class="byline">Edition #' + data.edition_number + sep + date + sep + modeLabel + '</p>' +
         '</div>';
