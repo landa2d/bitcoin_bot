@@ -10,6 +10,13 @@ x-common-env: &common-env
   AGENTPULSE_OPENAI_MODEL: deepseek-chat
   GITHUB_TOKEN: ${GITHUB_TOKEN:-}
 
+# Single source of proxy wiring (spec 02 / WS-25): every Python service routes
+# ALL LLM traffic through llm-proxy. Never merge into llm-proxy itself (loop).
+x-proxy-env: &proxy-env
+  OPENAI_BASE_URL: http://llm-proxy:8200/v1
+  DEEPSEEK_BASE_URL: http://llm-proxy:8200/v1
+  LLM_PROXY_URL: http://llm-proxy:8200
+
 services:
   # ═══════════════════════════════════════════════════════
   # GATO — User-facing Bitcoin agent (Telegram)
@@ -64,12 +71,11 @@ services:
     env_file:
       - ../config/.env
     environment:
-      <<: *common-env
+      <<: [*common-env, *proxy-env]
       AGENT_NAME: gato_brain
       GATO_BRAIN_PORT: "8100"
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
-      LLM_PROXY_URL: http://llm-proxy:8200
-      AGENT_API_KEY: ${LLM_PROXY_GATO_KEY:-}
+      AGENT_API_KEY: ${LLM_PROXY_GATO_KEY:?must be set in config/.env}
       LOG_LEVEL: info
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace:ro
@@ -113,19 +119,16 @@ services:
     env_file:
       - ../config/.env
     environment:
-      <<: *common-env
+      <<: [*common-env, *proxy-env]
       AGENT_NAME: analyst
       ANALYST_POLL_INTERVAL: "15"
       ANALYST_MODEL: deepseek-chat
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
       LOG_LEVEL: info
-      # Route LLM calls through the proxy (internal network key)
-      OPENAI_API_KEY: ap_analyst_8195afb1e9849c3227ade910047ea7c2
-      OPENAI_BASE_URL: http://llm-proxy:8200/v1
-      DEEPSEEK_API_KEY: ap_analyst_8195afb1e9849c3227ade910047ea7c2
-      DEEPSEEK_BASE_URL: http://llm-proxy:8200/v1
-      AGENT_API_KEY: ap_analyst_8195afb1e9849c3227ade910047ea7c2
-      LLM_PROXY_URL: http://llm-proxy:8200
+      # Route LLM calls through the proxy (key from config/.env via docker/.env)
+      OPENAI_API_KEY: ${LLM_PROXY_ANALYST_KEY:?must be set in config/.env}
+      DEEPSEEK_API_KEY: ${LLM_PROXY_ANALYST_KEY:?must be set in config/.env}
+      AGENT_API_KEY: ${LLM_PROXY_ANALYST_KEY:?must be set in config/.env}
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../data/openclaw/agents/analyst:/home/openclaw/.openclaw/agents/analyst
@@ -163,19 +166,16 @@ services:
     env_file:
       - ../config/.env
     environment:
-      <<: *common-env
+      <<: [*common-env, *proxy-env]
       AGENT_NAME: newsletter
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
       NEWSLETTER_MODEL: claude-sonnet-4-20250514
       NEWSLETTER_POLL_INTERVAL: "30"
       LOG_LEVEL: info
-      # Route LLM calls through the proxy (internal network key)
-      OPENAI_API_KEY: ap_newsletter_3aaefe32b03b638665ca0560b7f784d3
-      OPENAI_BASE_URL: http://llm-proxy:8200/v1
-      DEEPSEEK_API_KEY: ap_newsletter_3aaefe32b03b638665ca0560b7f784d3
-      DEEPSEEK_BASE_URL: http://llm-proxy:8200/v1
-      AGENT_API_KEY: ap_newsletter_3aaefe32b03b638665ca0560b7f784d3
-      LLM_PROXY_URL: http://llm-proxy:8200
+      # Route LLM calls through the proxy (key from config/.env via docker/.env)
+      OPENAI_API_KEY: ${LLM_PROXY_NEWSLETTER_KEY:?must be set in config/.env}
+      DEEPSEEK_API_KEY: ${LLM_PROXY_NEWSLETTER_KEY:?must be set in config/.env}
+      AGENT_API_KEY: ${LLM_PROXY_NEWSLETTER_KEY:?must be set in config/.env}
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../data/openclaw/agents/newsletter:/home/openclaw/.openclaw/agents/newsletter
@@ -213,10 +213,9 @@ services:
     env_file:
       - ../config/.env
     environment:
-      <<: *common-env
+      <<: [*common-env, *proxy-env]
       AGENT_NAME: research
-      AGENT_API_KEY: ${LLM_PROXY_RESEARCH_KEY:-}
-      LLM_PROXY_URL: http://llm-proxy:8200
+      AGENT_API_KEY: ${LLM_PROXY_RESEARCH_KEY:?must be set in config/.env}
       RESEARCH_MODEL: claude-sonnet-4-20250514
       RESEARCH_POLL_INTERVAL: "60"
       OPENCLAW_DATA_DIR: /home/openclaw/.openclaw
@@ -257,13 +256,11 @@ services:
     env_file:
       - ../config/.env
     environment:
-      <<: *common-env
-      # Route LLM calls through the proxy (internal network key)
-      OPENAI_API_KEY: ap_processor_bbf3520a2c38065dc95c8d16a37df978
-      DEEPSEEK_API_KEY: ap_processor_bbf3520a2c38065dc95c8d16a37df978
-      DEEPSEEK_BASE_URL: http://llm-proxy:8200/v1
-      AGENT_API_KEY: ap_processor_bbf3520a2c38065dc95c8d16a37df978
-      LLM_PROXY_URL: http://llm-proxy:8200
+      <<: [*common-env, *proxy-env]
+      # Route LLM calls through the proxy (key from config/.env via docker/.env)
+      OPENAI_API_KEY: ${LLM_PROXY_PROCESSOR_KEY:?must be set in config/.env}
+      DEEPSEEK_API_KEY: ${LLM_PROXY_PROCESSOR_KEY:?must be set in config/.env}
+      AGENT_API_KEY: ${LLM_PROXY_PROCESSOR_KEY:?must be set in config/.env}
     volumes:
       - ../data/openclaw/workspace:/home/openclaw/.openclaw/workspace
       - ../config:/home/openclaw/.openclaw/config:ro
@@ -334,10 +331,9 @@ services:
     env_file:
       - ../config/.env
     environment:
-      <<: *common-env
+      <<: [*common-env, *proxy-env]
       AGENT_NAME: lab_data-provider
-      AGENT_API_KEY: ap_lab-data-provider_8a13531d1fb9a271adb6ed410d74024d
-      LLM_PROXY_URL: http://llm-proxy:8200
+      AGENT_API_KEY: ${LLM_PROXY_LABDATA_KEY:?must be set in config/.env}
       DATA_PROVIDER_PORT: "8300"
       LOG_LEVEL: info
     mem_limit: 256m
