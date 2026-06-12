@@ -39,8 +39,14 @@ load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
-ANTHROPIC_AGENT_KEY = os.getenv("ANTHROPIC_AGENT_KEY")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
+
+
+def require_env(names):
+    """Fail loud on missing env. Each element may be 'A|B' alternatives (any non-empty satisfies)."""
+    missing = [n for n in names if not any(os.getenv(alt) for alt in n.split('|'))]
+    if missing:
+        raise RuntimeError(f"missing required env: {', '.join(missing)}")
 
 MODEL = os.getenv("RESEARCH_MODEL", "claude-sonnet-4-20250514")
 POLL_INTERVAL = int(os.getenv("RESEARCH_POLL_INTERVAL", "60"))
@@ -65,7 +71,6 @@ logging.basicConfig(
 logger = logging.getLogger("research-agent")
 
 supabase: Client | None = None
-claude_client: anthropic.Anthropic | None = None
 
 SYSTEM_PROMPT_PATH = Path(__file__).resolve().parent / "IDENTITY.md"
 _system_prompt_cache: str | None = None
@@ -101,7 +106,7 @@ signal.signal(signal.SIGINT, handle_shutdown)
 # ============================================================================
 
 def init():
-    global supabase, claude_client, proxy_client
+    global supabase, proxy_client
 
     if SUPABASE_URL and SUPABASE_KEY:
         supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -110,35 +115,14 @@ def init():
         logger.error("SUPABASE_URL or SUPABASE_KEY missing — cannot start")
         sys.exit(1)
 
-    if ANTHROPIC_AGENT_KEY:
-        claude_client = anthropic.Anthropic(api_key=ANTHROPIC_AGENT_KEY)
-        logger.info(f"Anthropic client initialized (model: {MODEL})")
-    else:
-        logger.error("ANTHROPIC_AGENT_KEY missing — cannot start")
+    # Proxy-routed Anthropic client only — no direct-SDK fallback (spec 02 / WS-02).
+    # AGENT_API_KEY comes from compose ${LLM_PROXY_RESEARCH_KEY:?}.
+    if not _agent_api_key or not LLM_PROXY_URL:
+        logger.error("AGENT_API_KEY or LLM_PROXY_URL missing — proxy wiring missing, refusing to start ungoverned")
         sys.exit(1)
 
-    # Also create a proxy-routed client for spend tracking.
-    # Uses AGENT_API_KEY env var (the proxy key, e.g. ap_research_*).
-    agent_key = _agent_api_key or _get_agent_api_key_from_db()
-    if agent_key and LLM_PROXY_URL:
-        proxy_client = anthropic.Anthropic(
-            api_key=agent_key,
-            base_url=f"{LLM_PROXY_URL}/anthropic",
-        )
-        logger.info(f"Proxy-routed Anthropic client initialized ({LLM_PROXY_URL})")
-    else:
-        logger.warning("No proxy API key found — LLM calls will bypass spend tracking")
-
-
-def _get_agent_api_key_from_db() -> str | None:
-    """Fetch the agent's proxy API key from Supabase (at init time)."""
-    try:
-        result = supabase.table("agent_api_keys").select("api_key").eq("agent_name", AGENT_NAME).limit(1).execute()
-        if result.data:
-            return result.data[0]["api_key"]
-    except Exception as e:
-        logger.warning(f"Failed to fetch agent API key: {e}")
-    return None
+    proxy_client = anthropic.Anthropic(api_key=_agent_api_key, base_url=f"{LLM_PROXY_URL}/anthropic")
+    logger.info(f"Proxy-routed Anthropic client initialized ({LLM_PROXY_URL})")
 
 
 def load_system_prompt() -> str:
@@ -620,8 +604,8 @@ Respond with valid JSON only, following the output format in your instructions."
 
     usage_stats = {"input_tokens": 0, "output_tokens": 0, "model": MODEL, "retries": 0}
 
-    # Use proxy client for spend tracking, fall back to direct client
-    llm = proxy_client or claude_client
+    # Proxy client only — direct fallback removed (spec 02 / WS-02)
+    llm = proxy_client
 
     for attempt in range(1 + RETRY_ON_FAILURE):
         try:
@@ -785,7 +769,7 @@ def _create_prediction(spotlight: dict, thesis_data: dict, queue_item: dict):
 
 def _extract_prediction(raw_prediction: str) -> str | None:
     """Use Claude to sharpen a raw prediction into a single falsifiable sentence."""
-    llm = proxy_client or claude_client
+    llm = proxy_client
     try:
         _t0 = time.time()
         response = llm.messages.create(
@@ -985,6 +969,8 @@ def run_once():
 
 if __name__ == "__main__":
     import argparse
+
+    require_env(['SUPABASE_URL', 'SUPABASE_SERVICE_KEY|SUPABASE_KEY', 'LLM_PROXY_URL', 'AGENT_API_KEY'])
 
     parser = argparse.ArgumentParser(description="AgentPulse Research Agent")
     parser.add_argument("--mode", choices=["watch", "once"], default="watch",

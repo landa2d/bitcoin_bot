@@ -37,7 +37,6 @@ import web_search
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
-ANTHROPIC_AGENT_KEY = os.getenv("ANTHROPIC_AGENT_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
@@ -50,6 +49,13 @@ OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 
 SESSION_TIMEOUT_MINUTES = 60
 HISTORY_LIMIT = 10
+
+
+def require_env(names):
+    """Fail loud on missing env. Each element may be 'A|B' alternatives (any non-empty satisfies)."""
+    missing = [n for n in names if not any(os.getenv(alt) for alt in n.split('|'))]
+    if missing:
+        raise RuntimeError(f"missing required env: {', '.join(missing)}")
 
 TIER_LIMITS = {
     "owner": {"messages": None, "web_searches": None},
@@ -609,60 +615,36 @@ def init_clients():
         logger.error("SUPABASE_URL / SUPABASE_SERVICE_KEY not set")
         raise RuntimeError("Supabase not configured")
 
-    if not ANTHROPIC_AGENT_KEY:
-        logger.error("ANTHROPIC_AGENT_KEY not set")
-        raise RuntimeError("Anthropic API key not configured")
+    if not LLM_PROXY_URL or not AGENT_API_KEY:
+        raise RuntimeError("LLM_PROXY_URL / AGENT_API_KEY not set — proxy wiring missing, refusing to start ungoverned")
 
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    # Claude client: route through proxy when available
-    if LLM_PROXY_URL and AGENT_API_KEY:
-        claude_client = anthropic.Anthropic(
-            api_key=AGENT_API_KEY,
-            base_url=f"{LLM_PROXY_URL}/anthropic",
-        )
-        logger.info("Claude client initialized via proxy (%s)", LLM_PROXY_URL)
-    else:
-        claude_client = anthropic.Anthropic(api_key=ANTHROPIC_AGENT_KEY)
-        logger.warning("Claude client initialized DIRECT (no proxy) — calls will bypass spend tracking")
+    # Claude client: always proxy-routed (no direct-SDK fallback, spec 02 / WS-02)
+    claude_client = anthropic.Anthropic(api_key=AGENT_API_KEY, base_url=f"{LLM_PROXY_URL}/anthropic")
+    logger.info("Claude client initialized via proxy (%s)", LLM_PROXY_URL)
     logger.info("Supabase + Claude clients initialized")
 
-    # OpenAI embeddings: route through proxy when available
-    if OPENAI_API_KEY:
-        if LLM_PROXY_URL and AGENT_API_KEY:
-            corpus_probe.init(AGENT_API_KEY, base_url=f"{LLM_PROXY_URL}/v1")
-            logger.info("Corpus probe initialized via proxy")
-        else:
-            corpus_probe.init(OPENAI_API_KEY)
-    else:
-        logger.warning("OPENAI_API_KEY not set — corpus probe disabled")
+    # OpenAI embeddings: always proxy-routed
+    corpus_probe.init(AGENT_API_KEY, base_url=f"{LLM_PROXY_URL}/v1")
+    logger.info("Corpus probe initialized via proxy")
 
     if TAVILY_API_KEY:
         web_search.init(TAVILY_API_KEY)
     else:
         logger.warning("TAVILY_API_KEY not set — web search disabled")
 
-    # DeepSeek client: route through proxy when available
-    if DEEPSEEK_API_KEY:
-        if LLM_PROXY_URL and AGENT_API_KEY:
-            ds_base = f"{LLM_PROXY_URL}/v1"
-            ds_key = AGENT_API_KEY
-            logger.info("DeepSeek client initialized via proxy (%s)", LLM_PROXY_URL)
-        else:
-            ds_base = DEEPSEEK_BASE_URL
-            ds_key = DEEPSEEK_API_KEY
-            logger.warning("DeepSeek client initialized DIRECT (no proxy) — calls will bypass spend tracking")
-        deepseek_client = httpx.Client(
-            base_url=ds_base,
-            headers={
-                "Authorization": f"Bearer {ds_key}",
-                "Content-Type": "application/json",
-            },
-            timeout=30.0,
-        )
-        intent_router.init(deepseek_client)
-    else:
-        logger.warning("DEEPSEEK_API_KEY not set — session summaries will be basic, intent router will use heuristic")
+    # DeepSeek client: always proxy-routed
+    deepseek_client = httpx.Client(
+        base_url=f"{LLM_PROXY_URL}/v1",
+        headers={
+            "Authorization": f"Bearer {AGENT_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        timeout=30.0,
+    )
+    logger.info("DeepSeek client initialized via proxy (%s)", LLM_PROXY_URL)
+    intent_router.init(deepseek_client)
 
     # Start daily embedding scheduler
     threading.Thread(target=_start_daily_embed_scheduler, daemon=True).start()
@@ -3008,6 +2990,7 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
 
 if __name__ == "__main__":
     import uvicorn
+    require_env(['SUPABASE_URL', 'SUPABASE_SERVICE_KEY|SUPABASE_KEY', 'LLM_PROXY_URL', 'AGENT_API_KEY'])
     logger.info(f"Starting Gato Brain on port {PORT}")
     init_clients()
     uvicorn.run(app, host="0.0.0.0", port=PORT)

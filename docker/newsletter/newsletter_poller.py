@@ -35,6 +35,14 @@ from schemas import TASK_INPUT_SCHEMAS, NewsletterOutput
 
 load_dotenv()
 
+
+def require_env(names):
+    """Fail loud on missing env. Each element may be 'A|B' alternatives (any non-empty satisfies)."""
+    missing = [n for n in names if not any(os.getenv(alt) for alt in n.split('|'))]
+    if missing:
+        raise RuntimeError(f"missing required env: {', '.join(missing)}")
+
+
 # Configuration
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
@@ -2388,4 +2396,6 @@ def main():
 
 
 if __name__ == "__main__":
+    require_env(['SUPABASE_URL', 'SUPABASE_SERVICE_KEY|SUPABASE_KEY', 'OPENAI_API_KEY',
+                 'LLM_PROXY_URL'])
     main()

@@ -40,6 +40,14 @@ import markdown as md_lib
 
 load_dotenv('/home/openclaw/.env')
 
+
+def require_env(names):
+    """Fail loud on missing env. Each element may be 'A|B' alternatives (any non-empty satisfies)."""
+    missing = [n for n in names if not any(os.getenv(alt) for alt in n.split('|'))]
+    if missing:
+        raise RuntimeError(f"missing required env: {', '.join(missing)}")
+
+
 # Paths
 WORKSPACE = Path(os.getenv('OPENCLAW_DATA_DIR', '/home/openclaw/.openclaw')) / 'workspace'
 QUEUE_DIR = WORKSPACE / 'agentpulse' / 'queue'
@@ -60,8 +68,11 @@ SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_KEY') or os.getenv('SUPABASE_KEY')
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('AGENTPULSE_OPENAI_MODEL', 'gpt-4o')
+# NO defaults on base URLs — a proxy-keyed client pointed at a real provider
+# must be impossible to construct (spec 02 / WS-01, fail-loud LD-4)
+OPENAI_BASE_URL = os.getenv('OPENAI_BASE_URL')
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
-DEEPSEEK_BASE_URL = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
+DEEPSEEK_BASE_URL = os.getenv('DEEPSEEK_BASE_URL')
 LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://llm-proxy:8200")
 _agent_api_key: str | None = os.getenv("AGENT_API_KEY") or None
 
@@ -419,17 +430,18 @@ def init_clients():
     else:
         logger.warning("Supabase not configured")
 
-    if OPENAI_API_KEY:
-        openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        logger.info("OpenAI client initialized")
-    else:
-        logger.warning("OpenAI not configured")
+    if not OPENAI_BASE_URL or not DEEPSEEK_BASE_URL:
+        raise RuntimeError("OPENAI_BASE_URL / DEEPSEEK_BASE_URL not set — proxy wiring missing, refusing to start ungoverned")
+    if not OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY not set — refusing to start")
+    if not DEEPSEEK_API_KEY:
+        raise RuntimeError("DEEPSEEK_API_KEY not set — refusing to start")
 
-    if DEEPSEEK_API_KEY:
-        deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
-        logger.info("DeepSeek client initialized")
-    else:
-        logger.info("DeepSeek not configured — bulk tasks will use OpenAI fallback")
+    openai_client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_BASE_URL)
+    logger.info("OpenAI client initialized via proxy (%s)", OPENAI_BASE_URL)
+
+    deepseek_client = OpenAI(api_key=DEEPSEEK_API_KEY, base_url=DEEPSEEK_BASE_URL)
+    logger.info("DeepSeek client initialized via proxy (%s)", DEEPSEEK_BASE_URL)
 
 # ============================================================================
 # Model Routing
@@ -11005,10 +11017,10 @@ def run_health_checks() -> dict:
             pass
         results['subscribe_rpc'] = {'status': 'fail', 'error': str(e)}
 
-    # 3-5. External API reachability (just TCP connect, any response = ok)
+    # 3-5. API reachability (just TCP connect, any response = ok).
+    # LLM traffic is proxy-only (spec 02) — probe the proxy, not the providers.
     api_endpoints = {
-        'deepseek': 'https://api.deepseek.com',
-        'openai': 'https://api.openai.com',
+        'llm_proxy': f"{LLM_PROXY_URL}/v1/proxy/health",
         'x_api': 'https://api.twitter.com',
     }
     for name, url in api_endpoints.items():
@@ -11660,4 +11672,7 @@ def main():
         sys.exit(1)
 
 if __name__ == '__main__':
+    require_env(['SUPABASE_URL', 'SUPABASE_SERVICE_KEY|SUPABASE_KEY', 'OPENAI_API_KEY',
+                 'DEEPSEEK_API_KEY', 'OPENAI_BASE_URL', 'DEEPSEEK_BASE_URL',
+                 'LLM_PROXY_URL', 'AGENT_API_KEY'])
     main()
