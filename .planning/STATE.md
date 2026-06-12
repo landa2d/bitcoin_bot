@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 Phase: 23
 Plan: Not started
 Status: Phase 22 complete (deployed + verified passed) — Phase 23 not started
-Last activity: 2026-06-12 -- Phase 22 complete
+Last activity: 2026-06-12 -- Completed quick task 260612-kh9: proxy governance wiring (audit spec 02 / R1)
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
@@ -89,6 +89,7 @@ Carry-over advisories (non-blocking): a PRE-EXISTING service_role leak in tracke
 |---|-------------|------|--------|-----------|
 | 260609-fpc | Fix duplicate block title on `#/map/<slug>` — `renderBlock` strips the body's leading `# <Title>` H1 (guarded by trimmed/case-insensitive title match) so the title renders once; deployed live via scoped `agentpulse-web` rebuild | 2026-06-09 | 19115b2 | [260609-fpc-fix-duplicate-block-title-on-map-slug](./quick/260609-fpc-fix-duplicate-block-title-on-map-slug/) |
 | 260609-ivq | Map page rendering fixes (3): site-wide prose paragraph rhythm via `--space-lg` incl. `.hub-storyline p`; hub duplicate-title de-dup via `stripLeadingTitleH1` shared helper; maturity-pill/nav overlap fixed by re-scoping the bare `header{position:sticky}` rule to `body > header`. Deployed live via scoped `agentpulse-web` rebuild | 2026-06-09 | 9e350f3 | [260609-ivq-map-page-rendering-fixes-hub-duplicate-t](./quick/260609-ivq-map-page-rendering-fixes-hub-duplicate-t/) |
+| 260612-kh9 | Proxy governance wiring (audit spec 02 / R1): x-proxy-env compose anchor, processor OPENAI_BASE_URL → proxy (WS-01 closed — governed gpt-4o-mini call settled in wallet_transactions), direct-SDK fallbacks deleted in gato_brain/research, require_env guards in 5 services + web entrypoint, 4 ap_ key literals moved compose→.env (rotation to new values deferred — operator gate). 7 services rebuilt healthy | 2026-06-12 | 1fd56ca | [260612-kh9-implement-audit-spec-02-proxy-governance](./quick/260612-kh9-implement-audit-spec-02-proxy-governance/) |
 
 ## Deferred Items
 
