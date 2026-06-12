@@ -4,14 +4,14 @@ milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
 stopped_at: Phase 22 context gathered → resumed, proceeding to plan Phase 22 (--skip-ui)
-last_updated: "2026-06-12T10:23:47.040Z"
-last_activity: 2026-06-12 -- Phase 22 execution started
+last_updated: "2026-06-12T13:41:10.153Z"
+last_activity: 2026-06-12
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 10
-  completed_plans: 6
-  percent: 43
+  completed_plans: 10
+  percent: 57
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 ## Current Position
 
-Phase: 22 (per-section-visual-fixes) — EXECUTING
-Plan: 1 of 4
+Phase: 23
+Plan: Not started
 Status: Executing Phase 22
-Last activity: 2026-06-12 -- Phase 22 execution started
+Last activity: 2026-06-12
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 

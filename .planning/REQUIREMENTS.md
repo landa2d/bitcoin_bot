@@ -35,16 +35,16 @@ Each maps to exactly one roadmap phase (see Traceability).
 
 ### Article Header (Task 3)
 
-- [ ] **HEAD-01**: An edition page shows the edition number, date, and mode (Technical/Strategic) exactly once — in the meta line below the title — with the H1 containing only the headline (no `— Edition #N | <date>` suffix). If the suffix is baked into stored data it is stripped at render, not mutated in storage.
+- [x] **HEAD-01**: An edition page shows the edition number, date, and mode (Technical/Strategic) exactly once — in the meta line below the title — with the H1 containing only the headline (no `— Edition #N | <date>` suffix). If the suffix is baked into stored data it is stripped at render, not mutated in storage.
 
 ### Agent Economy Map (Task 4)
 
-- [ ] **GRID-01**: The Agent Economy map renders as a 3-column grid on desktop so all blocks tile cleanly, collapsing responsively (3 → 2 at ≤880px → 1 at ≤600px).
-- [ ] **GRID-02**: A maturity legend appears under the map heading so the per-block bars read as a scale, not decoration; each block's filled-segment count matches its stored `economy_map` maturity value.
+- [x] **GRID-01**: The Agent Economy map renders as a 3-column grid on desktop so all blocks tile cleanly, collapsing responsively (3 → 2 at ≤880px → 1 at ≤600px).
+- [x] **GRID-02**: A maturity legend appears under the map heading so the per-block bars read as a scale, not decoration; each block's filled-segment count matches its stored `economy_map` maturity value.
 
 ### About / "What is AgentPulse" (Task 5)
 
-- [ ] **AGENTS-01**: The About page presents the pipeline agents (Processor / Analyst / Research / Newsletter) as an ordered, numbered sequence and the supporting layer (Gato / LLM proxy / web front end) as an unordered bulleted list — no orphaned single card — with the "nothing publishes without human approval" line rendered as its own distinct (violet) callout.
+- [x] **AGENTS-01**: The About page presents the pipeline agents (Processor / Analyst / Research / Newsletter) as an ordered, numbered sequence and the supporting layer (Gato / LLM proxy / web front end) as an unordered bulleted list — no orphaned single card — with the "nothing publishes without human approval" line rendered as its own distinct (violet) callout.
 
 ### Newsletter Excerpts (Task 6)
 
@@ -118,10 +118,10 @@ Which phases cover which requirements. Mapped at roadmap creation (2026-06-10).
 | RHYTHM-01 | Phase 20 | Complete (P02 on-accent token + D-05 rhythm; deployed live 2026-06-11) |
 | SCROLL-01 | Phase 21 | Pending (NEW 2026-06-11 — single-scroll landing) |
 | SCROLL-02 | Phase 21 | Pending (NEW 2026-06-11 — scroll-spy nav + detail-route coexistence) |
-| HEAD-01 | Phase 22 | Pending |
-| GRID-01 | Phase 22 | Pending |
-| GRID-02 | Phase 22 | Pending |
-| AGENTS-01 | Phase 22 | Pending |
+| HEAD-01 | Phase 22 | Complete |
+| GRID-01 | Phase 22 | Complete |
+| GRID-02 | Phase 22 | Complete |
+| AGENTS-01 | Phase 22 | Complete |
 | EXCERPT-01 | Phase 23 | Pending |
 | SIGNAL-01 | Phase 24 | Pending |
 | SIGNAL-02 | Phase 24 | Pending |
