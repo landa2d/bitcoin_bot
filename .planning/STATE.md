@@ -4,8 +4,8 @@ milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
 stopped_at: Phase 22 context gathered → resumed, proceeding to plan Phase 22 (--skip-ui)
-last_updated: "2026-06-12T10:12:25.624Z"
-last_activity: 2026-06-12 -- Phase 22 planning complete
+last_updated: "2026-06-12T10:23:47.040Z"
+last_activity: 2026-06-12 -- Phase 22 execution started
 progress:
   total_phases: 7
   completed_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 22 — per-section-visual-fixes (Phase 21 single-scroll landing + scroll-spy COMPLETE)
+**Current focus:** Phase 22 — per-section-visual-fixes
 
 ## Current Position
 
-Phase: 22 (per-section-visual-fixes) — NOT STARTED
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-12 -- Phase 22 planning complete
+Phase: 22 (per-section-visual-fixes) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 22
+Last activity: 2026-06-12 -- Phase 22 execution started
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
