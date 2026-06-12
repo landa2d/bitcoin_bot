@@ -40,6 +40,17 @@ const MATURITY_STAGE = { nascent: 1, emerging: 2, contested: 3, consolidating: 4
 // Tier headings for the hub + status tier grouping (D-13). Hardcoded uppercase.
 const TIER_LABELS = { substrate: 'SUBSTRATE', behavior: 'BEHAVIOR', frame: 'FRAME' };
 
+// HEAD-01 / D-03 / D-04: render-only strip for the baked edition-title suffix.
+// Stored newsletters.title AND title_impact carry a trailing
+// ` — Edition #N | <Month D, YYYY>` (CONFIRMED via anon PostgREST on editions
+// 29/30, 2026-06-12: separator is U+2014 em-dash w/ surrounding spaces, ` | `
+// pipe delimiter, full-month date e.g. `June 8, 2026`). Anchored to `$` so it
+// only removes a trailing suffix (never interior headline text); tolerates
+// em-dash/en-dash/hyphen; case-insensitive. Applied UNCONDITIONALLY in
+// getModeTitle() — a no-op when no suffix is present, so future suffixed
+// editions are also covered. RENDER-ONLY: never mutates stored data (D-03).
+const EDITION_SUFFIX_RE = /\s*[—–-]\s*Edition\s*#\d+\s*\|.*$/i;
+
 // Exact-string-match contract (Phase 2 D-21 seed). Wave 2 plan 03 hides the
 // tension card when blocks.live_tension === this value. Em-dash MUST match the
 // seed exactly — do not substitute a hyphen.
@@ -561,8 +572,13 @@ function formatDate(isoStr) {
 }
 
 function getModeTitle(data) {
-    if (currentMode === 'strategic' && data.title_impact) return data.title_impact;
-    return data.title;
+    // Resolve the mode title, then strip the baked edition suffix (HEAD-01/D-03).
+    // Applying the strip to the resolved value is the SINGLE chokepoint covering
+    // both Technical (data.title) and Strategic (data.title_impact). Operates on
+    // the RAW string here, BEFORE escapeHtml() runs at the H1 sink (renderArticle)
+    // — escape order preserved. Render-only; stored data is never mutated.
+    var rawTitle = (currentMode === 'strategic' && data.title_impact) ? data.title_impact : data.title;
+    return String(rawTitle || '').replace(EDITION_SUFFIX_RE, '').trim();
 }
 
 function getModeContent(data) {
