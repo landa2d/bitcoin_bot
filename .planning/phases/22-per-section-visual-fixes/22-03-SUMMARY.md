@@ -103,6 +103,12 @@ None - no external service configuration required.
 - Source changes are complete and syntax-validated (`node --check` passes on app.js). Live render verification (3 columns on desktop, 2 at ≤880px, 1 at ≤600px; legend visible once under the heading with matching scale; per-block pill fill == stored maturity) is owned by plan 22-04 (orchestrator-owned scoped `web` rebuild — worktree-unsafe).
 - No backend, schema, or migration changes; no new attack surface (static legend string + a pure CSS column-count change; existing escaped economy_map read untouched).
 
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/22-per-section-visual-fixes/22-03-SUMMARY.md`
+- FOUND commits: `d38488b` (Task 1), `4491ba2` (Task 2), `84925de` (SUMMARY)
+- No file deletions in task commits.
+
 ---
 *Phase: 22-per-section-visual-fixes*
 *Completed: 2026-06-12*
