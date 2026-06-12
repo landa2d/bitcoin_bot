@@ -171,7 +171,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 
 **Wave 2** *(blocked on Wave 1 — shares app.js / style-shared.css)*
 
-- [ ] 22-03-PLAN.md — GRID-01/02 Agent Economy map: tier grids 2->3 col with 3/2/1 breakpoints + a maturity legend mirroring the real 5-seg pill (GRID-01, GRID-02)
+- [x] 22-03-PLAN.md — GRID-01/02 Agent Economy map: tier grids 2->3 col with 3/2/1 breakpoints + a maturity legend mirroring the real 5-seg pill (GRID-01, GRID-02)
 
 **Wave 3** *(blocked on Waves 1-2 — orchestrator-owned deploy)*
 
@@ -252,7 +252,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete | 2026-06-10 |
 | 20. Width Tokens & Centering Foundation | v2.2 | 2/2 | Complete | 2026-06-11 |
 | 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 2/2 | Complete    | 2026-06-11 |
-| 22. Per-Section Visual Fixes | v2.2 | 2/4 | In Progress|  |
+| 22. Per-Section Visual Fixes | v2.2 | 3/4 | In Progress|  |
 | 23. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
 | 24. Signals Section | v2.2 | 0/? | Not started | - |
 | 25. Responsive & Accessibility Pass | v2.2 | 0/? | Not started | - |
