@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: verifying
-stopped_at: Phase 22 context gathered
-last_updated: "2026-06-11T15:43:41.931Z"
-last_activity: 2026-06-11 -- Phase 21 complete (single-scroll landing + scroll-spy, deployed + verified)
+status: executing
+stopped_at: Phase 22 context gathered → resumed, proceeding to plan Phase 22 (--skip-ui)
+last_updated: "2026-06-12T10:12:25.624Z"
+last_activity: 2026-06-12 -- Phase 22 planning complete
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 6
+  total_plans: 10
   completed_plans: 6
   percent: 43
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 Phase: 22 (per-section-visual-fixes) — NOT STARTED
 Plan: Not started
-Status: Phase 21 complete + verified + deployed live (operator-approved). Phase 22 next — three non-conflicting per-section fixes: edition-header de-dup (detail route), map 3-col grid + maturity legend, About pipeline-vs-supporting agent grid + approval callout (HEAD-01, GRID-01, GRID-02, AGENTS-01).
-Last activity: 2026-06-11 -- Phase 21 complete (single-scroll landing + scroll-spy, deployed + verified)
+Status: Ready to execute
+Last activity: 2026-06-12 -- Phase 22 planning complete
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
@@ -118,11 +118,11 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-11T15:43:41.926Z
-Stopped at: Phase 22 context gathered
+Last session: 2026-06-11 (resumed via /gsd-resume-work)
+Stopped at: Phase 22 context gathered → resumed, proceeding to plan Phase 22 (--skip-ui)
 Resume file: .planning/phases/22-per-section-visual-fixes/22-CONTEXT.md
-Next: `/gsd-plan-phase 21` (operator chose "approve + plan directly" — design unknowns surfaced inside planning research: scroll-spy ↔ detail-route coexistence, app.js router two-mode refactor, back-to-landing scroll restore, Signals section shell vs Phase 24 data). Do NOT re-run the web rebuild (Phase 20 already deployed).
-Note: root `.planning/.continue-here.md` is a STALE v1.0 leftover (Phase 6→7, 2026-05-30) — not the current checkpoint; safe to delete.
+Next: `/gsd-plan-phase 22 --skip-ui` in progress (operator confirmed). Research SKIPPED (config research_enabled=false + locked v2.2 "No domain research" decision + CONTEXT.md is the design contract). D-04 stored-title-bytes check folded into the HEAD-01 plan, not a research task. Do NOT re-run the web rebuild (Phase 21 already deployed).
+Note: stale root `.planning/.continue-here.md` (v1.0 Phase 6→7 leftover) DELETED during resume housekeeping.
 
 ## Operator Next Steps
 

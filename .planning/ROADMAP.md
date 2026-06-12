@@ -162,7 +162,21 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
   3. The About page shows the pipeline agents (Processor / Analyst / Research / Newsletter) as an ordered numbered sequence and the supporting layer (Gato / LLM proxy / web) as an unordered bulleted list — no orphaned single card — with "nothing publishes without human approval" rendered as its own distinct violet callout.
 
 **Notes**: Three non-conflicting fixes share this phase per the brief (Tasks 3/4/5 touch different sections/routes, no file contention): the edition fix is on the detail route, the map + About fixes are in their landing sections. HEAD-01 strips at render — no stored-data mutation (consistent with v2.0, which appends edition/date at render). GRID-02 reads `economy_map` maturity via the existing renderer / direct PostgREST + `Accept-Profile` (never `.in_()`); read-only, no schema change. Frontend-only.
-**Plans**: TBD
+**Plans**: 4 plans
+
+**Wave 1**
+
+- [ ] 22-01-PLAN.md — HEAD-01 edition-header de-dup: confirm stored title bytes (D-04) + strip the baked `— Edition #N | <date>` suffix in getModeTitle (both modes) + drop the duplicate eyebrow line (HEAD-01)
+- [ ] 22-02-PLAN.md — AGENTS-01 About agent grid: numbered 01-04 pipeline + bulleted supporting layer (Gato Brain retained) + violet human-approval callout; approval-clause de-dup (AGENTS-01)
+
+**Wave 2** *(blocked on Wave 1 — shares app.js / style-shared.css)*
+
+- [ ] 22-03-PLAN.md — GRID-01/02 Agent Economy map: tier grids 2->3 col with 3/2/1 breakpoints + a maturity legend mirroring the real 5-seg pill (GRID-01, GRID-02)
+
+**Wave 3** *(blocked on Waves 1-2 — orchestrator-owned deploy)*
+
+- [ ] 22-04-PLAN.md — Deploy (scoped `web` rebuild, worktree-unsafe) + live-verify the 3 success criteria + D-12 copy sign-off + no Phase 20/21 regression (autonomous:false)
+
 **UI hint**: yes
 
 ### Phase 23: Distinct Newsletter Excerpts
@@ -238,7 +252,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 19. Smart-Quote / Apostrophe Corruption Fix | v2.2 | 2/2 | Complete | 2026-06-10 |
 | 20. Width Tokens & Centering Foundation | v2.2 | 2/2 | Complete | 2026-06-11 |
 | 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 2/2 | Complete    | 2026-06-11 |
-| 22. Per-Section Visual Fixes | v2.2 | 0/? | Not started | - |
+| 22. Per-Section Visual Fixes | v2.2 | 0/4 | Planned | - |
 | 23. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
 | 24. Signals Section | v2.2 | 0/? | Not started | - |
 | 25. Responsive & Accessibility Pass | v2.2 | 0/? | Not started | - |
