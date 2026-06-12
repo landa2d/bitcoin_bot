@@ -986,3 +986,19 @@ article tr:last-child td {
 
     #subscribe-section { padding: 30px 0; }
 }
+
+/* ── Phase 22 AGENTS-01 — About made-cols pipeline/supporting grid ──────────
+   Net-new, token-only (RHYTHM-01). Ported from the .agent-row/.agent-pill
+   analog above; every mockup palette token mapped to the prod token system
+   per the Token Mapping table (accent / accent-soft / accent-ink / line).
+   Compact single-line rule bodies (intentional). */
+.made-cols { display:grid; grid-template-columns:1fr 1fr; gap:0 var(--space-2xl); margin-top:var(--space-lg); }
+.made-head { font-family:var(--mono); font-size:11px; font-weight:600; color:var(--ink-faint); letter-spacing:.08em; text-transform:uppercase; margin:0 0 var(--space-md); }
+.agent { display:grid; grid-template-columns:26px 1fr; gap:0 var(--space-md); align-items:baseline; padding:var(--space-sm) 0; border-bottom:1px solid var(--line); }
+.agent .idx { font-family:var(--serif); font-size:14px; color:var(--ink-faint); }
+.agent .dot { width:6px; height:6px; border-radius:50%; background:var(--accent); display:inline-block; }
+.agent .name { font-family:var(--mono); font-size:14px; font-weight:500; color:var(--ink); margin:0; }
+.agent .desc { font-size:14px; color:var(--ink-soft); margin:var(--space-xs) 0 0; line-height:1.5; }
+.approval { margin-top:var(--space-xl); padding:var(--space-md) var(--space-md); background:var(--accent-soft); border-radius:var(--radius); color:var(--accent-ink); line-height:1.55; }
+
+@media (max-width: 880px) { .made-cols { grid-template-columns: 1fr; } }
