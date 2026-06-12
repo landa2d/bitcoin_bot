@@ -228,6 +228,14 @@ body {
     margin-top: var(--space-sm);
 }
 
+/* Phase 22 GRID-02 — maturity legend. Sits ONCE under the map page-title inside
+   the .prose header; reuses the real .maturity-pill/.seg markup (data-stage="1")
+   so its scale equals the cards'. Token-only chrome (RHYTHM-01): mono labels
+   mirror the .tier-label property block; segments inherit the existing
+   .maturity-pill .seg rules — no new segment styling. */
+.legend { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-sm); margin-bottom: var(--space-md); }
+.legend .legend-label { font-family: var(--mono); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+
 /* D-05 major boundary between adjacent map tier sections (substrate <-> behavior
    <-> frame) — a full-strength 1px --line-strong rule, matching the other major
    section boundaries. Sections are emitted as <section class="tier-section"> by

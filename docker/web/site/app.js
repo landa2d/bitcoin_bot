@@ -809,9 +809,28 @@ function renderHub(data, hubBodyMd, draftMaturity, draftSlugs) {
     // wrapper at the wide band established by the #map-view .content-area.wide
     // wrapper (index.html). Pure presentational wrap — no change to the trim/strip/
     // fallback body path, tierSection, or the grid column count.
+    // GRID-02 (D-07): a maturity legend, ONCE, directly under the page-title
+    // inside the .prose header. It MIRRORS the real 5-seg .maturity-pill the
+    // cards use (data-stage="1" → 1 filled + 4 empty = ■ □ □ □ □) so the legend's
+    // scale literally equals the cards' scale — that equality IS the requirement.
+    // The pill here is a STATIC decorative sample (aria-hidden); the surrounding
+    // mono labels carry the meaning. D-09: this adds NO new economy_map query —
+    // per-card fill still derives from stored MATURITY_STAGE[b.maturity]
+    // (renderMaturityPill), and the existing sb.schema('economy_map') read is
+    // untouched. No DB value is interpolated here, so nothing to escapeHtml.
+    var maturityLegend =
+        '<div class="legend">' +
+            '<span class="legend-label">Maturity</span>' +
+            '<div class="maturity-pill" data-stage="1" aria-hidden="true">' +
+                '<span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>' +
+            '</div>' +
+            '<span class="legend-label">nascent &rarr; established</span>' +
+        '</div>';
+
     var html =
         '<div class="prose">' +
             '<h1 class="page-title">The Agent Economy</h1>' +
+            maturityLegend +
             subline +
             hubIntroHtml +
         '</div>' +
