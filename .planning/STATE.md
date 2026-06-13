@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: executing
-stopped_at: Phase 22 (per-section-visual-fixes) COMPLETE + deployed live + verified (passed); Phase 23 not started
-last_updated: "2026-06-12T13:41:10.153Z"
-last_activity: 2026-06-12 -- Phase 22 complete (deployed + verified passed)
+status: verifying
+stopped_at: Phase 23 context gathered
+last_updated: "2026-06-13T09:39:31.700Z"
+last_activity: "2026-06-12 -- Completed quick task 260612-kh9: proxy governance wiring (audit spec 02 / R1)"
 progress:
   total_phases: 7
   completed_phases: 4
@@ -119,9 +119,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-12 (/gsd-execute-phase 22)
-Stopped at: Phase 22 COMPLETE — all 4 plans executed, deployed live via scoped web rebuild, operator-approved + verified (passed). Phase 23 not started.
-Resume file: n/a (Phase 22 closed)
+Last session: 2026-06-13T09:39:31.695Z
+Stopped at: Phase 23 context gathered
+Resume file: .planning/phases/23-distinct-newsletter-excerpts/23-CONTEXT.md
 Next: `/gsd-discuss-phase 23` or `/gsd-plan-phase 23` (distinct-newsletter-excerpts — EXCERPT-01). Phase 22 ran no-worktree/sequential on the main tree (config/.env gitignored→absent in worktrees would break 22-01's D-04 curl; 22-04 deploy worktree-unsafe). Code review 22-REVIEW.md: 0 crit / 0 warn / 4 info (advisory; IN-01/IN-04 plan-deferred dead-CSS cleanup → Phase 25). D-04: ` — Edition #N | <date>` suffix (em-dash U+2014) IS baked into both newsletters.title + title_impact; render-only strip handles both.
 Carry-over (NOT Phase 22): newsletter image drift (Phase 19 commit 437cdb1, unrebuilt); migration 043 unapplied (Phase-24-owned); lab-data-provider known carry-over.
 
