@@ -464,16 +464,28 @@ function renderList(data) {
     var latestDate = formatDate(latest.published_at);
     updateHero('AI Agents Pulse', 'Latest: Edition #' + latest.edition_number + ' \u00b7 ' + latestDate);
 
-    var html = data.map(function(n) {
+    // Phase 23 (EXCERPT-01 / D-06..D-09): the mockup indexed-row grid. One static
+    // "Archive" label, then one whole-<a>-is-the-click-target row per edition:
+    // num (edition_number, numeric -> interpolated RAW, precedent renderMaturityPill)
+    // · title (getModeTitle -> the Phase 22 EDITION_SUFFIX_RE chokepoint, D-09)
+    // · summary (extractDistinctExcerpt(getModeContent(n)) -- mode-aware, D-02/D-08)
+    // · date (formatDate). The .sum <p> is emitted ONLY when the excerpt is non-empty
+    // (D-07: number·title·date with no summary line -- never the legacy 150-char
+    // clamp, never fabricated text). Every DB-derived string is escapeHtml'd at this
+    // innerHTML sink (T-23-01/T-23-02); edition_number is the only raw interpolation.
+    var html = '<p class="archive-label">Archive</p>' + data.map(function(n) {
         var title = getModeTitle(n);
-        var content = getModeContent(n);
-        var excerpt = content.replace(/[#*_\[\]`>]/g, '').substring(0, 150) + '...';
+        var sum = extractDistinctExcerpt(getModeContent(n));
+        var sumFragment = sum ? '<p class="sum">' + escapeHtml(sum) + '</p>' : '';
 
-        return '<div class="article-entry">' +
-            '<div class="section-label">EDITION #' + n.edition_number + ' · ' + formatDate(n.published_at) + '</div>' +
-            '<a href="#/edition/' + n.edition_number + '" class="entry-title">' + escapeHtml(title) + '</a>' +
-            '<p class="entry-preview">' + escapeHtml(excerpt) + '</p>' +
-            '</div>';
+        return '<a href="#/edition/' + n.edition_number + '" class="row">' +
+            '<span class="num">' + n.edition_number + '</span>' +
+            '<span>' +
+                '<p class="title">' + escapeHtml(title) + '</p>' +
+                sumFragment +
+            '</span>' +
+            '<span class="date">' + escapeHtml(formatDate(n.published_at)) + '</span>' +
+            '</a>';
     }).join('');
 
     document.getElementById('newsletter-list').innerHTML = html;
