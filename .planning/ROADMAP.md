@@ -72,7 +72,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 - [x] **Phase 20: Width Tokens & Centering Foundation** — Introduce the two coexisting, both-centered max-widths (`--measure` narrow prose, `--wide` grids) that kill the dead left gutter, and establish the token-only color + section-rhythm baseline everything downstream sits on. (WIDTH-01, RHYTHM-01) (completed 2026-06-11)
 - [x] **Phase 21: Single-Scroll Landing + Scroll-Spy Nav** — Convert the four top-level sections (newsletter / about / agent-economy / signals) into one single-scroll landing with a scroll-spy nav, on the Phase 20 width foundation; editions & block pages stay deep-linkable detail routes; the nav becomes scroll-spy on the landing and route-aware on detail, with back-to-landing scroll restore. (SCROLL-01, SCROLL-02) (completed 2026-06-11)
 - [x] **Phase 22: Per-Section Visual Fixes** — Three non-conflicting fixes on the new landing: edition-header de-dup (detail route), the Agent Economy 3-col grid + maturity legend (map section), and the About pipeline-vs-supporting agent grid + approval callout (about section). (HEAD-01, GRID-01, GRID-02, AGENTS-01) (completed 2026-06-12)
-- [ ] **Phase 23: Distinct Newsletter Excerpts** — Strip the boilerplate "Read This, Skip the Rest" intro at render and pull the first genuinely-distinct sentence into the indexed-row archive format — no schema change. (EXCERPT-01)
+- [x] **Phase 23: Distinct Newsletter Excerpts** — Strip the boilerplate "Read This, Skip the Rest" intro at render and pull the first genuinely-distinct sentence into the indexed-row archive format — no schema change. (EXCERPT-01) (completed 2026-06-15)
 - [ ] **Phase 24: Signals Section** — A new `#signals` section in the single-scroll landing listing tier-1 `source_posts` newest-first (capped, external links), gated on the milestone's one Supabase migration: a read-only, tier-1-scoped anon RLS policy on `source_posts`, fail-loud if absent. (SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04)
 - [ ] **Phase 25: Responsive & Accessibility Pass** — A holistic cross-cutting verification: all grids/rows reflow (3→2→1, nav condenses, rows stack date-above-headline), scroll-spy is keyboard/motion-safe, and focus is visible / motion-reduced / every link is a real `<a>`. (RESP-01, A11Y-01)
 
@@ -199,7 +199,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 
 **Wave 2** *(blocked on Wave 1 — orchestrator-owned deploy, worktree-unsafe)*
 
-- [ ] 23-02-PLAN.md — Pre-deploy gate (drift + /diff + approval) + scoped `web` rebuild from the main tree + live-render verify SC#1 (ed29 ≠ ed30, both modes) / SC#2 indexed rows / no regression (autonomous:false) (EXCERPT-01)
+- [x] 23-02-PLAN.md — Pre-deploy gate (drift + /diff + approval) + scoped `web` rebuild from the main tree + live-render verify SC#1 (ed29 ≠ ed30, both modes) / SC#2 indexed rows / no regression (autonomous:false) (EXCERPT-01)
 
 **UI hint**: yes
 
@@ -262,7 +262,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 20. Width Tokens & Centering Foundation | v2.2 | 2/2 | Complete | 2026-06-11 |
 | 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 2/2 | Complete    | 2026-06-11 |
 | 22. Per-Section Visual Fixes | v2.2 | 4/4 | Complete    | 2026-06-12 |
-| 23. Distinct Newsletter Excerpts | v2.2 | 1/2 | In Progress|  |
+| 23. Distinct Newsletter Excerpts | v2.2 | 2/2 | Complete   | 2026-06-15 |
 | 24. Signals Section | v2.2 | 0/? | Not started | - |
 | 25. Responsive & Accessibility Pass | v2.2 | 0/? | Not started | - |
 
