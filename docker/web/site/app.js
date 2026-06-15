@@ -127,6 +127,97 @@ function stripLeadingTitleH1(md, title) {
     return lines.join('\n');
 }
 
+// --- excerpt helpers (node-testable) START ---
+// Phase 23 (EXCERPT-01 / D-01..D-05, D-07): render-only excerpt pipeline for the
+// newsletter archive list. Mirrors the trimHubBody/stripLeadingTitleH1 spine —
+// pure, module-level, falsy-guarded, operating on LOCAL string copies, and a
+// DEFENSIVE NO-OP when a pattern is absent (never a silent content drop). These
+// three functions + two consts are deliberately DOM-FREE: the offline node harness
+// (/tmp/excerpt_check.mjs, NOT shipped) extracts everything between the two sentinel
+// comments and evaluates it to unit-test SC#1 (ed29 != ed30, both modes) with no
+// browser and no network. RENDER-ONLY: stored newsletter data is never mutated.
+
+// D-03 recap-opener detector. Anchored to the SENTENCE START (^), case-insensitive
+// (i). Covers the look-back openers verified in the ed 28/29/30 corpus:
+//   - "Last week"  (also "Last week's", "Last week we")
+//   - "Last month"
+//   - "For weeks"
+//   - "For <N> editions"  -- N = a digit run OR a number word one..ten / several / many
+//   - "<N> editions ago"  -- same N set ("Two editions ago", "3 editions ago")
+// A leading sentence is skipped ONLY on a match; no match -> the sentence is KEPT
+// (fail-loud, never over-strip), and the last remaining sentence is never dropped.
+const RECAP_OPENER_RE = /^(?:last\s+(?:week|month)|for\s+weeks|for\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|several|many)\s+editions|(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|several|many)\s+editions\s+ago)\b/i;
+
+// D-04 length floor (planner-finalized at 40). A surviving pivot below this many
+// chars (e.g. ed29-tech "This week it got specific." = 26, the sole corpus trigger)
+// gets the single next sentence appended so the row carries real substance; the
+// D-06 2-line clamp bounds the combined visual length.
+const EXCERPT_MIN_CHARS = 40;
+
+// D-05 markdown cleanup. Replaces the old blanket marker-strip + 150-char clamp that
+// leaked link URLs into the text (ed30 -> "...stablecoin rollout(unchained..."). Pure;
+// falsy -> ''. On a LOCAL copy, IN ORDER: (1) convert [text](url) -> text (drop the
+// URL), (2) drop any bare http(s) URL, (3) strip residual inline markers (hash,
+// asterisk, underscore, backtick, gt) -- the link brackets were already consumed by
+// step 1, so they are NOT blanket-stripped -- then collapse whitespace.
+function cleanExcerptMarkdown(md) {
+    if (!md) return '';
+    var out = String(md);
+    out = out.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1');   // [text](url) -> text (drop URL)
+    out = out.replace(/https?:\/\/\S+/g, '');            // drop any bare URL
+    out = out.replace(/[#*_`>]/g, '');                   // residual inline markers only
+    return out.replace(/\s+/g, ' ').trim();
+}
+
+// D-02 sentence segmentation. Pure; falsy -> []. Splits on a terminator [.!?]
+// OPTIONALLY followed by a closing quote/paren/bracket (" ' " ' ) ]), then
+// whitespace, then a capital letter or an opening quote -- so `..."The End of
+// Trust." This week...` becomes TWO sentences, while a colon ("scale: Block") or an
+// em-dash ("them - Google") does NOT split. Trims pieces and drops empties.
+function splitSentences(text) {
+    if (!text) return [];
+    return String(text)
+        .split(/(?<=[.!?]["'”’)\]]?)\s+(?=[A-Z"'“‘])/)
+        .map(function (s) { return s.trim(); })
+        .filter(function (s) { return s.length > 0; });
+}
+
+// D-01/D-02/D-03/D-04/D-07 orchestrator. Mirrors the trimHubBody/stripLeadingTitleH1
+// defensive spine. Falsy -> ''. (a) defensively splice a leading
+// `## Read This, Skip the Rest` heading LINE (no-op if absent); (b) cleanExcerptMarkdown
+// BEFORE segmentation so link-URL periods cannot fake sentence breaks; (c) split into
+// sentences; (d) while the leading sentence is a recap AND more than one remains, drop
+// it (never the last -- keep >= 1); (e) take the first survivor, appending the single
+// next sentence if it is below the length floor (at most one append); (f) return the
+// trimmed result, '' if nothing survives (the caller then omits the .sum line -- never
+// the legacy 150-char clamp, never fabricated text).
+function extractDistinctExcerpt(md) {
+    if (!md) return '';
+    var lines = String(md).split('\n');
+    var firstIdx = -1;
+    for (var li = 0; li < lines.length; li++) {
+        if (lines[li].trim() !== '') { firstIdx = li; break; }
+    }
+    if (firstIdx !== -1) {
+        var hm = lines[firstIdx].match(/^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$/);
+        if (hm && hm[1].trim().toLowerCase() === 'read this, skip the rest') {
+            lines.splice(firstIdx, 1);          // drop only the boilerplate header line
+        }
+    }
+    var cleaned = cleanExcerptMarkdown(lines.join('\n'));
+    var sentences = splitSentences(cleaned);
+    if (sentences.length === 0) return '';
+    while (sentences.length > 1 && RECAP_OPENER_RE.test(sentences[0])) {
+        sentences.shift();                       // skip leading recap(s); keep >= 1
+    }
+    var result = sentences[0];
+    if (result.length < EXCERPT_MIN_CHARS && sentences.length > 1) {
+        result = result + ' ' + sentences[1];    // D-04 thin-pivot append (one only)
+    }
+    return result.trim();
+}
+// --- excerpt helpers (node-testable) END ---
+
 // Resolve initial mode: URL param > localStorage > default 'technical'
 function getInitialMode() {
     var urlMode = new URL(window.location).searchParams.get('mode');
