@@ -191,7 +191,16 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
   3. The fix is strip-at-render only: no `newsletters` schema change, no stored `summary` field, no content-pipeline change (the stored `summary` path is explicitly deferred to EXCERPT-F1).
 
 **Notes**: Frontend-only, strip-at-render (operator-confirmed decision). The cleaner stored-`summary` path is the deferred EXCERPT-F1 future requirement, intentionally out of this milestone.
-**Plans**: TBD
+**Plans**: 2 plans
+
+**Wave 1**
+
+- [ ] 23-01-PLAN.md — Excerpt pipeline (recap-skip / this-week-pivot / link-cleanup / thin-pivot-append pure helpers, D-01..D-05/D-07) + renderList() indexed-row rewrite (D-06 DOM, D-08 mode-aware, D-09 row grid) + token-only `.row` CSS with the 2-line clamp (D-06/D-10) (EXCERPT-01)
+
+**Wave 2** *(blocked on Wave 1 — orchestrator-owned deploy, worktree-unsafe)*
+
+- [ ] 23-02-PLAN.md — Pre-deploy gate (drift + /diff + approval) + scoped `web` rebuild from the main tree + live-render verify SC#1 (ed29 ≠ ed30, both modes) / SC#2 indexed rows / no regression (autonomous:false) (EXCERPT-01)
+
 **UI hint**: yes
 
 ### Phase 24: Signals Section
@@ -253,7 +262,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 20. Width Tokens & Centering Foundation | v2.2 | 2/2 | Complete | 2026-06-11 |
 | 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 2/2 | Complete    | 2026-06-11 |
 | 22. Per-Section Visual Fixes | v2.2 | 4/4 | Complete    | 2026-06-12 |
-| 23. Distinct Newsletter Excerpts | v2.2 | 0/? | Not started | - |
+| 23. Distinct Newsletter Excerpts | v2.2 | 0/2 | Planned | - |
 | 24. Signals Section | v2.2 | 0/? | Not started | - |
 | 25. Responsive & Accessibility Pass | v2.2 | 0/? | Not started | - |
 
