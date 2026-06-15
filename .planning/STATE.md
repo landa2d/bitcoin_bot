@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: verifying
-stopped_at: Phase 23 context gathered
-last_updated: "2026-06-13T09:39:31.700Z"
-last_activity: "2026-06-12 -- Completed quick task 260612-kh9: proxy governance wiring (audit spec 02 / R1)"
+status: executing
+stopped_at: Session resumed — Phase 23 context gathered, ready to plan
+last_updated: "2026-06-15T16:10:28.079Z"
+last_activity: 2026-06-15 -- Phase 23 planning complete
 progress:
   total_phases: 7
   completed_phases: 4
-  total_plans: 10
+  total_plans: 12
   completed_plans: 10
   percent: 57
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 Phase: 23
 Plan: Not started
-Status: Phase 22 complete (deployed + verified passed) — Phase 23 not started
-Last activity: 2026-06-12 -- Completed quick task 260612-kh9: proxy governance wiring (audit spec 02 / R1)
+Status: Ready to execute
+Last activity: 2026-06-15 -- Phase 23 planning complete
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
@@ -119,10 +119,10 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-13T09:39:31.695Z
-Stopped at: Phase 23 context gathered
+Last session: 2026-06-15 (resumed)
+Stopped at: Session resumed — Phase 23 context gathered, ready to plan
 Resume file: .planning/phases/23-distinct-newsletter-excerpts/23-CONTEXT.md
-Next: `/gsd-discuss-phase 23` or `/gsd-plan-phase 23` (distinct-newsletter-excerpts — EXCERPT-01). Phase 22 ran no-worktree/sequential on the main tree (config/.env gitignored→absent in worktrees would break 22-01's D-04 curl; 22-04 deploy worktree-unsafe). Code review 22-REVIEW.md: 0 crit / 0 warn / 4 info (advisory; IN-01/IN-04 plan-deferred dead-CSS cleanup → Phase 25). D-04: ` — Edition #N | <date>` suffix (em-dash U+2014) IS baked into both newsletters.title + title_impact; render-only strip handles both.
+Next: `/gsd-plan-phase 23` (distinct-newsletter-excerpts — EXCERPT-01). Phase 22 ran no-worktree/sequential on the main tree (config/.env gitignored→absent in worktrees would break 22-01's D-04 curl; 22-04 deploy worktree-unsafe). Code review 22-REVIEW.md: 0 crit / 0 warn / 4 info (advisory; IN-01/IN-04 plan-deferred dead-CSS cleanup → Phase 25). D-04: ` — Edition #N | <date>` suffix (em-dash U+2014) IS baked into both newsletters.title + title_impact; render-only strip handles both.
 Carry-over (NOT Phase 22): newsletter image drift (Phase 19 commit 437cdb1, unrebuilt); migration 043 unapplied (Phase-24-owned); lab-data-provider known carry-over.
 
 ## Operator Next Steps
