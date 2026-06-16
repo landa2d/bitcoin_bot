@@ -48,7 +48,7 @@ Each maps to exactly one roadmap phase (see Traceability).
 
 ### Newsletter Excerpts (Task 6)
 
-- [ ] **EXCERPT-01**: Consecutive editions show distinct preview text in the archive list — the standard "Read This, Skip the Rest" boilerplate intro is skipped and the first genuinely-distinct sentence is shown — presented in the indexed-row format (number · title · one-line summary · date). Editions 29 and 30 show different preview text. Strip-at-render; no schema change.
+- [x] **EXCERPT-01**: Consecutive editions show distinct preview text in the archive list — the standard "Read This, Skip the Rest" boilerplate intro is skipped and the first genuinely-distinct sentence is shown — presented in the indexed-row format (number · title · one-line summary · date). Editions 29 and 30 show different preview text. Strip-at-render; no schema change.
 
 ### Signals Feed (Task 7 — new section)
 
@@ -122,7 +122,7 @@ Which phases cover which requirements. Mapped at roadmap creation (2026-06-10).
 | GRID-01 | Phase 22 | Complete |
 | GRID-02 | Phase 22 | Complete |
 | AGENTS-01 | Phase 22 | Complete |
-| EXCERPT-01 | Phase 23 | Pending |
+| EXCERPT-01 | Phase 23 | Complete |
 | SIGNAL-01 | Phase 24 | Pending |
 | SIGNAL-02 | Phase 24 | Pending |
 | SIGNAL-03 | Phase 24 | Pending |

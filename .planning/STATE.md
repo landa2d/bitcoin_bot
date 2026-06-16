@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: executing
-stopped_at: Phase 23 Plan 01 (EXCERPT-01 source) complete + committed; Plan 02 (orchestrator-owned live verify) next
-last_updated: "2026-06-15T18:45:34.807Z"
-last_activity: 2026-06-15
+status: ready
+stopped_at: Phase 23 (EXCERPT-01) COMPLETE — 2/2 plans executed + deployed live + operator-verified; code review WR-01 fixed (7e2d4b5) + redeployed, IN-01/02/03 accepted; verification PASSED (3/3 SC, all D-01..D-10 realized). Phase 24 (Signals Section) next — not started.
+last_updated: "2026-06-16T10:44:13.453Z"
+last_activity: 2026-06-16
 progress:
   total_phases: 7
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 12
-  completed_plans: 11
-  percent: 57
+  completed_plans: 12
+  percent: 71
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 23 — Distinct Newsletter Excerpts
+**Current focus:** Phase 24 — Signals Section (Phase 23 complete)
 
 ## Current Position
 
-Phase: 23 (Distinct Newsletter Excerpts) — EXECUTING
-Plan: 2 of 2
-Status: Plan 01 complete (source-only, 3 commits) — Plan 02 (orchestrator-owned live verify + scoped web rebuild) next
-Last activity: 2026-06-15 -- Phase 23 Plan 01 executed
+Phase: 24 (Signals Section)
+Plan: Not started
+Status: Phase 23 (Distinct Newsletter Excerpts / EXCERPT-01) COMPLETE — 2/2 plans, deployed live, code-reviewed (WR-01 fixed + redeployed), verified PASSED. Phase 24 not yet planned.
+Last activity: 2026-06-16 -- Phase 23 executed, reviewed, WR-01 fixed + redeployed, verified, completed
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
@@ -36,10 +36,10 @@ Last activity: 2026-06-15 -- Phase 23 Plan 01 executed
 |-------|------|--------------|
 | 19. Smart-Quote / Apostrophe Corruption Fix ✅ | Root-cause + fix-forward the apostrophe→straight-quote corruption (write path / stored markdown), scoped reviewed backfill, regression-tested | QUOTE-01, QUOTE-02 |
 | 20. Width Tokens & Centering Foundation ✅ | Two coexisting both-centered max-widths (`--measure` prose / `--wide` grids) kill the dead left gutter; token-only color + section-rhythm baseline everything else sits on (deployed live 2026-06-11) | WIDTH-01, RHYTHM-01 |
-| 21. Single-Scroll Landing + Scroll-Spy Nav ⬅ NEXT | Merge the four top-level sections (newsletter/about/map/signals) into one scroll page + scroll-spy nav; editions/blocks stay deep-linkable routes; back-to-landing scroll restore. Re-verifies WIDTH-01/RHYTHM-01 holistically on the assembled page | SCROLL-01, SCROLL-02 |
-| 22. Per-Section Visual Fixes | Three non-conflicting fixes: edition-header de-dup (detail route), map 3-col grid + maturity legend, About pipeline-vs-supporting agent grid + approval callout | HEAD-01, GRID-01, GRID-02, AGENTS-01 |
-| 23. Distinct Newsletter Excerpts | Strip the boilerplate intro at render + show the first distinct sentence in the indexed-row archive format — no schema change | EXCERPT-01 |
-| 24. Signals Section | `#signals` section in the landing, tier-1 `source_posts` newest-first (capped, safe external links), gated on the one Supabase migration (anon tier-1 RLS on `source_posts`, fail-loud) | SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04 |
+| 21. Single-Scroll Landing + Scroll-Spy Nav ✅ | Merge the four top-level sections (newsletter/about/map/signals) into one scroll page + scroll-spy nav; editions/blocks stay deep-linkable routes; back-to-landing scroll restore. Re-verifies WIDTH-01/RHYTHM-01 holistically on the assembled page | SCROLL-01, SCROLL-02 |
+| 22. Per-Section Visual Fixes ✅ | Three non-conflicting fixes: edition-header de-dup (detail route), map 3-col grid + maturity legend, About pipeline-vs-supporting agent grid + approval callout | HEAD-01, GRID-01, GRID-02, AGENTS-01 |
+| 23. Distinct Newsletter Excerpts ✅ | Strip the boilerplate intro at render + show the first distinct sentence in the indexed-row archive format — no schema change (deployed live 2026-06-16) | EXCERPT-01 |
+| 24. Signals Section ⬅ NEXT | `#signals` section in the landing, tier-1 `source_posts` newest-first (capped, safe external links), gated on the one Supabase migration (anon tier-1 RLS on `source_posts`, fail-loud) | SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04 |
 | 25. Responsive & Accessibility Pass | Holistic cross-cutting verify: grids/rows reflow (3→2→1, nav condenses, rows stack), scroll-spy keyboard/motion-safe, visible `:focus-visible`, `prefers-reduced-motion`, real `<a>` links | RESP-01, A11Y-01 |
 
 **Coverage:** 17/17 v2.2 requirements mapped (15 original + SCROLL-01/02) — no orphans, no duplicates.
