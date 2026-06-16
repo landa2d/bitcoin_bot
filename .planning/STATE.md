@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: ready
-stopped_at: Phase 23 (EXCERPT-01) COMPLETE — 2/2 plans executed + deployed live + operator-verified; code review WR-01 fixed (7e2d4b5) + redeployed, IN-01/02/03 accepted; verification PASSED (3/3 SC, all D-01..D-10 realized). Phase 24 (Signals Section) next — not started.
-last_updated: "2026-06-16T10:44:13.453Z"
-last_activity: 2026-06-16
+stopped_at: Phase 24 context gathered
+last_updated: "2026-06-16T16:15:36.529Z"
+last_activity: 2026-06-16 -- Phase 24 (Signals Section) context gathered; ready to plan
 progress:
   total_phases: 7
   completed_phases: 5
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 Phase: 24 (Signals Section)
 Plan: Not started
-Status: Phase 23 (Distinct Newsletter Excerpts / EXCERPT-01) COMPLETE — 2/2 plans, deployed live, code-reviewed (WR-01 fixed + redeployed), verified PASSED. Phase 24 not yet planned.
-Last activity: 2026-06-16 -- Phase 23 executed, reviewed, WR-01 fixed + redeployed, verified, completed
+Status: Phase 23 (EXCERPT-01) COMPLETE + verified. Phase 24 (Signals Section) CONTEXT gathered (24-CONTEXT.md) — 4 decisions locked (minimal public view / expand-in-place / hostname display / response-distinguished fail-loud). Ready to plan.
+Last activity: 2026-06-16 -- Phase 24 context gathered; ready to plan
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
@@ -120,9 +120,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-15T18:44:42.717Z
-Stopped at: Phase 23 Plan 01 (EXCERPT-01 source) complete + committed (bbda2f4 / fba0478 / 0754a32); 23-01-SUMMARY.md written; STATE/ROADMAP updated. Plan 02 next.
-Resume file: .planning/phases/23-distinct-newsletter-excerpts/23-02-PLAN.md
+Last session: 2026-06-16T16:15:36.524Z
+Stopped at: Phase 24 context gathered
+Resume file: .planning/phases/24-signals-section/24-CONTEXT.md
 Next: Execute Phase 23 Plan 02 (ORCHESTRATOR-OWNED, worktree-unsafe) — pre-deploy gate (prod↔main drift + `/diff` of the two web files + operator approval) → scoped `docker compose up -d --build web` (SERVICE key `web`, NO `--delete`) from /root/bitcoin_bot/docker → operator live-render verify of ed29≠ed30 in BOTH modes (the acceptance proof; reproduce on the substituted /srv/app.js, Phase 22 lesson). EXCERPT-01 stays UNCHECKED in REQUIREMENTS until that live proof. Plan 01 ran sequential on the main tree (source-only, worktree-safe; no docker/no config/.env/no network). Offline harness /tmp/excerpt_check.mjs (NOT committed) PASS 24/24.
 Carry-over (NOT Phase 22): newsletter image drift (Phase 19 commit 437cdb1, unrebuilt); migration 043 unapplied (Phase-24-owned); lab-data-provider known carry-over.
 
