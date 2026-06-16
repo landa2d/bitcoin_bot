@@ -174,10 +174,18 @@ function cleanExcerptMarkdown(md) {
 // whitespace, then a capital letter or an opening quote -- so `..."The End of
 // Trust." This week...` becomes TWO sentences, while a colon ("scale: Block") or an
 // em-dash ("them - Google") does NOT split. Trims pieces and drops empties.
+// IMPLEMENTATION NOTE (WR-01): deliberately AVOIDS a regex lookbehind. Lookbehind is
+// a parse-time SyntaxError on Safari/iOS WebKit < 16.4 -- and a SyntaxError in a regex
+// LITERAL blanks the entire app.js (not graceful degradation). Behavior-equivalent
+// without it: capture the terminator + optional closer ($1), consume the inter-sentence
+// whitespace, keep the (ES3-universal) lookahead, re-emit $1 + a NUL sentinel, then
+// split on the sentinel. NUL ( ) never occurs in newsletter prose, so it is a safe
+// boundary marker; the terminator/closer stay with the left sentence exactly as before.
 function splitSentences(text) {
     if (!text) return [];
     return String(text)
-        .split(/(?<=[.!?]["'”’)\]]?)\s+(?=[A-Z"'“‘])/)
+        .replace(/([.!?]["'”’)\]]?)\s+(?=[A-Z"'“‘])/g, '$1 ')
+        .split(' ')
         .map(function (s) { return s.trim(); })
         .filter(function (s) { return s.length > 0; });
 }
