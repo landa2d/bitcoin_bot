@@ -216,7 +216,17 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
   4. The anon key can read tier-1 `source_posts` via a new read-only, tier-1-scoped RLS policy; if that policy is absent the feed fails loud (surfaced error), never silently renders empty.
 
 **Notes**: Backend phase — the milestone's ONLY Supabase migration (next in sequence after 043), deliberately isolated from the pure-CSS phases. The migration grants a narrow, read-only, tier-1-scoped anon SELECT on `source_posts` (currently anon-blocked) — fail-loud on absence is a hard requirement (the empty-feed-on-missing-policy failure mode is exactly the silent-failure class the spine guards against). Fills in the Signals section shell built in Phase 21 with live data; rows are real `<a>` (A11Y consistency carried into Phase 25's holistic pass). Deploy gated: branch + `/diff` + scoped web rebuild + operator approval; migration applied by the orchestrator (worktree-unsafe), not a worktree executor.
-**Plans**: TBD
+**Plans**: 3 plans
+
+**Wave 1** *(parallel — no file overlap; source-only, worktree-safe)*
+
+- [ ] 24-01-PLAN.md — Migration 044: security-definer `public.signals_feed` view over tier-1 `source_posts` (5 whitelisted columns) + anon `GRANT SELECT`; base table untouched (SIGNAL-04)
+- [ ] 24-02-PLAN.md — Frontend signals feed in `app.js` (`fetchSignals` 3-way fail-loud split / `renderSignals` safe external rows / `signalHost` / inline view-all) + `.row .host`/`.view-all` CSS + placeholder removal (SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04)
+
+**Wave 2** *(blocked on Wave 1 — orchestrator-owned, worktree-unsafe)*
+
+- [ ] 24-03-PLAN.md — [BLOCKING] live migration apply via Supabase MCP + bounded-anon-read proof, scoped `web` rebuild, operator live-render verify of SIGNAL-01..04 + fail-loud + no regression (autonomous:false) (SIGNAL-01..04)
+
 **UI hint**: yes
 
 ### Phase 25: Responsive & Accessibility Pass
@@ -263,7 +273,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 2/2 | Complete    | 2026-06-11 |
 | 22. Per-Section Visual Fixes | v2.2 | 4/4 | Complete    | 2026-06-12 |
 | 23. Distinct Newsletter Excerpts | v2.2 | 2/2 | Complete    | 2026-06-16 |
-| 24. Signals Section | v2.2 | 0/? | Not started | - |
+| 24. Signals Section | v2.2 | 0/3 | Not started | - |
 | 25. Responsive & Accessibility Pass | v2.2 | 0/? | Not started | - |
 
 ## Backlog

@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: ready
+status: executing
 stopped_at: Phase 24 context gathered
-last_updated: "2026-06-16T16:15:36.529Z"
-last_activity: 2026-06-16 -- Phase 24 (Signals Section) context gathered; ready to plan
+last_updated: "2026-06-16T21:08:24.835Z"
+last_activity: 2026-06-16 -- Phase 24 planning complete
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 12
+  total_plans: 15
   completed_plans: 12
   percent: 71
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 Phase: 24 (Signals Section)
 Plan: Not started
-Status: Phase 23 (EXCERPT-01) COMPLETE + verified. Phase 24 (Signals Section) CONTEXT gathered (24-CONTEXT.md) — 4 decisions locked (minimal public view / expand-in-place / hostname display / response-distinguished fail-loud). Ready to plan.
-Last activity: 2026-06-16 -- Phase 24 context gathered; ready to plan
+Status: Ready to execute
+Last activity: 2026-06-16 -- Phase 24 planning complete
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
