@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
-stopped_at: Phase 24 Plan 02 complete (frontend signals fetch/render, source-only)
-last_updated: "2026-06-17T08:50:29.171Z"
-last_activity: 2026-06-17 -- Phase 24 Plan 02 (frontend fetchSignals/renderSignals) authored + committed
+stopped_at: Phase 24 Plan 02 complete (frontend signals fetch/render, source-only, committed b791e3e/4651134)
+last_updated: "2026-06-17T10:27:17.446Z"
+last_activity: 2026-06-17
 progress:
   total_phases: 7
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 15
-  completed_plans: 14
-  percent: 71
+  completed_plans: 15
+  percent: 86
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 ## Current Position
 
-Phase: 24 (signals-section) — EXECUTING
-Plan: 2 of 3 complete — next Plan 3 (ORCHESTRATOR-OWNED, worktree-unsafe: live-apply migration 044 + scoped web rebuild + operator verify)
+Phase: 25
+Plan: Not started
 Status: Executing Phase 24
-Last activity: 2026-06-17 -- Phase 24 Plan 02 (frontend signals fetch/render) authored + committed
+Last activity: 2026-06-17
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
