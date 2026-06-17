@@ -52,10 +52,10 @@ Each maps to exactly one roadmap phase (see Traceability).
 
 ### Signals Feed (Task 7 — new section)
 
-- [ ] **SIGNAL-01**: A Signals section lists tier-1 `source_posts` newest-first, capped to ~12–15, with a "view all signals" affordance so a heavy news week can't make the section enormous.
-- [ ] **SIGNAL-02**: Each Signals row is an external link showing date · headline · source domain, opening off-site safely (`target="_blank"` + `rel="noopener noreferrer"`) with an `↗` hover affordance.
-- [ ] **SIGNAL-03**: Signals is reachable as a `#signals` section in the single-scroll landing via the scroll-spy nav (consistent with the other landing sections), deep-linkable at `#signals`. _(REVISED 2026-06-11 — was its own `#/signals` route + tab.)_
-- [ ] **SIGNAL-04**: tier-1 `source_posts` are readable by the anon key via a new, read-only, tier-1-scoped Supabase RLS policy (the table is currently RLS-blocked from anon) — fail-loud if the policy is absent rather than silently rendering an empty feed.
+- [x] **SIGNAL-01**: A Signals section lists tier-1 `source_posts` newest-first, capped to ~12–15, with a "view all signals" affordance so a heavy news week can't make the section enormous.
+- [x] **SIGNAL-02**: Each Signals row is an external link showing date · headline · source domain, opening off-site safely (`target="_blank"` + `rel="noopener noreferrer"`) with an `↗` hover affordance.
+- [x] **SIGNAL-03**: Signals is reachable as a `#signals` section in the single-scroll landing via the scroll-spy nav (consistent with the other landing sections), deep-linkable at `#signals`. _(REVISED 2026-06-11 — was its own `#/signals` route + tab.)_
+- [x] **SIGNAL-04**: tier-1 `source_posts` are readable by the anon key via a new, read-only, tier-1-scoped Supabase RLS policy (the table is currently RLS-blocked from anon) — fail-loud if the policy is absent rather than silently rendering an empty feed.
 
 ### Cross-Cutting (all groups)
 
@@ -123,10 +123,10 @@ Which phases cover which requirements. Mapped at roadmap creation (2026-06-10).
 | GRID-02 | Phase 22 | Complete |
 | AGENTS-01 | Phase 22 | Complete |
 | EXCERPT-01 | Phase 23 | Complete |
-| SIGNAL-01 | Phase 24 | Pending |
-| SIGNAL-02 | Phase 24 | Pending |
-| SIGNAL-03 | Phase 24 | Pending |
-| SIGNAL-04 | Phase 24 | Pending |
+| SIGNAL-01 | Phase 24 | Complete |
+| SIGNAL-02 | Phase 24 | Complete |
+| SIGNAL-03 | Phase 24 | Complete |
+| SIGNAL-04 | Phase 24 | Complete |
 | RESP-01 | Phase 25 | Pending |
 | A11Y-01 | Phase 25 | Pending |
 

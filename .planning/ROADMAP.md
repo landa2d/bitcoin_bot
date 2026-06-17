@@ -73,7 +73,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 - [x] **Phase 21: Single-Scroll Landing + Scroll-Spy Nav** — Convert the four top-level sections (newsletter / about / agent-economy / signals) into one single-scroll landing with a scroll-spy nav, on the Phase 20 width foundation; editions & block pages stay deep-linkable detail routes; the nav becomes scroll-spy on the landing and route-aware on detail, with back-to-landing scroll restore. (SCROLL-01, SCROLL-02) (completed 2026-06-11)
 - [x] **Phase 22: Per-Section Visual Fixes** — Three non-conflicting fixes on the new landing: edition-header de-dup (detail route), the Agent Economy 3-col grid + maturity legend (map section), and the About pipeline-vs-supporting agent grid + approval callout (about section). (HEAD-01, GRID-01, GRID-02, AGENTS-01) (completed 2026-06-12)
 - [x] **Phase 23: Distinct Newsletter Excerpts** — Strip the boilerplate "Read This, Skip the Rest" intro at render and pull the first genuinely-distinct sentence into the indexed-row archive format — no schema change. (EXCERPT-01) (completed 2026-06-15)
-- [ ] **Phase 24: Signals Section** — A new `#signals` section in the single-scroll landing listing tier-1 `source_posts` newest-first (capped, external links), gated on the milestone's one Supabase migration: a read-only, tier-1-scoped anon RLS policy on `source_posts`, fail-loud if absent. (SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04)
+- [x] **Phase 24: Signals Section** — A new `#signals` section in the single-scroll landing listing tier-1 `source_posts` newest-first (capped, external links), gated on the milestone's one Supabase migration: a read-only, tier-1-scoped anon RLS policy on `source_posts`, fail-loud if absent. (SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04) (completed 2026-06-17)
 - [ ] **Phase 25: Responsive & Accessibility Pass** — A holistic cross-cutting verification: all grids/rows reflow (3→2→1, nav condenses, rows stack date-above-headline), scroll-spy is keyboard/motion-safe, and focus is visible / motion-reduced / every link is a real `<a>`. (RESP-01, A11Y-01)
 
 ## Phase Details
@@ -225,7 +225,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 
 **Wave 2** *(blocked on Wave 1 — orchestrator-owned, worktree-unsafe)*
 
-- [ ] 24-03-PLAN.md — [BLOCKING] live migration apply via Supabase MCP + bounded-anon-read proof, scoped `web` rebuild, operator live-render verify of SIGNAL-01..04 + fail-loud + no regression (autonomous:false) (SIGNAL-01..04)
+- [x] 24-03-PLAN.md — [BLOCKING] live migration apply via Supabase MCP + bounded-anon-read proof, scoped `web` rebuild, operator live-render verify of SIGNAL-01..04 + fail-loud + no regression (autonomous:false) (SIGNAL-01..04)
 
 **UI hint**: yes
 
@@ -273,7 +273,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 2/2 | Complete    | 2026-06-11 |
 | 22. Per-Section Visual Fixes | v2.2 | 4/4 | Complete    | 2026-06-12 |
 | 23. Distinct Newsletter Excerpts | v2.2 | 2/2 | Complete    | 2026-06-16 |
-| 24. Signals Section | v2.2 | 2/3 | In Progress|  |
+| 24. Signals Section | v2.2 | 3/3 | Complete   | 2026-06-17 |
 | 25. Responsive & Accessibility Pass | v2.2 | 0/? | Not started | - |
 
 ## Backlog
