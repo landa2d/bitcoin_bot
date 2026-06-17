@@ -266,6 +266,39 @@ body {
     .row .date { grid-column: 2; font-size: 11px; margin-top: var(--space-xs); }
 }
 
+/* ── Phase 24 SIGNAL-01/02 — signal-row source domain + view-all (token-only) ───
+   The #signals feed reuses the .row indexed-row family above (grid · hover ·
+   focus-visible · 600px reflow) verbatim — these are the ONLY net-new rules.
+   RHYTHM-01: zero hex, every value is a var(--…) token or a px/unitless primitive.
+   The ↗ external-link affordance needs no rule of its own (it rides the existing
+   `.row .num` + `.row:hover .num` --accent recolor). */
+.row .host {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin: 0;
+}
+
+.view-all {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent);
+    background: none;
+    border: none;
+    padding: var(--space-lg) 0;
+    cursor: pointer;
+    letter-spacing: .04em;
+}
+
+.view-all:hover { text-decoration: underline; }
+
+.view-all:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: var(--radius-dot);
+}
+
 /* ── Economy Map: shared map/block/status rules (Phase 13) ───── */
 /* De-darkened out of the legacy style-map.css (delete-and-fold disposition,
    PATTERNS §CSS-DISPOSITION option 1). The per-tier color cascade is retired
