@@ -4,8 +4,8 @@ milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
 stopped_at: Phase 25 context gathered
-last_updated: "2026-06-17T11:12:07.631Z"
-last_activity: 2026-06-17 -- Phase 25 planning complete
+last_updated: "2026-06-17T16:07:27.875Z"
+last_activity: 2026-06-17 -- Phase 25 execution started
 progress:
   total_phases: 7
   completed_phases: 6
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 25 — Responsive & Accessibility Pass (Phase 24 complete)
+**Current focus:** Phase 25 — responsive-accessibility-pass
 
 ## Current Position
 
-Phase: 25
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-17 -- Phase 25 planning complete
+Phase: 25 (responsive-accessibility-pass) — EXECUTING
+Plan: 1 of 2
+Status: Executing Phase 25
+Last activity: 2026-06-17 -- Phase 25 execution started
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 

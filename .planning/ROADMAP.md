@@ -245,7 +245,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 **Plans**: 2 plansPlans:
 **Wave 1**
 
-- [ ] 25-01-PLAN.md — CSS conformance fixes: subscribe :focus-visible (D-02), date-above-headline row reflow (D-07/08/09), nav breakpoint 640->600 (D-05), reduced-motion global reset + cascade win (D-10/11)
+- [x] 25-01-PLAN.md — CSS conformance fixes: subscribe :focus-visible (D-02), date-above-headline row reflow (D-07/08/09), nav breakpoint 640->600 (D-05), reduced-motion global reset + cascade win (D-10/11)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -282,7 +282,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 22. Per-Section Visual Fixes | v2.2 | 4/4 | Complete    | 2026-06-12 |
 | 23. Distinct Newsletter Excerpts | v2.2 | 2/2 | Complete    | 2026-06-16 |
 | 24. Signals Section | v2.2 | 3/3 | Complete    | 2026-06-17 |
-| 25. Responsive & Accessibility Pass | v2.2 | 0/? | Not started | - |
+| 25. Responsive & Accessibility Pass | v2.2 | 1/2 | In Progress|  |
 
 ## Backlog
 
