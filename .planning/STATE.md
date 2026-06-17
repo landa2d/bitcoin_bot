@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: executing
-stopped_at: Phase 24 COMPLETE — Signals section live (migration 044 applied via MCP, scoped web deploy, SIGNAL-01..04 operator-verified; CR-01 XSS fixed+deployed)
-last_updated: "2026-06-17T10:27:17.446Z"
-last_activity: 2026-06-17
+status: verifying
+stopped_at: Phase 25 context gathered
+last_updated: "2026-06-17T10:48:55.990Z"
+last_activity: 2026-06-17 -- Phase 24 executed + verified + completed
 progress:
   total_phases: 7
   completed_phases: 6
@@ -122,11 +122,12 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-17 (Phase 24 executed end-to-end)
-Stopped at: Phase 24 COMPLETE + verified (passed). Signals section live: migration 044 applied via Supabase MCP, scoped web deploy (×2 — initial + CR-01 fix), SIGNAL-01..04 operator-verified.
-Resume file: .planning/phases/24-signals-section/24-VERIFICATION.md
+Last session: 2026-06-17T10:48:55.985Z
+Stopped at: Phase 25 context gathered
+Resume file: .planning/phases/25-responsive-accessibility-pass/25-CONTEXT.md
 Next: Phase 25 — Responsive & Accessibility Pass (RESP-01, A11Y-01). Holistic cross-cutting verify: grids/rows reflow (3→2→1, nav condenses, rows stack), scroll-spy keyboard/motion-safe, visible :focus-visible, prefers-reduced-motion, real <a> links. `/gsd-discuss-phase 25` (or plan/execute). The Phase 25 pass should re-check the new #signals section's .row reflow + the .view-all :focus-visible (added Phase 24).
 Carry-overs (NOT Phase 24 scope):
+
 - **Phase 23 Plan 02 EXCERPT-01 live-verify still pending.** The Phase 24 `docker compose up -d --build web` rebuilt from current main, so the committed Phase 23 strip-at-render frontend IS now deployed live — but the operator acceptance proof (ed29 distinct excerpt ≠ ed30 in BOTH modes, on the substituted /srv/app.js) was never run. EXCERPT-01 stays UNCHECKED in REQUIREMENTS until that live proof. Operator can verify it now on the live site (the code is deployed).
 - **Migration 043 (`economy_map_hub_and_negotiation_blocks`) unapplied on live.** Live migrations list jumps 042→044. Out of Phase 24 plan scope (24 applied only 044, "the milestone's only migration"); candidate for a follow-up / the audit milestone.
 - newsletter image drift (Phase 19 commit 437cdb1, unrebuilt); lab-data-provider known carry-over.
