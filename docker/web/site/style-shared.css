@@ -260,10 +260,17 @@ body {
     border-radius: var(--radius-dot);
 }
 
-/* Basic mobile reflow (holistic RESP-01/A11Y-01 sign-off is Phase 25). */
+/* Mobile reflow (D-07/D-08/D-09): date becomes a mono kicker line ABOVE the
+   headline. Lands ONCE on the shared .row rule that both archive (renderList)
+   and signal (renderSignals) rows inherit — single source of truth, no per-render
+   JS change (app.js untouched). The grid has three direct children: .num
+   (affordance), the unnamed content-wrapper <span> (title + sum/host), and .date.
+   The affordance column is kept (D-08); literal 600px in the condition (D-06). */
 @media (max-width: 600px) {
-    .row { grid-template-columns: 40px 1fr; }
-    .row .date { grid-column: 2; font-size: 11px; margin-top: var(--space-xs); }
+    .row { grid-template-columns: 40px 1fr; align-items: start; }
+    .row .num { grid-column: 1; grid-row: 1 / span 2; }
+    .row .date { grid-column: 2; grid-row: 1; font-size: 11px; margin: 0 0 var(--space-xs); }
+    .row > span:not(.num):not(.date) { grid-column: 2; grid-row: 2; }
 }
 
 /* ── Phase 24 SIGNAL-01/02 — signal-row source domain + view-all (token-only) ───
