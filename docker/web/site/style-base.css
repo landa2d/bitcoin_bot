@@ -248,10 +248,12 @@ body > header { position:sticky;
   color:var(--accent-ink);
 }
 
-/* ── Responsive nav (D-03): ≤640px wrap tabs to scrollable row ── */
+/* ── Responsive nav (D-05): ≤600px wrap tabs to scrollable row ── */
 /* Brand + Subscribe stay on the top row; the three tabs drop to a full-width,
-   horizontally-scrollable row below. */
-@media (max-width:640px) {
+   horizontally-scrollable row below. Breakpoint lowered to 600 (D-05) to align
+   with the row-stack / grid-collapse line (D-04 two-tier: mobile 600 / tablet
+   880); the wrap-to-scrollable behavior is unchanged (D-12 — no hamburger). */
+@media (max-width:600px) {
   .nav {
     flex-wrap:wrap;
   }
@@ -305,10 +307,29 @@ html { scroll-behavior: smooth; }
    only (--line-strong / --space-*). Within-section Phase-20 hairlines are unchanged. */
 #landing > section + section { border-top: 1px solid var(--line-strong); padding-top: var(--space-xl); }
 
-/* (A, gate) MANDATORY reduced-motion gate — suppresses the smooth-scroll motion under the
-   user's reduce-motion preference (net-new motion must be motion-safe; A11Y-01 not regressed). */
+/* (A, gate) D-10 canonical reduced-motion global reset — replaces the prior scroll-only
+   gate. Suppresses ALL animation, transition, and smooth-scroll under the user's
+   reduce-motion preference: it overrides html { scroll-behavior: smooth } at :296, every
+   hover transition, and any animation (A11Y-01 — net-new motion stays motion-safe). */
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* D-11 cascade win — out-specifies style-shared.css:32 .mode-transitioning * !important
+     theme transition. That rule is specificity (0,1,0) !important AND loads LATER than
+     style-base.css, so the bare * reset (0,0,0) above loses to it on BOTH specificity and
+     source order. The doubled .mode-transitioning.mode-transitioning class is (0,2,0) >
+     (0,1,0), winning regardless of source order so reduced-motion suppresses the theme fade.
+     Do NOT "simplify" the doubled class away — it is the load-bearing cascade override. */
+  .mode-transitioning.mode-transitioning,
+  .mode-transitioning.mode-transitioning *,
+  .mode-transitioning.mode-transitioning *::before,
+  .mode-transitioning.mode-transitioning *::after {
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* (D) Uniform landing-section width (operator live-verify 2026-06-11): all four landing
