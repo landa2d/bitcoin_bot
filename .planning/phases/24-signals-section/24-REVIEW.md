@@ -13,7 +13,8 @@ findings:
   warning: 3
   info: 2
   total: 6
-status: issues_found
+status: resolved
+resolution: "CR-01 + WR-01 fixed in 179e3f8 (deployed); WR-02 empirically refuted + telemetry added; WR-03 satisfied this rollout; IN-01 applied, IN-02 deferred. See Orchestrator Disposition below."
 ---
 
 # Phase 24: Code Review Report
