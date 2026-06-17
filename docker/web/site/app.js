@@ -453,7 +453,13 @@ function ensureLandingDataLoaded() {
     landingDataLoaded = true;
     // WR-01: keep the settle promise so a deep-link scroll can wait for the list + hub
     // content (and their own scrollTo(0,0) on render) before landing on a below-fold section.
-    landingDataLoadedPromise = Promise.all([loadList(), loadHub()]);
+    // Phase 24 (SIGNAL-01..04): fetchSignals() joins the one-shot landing load so the
+    // #signals tier-1 feed fetches EXACTLY once when the landing is shown — the gated,
+    // non-premature fetch Phase 21 mandated (a premature anon read of the RLS-blocked
+    // path before the landing renders would be a fail-loud violation). It returns a
+    // Promise (like loadList) so it participates in the WR-01 settle gate that defers
+    // deep-link scrolls.
+    landingDataLoadedPromise = Promise.all([loadList(), loadHub(), fetchSignals()]);
     return landingDataLoadedPromise;
 }
 
@@ -523,6 +529,107 @@ async function loadList() {
 
     window.currentNewsletterList = data;
     renderList(data);
+}
+
+// ─── Signals (Phase 24) ───────────────────────────────────────────────────────
+
+// SIGNAL-01..04: fill the static #signals shell (Phase 21) with the live tier-1
+// source feed. Direct analog of the loadList()/renderList() pair; reuses the
+// escapeHtml()/safeHttpUrl()/formatDate() sinks verbatim. The read path is the
+// PUBLIC-schema security-DEFINER view public.signals_feed (migration 044) exposing
+// ONLY id,title,source_url,source,scraped_at for source_tier=1 — standard anon REST,
+// NO .schema()/Accept-Profile (that idiom is economy_map-only).
+
+// D-03: default visible cap. fetchSignals' .limit(50) is the hard expand ceiling;
+// "View all" re-renders the SAME already-fetched batch (no re-query, no route).
+var SIGNALS_DEFAULT_VISIBLE = 15;
+
+// D-05: reader-facing source domain derived from source_url — new URL(...).hostname
+// with a leading www. stripped. The strip is an ANCHORED ^www\. prefix replace, NEVER
+// a regex lookbehind (WR-01: a lookbehind is a parse-time SyntaxError on WebKit<16.4
+// that blanks the whole SPA). new URL(...) throws on unparseable input (it is already
+// used at :69/:231), so guard with try/catch and fall back to the row's internal
+// `source` value.
+function signalHost(url, fallback) {
+    try { return new URL(url).hostname.replace(/^www\./, ''); }   // anchored prefix — NO lookbehind
+    catch (e) { return fallback || ''; }
+}
+
+// D-07 fail-loud THREE-WAY split — the deliberate deviation from loadList()'s
+// conflated `if (error || !data || length===0)` branch. The read path is a view + an
+// anon GRANT, so a MISSING/broken view or grant returns an HTTP error (a PostgREST
+// error body), NOT 200 []. Mapping: (a) error → LOUD inline diagnostic + console.error
+// (the operator-visible signal that the migration/view/grant is absent — matches the
+// console.error('loadHub error:', error) idiom); (b) 200 [] → a benign quiet empty
+// state (a genuinely thin tier-1 week — never cry wolf); (c) rows → stash + render.
+// Re-state .order(...) on the QUERY (PostgREST does NOT guarantee the view's internal
+// ORDER BY); .limit(50) is the D-03 hard ceiling. Returns the promise so it joins the
+// WR-01 settle gate (like loadList).
+async function fetchSignals() {
+    var list = document.getElementById('signals-list');
+    if (!list) return;
+
+    var { data, error } = await sb
+        .from('signals_feed')
+        .select('id, title, source_url, source, scraped_at')
+        .order('scraped_at', { ascending: false })
+        .order('id', { ascending: false })
+        .limit(50);
+
+    if (error) {
+        console.error('fetchSignals error:', error);
+        list.innerHTML = '<p class="signals-error">Signals feed is temporarily unavailable.</p>';
+        return;
+    }
+    if (!data || data.length === 0) {
+        list.innerHTML = '<p class="signals-empty">No tier-1 signals this week.</p>';
+        return;
+    }
+
+    window.currentSignals = data;
+    renderSignals(data, false);
+}
+
+// D-02/D-04/D-05/D-06: render the cached batch into #signals-list. Each row is a
+// whole-<a class="row signal-row"> EXTERNAL link (D-06: href gated through
+// safeHttpUrl(source_url) — escapeHtml does NOT block javascript:/data: — plus
+// target="_blank" rel="noopener noreferrer" to stop reverse-tabnabbing). A row whose
+// URL fails the http(s) scheme gate is SKIPPED (defense-in-depth; D-02 already excludes
+// nulls upstream). Row anatomy mirrors renderList's .row: col1 ↗ affordance (.num,
+// recolors to --accent on hover), col2 headline (.title) + www-stripped source domain
+// (.host), col3 date (.date = formatDate(scraped_at), D-04 — source_posts has no
+// published_at). EVERY DB-derived value passes escapeHtml() at this innerHTML sink
+// (T-24-05/T-24-06: title, the derived host, AND the href in its attribute context);
+// the ↗ glyph + the static button label are literal. D-03: when collapsed and the
+// batch exceeds the default-visible cap, append an inline "View all" button that
+// re-renders window.currentSignals EXPANDED — no route, no re-query.
+function renderSignals(data, expanded) {
+    var list = document.getElementById('signals-list');
+    if (!list) return;
+
+    var rows = expanded ? data : data.slice(0, SIGNALS_DEFAULT_VISIBLE);
+
+    var html = rows.map(function (s) {
+        var href = safeHttpUrl(s.source_url);
+        if (!href) return '';                          // D-06 scheme gate — skip unsafe/null URLs
+        return '<a href="' + escapeHtml(href) + '" class="row signal-row" target="_blank" rel="noopener noreferrer">' +
+            '<span class="num">↗</span>' +
+            '<span>' +
+                '<p class="title">' + escapeHtml(s.title) + '</p>' +
+                '<p class="host">' + escapeHtml(signalHost(s.source_url, s.source)) + '</p>' +
+            '</span>' +
+            '<span class="date">' + escapeHtml(formatDate(s.scraped_at)) + '</span>' +
+            '</a>';
+    }).filter(function (h) { return h !== ''; }).join('');
+
+    if (!expanded && data.length > SIGNALS_DEFAULT_VISIBLE) {
+        html += '<button type="button" class="view-all" id="signals-view-all">View all signals (' + data.length + ')</button>';
+    }
+
+    list.innerHTML = html;
+
+    var btn = document.getElementById('signals-view-all');
+    if (btn) btn.addEventListener('click', function () { renderSignals(window.currentSignals, true); });
 }
 
 // ─── Reader View ─────────────────────────────────────────────────────────────
