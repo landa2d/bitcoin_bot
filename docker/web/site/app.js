@@ -540,9 +540,10 @@ async function loadList() {
 // ONLY id,title,source_url,source,scraped_at for source_tier=1 — standard anon REST,
 // NO .schema()/Accept-Profile (that idiom is economy_map-only).
 
-// D-03: default visible cap. fetchSignals' .limit(50) is the hard expand ceiling;
-// "View all" re-renders the SAME already-fetched batch (no re-query, no route).
+// D-03: default visible cap + the hard fetch/expand ceiling. "View all" re-renders the
+// SAME already-fetched batch (no re-query, no route); SIGNALS_FETCH_CEILING bounds it.
 var SIGNALS_DEFAULT_VISIBLE = 15;
+var SIGNALS_FETCH_CEILING = 50;   // IN-01: named ceiling (was an inline .limit(50) magic number)
 
 // D-05: reader-facing source domain derived from source_url — new URL(...).hostname
 // with a leading www. stripped. The strip is an ANCHORED ^www\. prefix replace, NEVER
@@ -574,7 +575,7 @@ async function fetchSignals() {
         .select('id, title, source_url, source, scraped_at')
         .order('scraped_at', { ascending: false })
         .order('id', { ascending: false })
-        .limit(50);
+        .limit(SIGNALS_FETCH_CEILING);
 
     if (error) {
         console.error('fetchSignals error:', error);
@@ -582,6 +583,9 @@ async function fetchSignals() {
         return;
     }
     if (!data || data.length === 0) {
+        // WR-02 telemetry: a persistently-empty feed (unbackfilled/misconfigured view) is
+        // operator-visible here, while the public UX stays the benign "thin week" copy.
+        console.warn('fetchSignals: 0 rows from signals_feed (thin tier-1 week, or an unbackfilled/misconfigured view)');
         list.innerHTML = '<p class="signals-empty">No tier-1 signals this week.</p>';
         return;
     }
@@ -607,11 +611,23 @@ function renderSignals(data, expanded) {
     var list = document.getElementById('signals-list');
     if (!list) return;
 
-    var rows = expanded ? data : data.slice(0, SIGNALS_DEFAULT_VISIBLE);
+    // WR-01: filter to safe-URL rows BEFORE slicing/counting so the visible cap and the
+    // "View all (N)" count reflect what actually renders — a leading unsafe/empty URL must
+    // not silently shrink the visible set below the cap or overstate the total. (safeHttpUrl
+    // now also rejects attribute-breakout chars — CR-01.)
+    var safe = data.filter(function (s) { return !!safeHttpUrl(s.source_url); });
+
+    if (safe.length === 0) {
+        // Fetched rows but none renderable (all unsafe/empty URLs) — benign empty, NOT the
+        // loud error branch: the read path itself worked.
+        list.innerHTML = '<p class="signals-empty">No tier-1 signals this week.</p>';
+        return;
+    }
+
+    var rows = expanded ? safe : safe.slice(0, SIGNALS_DEFAULT_VISIBLE);
 
     var html = rows.map(function (s) {
-        var href = safeHttpUrl(s.source_url);
-        if (!href) return '';                          // D-06 scheme gate — skip unsafe/null URLs
+        var href = safeHttpUrl(s.source_url);          // re-gated; escapeHtml kept as attribute-context defense-in-depth (CR-01)
         return '<a href="' + escapeHtml(href) + '" class="row signal-row" target="_blank" rel="noopener noreferrer">' +
             '<span class="num">↗</span>' +
             '<span>' +
@@ -620,10 +636,10 @@ function renderSignals(data, expanded) {
             '</span>' +
             '<span class="date">' + escapeHtml(formatDate(s.scraped_at)) + '</span>' +
             '</a>';
-    }).filter(function (h) { return h !== ''; }).join('');
+    }).join('');
 
-    if (!expanded && data.length > SIGNALS_DEFAULT_VISIBLE) {
-        html += '<button type="button" class="view-all" id="signals-view-all">View all signals (' + data.length + ')</button>';
+    if (!expanded && safe.length > SIGNALS_DEFAULT_VISIBLE) {
+        html += '<button type="button" class="view-all" id="signals-view-all">View all signals (' + safe.length + ')</button>';
     }
 
     list.innerHTML = html;
@@ -780,7 +796,14 @@ function escapeHtml(str) {
 // an href. Gate every URL sink through this http(s)-only allowlist before render.
 function safeHttpUrl(url) {
     if (typeof url !== 'string') return null;
-    return /^https?:\/\//i.test(url.trim()) ? url : null;
+    var u = url.trim();
+    if (!/^https?:\/\//i.test(u)) return null;
+    // CR-01: escapeHtml() (textNode→innerHTML) does NOT escape " or ', so a URL carrying a
+    // raw attribute-breakout char would inject handlers at the href="..." sink. A valid URL
+    // percent-encodes these — reject any raw whitespace/quote/angle-bracket/backtick/backslash
+    // (lookbehind-free char class — no WebKit parse risk).
+    if (/[\s"'<>`\\]/.test(u)) return null;
+    return u;
 }
 
 function formatDate(isoStr) {
