@@ -242,10 +242,15 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
   4. Every link across the landing + touched routes is a real `<a>` element (no click-handler-only pseudo-links) — keyboard- and screen-reader-navigable.
 
 **Notes**: Cross-cutting requirements applied throughout every phase but verified holistically HERE as the final responsive/a11y pass over the whole redesigned surface (the natural place to confirm them end-to-end rather than re-checking each phase) — now including the single-scroll landing's scroll-spy behavior. Frontend-only (`style-base.css` / `style-shared.css` media queries + `:focus-visible` / `prefers-reduced-motion` rules + an `<a>` audit). Deploy gated: branch + `/diff` + scoped web rebuild + operator approval.
-**Plans**: 2 plans
-Plans:
+**Plans**: 2 plansPlans:
+**Wave 1**
+
 - [ ] 25-01-PLAN.md — CSS conformance fixes: subscribe :focus-visible (D-02), date-above-headline row reflow (D-07/08/09), nav breakpoint 640->600 (D-05), reduced-motion global reset + cascade win (D-10/11)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 25-02-PLAN.md — Holistic live-render verification + real-<a> audit + operator-gated scoped web deploy & sign-off (D-03/D-04/D-12)
+
 **UI hint**: yes
 
 ## Progress

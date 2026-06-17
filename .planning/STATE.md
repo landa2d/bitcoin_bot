@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: verifying
+status: executing
 stopped_at: Phase 25 context gathered
-last_updated: "2026-06-17T10:48:55.990Z"
-last_activity: 2026-06-17 -- Phase 24 executed + verified + completed
+last_updated: "2026-06-17T11:12:07.631Z"
+last_activity: 2026-06-17 -- Phase 25 planning complete
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 15
+  total_plans: 17
   completed_plans: 15
   percent: 86
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 Phase: 25
 Plan: Not started
-Status: Phase 24 complete (verified passed) — Phase 25 not started
-Last activity: 2026-06-17 -- Phase 24 executed + verified + completed
+Status: Ready to execute
+Last activity: 2026-06-17 -- Phase 25 planning complete
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
