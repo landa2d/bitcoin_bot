@@ -113,6 +113,12 @@ None - no external service configuration required. CSS-only source edits; deploy
 - Scope ceiling (D-01) honored: no new ARIA/landmarks/skip-link/contrast/alt-text rules.
 - **Source authored != requirement satisfied.** RESP-01/A11Y-01 stay UNCHECKED until Plan 25-02's holistic live-render verification at the canonical viewports (~375px / ~768px / ~1280px) proves: the date renders above the headline on both row types, the nav condenses at 600px with no overflow band, the subscribe input shows the keyboard focus ring, and reduced-motion actually suppresses the theme fade (the D-11 cascade win is asserted in source here; live proof is 25-02).
 
+## Self-Check: PASSED
+
+- FOUND: `.planning/phases/25-responsive-accessibility-pass/25-01-SUMMARY.md`
+- FOUND commits: `9037db0` (Task 1), `c910d2b` (Task 2), `0350c86` (Task 3), `9818c56` (plan metadata)
+- Confirmed: only `docker/web/site/style-shared.css` + `style-base.css` changed across the task commits; `app.js` zero diff; no new hex literals; STATE.md/ROADMAP.md NOT touched (orchestrator-owned).
+
 ---
 *Phase: 25-responsive-accessibility-pass*
 *Completed: 2026-06-17*
