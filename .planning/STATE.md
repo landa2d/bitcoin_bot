@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
-stopped_at: Phase 24 Plan 02 complete (frontend signals fetch/render, source-only, committed b791e3e/4651134)
+stopped_at: Phase 24 COMPLETE — Signals section live (migration 044 applied via MCP, scoped web deploy, SIGNAL-01..04 operator-verified; CR-01 XSS fixed+deployed)
 last_updated: "2026-06-17T10:27:17.446Z"
 last_activity: 2026-06-17
 progress:
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 24 — signals-section
+**Current focus:** Phase 25 — Responsive & Accessibility Pass (Phase 24 complete)
 
 ## Current Position
 
 Phase: 25
 Plan: Not started
-Status: Executing Phase 24
-Last activity: 2026-06-17
+Status: Phase 24 complete (verified passed) — Phase 25 not started
+Last activity: 2026-06-17 -- Phase 24 executed + verified + completed
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
@@ -122,12 +122,15 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-17T08:50:29.165Z
-Stopped at: Phase 24 Plan 02 complete (frontend signals fetch/render, source-only, committed b791e3e/4651134)
-Resume file: .planning/phases/24-signals-section/24-02-SUMMARY.md
-Next: Phase 24 Plan 03 (ORCHESTRATOR-OWNED, worktree-unsafe: live-apply migration 044 via Supabase MCP `apply_migration` from the main tree → scoped `docker compose up -d --build web` from /root/bitcoin_bot/docker, NO `--delete` → operator live-render verify of the #signals tier-1 feed, newest-first/capped/safe links + fail-loud-vs-empty distinction; reproduce on the substituted /srv/app.js, Phase 22 lesson). SIGNAL-01..04 stay UNCHECKED until that live apply + render proof. NOTE: a separate ORCHESTRATOR-OWNED Phase 23 Plan 02 web deploy (ed29≠ed30 live verify) is still outstanding from the prior session — both web deploys can ride the same scoped rebuild.
-Previously: Execute Phase 23 Plan 02 (ORCHESTRATOR-OWNED, worktree-unsafe) — pre-deploy gate (prod↔main drift + `/diff` of the two web files + operator approval) → scoped `docker compose up -d --build web` (SERVICE key `web`, NO `--delete`) from /root/bitcoin_bot/docker → operator live-render verify of ed29≠ed30 in BOTH modes (the acceptance proof; reproduce on the substituted /srv/app.js, Phase 22 lesson). EXCERPT-01 stays UNCHECKED in REQUIREMENTS until that live proof. Plan 01 ran sequential on the main tree (source-only, worktree-safe; no docker/no config/.env/no network). Offline harness /tmp/excerpt_check.mjs (NOT committed) PASS 24/24.
-Carry-over (NOT Phase 22): newsletter image drift (Phase 19 commit 437cdb1, unrebuilt); migration 043 unapplied (Phase-24-owned); lab-data-provider known carry-over.
+Last session: 2026-06-17 (Phase 24 executed end-to-end)
+Stopped at: Phase 24 COMPLETE + verified (passed). Signals section live: migration 044 applied via Supabase MCP, scoped web deploy (×2 — initial + CR-01 fix), SIGNAL-01..04 operator-verified.
+Resume file: .planning/phases/24-signals-section/24-VERIFICATION.md
+Next: Phase 25 — Responsive & Accessibility Pass (RESP-01, A11Y-01). Holistic cross-cutting verify: grids/rows reflow (3→2→1, nav condenses, rows stack), scroll-spy keyboard/motion-safe, visible :focus-visible, prefers-reduced-motion, real <a> links. `/gsd-discuss-phase 25` (or plan/execute). The Phase 25 pass should re-check the new #signals section's .row reflow + the .view-all :focus-visible (added Phase 24).
+Carry-overs (NOT Phase 24 scope):
+- **Phase 23 Plan 02 EXCERPT-01 live-verify still pending.** The Phase 24 `docker compose up -d --build web` rebuilt from current main, so the committed Phase 23 strip-at-render frontend IS now deployed live — but the operator acceptance proof (ed29 distinct excerpt ≠ ed30 in BOTH modes, on the substituted /srv/app.js) was never run. EXCERPT-01 stays UNCHECKED in REQUIREMENTS until that live proof. Operator can verify it now on the live site (the code is deployed).
+- **Migration 043 (`economy_map_hub_and_negotiation_blocks`) unapplied on live.** Live migrations list jumps 042→044. Out of Phase 24 plan scope (24 applied only 044, "the milestone's only migration"); candidate for a follow-up / the audit milestone.
+- newsletter image drift (Phase 19 commit 437cdb1, unrebuilt); lab-data-provider known carry-over.
+- Pre-existing orphan container `openclaw-rivalscope` (unrelated; not removed — scoped deploys never use --remove-orphans).
 
 ## Operator Next Steps
 
