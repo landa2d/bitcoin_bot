@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
-stopped_at: Phase 24 context gathered
-last_updated: "2026-06-16T21:08:24.835Z"
-last_activity: 2026-06-16 -- Phase 24 planning complete
+stopped_at: Phase 24 Plan 01 complete (migration 044 authored, source-only)
+last_updated: "2026-06-17T08:41:13Z"
+last_activity: 2026-06-17 -- Phase 24 Plan 01 (migration 044) authored + committed
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
   percent: 71
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 24 — Signals Section (Phase 23 complete)
+**Current focus:** Phase 24 — signals-section
 
 ## Current Position
 
-Phase: 24 (Signals Section)
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-16 -- Phase 24 planning complete
+Phase: 24 (signals-section) — EXECUTING
+Plan: 1 of 3 complete — next Plan 2 (frontend fetch/render) then Plan 3 (orchestrator-owned live apply)
+Status: Executing Phase 24
+Last activity: 2026-06-17 -- Phase 24 Plan 01 (migration 044) authored + committed
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
@@ -72,6 +72,7 @@ Standing v1.0/v2.0/v2.1 decisions still in force (PROJECT.md Key Decisions table
 - [Phase 19 / fix + backfill]: write-path guard `nl.normalize_apostrophe_corruption` corrected to collapse word-flanked `''`→`'` (+ defensive mid-word double-quote repair), fail-loud, genuine quotes preserved; 36 regression tests. Operator-approved scoped backfill (by row id) of editions 26/29/30 — 103 repaired, 0 remaining, genuine `"` counts unchanged. `newsletter` rebuilt to ship the corrected guard; `web` NOT rebuilt (renderer unchanged — stored bytes render directly). Operator confirmed the live site. QUOTE-01 + QUOTE-02 satisfied; Phase 19 closed.
 - [Phase 20 / Plan 01 — WIDTH-01 foundation]: two coexisting centered axes shipped in source — `.prose` (`--measure:64ch`) for reading copy, `.wide` (`--wide:1080px`) for tiled content, `--gutter:clamp(1.25rem,5vw,3.5rem)` side padding (D-01, operator-locked mockup values verbatim). The single 720px `.container` (the D-06 dead-gutter root cause — centered but too narrow, so wide content read as a left gutter) is fully retired (0 refs in index.html + style-shared.css); each route re-homed onto its correct axis per the D-03 apply-map (list/map/status/about-grid/subscribe → wide; reader/block/about-intro → prose; About explicitly split). Nav widened 880px→`var(--wide)` so chrome and content share ONE centered axis (D-02), via the `.nav` rule only — no `.wide` on nav markup (Pitfall 3). `body > header` sticky scoping preserved (Pitfall 1); map grid still 2-col (3-col is Phase 22 post-renumber). Source-only — live-render verification is Plan 02 (orchestrator-owned). 3 atomic commits: 5ce580e / 76888c9 / c974018.
 - [Phase 21 / Plan 01 — SCROLL-01 structural foundation]: the four top-level sections now render on ONE single-scroll `<main id="landing">` (4 stacked `<section>` — `#newsletter`/`#signals`/`#map`/`#about`, LOCKED mockup order, Signals 2nd) REUSING the existing `#list-view`/`#map-view`/`#about-view` DOM verbatim; editions (`#/edition/<n>`) + block pages (`#/map/<slug>`) stay deep-linkable detail routes (siblings outside `#landing`). `getRoute()` is now two-mode (`{mode:'landing'|'detail'}`) — detail prefixes tested FIRST, bare-anchor landing fallthrough via an ANCHORED allowlist `/^#(newsletter|signals|map|about)$/` (Pitfall 1 / Security V5); the old plain-`#/map` (`view:'map'`) + `#/about` (`view:'about'`) routes are REMOVED (now landing sections). `route()` branches on mode (detail → stash `landingScrollY` + `setActiveTab` + dispatch; landing → `showLanding`, NO `setActiveTab` so the Plan-02 scroll-spy IO owns landing active state). `showView()` split into `showLanding()`/`showDetail()`; `loadList()`/`loadHub()` decoupled from view-switching behind an idempotent `ensureLandingDataLoaded()` guard; the mode-toggle/`.hero` re-homed into `#newsletter` (TGL-01). `#signals` is a PURE static shell (zero `source_posts`, no fetch, no new `<script>` — Phase 24 owns data + RLS). All Supabase queries byte-identical (no new `.eq('status','published')`, `.eq('status'` count frozen at 11, D-17); `__SUPABASE_*__` placeholders intact. Source-only — NO `docker compose` build/deploy run (Plan 02 / orchestrator-owned). Deviation: the two detail "Back to the map" backlinks re-pointed `#/map`→bare `#map` (the removed route would land on the wrong section). 3 task gates PASS. 4 commits: a000039 / 4941e57 / 040bdc7 / 80c1e05.
+- [Phase 24 / Plan 01 — SIGNAL-04 backend source]: authored `supabase/migrations/044_signals_anon_view.sql` (source-only, worktree-safe; NO docker/network/MCP/apply). Creates a **security-DEFINER** view `public.signals_feed` (the Postgres default — NO `security_invoker` clause, the LOAD-BEARING inversion of the 001 view idiom: an invoker view would run as anon, hit `source_posts` RLS-with-no-anon-policy, and return ZERO rows forever = silent empty feed) exposing EXACTLY the 5 whitelisted columns `id, title, source_url, source, scraped_at` for `source_tier = 1 AND source_url IS NOT NULL`, newest-first `scraped_at DESC, id DESC` (D-01/D-02/D-04; backed by mig-005 `idx_source_posts_tier_scraped`, no new index), then `GRANT SELECT ON public.signals_feed TO anon` (033 explicit-grant precedent). Base `source_posts` table UNTOUCHED — RLS stays on, no anon policy, so `body`/`metadata`/`score`/`author`/`comment_count`/`tags` stay anon-unreachable (the column ceiling lives in the view, NOT the frontend — operator's "RLS can't hide columns"). All 8 acceptance gates + the plan `<automated>` gate PASS (0 sensitive-col leaks, 0 invoker clause, 0 base-table mutation in the SQL body). 1 atomic commit: 3217464. **SIGNAL-04 stays UNCHECKED** until the orchestrator-owned LIVE apply (Plan 24-03) + frontend fail-loud wiring (Plan 24-02) — source authored ≠ requirement satisfied (mirrors the EXCERPT-01 stays-unchecked-until-live-proof discipline).
 - [Phase 23 / Plan 01 — EXCERPT-01 source]: strip-at-render excerpt pipeline shipped in source (app.js + style-shared.css; 3 atomic commits bbda2f4/fba0478/0754a32). DOM-free RECAP_OPENER_RE + cleanExcerptMarkdown/splitSentences/extractDistinctExcerpt helpers (header strip + recap skip + thin-pivot append + link cleanup; D-01..D-05/D-07) behind node-testable sentinels; renderList() rewritten to the mockup indexed-row grid (num·title·conditional-sum·date as one #/edition/<n> deep-link; escapeHtml at every DB sink; mode-aware D-08); net-new token-only .row CSS + D-06 2-line clamp (--line-soft→--line, --violet→--accent). loadList byte-identical (status filters frozen 2/11); __SUPABASE_* intact. 24-assertion offline harness PASS (ed29≠ed30 both modes). Source-only — live ed29/30 verification + scoped web rebuild is Plan 02 (orchestrator-owned). EXCERPT-01 stays UNCHECKED until the Plan 02 live proof.
 
 ### Pending Todos
@@ -120,10 +121,11 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 
 ## Session Continuity
 
-Last session: 2026-06-16T16:15:36.524Z
-Stopped at: Phase 24 context gathered
-Resume file: .planning/phases/24-signals-section/24-CONTEXT.md
-Next: Execute Phase 23 Plan 02 (ORCHESTRATOR-OWNED, worktree-unsafe) — pre-deploy gate (prod↔main drift + `/diff` of the two web files + operator approval) → scoped `docker compose up -d --build web` (SERVICE key `web`, NO `--delete`) from /root/bitcoin_bot/docker → operator live-render verify of ed29≠ed30 in BOTH modes (the acceptance proof; reproduce on the substituted /srv/app.js, Phase 22 lesson). EXCERPT-01 stays UNCHECKED in REQUIREMENTS until that live proof. Plan 01 ran sequential on the main tree (source-only, worktree-safe; no docker/no config/.env/no network). Offline harness /tmp/excerpt_check.mjs (NOT committed) PASS 24/24.
+Last session: 2026-06-17T08:41:13Z
+Stopped at: Phase 24 Plan 01 complete (migration 044 authored, source-only, committed 3217464)
+Resume file: .planning/phases/24-signals-section/24-01-SUMMARY.md
+Next: Phase 24 Plan 02 (frontend fetchSignals/renderSignals + fail-loud in app.js, worktree-safe source) — then Plan 03 (ORCHESTRATOR-OWNED, worktree-unsafe: live-apply migration 044 via Supabase MCP `apply_migration` from the main tree + scoped `web` rebuild + operator verify). SIGNAL-04 stays UNCHECKED until that live apply. NOTE: a separate ORCHESTRATOR-OWNED Phase 23 Plan 02 web deploy (ed29≠ed30 live verify) is still outstanding from the prior session.
+Previously: Execute Phase 23 Plan 02 (ORCHESTRATOR-OWNED, worktree-unsafe) — pre-deploy gate (prod↔main drift + `/diff` of the two web files + operator approval) → scoped `docker compose up -d --build web` (SERVICE key `web`, NO `--delete`) from /root/bitcoin_bot/docker → operator live-render verify of ed29≠ed30 in BOTH modes (the acceptance proof; reproduce on the substituted /srv/app.js, Phase 22 lesson). EXCERPT-01 stays UNCHECKED in REQUIREMENTS until that live proof. Plan 01 ran sequential on the main tree (source-only, worktree-safe; no docker/no config/.env/no network). Offline harness /tmp/excerpt_check.mjs (NOT committed) PASS 24/24.
 Carry-over (NOT Phase 22): newsletter image drift (Phase 19 commit 437cdb1, unrebuilt); migration 043 unapplied (Phase-24-owned); lab-data-provider known carry-over.
 
 ## Operator Next Steps
@@ -151,3 +153,4 @@ Carry-over (NOT Phase 22): newsletter image drift (Phase 19 commit 437cdb1, unre
 | Phase 20 P01 | ~4min | 3 tasks | 4 files (width tokens + .prose/.wide axes; 720px .container retired; source-only) |
 | Phase 21 P01 | ~6min | 3 tasks | 2 files |
 | Phase Phase 23 PP01 | ~14min | 3 tasks tasks | 2 files files |
+| Phase 24 P01 | ~3min | 1 task | 1 file (migration 044 — security-definer signals_feed view + anon grant; source-only) |

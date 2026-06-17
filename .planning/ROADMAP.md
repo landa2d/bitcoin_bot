@@ -220,7 +220,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 
 **Wave 1** *(parallel — no file overlap; source-only, worktree-safe)*
 
-- [ ] 24-01-PLAN.md — Migration 044: security-definer `public.signals_feed` view over tier-1 `source_posts` (5 whitelisted columns) + anon `GRANT SELECT`; base table untouched (SIGNAL-04)
+- [x] 24-01-PLAN.md — Migration 044: security-definer `public.signals_feed` view over tier-1 `source_posts` (5 whitelisted columns) + anon `GRANT SELECT`; base table untouched (SIGNAL-04)
 - [ ] 24-02-PLAN.md — Frontend signals feed in `app.js` (`fetchSignals` 3-way fail-loud split / `renderSignals` safe external rows / `signalHost` / inline view-all) + `.row .host`/`.view-all` CSS + placeholder removal (SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04)
 
 **Wave 2** *(blocked on Wave 1 — orchestrator-owned, worktree-unsafe)*
@@ -273,7 +273,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 21. Single-Scroll Landing + Scroll-Spy Nav | v2.2 | 2/2 | Complete    | 2026-06-11 |
 | 22. Per-Section Visual Fixes | v2.2 | 4/4 | Complete    | 2026-06-12 |
 | 23. Distinct Newsletter Excerpts | v2.2 | 2/2 | Complete    | 2026-06-16 |
-| 24. Signals Section | v2.2 | 0/3 | Not started | - |
+| 24. Signals Section | v2.2 | 1/3 | In Progress|  |
 | 25. Responsive & Accessibility Pass | v2.2 | 0/? | Not started | - |
 
 ## Backlog
