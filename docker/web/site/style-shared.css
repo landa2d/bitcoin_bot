@@ -915,8 +915,14 @@ article tr:last-child td {
     margin-bottom: var(--space-sm);
 }
 
-#subscribe-email:focus {
-    outline: none;
+/* a11y (D-02) — visible keyboard focus ring matching the .row / .view-all /
+   .card :focus-visible pattern; use --radius-sm to match this input's corners
+   (not the row's --radius-dot). The bare :focus { outline: none } regression that
+   left keyboard users with no focus indicator is replaced. */
+#subscribe-email:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: var(--radius-sm);
     border-color: var(--accent);
 }
 
