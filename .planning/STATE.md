@@ -4,14 +4,14 @@ milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
 status: executing
 stopped_at: Phase 25 context gathered
-last_updated: "2026-06-17T16:07:27.875Z"
-last_activity: 2026-06-17 -- Phase 25 execution started
+last_updated: "2026-06-19T07:20:18.402Z"
+last_activity: 2026-06-19
 progress:
   total_phases: 7
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 17
-  completed_plans: 15
-  percent: 86
+  completed_plans: 17
+  percent: 100
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 ## Current Position
 
-Phase: 25 (responsive-accessibility-pass) — EXECUTING
-Plan: 1 of 2
+Phase: 25
+Plan: Not started
 Status: Executing Phase 25
-Last activity: 2026-06-17 -- Phase 25 execution started
+Last activity: 2026-06-19
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 

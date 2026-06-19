@@ -282,7 +282,7 @@ Re-skin the public `aiagentspulse.com` SPA to the new editorial mockup, **conver
 | 22. Per-Section Visual Fixes | v2.2 | 4/4 | Complete    | 2026-06-12 |
 | 23. Distinct Newsletter Excerpts | v2.2 | 2/2 | Complete    | 2026-06-16 |
 | 24. Signals Section | v2.2 | 3/3 | Complete    | 2026-06-17 |
-| 25. Responsive & Accessibility Pass | v2.2 | 2/2 | Complete   | 2026-06-17 |
+| 25. Responsive & Accessibility Pass | v2.2 | 2/2 | Complete    | 2026-06-19 |
 
 ## Backlog
 

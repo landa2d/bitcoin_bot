@@ -59,8 +59,8 @@ Each maps to exactly one roadmap phase (see Traceability).
 
 ### Cross-Cutting (all groups)
 
-- [ ] **RESP-01**: All grids and rows reflow responsively — map 3→2→1, nav condenses on mobile, and signal/archive rows stack (date above headline) below the mobile breakpoint.
-- [ ] **A11Y-01**: Keyboard focus is visible (`:focus-visible` violet outline), `prefers-reduced-motion` is respected, and every link is a real `<a>` element.
+- [x] **RESP-01**: All grids and rows reflow responsively — map 3→2→1, nav condenses on mobile, and signal/archive rows stack (date above headline) below the mobile breakpoint.
+- [x] **A11Y-01**: Keyboard focus is visible (`:focus-visible` violet outline), `prefers-reduced-motion` is respected, and every link is a real `<a>` element.
 - [ ] **RHYTHM-01**: No hardcoded colors — every surface themes from the existing CSS variable system (warm off-white + violet); section rhythm uses one full-strength rule between major sections and hairline (`0.5px`) rules within.
 
 ---
@@ -127,8 +127,8 @@ Which phases cover which requirements. Mapped at roadmap creation (2026-06-10).
 | SIGNAL-02 | Phase 24 | Complete |
 | SIGNAL-03 | Phase 24 | Complete |
 | SIGNAL-04 | Phase 24 | Complete |
-| RESP-01 | Phase 25 | Pending |
-| A11Y-01 | Phase 25 | Pending |
+| RESP-01 | Phase 25 | Complete |
+| A11Y-01 | Phase 25 | Complete |
 
 **Coverage:**
 
