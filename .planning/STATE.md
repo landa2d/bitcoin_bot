@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: complete
-stopped_at: Milestone v2.2 complete — Phase 25 verified (all 7 phases done)
-last_updated: "2026-06-19T07:20:18.402Z"
-last_activity: 2026-06-19
+status: Awaiting next milestone
+stopped_at: Milestone v2.2 closed — archived (ROADMAP/REQUIREMENTS/phases), MILESTONES + RETROSPECTIVE updated, tagged v2.2
+last_updated: "2026-06-19T10:41:51.669Z"
+last_activity: 2026-06-19 — Milestone v2.2 completed and archived
 progress:
   total_phases: 7
   completed_phases: 7
@@ -18,17 +18,17 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
+See: .planning/PROJECT.md (updated 2026-06-19 — Current State: shipped through v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Milestone v2.2 (Landing Redesign + Signals Feed) COMPLETE — all 7 phases (19–25) verified. Awaiting `/gsd-complete-milestone` or next milestone.
+**Current focus:** Planning the next milestone — run `/gsd-new-milestone`. Milestone v2.2 (Landing Redesign + Signals Feed) CLOSED 2026-06-19: archived to `milestones/v2.2-*`, MILESTONES + RETROSPECTIVE updated, tagged `v2.2`. Leading candidate next: a backend-hardening milestone (carried-forward v1.0 follow-ups in `.planning/todos/pending/`).
 
 ## Current Position
 
-Phase: 25 (last phase of v2.2) — COMPLETE
-Plan: 2/2 complete (verification passed)
-Status: Milestone v2.2 complete (7/7 phases, 17/17 plans, 100%)
-Last activity: 2026-06-19
+Phase: Milestone v2.2 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-06-19 — Milestone v2.2 completed and archived
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
@@ -108,6 +108,22 @@ Items acknowledged and carried forward:
 | v-next — Per-block tuning | Threshold overrides per block (TUNE-01..03) | Deferred — kept separate from UI milestones | 2026-05-26 |
 | v-next — EU AI Act integration | Wire `eu_ai_act` tracker into regulation-legal block (EUAI-01, EUAI-02) | Deferred — out of v2.2 UI scope | 2026-05-26 |
 
+### Acknowledged at v2.2 close (2026-06-19)
+
+The pre-close open-artifact audit surfaced 9 items; the operator chose **Acknowledge all & proceed**. All were already-tracked (passed UAT, completed quick-tasks, or backlogged backend follow-ups) — no blocking gaps, no real v2.2 work outstanding.
+
+| Category | Item | Status |
+|----------|------|--------|
+| uat | Phase 19 `19-HUMAN-UAT.md` | passed — 0 pending scenarios (flagged only because the file exists) |
+| quick_task | 260609-fpc-fix-duplicate-block-title-on-map-slug | done (committed `19115b2`; SDK marker absent) |
+| quick_task | 260609-ivq-map-page-rendering-fixes-hub-duplicate-t | done (committed `9e350f3`; SDK marker absent) |
+| quick_task | 260612-kh9-implement-audit-spec-02-proxy-governance | done (committed `1fd56ca`; SDK marker absent) |
+| pending_todo | analyst predictions `title` expire bug | deferred — backend-hardening milestone (P2) |
+| pending_todo | harden soft-caps allow-negative | deferred — backend-hardening milestone (P5) |
+| pending_todo | pay-endpoint 500 transfer-rpc search-path (E2E activation) | deferred — RPC root-cause fixed m037; residual E2E only (P2) |
+| pending_todo | phase05 intake-classifier review follow-ups WR02/04/05 | deferred — backend-hardening milestone (P4) |
+| pending_todo | research trigger file permissions | deferred — backend-hardening milestone (P4) |
+
 ### Backend follow-ups (candidate: a backend-hardening milestone)
 
 Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlog, detail in `.planning/todos/pending/`):
@@ -135,10 +151,7 @@ Carry-overs (NOT Phase 24 scope):
 
 ## Operator Next Steps
 
-- **Phases 19 + 20 are COMPLETE.** Phase 19 (smart-quote fix): storage proven clean, fail-loud guard live, regression-locked. Phase 20 (width/centering/rhythm foundation): code committed + scoped `web` rebuild deployed live 2026-06-11; WIDTH-01/RHYTHM-01 satisfied (holistic visual re-verify folded into Phase 21).
-- **Plan the new Phase 21:** `/gsd-plan-phase 21` (Single-Scroll Landing + Scroll-Spy Nav — SCROLL-01, SCROLL-02). The nav-architecture conversion from the 2026-06-11 hybrid pivot; everything downstream re-homes onto the landing, so it lands before the per-section fixes. Design unknowns surface inside planning research (scroll-spy ↔ detail-route coexistence, app.js two-mode router, back-to-landing scroll restore, Signals section shell vs Phase 24 data).
-- Phase 22 = per-section visual fixes; Phase 23 = excerpts; Phase 24 = Signals section + migration; Phase 25 = the final holistic responsive/a11y (now incl. scroll-spy) pass.
-- Phase 24 carries the milestone's ONLY Supabase migration (anon tier-1 RLS on `source_posts`, next after 043) — orchestrator-owned apply, fail-loud on absence. Pre-existing migration 043 (unapplied) also owned here.
+- Start the next milestone with /gsd-new-milestone
 
 ## Performance Metrics
 

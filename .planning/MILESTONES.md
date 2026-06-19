@@ -1,5 +1,26 @@
 # Milestones
 
+## v2.2 Landing Redesign + Signals Feed (Shipped: 2026-06-19)
+
+**Phases completed:** 7 phases (19–25), 17 plans, 24 tasks
+**Timeline:** 2026-06-10 → 2026-06-19 (9 days)
+**Git range:** `602b706` (docs(19): create phase plan) → `0350c86` (feat(25-01)) — ~1.25K production LOC across `docker/web/site/` (`app.js`, `style-base.css`, `style-shared.css`), `supabase/migrations/044`, and the `newsletter` write-path guard.
+**Requirements:** 17/17 satisfied (no gaps). **Known deferred items at close:** 9 (see STATE.md → Deferred Items → "Acknowledged at v2.2 close") — all already-tracked: 1 passed UAT, 3 completed quick-tasks, 5 backlogged backend follow-ups; no blocking gaps.
+
+**Delivered:** Re-skinned the public `aiagentspulse.com` SPA to the new editorial mockup — the four top-level sections merged into one single-scroll landing with scroll-spy nav (editions & block pages kept as deep-linkable detail routes) — fixed the four live-site defects the redesign brief called out, and added a new tier-1 Signals feed. NOT frontend-only: Phase 19 touched the newsletter write-path and Phase 24 added the milestone's one Supabase migration. The spine held throughout (gated deploys, fail-loud, append-only, all LLM via `llm-proxy:8200`).
+
+**Key accomplishments:**
+
+- **Smart-quote integrity (Phase 19 — QUOTE-01/02):** proved from raw stored bytes that the apostrophe→double-quote corruption was NOT in the corpus (43 rows scanned, 0 corrupt; the `marked.js` renderer has no typographer), then shipped a fail-loud, no-op-on-clean `normalize_apostrophe_corruption` write-path guard locked by a 36-case regression test — corruption can't silently recur. Confirm-and-close: no backfill needed.
+- **Width & centering foundation (Phase 20 — WIDTH-01/RHYTHM-01):** two coexisting, both-centered max-widths (`--measure` narrow prose / `--wide` grids) killed the dead left gutter; the single 720px `.container` was retired and every route re-homed onto its correct axis, with a token-only color system + section-rhythm hierarchy as the shared baseline every later phase conformed to.
+- **Single-scroll landing + scroll-spy (Phase 21 — SCROLL-01/02):** the four top-level sections (newsletter / signals / agent-economy / about, locked mockup order) now render on one `#landing` page with an `IntersectionObserver` scroll-spy nav; individual editions (`#/edition/<n>`) and block pages (`#/map/<slug>`) stay deep-linkable detail routes; detail→back restores landing scroll position; a two-mode `app.js` router refactor underpins it.
+- **Per-section visual fixes (Phase 22 — HEAD-01/GRID-01/GRID-02/AGENTS-01):** edition H1 de-dup (baked `— Edition #N | <date>` suffix stripped at render, both modes); the Agent Economy map went 2→3-col with 3/2/1 breakpoints + a maturity legend mirroring the real 5-segment pill; the About grid became a numbered 01-04 pipeline + bulleted supporting layer with a distinct violet "nothing publishes without human approval" callout.
+- **Distinct newsletter excerpts (Phase 23 — EXCERPT-01):** strip-at-render removal of the "Read This, Skip the Rest" boilerplate intro + the first genuinely-distinct sentence surfaced in the indexed-row archive format (number · title · summary · date) — no schema change; editions 29 ≠ 30 in both modes.
+- **Signals feed (Phase 24 — SIGNAL-01..04):** a security-definer `public.signals_feed` view (migration 044) exposing exactly 5 whitelisted columns of tier-1 `source_posts` newest-first + `GRANT SELECT TO anon` (the column ceiling lives in the view; the base table stays fully RLS-blocked), wired to a fail-loud frontend feed with safe external links (`safeHttpUrl`-gated, `rel="noopener noreferrer"`), capped with an inline view-all — applied live via the Supabase MCP + operator-verified.
+- **Responsive & accessibility pass (Phase 25 — RESP-01/A11Y-01):** holistic live-render acceptance gate — grids reflow 3→2→1, nav condenses at 600px, rows stack date-above-headline, `:focus-visible` violet outlines, `prefers-reduced-motion` suppresses the theme fade (cascade win proven live), and every navigational element audited as a real `<a>` — operator signed off.
+
+---
+
 ## v2.0 Frontend Redesign (Shipped: 2026-06-08)
 
 **Phases completed:** 4 phases, 8 plans, 16 tasks

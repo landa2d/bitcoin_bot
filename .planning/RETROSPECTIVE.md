@@ -78,6 +78,54 @@
 
 ---
 
+## Milestone: v2.1 — Agent Economy Content
+
+> **Retrospective gap (acknowledged):** v2.1 (Phases 15–18, shipped 2026-06-09) was completed and its phases archived to `milestones/v2.1-phases/`, but it was never formally closed via `/gsd-complete-milestone` — no MILESTONES.md entry, no RETROSPECTIVE section, no `v2.1` git tag were generated (the operator ran `/gsd-new-milestone` to start v2.2 directly). The phase/roadmap/requirements artifacts are preserved (`milestones/v2.1-ROADMAP.md`, `milestones/v2.1-REQUIREMENTS.md`). A backfill of the v2.1 record is offered as a follow-up to the v2.2 close. **What shipped:** all 8 in-scope `economy_map` block bodies published live to `aiagentspulse.com/#/map` in one operator-approved batch (migration 043 + a standalone PostgREST loader + the atomic `publish_block_version` RPC), content-only, with `regulation-legal` kept deferred.
+
+---
+
+## Milestone: v2.2 — Landing Redesign + Signals Feed
+
+**Shipped:** 2026-06-19
+**Phases:** 7 (19–25) | **Plans:** 17 | **Tasks:** 24
+
+### What Was Built
+- A **second public-site redesign** of `aiagentspulse.com`, deployed live via gated scoped `agentpulse-web` rebuilds: the four top-level sections merged into ONE single-scroll landing with an `IntersectionObserver` scroll-spy nav (`app.js` two-mode router refactor) while editions/blocks stayed deep-linkable detail routes; two coexisting both-centered max-widths (`--measure`/`--wide`) killed the dead left gutter on a token-only color + section-rhythm baseline.
+- The **four brief defects fixed**: edition-header de-dup (suffix stripped at render), Agent Economy 3-col grid + maturity legend, About pipeline-vs-supporting agent grid + violet approval callout, and distinct strip-at-render newsletter excerpts in an indexed-row archive.
+- A **new tier-1 Signals feed**: a security-DEFINER `public.signals_feed` view (migration 044) exposing 5 whitelisted columns of tier-1 `source_posts` + anon grant, with a fail-loud frontend feed of safe external links — the base table left fully RLS-blocked.
+- A **smart-quote content-integrity fix** (the only other backend touch): raw-byte diagnosis proved the corpus already clean, so a fail-loud write-path guard + 36-case regression test prevent recurrence (confirm-and-close, no backfill).
+
+### What Worked
+- **Foundation-first held again** — Phase 20's layout-agnostic width/token/rhythm baseline survived a mid-milestone layout reversal (see below) unchanged; every later phase conformed to it rather than re-litigating it.
+- **Diagnose before patching** — Phase 19 queried raw stored bytes first; the corpus was clean, so the fix became a recurrence-guard, not a risky table-wide backfill. The `marked.js`-has-no-typographer fact ruled out a render-layer cause up front.
+- **The column ceiling lives in the data layer** — anon Signals reads go through a security-DEFINER view that exposes exactly 5 columns (RLS can't hide columns); the frontend never sees `body`/`score`/`author`. Fail-loud if the view/grant is absent → never a silent empty feed.
+- **`source-authored ≠ requirement-satisfied`** — requirements stayed UNCHECKED until the orchestrator-owned live apply + operator render proof, mirroring v2.0's D-06 deploy-fence; kept "done" honest.
+- **Token-only grep gates + scoped gated deploys** carried over from v2.0 and stayed deterministic across all six CSS phases.
+
+### What Was Inefficient
+- **A mid-milestone direction reversal** (2026-06-11: "keep separate routes" → hybrid single-scroll landing) re-scoped Phases 21–25 and promoted a deferred future requirement (WIDTH-F1 → SCROLL-01/02). Survivable only because the Phase 20 foundation was layout-agnostic — but it cost a re-plan of the milestone's back half.
+- **The Phase 19 first diagnosis was wrong** — it searched for a literal `"` (U+0022) and spot-checked one clean string, concluding "storage clean / nothing to fix"; the operator caught at live verification that the real signature was a *doubled* apostrophe (`''`, 103 occurrences) rendering as a visual double-quote. Re-diagnosis + corrected guard + scoped backfill of editions 26/29/30 followed. (Lesson: verify render bugs end-to-end against the actual rendered output.)
+- **Stale requirement markers at close** — WIDTH-01/RHYTHM-01 checkboxes and SCROLL-01/02 traceability status lagged the actual (live, deployed) state and had to be reconciled at milestone close. The phase-level `[x]` and the requirement-list `[ ]` drifted apart.
+- **The audit/close hygiene slipped a milestone** — v2.1 was never formally closed (no MILESTONES/retro/tag), surfacing only at v2.2 close.
+
+### Patterns Established
+- **Hybrid single-scroll landing**: top-level sections as one scroll page + `IntersectionObserver` scroll-spy, with detail (edition/block) routes kept deep-linkable; a two-mode (`landing`/`detail`) hash router with detail-prefixes-tested-first + an anchored bare-anchor allowlist.
+- **Security-DEFINER view as an anon column-ceiling** (NOT `security_invoker`): an invoker view would run as anon, hit RLS-with-no-anon-policy, and return zero rows forever — the definer inversion is load-bearing.
+- **Three-way fail-loud fetch split**: `error` → loud diagnostic + `console.error`; `200 []` → benign empty state; rows → render. Distinguishes "policy/view absent" from "genuinely no data."
+- **Confirm-and-close**: when a feared data defect proves absent on inspection, ship the recurrence-guard and document the clean scan rather than running a blind backfill.
+
+### Key Lessons
+1. **Verify render bugs end-to-end** — reproduce the actual rendered output; don't infer a corpus is clean from a wrong-signature search or one spot-check (the doubled-apostrophe miss).
+2. A **mid-milestone reversal is survivable** when the foundation phase is deliberately layout-agnostic — invest in the layout-independent baseline first.
+3. **Put the column ceiling in the database** (a whitelisted view), not the frontend — "RLS can't hide columns."
+4. **Close milestones promptly** — skipping `/gsd-complete-milestone` (v2.1) loses the tag/retro/record and compounds at the next close.
+
+### Cost Observations
+- Model mix: **Opus** orchestrator + executors, **Sonnet** for verification + code review; DeepSeek only in the (untouched) runtime classifier path.
+- Notable: the six CSS phases were largely source-then-deploy, so wall-clock was gated by the operator-approved scoped `web` rebuilds (the single shared public cutover), not by executor parallelism.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -85,14 +133,22 @@
 | Milestone | Phases | Key Change |
 |-----------|--------|------------|
 | v1.0 | 11 | Established the autonomy-boundary spine (intake autonomous, publish gated) and structural-enforcement discipline; introduced no-worktree execution for prod-touching phases. |
+| v2.0 | 4 | Foundation-first CSS phases on token-only grep gates; D-06 deploy-fence (whole milestone ships in one operator-approved cutover); substituted-preview verification without a browser. |
+| v2.1 | 4 | Content-only milestone on the v2.0 surface; gated batch publish via the atomic RPC; **closed informally (no tag/retro) — process gap.** |
+| v2.2 | 7 | Two backend touches (write-path + RLS view) deliberately isolated from six CSS phases; survived a mid-milestone layout reversal via a layout-agnostic foundation; `source-authored ≠ satisfied` deploy discipline. |
 
 ### Cumulative Quality
 
 | Milestone | Tests | Zero-Dep Additions |
 |-----------|-------|--------------------|
 | v1.0 | per-phase pytest suites (intake, synthesis, gated-publishing, command handlers) | All phases added no new runtime dependencies beyond the existing stack. |
+| v2.0 | token-only grep gates (no raw-px radius / off-grid spacing / literal hex) | No new runtime deps; cascade shrunk to 2 sheets (`style-map.css` retired). |
+| v2.1 | anon-key before/after read proofs + a fail-loud cross-link verification harness | No new runtime deps; one migration (043). |
+| v2.2 | 36-case smart-quote regression suite + offline excerpt/render harnesses + grep token gates | No new runtime deps; one migration (044, security-definer view). |
 
 ### Top Lessons (Verified Across Milestones)
 
-1. Structural enforcement (triggers/RLS/RPC) beats application-layer checks — `service_role` bypasses RLS.
-2. Fail loud on missing inputs; never silently default to a no-op ("the wallet bug").
+1. Structural enforcement (triggers/RLS/RPC/views) beats application-layer checks — `service_role` bypasses RLS, and a view (not the frontend) is where an anon column-ceiling belongs.
+2. Fail loud on missing inputs; never silently default to a no-op ("the wallet bug"; the Signals empty-feed-on-missing-policy guard).
+3. Verify render/visual bugs end-to-end against the actual rendered output — storage bytes and wrong-signature searches lie (the doubled-apostrophe miss).
+4. Close milestones promptly via `/gsd-complete-milestone` — the v2.1 skip lost its tag/retro and surfaced only at the v2.2 close.
