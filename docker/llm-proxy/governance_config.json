@@ -19,7 +19,7 @@
         "spending_cap_sats": 5000,
         "spending_cap_window": "weekly",
         "max_calls_per_minute": 5,
-        "allowed_models": ["claude-sonnet-4-20250514"],
+        "allowed_models": ["claude-sonnet-4-6"],
         "on_cap_exceeded": "reject",
         "alert_at_pct": 90
     },
@@ -35,9 +35,9 @@
         "spending_cap_sats": 50000,
         "spending_cap_window": "daily",
         "max_calls_per_minute": 30,
-        "allowed_models": ["claude-sonnet-4-20250514", "deepseek-chat", "text-embedding-3-large"],
+        "allowed_models": ["claude-sonnet-4-6", "deepseek-chat", "text-embedding-3-large"],
         "on_cap_exceeded": "downgrade_model",
-        "downgrade_map": {"claude-sonnet-4-20250514": "deepseek-chat"},
+        "downgrade_map": {"claude-sonnet-4-6": "deepseek-chat"},
         "alert_at_pct": 70
     }
 }

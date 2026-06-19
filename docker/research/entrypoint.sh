@@ -4,7 +4,7 @@ set -e
 
 echo "============================================"
 echo "  AgentPulse Research Agent Starting..."
-echo "  Model: ${RESEARCH_MODEL:-claude-sonnet-4-20250514}"
+echo "  Model: ${RESEARCH_MODEL:-claude-sonnet-4-6}"
 echo "  Poll interval: ${RESEARCH_POLL_INTERVAL:-60}s"
 echo "============================================"
 

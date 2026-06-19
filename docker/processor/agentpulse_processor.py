@@ -3549,7 +3549,7 @@ def synthesis_sonnet_call(system_prompt: str, user_prompt: str, cfg: dict) -> st
             "Content-Type": "application/json",
         },
         json={
-            "model": cfg.get("synthesis_model", "claude-sonnet-4-20250514"),
+            "model": cfg.get("synthesis_model", "claude-sonnet-4-6"),
             "system": system_prompt,
             "max_tokens": int(cfg.get("output_max_tokens", 8000)),
             "temperature": cfg.get("temperature", 0.4),

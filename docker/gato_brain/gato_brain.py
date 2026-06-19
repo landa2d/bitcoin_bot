@@ -427,7 +427,7 @@ def generate_response(system_prompt: str, history: list[dict], user_message: str
     try:
         start = time.time()
         response = claude_client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             system=system_prompt,
             messages=messages,
             temperature=0.7,
@@ -974,7 +974,7 @@ Rules:
 
     try:
         response = claude_client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             messages=[{"role": "user", "content": prompt}],
             temperature=0.7,
             max_tokens=300,

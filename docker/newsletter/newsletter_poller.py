@@ -53,8 +53,8 @@ OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
 AGENT_NAME = os.getenv("AGENT_NAME", "newsletter")
 OPENCLAW_DATA_DIR = os.getenv("OPENCLAW_DATA_DIR", "/home/openclaw/.openclaw")
 POLL_INTERVAL = int(os.getenv("NEWSLETTER_POLL_INTERVAL", "30"))
-MODEL = os.getenv("NEWSLETTER_MODEL", "claude-sonnet-4-20250514")
-STRATEGIC_MODEL = os.getenv("NEWSLETTER_STRATEGIC_MODEL", "claude-sonnet-4-20250514")
+MODEL = os.getenv("NEWSLETTER_MODEL", "claude-sonnet-4-6")
+STRATEGIC_MODEL = os.getenv("NEWSLETTER_STRATEGIC_MODEL", "claude-sonnet-4-6")
 LLM_PROXY_URL = os.getenv("LLM_PROXY_URL", "http://llm-proxy:8200")
 
 WORKSPACE = Path(OPENCLAW_DATA_DIR) / "workspace"
@@ -2056,7 +2056,7 @@ def process_task(task: dict):
             _blocks_data = blocks_data
 
             # Block-aware prepass: pick angle FROM the blocks
-            prepass_model = _bp_config.get('model_prepass', 'claude-sonnet-4-20250514')
+            prepass_model = _bp_config.get('model_prepass', 'claude-sonnet-4-6')
             prepass_client = claude_client if prepass_model.startswith('claude') else deepseek_client
             block_editorial = editorial_prepass_from_blocks(
                 blocks_data,
@@ -2073,7 +2073,7 @@ def process_task(task: dict):
                 logger.warning(f"[BLOCK PIPELINE] Block prepass failed, using single-pass angle: {block_angle[:80]}")
 
             # Phase B + C + E
-            prose_model = _bp_config.get('model_prose', 'claude-sonnet-4-20250514')
+            prose_model = _bp_config.get('model_prose', 'claude-sonnet-4-6')
             prose_client = claude_client if prose_model.startswith('claude') else deepseek_client
             bp_result = generate_from_blocks(
                 blocks_data,
@@ -2246,7 +2246,7 @@ def process_task(task: dict):
                 )
 
                 # Block-aware prepass: pick angle FROM the blocks
-                prepass_model = _bp_config.get('model_prepass', 'claude-sonnet-4-20250514')
+                prepass_model = _bp_config.get('model_prepass', 'claude-sonnet-4-6')
                 prepass_client = claude_client if prepass_model.startswith('claude') else deepseek_client
                 block_editorial = editorial_prepass_from_blocks(
                     blocks_data,
@@ -2262,7 +2262,7 @@ def process_task(task: dict):
                     logger.warning(f"[A/B] Block prepass failed, falling back to single-pass angle: {block_angle[:80]}")
 
                 # Determine which client to use for prose
-                prose_model = _bp_config.get('model_prose', 'claude-sonnet-4-20250514')
+                prose_model = _bp_config.get('model_prose', 'claude-sonnet-4-6')
                 prose_client = claude_client if prose_model.startswith('claude') else deepseek_client
 
                 # Phase B + C + E

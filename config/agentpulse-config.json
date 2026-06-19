@@ -106,7 +106,7 @@
     "enabled": true,
     "N": 5,
     "T_days": 30,
-    "synthesis_model": "claude-sonnet-4-20250514",
+    "synthesis_model": "claude-sonnet-4-6",
     "max_input_entries": 22,
     "max_input_tokens": 12000,
     "output_max_tokens": 8000,
@@ -122,14 +122,14 @@
     "gpt-4o-mini": {"input": 0.15, "output": 0.60, "provider": "openai"},
     "deepseek-chat": {"input": 0.27, "output": 1.10, "provider": "deepseek"},
     "deepseek-reasoner": {"input": 0.55, "output": 2.19, "provider": "deepseek"},
-    "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00, "provider": "anthropic"}
+    "claude-sonnet-4-6": {"input": 3.00, "output": 15.00, "provider": "anthropic"}
   },
   "block_pipeline": {
     "enabled": false,
     "ab_comparison": true,
-    "model_prepass": "claude-sonnet-4-20250514",
-    "model_structure": "claude-sonnet-4-20250514",
-    "model_prose": "claude-sonnet-4-20250514",
+    "model_prepass": "claude-sonnet-4-6",
+    "model_structure": "claude-sonnet-4-6",
+    "model_prose": "claude-sonnet-4-6",
     "model_voice": "deepseek-chat"
   },
   "wallet_pricing": {
@@ -137,7 +137,7 @@
     "deepseek-reasoner": 5,
     "gpt-4o-mini": 5,
     "gpt-4o": 50,
-    "claude-sonnet-4-20250514": 80,
+    "claude-sonnet-4-6": 80,
     "default": 10
   }
 }

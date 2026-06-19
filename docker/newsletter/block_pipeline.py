@@ -112,7 +112,7 @@ Respond ONLY with valid JSON:
 
 
 def phase_b_structure(blocks_data: dict, angle: str, llm_client,
-                      model: str = 'claude-sonnet-4-20250514') -> dict:
+                      model: str = 'claude-sonnet-4-6') -> dict:
     """Phase B: Generate section structure from blocks + angle.
 
     Args:
@@ -288,7 +288,7 @@ FORBIDDEN:
 
 def phase_c_render(section_name: str, section_spec: dict,
                    blocks_data: dict, angle: str,
-                   llm_client, model: str = 'claude-sonnet-4-20250514',
+                   llm_client, model: str = 'claude-sonnet-4-6',
                    audience: str = 'technical') -> str:
     """Phase C: Render one section from blocks into prose.
 
@@ -472,7 +472,7 @@ def editorial_prepass_from_blocks(
     narrative_context: dict | None = None,
     avoided_themes: list[str] | None = None,
     llm_client=None,
-    model: str = 'claude-sonnet-4-20250514',
+    model: str = 'claude-sonnet-4-6',
 ) -> dict | None:
     """Block-aware prepass: choose angle constrained to available blocks.
 
@@ -566,7 +566,7 @@ def generate_from_blocks(
     llm_client,
     exemplars: list[str] | None = None,
     model_structure: str = 'deepseek-chat',
-    model_prose: str = 'claude-sonnet-4-20250514',
+    model_prose: str = 'claude-sonnet-4-6',
     model_voice: str = 'deepseek-chat',
 ) -> dict:
     """Run the full block-based pipeline: B → C → E.

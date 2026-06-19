@@ -48,7 +48,7 @@ def require_env(names):
     if missing:
         raise RuntimeError(f"missing required env: {', '.join(missing)}")
 
-MODEL = os.getenv("RESEARCH_MODEL", "claude-sonnet-4-20250514")
+MODEL = os.getenv("RESEARCH_MODEL", "claude-sonnet-4-6")
 POLL_INTERVAL = int(os.getenv("RESEARCH_POLL_INTERVAL", "60"))
 MAX_SOURCE_TOKENS = int(os.getenv("RESEARCH_MAX_SOURCE_TOKENS", "8000"))
 MAX_GENERATION_TOKENS = int(os.getenv("RESEARCH_MAX_GENERATION_TOKENS", "2000"))

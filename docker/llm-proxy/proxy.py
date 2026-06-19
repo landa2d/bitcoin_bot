@@ -69,7 +69,7 @@ MODEL_ROUTES: dict[str, dict] = {
         "base_url": "https://api.openai.com/v1",
         "env_key": "OPENAI_API_KEY",
     },
-    "claude-sonnet-4-20250514": {
+    "claude-sonnet-4-6": {
         "provider": "anthropic",
         "base_url": "https://api.anthropic.com",
         "env_key": "ANTHROPIC_AGENT_KEY",
@@ -81,7 +81,7 @@ ESTIMATED_COST_SATS: dict[str, int] = {
     "deepseek-chat": 2,
     "gpt-4o-mini": 5,
     "gpt-4o": 50,
-    "claude-sonnet-4-20250514": 80,
+    "claude-sonnet-4-6": 80,
     "text-embedding-3-large": 1,
 }
 
@@ -90,7 +90,7 @@ TOKEN_PRICING_USD: dict[str, dict[str, float]] = {
     "deepseek-chat": {"input": 0.14, "output": 0.28},
     "gpt-4o": {"input": 2.50, "output": 10.00},
     "gpt-4o-mini": {"input": 0.15, "output": 0.60},
-    "claude-sonnet-4-20250514": {"input": 3.00, "output": 15.00},
+    "claude-sonnet-4-6": {"input": 3.00, "output": 15.00},
     "text-embedding-3-large": {"input": 0.13, "output": 0.0},
 }
 
@@ -1022,7 +1022,7 @@ async def proxy_anthropic(request: Request) -> Response:
     except json.JSONDecodeError:
         return JSONResponse(status_code=400, content={"error": {"message": "Invalid JSON body", "type": "invalid_request"}})
 
-    model = body.get("model", "claude-sonnet-4-20250514")
+    model = body.get("model", "claude-sonnet-4-6")
     route = MODEL_ROUTES.get(model)
     if not route or route["provider"] != "anthropic":
         return JSONResponse(
@@ -1064,7 +1064,7 @@ async def proxy_anthropic(request: Request) -> Response:
             )
         elif gov["action"] == "downgrade":
             # E) CROSS-PROVIDER/ENDPOINT HAZARD (D-02). gato's only downgrade is
-            # claude-sonnet-4-20250514 (anthropic, /v1/messages, anthropic body) ->
+            # claude-sonnet-4-6 (anthropic, /v1/messages, anthropic body) ->
             # deepseek-chat (deepseek, /chat/completions, OpenAI body). We CANNOT rebind
             # `route` and keep posting the anthropic body to a deepseek URL. A clean
             # anthropic->OpenAI body translation is out of scope here, so we take the
