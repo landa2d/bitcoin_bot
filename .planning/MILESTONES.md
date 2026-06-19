@@ -21,6 +21,22 @@
 
 ---
 
+## v2.1 Agent Economy Content (Shipped: 2026-06-09)
+
+**Phases completed:** 4 phases (15–18), 10 plans
+**Backfilled:** 2026-06-19 (this milestone was shipped 2026-06-09 but not formally closed at the time — record reconstructed during the v2.2 close; artifacts were preserved in `milestones/v2.1-*`).
+
+**Delivered:** Filled the v2.0 grid with real editorial content — all 8 in-scope `economy_map` block bodies published live to `aiagentspulse.com/#/map` in ONE operator-approved batch. Content-only: no UI redesign, no pipeline/proxy/agent-service changes; `regulation-legal` kept deferred. The spine held (autonomous intake, human-gated publish, append-only via the canonical-rewrite path, all `economy_map` access via direct PostgREST + `Accept-Profile`).
+
+**Key accomplishments:**
+
+- **Inventory & roster reconciliation (Phase 15 — INV-01/02, ROST-01):** a no-write documentation phase — `15-CONTRACT.md` captured the live `economy_map` storage/serve contract (block columns + 3-tier CHECK, the 2 append-only triggers, the atomic `publish_block_version` RPC = migration 039, anon published-only RLS) and the verified 5-member maturity enum; `15-RECONCILIATION.md` locked the per-slug roster (added `negotiation-coordination`, kept `regulation-legal` deferred, contiguous `sort_order` reshuffle). No migration ≥043, no `app.js` edit, no `economy_map` write.
+- **Content load — unpublished (Phase 16 — LOAD-01/02/03):** migration 043 (orchestrator-applied via the Supabase Management API) relaxed the tier CHECK for a `'hub'` sentinel, inserted the `agent-economy` hub + `negotiation-coordination` rows, and reshuffled `sort_order`; a standalone PostgREST loader landed all 8 canonical bodies as `status='draft'` (validate-all-then-insert, `building→emerging` remap, idempotent). Proven a visitor-facing no-op by an anon-key before/after read (published count unchanged 2→2); 3 stale drafts superseded via the `reject_block_version` RPC (never a raw UPDATE).
+- **Cross-link wiring & preview (Phase 17 — LINK-01, PREV-01, HUB-01):** a dormant `?preview=1` flag-gated preview render path in `app.js` (prefers the draft body + `proposed_maturity`) + a hub intro that drops the prose block-list so blocks appear once as cards; a fail-loud `verify_economy_map_crosslinks.py` harness asserts all 22 `#/map/<slug>` links resolve to the 7 in-roster targets. Deployed/anon path a byte-for-byte no-op (flag absent + published-only RLS); operator-verified click-through.
+- **Gated batch publish (Phase 18 — PUB-01):** the go-live — an operator-approved scoped `agentpulse-web` rebuild proven a visual no-op pre-publish, then a fail-loud idempotent batch flipped all 8 drafts live (7 blocks first, hub last) via the atomic `publish_block_version` RPC; `verify_economy_map_publish.py` PASSED from the anon perspective (published count 2→8, hub article + all 22 cross-links resolve against published content). Code-review blocker CR-01 (unreachable idempotent recovery) fixed pre-verify.
+
+---
+
 ## v2.0 Frontend Redesign (Shipped: 2026-06-08)
 
 **Phases completed:** 4 phases, 8 plans, 16 tasks
