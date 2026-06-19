@@ -127,10 +127,9 @@ body {
 /* ── Content Area ────────────────────────────────────────────── */
 
 .content-area {
-    padding: 0 0 var(--space-xl);
+    padding-block: var(--space-lg) var(--space-xl);
     /* D-05 major boundary (chrome/hero -> content) — 1px --line-strong */
     border-top: 1px solid var(--line-strong);
-    padding-top: var(--space-lg);
 }
 
 /* Article entries in list view — B1 restyled rows (D-04): --line-divided rows
@@ -1111,7 +1110,7 @@ article tr:last-child td {
        off-grid mobile toggle override is retired (Phase 12 reconciliation). */
     .hero { padding: var(--space-lg) 0 0; }
 
-    .content-area { padding: 0 0 24px; padding-top: 16px; }
+    .content-area { padding-block: 16px 24px; }
 
     .bottom-bar {
         flex-direction: column;
