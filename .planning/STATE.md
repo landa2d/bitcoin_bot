@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Landing Redesign + Signals Feed
-status: executing
-stopped_at: Phase 25 context gathered
+status: complete
+stopped_at: Milestone v2.2 complete — Phase 25 verified (all 7 phases done)
 last_updated: "2026-06-19T07:20:18.402Z"
 last_activity: 2026-06-19
 progress:
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-10 — Current Milestone v2.2)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 25 — responsive-accessibility-pass
+**Current focus:** Milestone v2.2 (Landing Redesign + Signals Feed) COMPLETE — all 7 phases (19–25) verified. Awaiting `/gsd-complete-milestone` or next milestone.
 
 ## Current Position
 
-Phase: 25
-Plan: Not started
-Status: Executing Phase 25
+Phase: 25 (last phase of v2.2) — COMPLETE
+Plan: 2/2 complete (verification passed)
+Status: Milestone v2.2 complete (7/7 phases, 17/17 plans, 100%)
 Last activity: 2026-06-19
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
@@ -39,8 +39,8 @@ Last activity: 2026-06-19
 | 21. Single-Scroll Landing + Scroll-Spy Nav ✅ | Merge the four top-level sections (newsletter/about/map/signals) into one scroll page + scroll-spy nav; editions/blocks stay deep-linkable routes; back-to-landing scroll restore. Re-verifies WIDTH-01/RHYTHM-01 holistically on the assembled page | SCROLL-01, SCROLL-02 |
 | 22. Per-Section Visual Fixes ✅ | Three non-conflicting fixes: edition-header de-dup (detail route), map 3-col grid + maturity legend, About pipeline-vs-supporting agent grid + approval callout | HEAD-01, GRID-01, GRID-02, AGENTS-01 |
 | 23. Distinct Newsletter Excerpts ✅ | Strip the boilerplate intro at render + show the first distinct sentence in the indexed-row archive format — no schema change (deployed live 2026-06-16) | EXCERPT-01 |
-| 24. Signals Section ⬅ NEXT | `#signals` section in the landing, tier-1 `source_posts` newest-first (capped, safe external links), gated on the one Supabase migration (anon tier-1 RLS on `source_posts`, fail-loud) | SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04 |
-| 25. Responsive & Accessibility Pass | Holistic cross-cutting verify: grids/rows reflow (3→2→1, nav condenses, rows stack), scroll-spy keyboard/motion-safe, visible `:focus-visible`, `prefers-reduced-motion`, real `<a>` links | RESP-01, A11Y-01 |
+| 24. Signals Section ✅ | `#signals` section in the landing, tier-1 `source_posts` newest-first (capped, safe external links), gated on the one Supabase migration (anon tier-1 RLS on `source_posts`, fail-loud) | SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04 |
+| 25. Responsive & Accessibility Pass ✅ | Holistic cross-cutting verify: grids/rows reflow (3→2→1, nav condenses, rows stack), scroll-spy keyboard/motion-safe, visible `:focus-visible`, `prefers-reduced-motion`, real `<a>` links | RESP-01, A11Y-01 |
 
 **Coverage:** 17/17 v2.2 requirements mapped (15 original + SCROLL-01/02) — no orphans, no duplicates.
 
