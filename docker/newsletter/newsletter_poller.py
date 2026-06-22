@@ -1993,6 +1993,190 @@ def get_budget_config(agent_name: str, task_type: str) -> dict:
     return {k: task_budget.get(k, defaults[k]) for k in defaults}
 
 
+# ══════════════════════════════════════════════════════════════════════
+# Continuity + exemplar loader (Phase 26 — audit R4)
+# ══════════════════════════════════════════════════════════════════════
+# Feeds the already-wired continuity consumers (single-pass writer, block
+# prepass, Phase E voice check) prior-edition angles + operator-written
+# voice exemplars. Behavioral twin: agentpulse_processor.py narrative-context
+# builder, refined with the D-07/D-09/D-10/D-02 fail-loud deltas.
+# Header / list / word-count idioms mirror verification.py:96-97 + the
+# service's universal len(x.split()) word count.
+_LE_SECTION_HEADER = re.compile(r'^#+\s+.*$')          # ## / ### markdown headers
+_LE_BOLD_HEADER = re.compile(r'^\*\*[^*]+\*\*\s*$')     # bold-on-own-line headers
+_LE_LIST_ITEM = re.compile(r'^\s*(?:[-*+]\s+|\d+[.)]\s+)')  # - * + or 1. / 1) markers
+
+
+def _le_opening_excerpt(content: str) -> str:
+    """First ~300 chars of prose AFTER stripping leading markdown header line(s).
+
+    Published bodies start directly at `## Read This, Skip the Rest` (no H1);
+    the section label is not prose, so strip leading header/blank lines first
+    (D-10).
+    """
+    lines = (content or '').lstrip().splitlines()
+    idx = 0
+    while idx < len(lines):
+        first = lines[idx].strip()
+        if not first or _LE_SECTION_HEADER.match(first):
+            idx += 1
+            continue
+        break
+    body = "\n".join(lines[idx:]).strip()
+    return body[:300]
+
+
+def _le_weeks_ago(published_at, now):
+    """round((now - published_at) / 7 days). Returns None on null/unparseable
+    published_at so the caller OMITS the key rather than falling back to the
+    cadence-error-prone edition-number gap (D-09)."""
+    if not published_at:
+        return None
+    try:
+        ts = published_at
+        if isinstance(ts, str):
+            ts = ts.replace('Z', '+00:00')
+            dt = datetime.fromisoformat(ts)
+        else:
+            dt = ts
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return round((now - dt).days / 7)
+    except Exception:
+        return None
+
+
+def _le_is_exemplar_paragraph(para: str) -> bool:
+    """True for a >=40-word, non-header, non-list paragraph (D-05)."""
+    stripped = (para or '').strip()
+    if len(stripped.split()) < 40:
+        return False
+    first_line = stripped.splitlines()[0].strip() if stripped.splitlines() else stripped
+    if _LE_SECTION_HEADER.match(first_line) or _LE_BOLD_HEADER.match(first_line):
+        return False
+    if _LE_LIST_ITEM.match(first_line):
+        return False
+    return True
+
+
+def load_edition_context(supabase, limit=3, exemplar_paras=8):
+    """Load prior-edition continuity context + operator-written voice exemplars.
+
+    Returns a three-state dict (fail-loud-but-not-fatal — never raises into the
+    generation path):
+      {
+        'previous_editions': [ {edition_number, title, primary_theme,
+                                opening_excerpt, weeks_ago?}, ... ],  # oldest-first
+        'exemplars': [str, ...],            # operator-written-only, >=40-word paras
+        'exemplars_status': 'scored' | 'not_scored',   # distinguishable pool marker
+        'empty': bool,
+      }
+
+    Three distinguishable states:
+      - empty corpus (zero published)      → empty=True,  exemplars_status='not_scored',
+                                             logs the empty-corpus WARNING sentinel
+      - published but no operator-written  → empty=False, exemplars_status='not_scored'
+                                             (NOT a silent score:0, NOT a fallback to
+                                             any-published — D-02/D-03)
+      - operator exemplars present         → empty=False, exemplars_status='scored'
+
+    `supabase` is an explicit parameter (not the module global) so the degrade
+    paths are fixture-testable without a live DB (Plan 02 depends on this).
+    """
+    empty_marker = {
+        'previous_editions': [],
+        'exemplars': [],
+        'exemplars_status': 'not_scored',
+        'empty': True,
+    }
+    try:
+        # One published-set read — plain .eq() ONLY, never the `.in_` filter
+        # (silent-failure bug; anti-pattern at :1792). Window of 8 surfaces 2-3
+        # operator-written editions for the exemplar pool.
+        recent = supabase.table('newsletters')\
+            .select('edition_number, title, title_impact, content_markdown, '
+                    'content_markdown_impact, data_snapshot, published_at')\
+            .eq('status', 'published')\
+            .order('edition_number', desc=True)\
+            .limit(8)\
+            .execute()
+        rows = recent.data or []
+
+        if not rows:
+            # CTX-03 / D-16: whole-corpus-empty. Generation still completes.
+            logger.warning("continuity context empty")
+            return dict(empty_marker)
+
+        now = datetime.now(timezone.utc)
+
+        # ── previous_editions: ALL published, most-recent `limit`, oldest-first
+        #    (continuity bridge works from every published edition — D-11) ──
+        previous_editions = []
+        for ed in rows[:limit]:
+            ds = ed.get('data_snapshot') or {}
+            lead_theme = ds.get('lead_theme')
+            entry = {
+                'edition_number': ed.get('edition_number'),
+                'title': ed.get('title_impact') or ed.get('title') or '',
+                # D-07: data_snapshot.lead_theme when present, else None. NEVER
+                # data_snapshot.primary_theme (always null), NEVER title-derived.
+                'primary_theme': lead_theme if lead_theme else None,
+                'opening_excerpt': _le_opening_excerpt(ed.get('content_markdown') or ''),
+            }
+            weeks = _le_weeks_ago(ed.get('published_at'), now)
+            if weeks is not None:
+                entry['weeks_ago'] = weeks  # D-09: omit entirely on null published_at
+            previous_editions.append(entry)
+        previous_editions.reverse()  # oldest first — LLM reads the arc chronologically
+
+        # ── exemplars: operator-written editions ONLY (D-01 anti-tic guard).
+        #    'operator_written' is the STRING 'true' in the live DB; this excludes
+        #    edition 29 / pipeline_version='block_v1'. ──
+        operator_rows = [
+            ed for ed in rows
+            if (ed.get('data_snapshot') or {}).get('operator_written') == 'true'
+        ]
+        exemplars = []
+        # From the 2 most-recent operator editions, expand to a 3rd ONLY to reach
+        # the cap (D-06). The cap-check at the top of each iteration stops before
+        # the 3rd edition once the cap is met.
+        for ed in operator_rows[:3]:
+            if len(exemplars) >= exemplar_paras:
+                break
+            md = ed.get('content_markdown') or ''
+            for para in re.split(r'\n\s*\n', md):  # blank-line paragraph split
+                if len(exemplars) >= exemplar_paras:
+                    break
+                if _le_is_exemplar_paragraph(para):  # document order, front-loaded (D-05)
+                    exemplars.append(para.strip())
+
+        if exemplars:
+            exemplars_status = 'scored'
+            logger.info(
+                f"Narrative context: {len(previous_editions)} edition(s), "
+                f"{len(exemplars)} exemplar(s)"
+            )
+        else:
+            # D-02/D-03: published editions exist but ZERO operator-written voice
+            # exemplars → distinguishable "not scored", never a silent score:0 and
+            # never a fallback to any-published.
+            exemplars_status = 'not_scored'
+            logger.warning(
+                "continuity: no operator-written exemplars available "
+                "— voice not scored (non-critical)"
+            )
+
+        return {
+            'previous_editions': previous_editions,
+            'exemplars': exemplars,
+            'exemplars_status': exemplars_status,
+            'empty': False,
+        }
+    except Exception as e:
+        logger.warning(f"Narrative context assembly failed (non-critical): {e}")
+        return dict(empty_marker)
+
+
 def process_task(task: dict):
     """Process a single newsletter task."""
     task_id = task["id"]
