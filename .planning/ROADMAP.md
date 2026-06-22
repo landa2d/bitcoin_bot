@@ -109,7 +109,10 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
   3. On zero published editions the loader returns an explicit `{previous_editions:[], exemplars:[], empty:true}` and logs a WARNING — never a bare `{}` indistinguishable from "not loaded" — and generation still completes.
   4. Both writer paths AND the eval judge receive the continuity context + exemplars; an upstream-provided `narrative_context` still wins via `setdefault`.
   5. The Phase E voice check produces a real score with ≥1 observation instead of the "skipped / No exemplars provided" sentinel.
-**Plans**: TBD
+**Plans**: 3 plans (Wave 1 autonomous code, Wave 2 autonomous fixture test, Wave 3 operator/orchestrator-owned live)
+  - [ ] 26-01-PLAN.md — Loader + injection + avoided-themes feed + exemplars pass-through + Phase E "not scored" resurrection (CTX-01..05) [Wave 1, autonomous]
+  - [ ] 26-02-PLAN.md — Deterministic fixture test for load_edition_context, D-16 case set (CTX-01..03,05) [Wave 2, autonomous, depends 26-01]
+  - [ ] 26-03-PLAN.md — Operator-confirmed lead_theme backfill (D-12/D-13) + live generation trigger end-to-end verify (D-17/D-18) (CTX-04,05) [Wave 3, worktree-unsafe]
 **Notes**: Newsletter service only; no LLM new call surface (the loader is DB reads + injection). Fail-loud-but-not-fatal: an empty corpus warns and continues, never aborts generation. No `.in_()` (CTX-01 uses `.eq('status','published')`). Resurrecting Phase E (CTX-05) closes the audit-noted dead voice check; reference `docs/audit/specs/07_continuity_and_exemplars.md`.
 
 ### Phase 27: Eval Persistence & Governed Agent
@@ -205,7 +208,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 23. Distinct Newsletter Excerpts | v2.2 | 2/2 | Complete | 2026-06-16 |
 | 24. Signals Section | v2.2 | 3/3 | Complete | 2026-06-17 |
 | 25. Responsive & Accessibility Pass | v2.2 | 2/2 | Complete | 2026-06-19 |
-| 26. Continuity & Exemplar Context | v2.3 | 0/TBD | Not started | - |
+| 26. Continuity & Exemplar Context | v2.3 | 0/3 | Not started | - |
 | 27. Eval Persistence & Governed Agent | v2.3 | 0/TBD | Not started | - |
 | 28. Layer 1 Deterministic Gate | v2.3 | 0/TBD | Not started | - |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/TBD | Not started | - |
