@@ -3,8 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: planning
-last_updated: "2026-06-22T11:30:00.000Z"
-last_activity: 2026-06-22
+stopped_at: Phase 26 context gathered
+last_updated: "2026-06-22T15:53:22.662Z"
+last_activity: 2026-06-22 — v2.3 ROADMAP + traceability written (Phases 26–31)
 progress:
   total_phases: 6
   completed_phases: 0
@@ -49,6 +50,7 @@ Last activity: 2026-06-22 — v2.3 ROADMAP + traceability written (Phases 26–3
 **Phase nature:** Backend milestone — no `ui_phase` (no web/frontend keyword matches; Telegram command surface is not web UI). Mostly newsletter-service work at the two generation save points (`docker/newsletter/newsletter_poller.py` + new eval/loader modules). Worktree-unsafe / orchestrator-owned steps: Phase 27 (migration 045 MCP apply + `edition_eval` key mint) and Phase 31 (`inject-gato-brain.mjs` allowlist + gato rebuild). All migrations SQL-first, operator-applied via MCP.
 
 **Standing milestone invariants (apply throughout — operator-confirmed 2026-06-22):**
+
 - Both eval layers run in the **newsletter service** at the two generation save points (the only place the true fact base lives — `input_data` for single-pass, `blocks_data` for block_v1; gone by publish time). The `newsletter_poller` is the dumb sequencer.
 - The literal **Processor stays a dumb sequencer**: triggers generation, owns the publish gate, surfaces verdicts via a plain select. **No LLM, no retry/rewrite state in the Processor.**
 - All LLM via `llm-proxy:8200` (Sonnet `claude-sonnet-4-6` via `/anthropic/v1/messages`; DeepSeek via `/v1/chat/completions`). No direct provider SDK calls.
@@ -129,9 +131,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-06-22T11:30:00.000Z
-Stopped at: v2.3 ROADMAP created (Phases 26–31, 37/37 requirements mapped, traceability written)
-Resume file: .planning/ROADMAP.md (v2.3 phase details) + .planning/REQUIREMENTS.md (traceability)
+Last session: 2026-06-22T15:53:22.657Z
+Stopped at: Phase 26 context gathered
+Resume file: .planning/phases/26-continuity-exemplar-context/26-CONTEXT.md
 Next: Plan Phase 26 — Continuity & Exemplar Context (CTX-01..05). `/gsd-plan-phase 26` (or `/gsd-discuss-phase 26`). The additive continuity + exemplar loader (audit R4) is the hard dependency of the Layer-2 judge and the lowest-risk start; reference `docs/audit/specs/07_continuity_and_exemplars.md`.
 
 ## Operator Next Steps
