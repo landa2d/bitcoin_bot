@@ -1153,9 +1153,14 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
         if editions_list:
             edition_lines = []
             for ed in editions_list:
+                # D-08: omit the "Theme:" segment entirely when primary_theme is
+                # null/falsy (older/null-theme editions) — the opening_excerpt
+                # carries the edition (D-07 intent), no "Theme: ?" placeholder.
+                theme = ed.get('primary_theme')
+                theme_seg = f"— Theme: {theme} " if theme else ""
                 edition_lines.append(
                     f"  {ed.get('edition_number', '?')}. \"{ed.get('title', '?')}\" "
-                    f"— Theme: {ed.get('primary_theme', '?')} "
+                    f"{theme_seg}"
                     f"— {ed.get('opening_excerpt', '')[:200]}"
                 )
             system_prompt += (
@@ -2216,6 +2221,32 @@ def process_task(task: dict):
     budget = get_budget_config(AGENT_NAME, task_type)
     input_data["budget"] = budget
     logger.info(f"Budget for {task_type}: {budget}")
+
+    # Inject narrative context (continuity + exemplars) — covers BOTH writer
+    # paths AND the prepass (all read input_data.get('narrative_context')).
+    # setdefault so an upstream-provided narrative_context still wins (CTX-04).
+    ctx = load_edition_context(supabase)
+    input_data.setdefault('narrative_context', ctx)
+
+    # Avoided-angles feed (D-14): the last 3 prepass angles → avoided_themes.
+    # Both prepass consumers already read input_data.get('avoided_themes', [])
+    # (editorial_prepass + block_pipeline prepass) but were unfed until now.
+    # Plain ordered select — never the `.in_` filter. Fail-loud-but-not-fatal.
+    _avoided_themes = []
+    try:
+        _angle_rows = supabase.table('newsletter_prepass_tracking')\
+            .select('chosen_angle')\
+            .order('created_at', desc=True)\
+            .limit(3)\
+            .execute()
+        _avoided_themes = [
+            r.get('chosen_angle') for r in (_angle_rows.data or [])
+            if r.get('chosen_angle')
+        ]
+    except Exception as e:
+        logger.warning(f"Avoided-themes feed failed (non-critical): {e}")
+        _avoided_themes = []
+    input_data.setdefault('avoided_themes', _avoided_themes)
 
     try:
         # ── Check block pipeline feature flag ──
