@@ -408,7 +408,10 @@ def phase_e_voice_check(draft: str, exemplars: list[str],
     Returns: {"score": float, "observations": [str]}
     """
     if not exemplars:
-        return {"score": 0, "observations": ["No exemplars provided — voice check skipped"]}
+        # D-04: distinguishable "not scored" — NOT a silent score:0. Distinct
+        # from the genuine-error branch below (which keeps score:0).
+        return {"score": None, "status": "not_scored",
+                "observations": ["No operator exemplars available — voice not scored"]}
 
     exemplar_text = "\n\n---\n\n".join(exemplars[:10])
 
@@ -671,7 +674,10 @@ def generate_from_blocks(
     md_impact = _assemble_md(rendered_impact)
 
     # ── Phase E: Voice consistency check (on technical version) ──
-    voice_result = {"score": 0, "observations": ["Skipped — no exemplars"]}
+    # D-04: default to a distinguishable "not scored" (NOT score:0) so an absent
+    # exemplar pool is never reported as a real zero voice score.
+    voice_result = {"score": None, "status": "not_scored",
+                    "observations": ["No operator exemplars available — voice not scored"]}
     if exemplars:
         logger.info("[BLOCK PIPELINE] Phase E: checking voice consistency...")
         voice_result = phase_e_voice_check(md_tech, exemplars, llm_client, model=model_voice)

@@ -2297,6 +2297,7 @@ def process_task(task: dict):
                 model_structure=_bp_config.get('model_structure', 'deepseek-chat'),
                 model_prose=prose_model,
                 model_voice=_bp_config.get('model_voice', 'deepseek-chat'),
+                exemplars=(input_data.get('narrative_context') or {}).get('exemplars'),
             )
 
             if bp_result.get('error'):
@@ -2488,6 +2489,7 @@ def process_task(task: dict):
                     model_structure=_bp_config.get('model_structure', 'deepseek-chat'),
                     model_prose=prose_model,
                     model_voice=_bp_config.get('model_voice', 'deepseek-chat'),
+                    exemplars=(input_data.get('narrative_context') or {}).get('exemplars'),
                 )
 
                 if not bp_result.get('error'):
