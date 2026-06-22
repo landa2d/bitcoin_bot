@@ -12,11 +12,11 @@
 
 ### CTX — Continuity & Exemplar Context (audit R4 — Phase 1, dependency of the judge)
 
-- [ ] **CTX-01**: A `load_edition_context()` loader returns the last 3 published editions' `{edition_number, title, primary_theme, opening_excerpt, weeks_ago}` using plain `.eq('status','published')` (no `.in_()`).
-- [ ] **CTX-02**: The loader returns operator-approved exemplar paragraphs (≥40 words, non-header/list) from the most recent published editions, capped at `exemplar_paras`.
-- [ ] **CTX-03**: On zero published editions the loader returns an explicit `{previous_editions:[], exemplars:[], empty:true}` and logs a WARNING — never a bare `{}` indistinguishable from "not loaded"; generation still completes (fail-loud-but-not-fatal).
-- [ ] **CTX-04**: The continuity context + exemplars are injected so both writer paths (single-pass + block) and the eval judge receive them; an upstream-provided `narrative_context` still wins (`setdefault`).
-- [ ] **CTX-05**: The Phase E voice check produces a real score with ≥1 observation instead of the "skipped / No exemplars provided" sentinel (resurrected by the exemplar feed).
+- [x] **CTX-01**: A `load_edition_context()` loader returns the last 3 published editions' `{edition_number, title, primary_theme, opening_excerpt, weeks_ago}` using plain `.eq('status','published')` (no `.in_()`).
+- [x] **CTX-02**: The loader returns operator-approved exemplar paragraphs (≥40 words, non-header/list) from the most recent published editions, capped at `exemplar_paras`.
+- [x] **CTX-03**: On zero published editions the loader returns an explicit `{previous_editions:[], exemplars:[], empty:true}` and logs a WARNING — never a bare `{}` indistinguishable from "not loaded"; generation still completes (fail-loud-but-not-fatal).
+- [x] **CTX-04**: The continuity context + exemplars are injected so both writer paths (single-pass + block) and the eval judge receive them; an upstream-provided `narrative_context` still wins (`setdefault`).
+- [x] **CTX-05**: The Phase E voice check produces a real score with ≥1 observation instead of the "skipped / No exemplars provided" sentinel (resurrected by the exemplar feed).
 
 ### GATE — Layer 1 Deterministic Gate (no LLM; runs on every edition, short-circuits)
 
@@ -86,6 +86,7 @@ Config under `agentpulse-config.json → edition_eval` (operator-tunable). A dim
 | **Specificity** | JUDGE-04 | score <3 | ≥4 (3 = warn) |
 
 **Verdict (worst-triggered wins):**
+
 - `held_fabrication` — any Layer-1 fabrication flag (GitHub 404 / dead URL / unsourced study / arXiv / entity-merge). No rewrite. *(GATE-01, WIRE-02)*
 - `passed` — Layer 1 clean AND all judge dimensions pass within N≤2 attempts. → normal human gate, no auto-publish. *(WIRE-04)*
 - `held_voice` — Layer 1 clean but a judge dimension still fails after N=2 rewrite attempts → held + escalate. *(LOOP-02, WIRE-03)*
@@ -163,11 +164,11 @@ Every v1 requirement maps to exactly one phase. No orphans, no duplicates.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CTX-01 | Phase 26 — Continuity & Exemplar Context | Pending |
-| CTX-02 | Phase 26 — Continuity & Exemplar Context | Pending |
-| CTX-03 | Phase 26 — Continuity & Exemplar Context | Pending |
-| CTX-04 | Phase 26 — Continuity & Exemplar Context | Pending |
-| CTX-05 | Phase 26 — Continuity & Exemplar Context | Pending |
+| CTX-01 | Phase 26 — Continuity & Exemplar Context | Complete |
+| CTX-02 | Phase 26 — Continuity & Exemplar Context | Complete |
+| CTX-03 | Phase 26 — Continuity & Exemplar Context | Complete |
+| CTX-04 | Phase 26 — Continuity & Exemplar Context | Complete |
+| CTX-05 | Phase 26 — Continuity & Exemplar Context | Complete |
 | EVAL-01 | Phase 27 — Eval Persistence & Governed Agent | Pending |
 | EVAL-02 | Phase 27 — Eval Persistence & Governed Agent | Pending |
 | EVAL-03 | Phase 27 — Eval Persistence & Governed Agent | Pending |
@@ -202,6 +203,7 @@ Every v1 requirement maps to exactly one phase. No orphans, no duplicates.
 | SURF-03 | Phase 31 — Surfacing & Escalation | Pending |
 
 **Coverage:**
+
 - v1 requirements: **37 total** (CTX×5, GATE×8, JUDGE×5, LOOP×5, EVAL×3, GOV×2, WIRE×6, SURF×3)
 - Mapped to phases: **37/37** ✓ (no orphans, no duplicates)
 - Unmapped: **0**

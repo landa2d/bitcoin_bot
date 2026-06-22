@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: executing
-stopped_at: Phase 26 context gathered
-last_updated: "2026-06-22T19:54:37.215Z"
-last_activity: 2026-06-22 -- Phase 26 planning complete
+stopped_at: Phase 26 Plan 01 complete
+last_updated: "2026-06-22T20:36:51.763Z"
+last_activity: 2026-06-22 -- Phase 26 Plan 01 (continuity + exemplar loader) complete
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** v2.3 ROADMAP created (Phases 26–31, 37/37 requirements mapped). The first backend-hardening milestone since v1.0: a two-layer pre-publish eval (deterministic fabrication/mechanical hard-gate → hold+escalate; LLM-judge + N=2 feedback-rewrite loop for voice/editorial), persisted to a new `edition_evals` table (migration 045), with audit R4 (continuity + exemplar loader) folded in as Phase 26. Next: `/gsd-plan-phase 26`.
+**Current focus:** Phase 26 — continuity-exemplar-context
 
 ## Current Position
 
-Phase: 26 — Continuity & Exemplar Context (Not started)
-Plan: —
-Status: Ready to execute
-Last activity: 2026-06-22 -- Phase 26 planning complete
+Phase: 26 (continuity-exemplar-context) — EXECUTING
+Plan: 2 of 3
+Status: Plan 01 complete (loader + injection + Phase E resurrection); Plan 02 (fixture tests) next
+Last activity: 2026-06-22 -- Phase 26 Plan 01 complete (596b8d5, 536232e, e38cd7c)
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -88,6 +88,10 @@ Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM
 None for v2.3 start. System map present + verified (`.planning/research/INVENTORY.md`, 3 parallel code-reading agents + live Supabase reads). Key reconciled facts: the true fact base only exists in-memory at the two newsletter-service save points; `edition_evals` does not exist (design-only, migration 045); `newsletters` has no `do_not_publish` column on the main row; `send_telegram` is fail-soft today (silent `return` on unset env). Audit specs `docs/audit/specs/01_eval_harness.md` (R5) + `07_continuity_and_exemplars.md` (R4) are the implementation reference.
 
 Carry-over advisories (non-blocking, pre-existing): service_role leak in tracked `.claude/settings.local.json` (DEF-17-01 — recommend rotation + scrub + gitignore); migration 043 unapplied on live (live list jumps 042→044); newsletter image drift (Phase 19 commit `437cdb1`, unrebuilt) — note any v2.3 newsletter rebuild ships the corrected apostrophe guard.
+
+**Phase 26 Plan 01 concern (for Plan 03 live D-17 + the D-12/D-13 backfill):**
+- **Live exemplar-flow:** the processor pre-populates `input_data['narrative_context']` (without `exemplars`) when creating the `write_newsletter` task (`agentpulse_processor.py:5615`). The locked `setdefault` injection (CTX-04/D-14) means that upstream context wins, so the loader's `exemplars` may NOT reach the `generate_from_blocks` call sites in live operation — Phase E could stay `not_scored` despite 7 operator editions. Plan 03's live trigger MUST verify `voice_score.score > 0`; if exemplars don't flow, decide between (a) processor stops pre-populating, (b) merge exemplars into an existing narrative_context, or (c) make the newsletter loader authoritative. Implemented per the locked must-have, flagged here rather than silently worked around. (See `26-01-SUMMARY.md` → Issues Encountered.)
+- **Data-hygiene backfill (D-12/D-13) outstanding:** `data_snapshot.lead_theme` on operator editions 25–28 + `published_at` non-null verification on all 7 — a worktree-unsafe Supabase MCP mutation, operator/orchestrator-owned, NOT in the code plan. Plan 03's bridge/`weeks_ago` quality depends on it.
 
 ### Quick Tasks Completed
 
@@ -151,3 +155,4 @@ Next: Plan Phase 26 — Continuity & Exemplar Context (CTX-01..05). `/gsd-plan-p
 | Phase 23 P01 | ~14min | 3 tasks | 2 files |
 | Phase 24 P01 | ~3min | 1 task | 1 file (migration 044 — signals_feed view) |
 | Phase 24 P02 | ~2min | 2 tasks | 3 files (frontend signals fetch/render) |
+| Phase 26 P01 | 8min | 3 tasks | 2 files |
