@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.2
-milestone_name: Landing Redesign + Signals Feed
-status: Awaiting next milestone
-stopped_at: Milestone v2.2 closed — archived (ROADMAP/REQUIREMENTS/phases), MILESTONES + RETROSPECTIVE updated, tagged v2.2
-last_updated: "2026-06-19T10:41:51.669Z"
-last_activity: 2026-06-19 — Milestone v2.2 completed and archived
+milestone: v2.3
+milestone_name: Pre-Publish Evaluation Step
+status: planning
+last_updated: "2026-06-22T11:07:42.005Z"
+last_activity: 2026-06-22
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 17
-  completed_plans: 17
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-06-19 — Current State: shipped through
 
 ## Current Position
 
-Phase: Milestone v2.2 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone (quick task 260619-i3k shipped post-close)
-Last activity: 2026-06-19 — Quick task 260619-i3k (tab gutter + detail-route width fixes) deployed live to agentpulse-web
+Status: Defining requirements
+Last activity: 2026-06-22 — Milestone v2.3 started
 
 ## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
 
