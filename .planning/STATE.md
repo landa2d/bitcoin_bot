@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: planning
-last_updated: "2026-06-22T11:07:42.005Z"
+last_updated: "2026-06-22T11:30:00.000Z"
 last_activity: 2026-06-22
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,83 +17,85 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-06-19 — Current State: shipped through v2.2)
+See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Planning the next milestone — run `/gsd-new-milestone`. Milestone v2.2 (Landing Redesign + Signals Feed) CLOSED 2026-06-19: archived to `milestones/v2.2-*`, MILESTONES + RETROSPECTIVE updated, tagged `v2.2`. Leading candidate next: a backend-hardening milestone (carried-forward v1.0 follow-ups in `.planning/todos/pending/`).
+**Current focus:** v2.3 ROADMAP created (Phases 26–31, 37/37 requirements mapped). The first backend-hardening milestone since v1.0: a two-layer pre-publish eval (deterministic fabrication/mechanical hard-gate → hold+escalate; LLM-judge + N=2 feedback-rewrite loop for voice/editorial), persisted to a new `edition_evals` table (migration 045), with audit R4 (continuity + exemplar loader) folded in as Phase 26. Next: `/gsd-plan-phase 26`.
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 26 — Continuity & Exemplar Context (Not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-22 — Milestone v2.3 started
+Status: Roadmap complete — ready to plan Phase 26
+Last activity: 2026-06-22 — v2.3 ROADMAP + traceability written (Phases 26–31)
 
-## Roadmap (v2.2 — Phases 19–25, REVISED 2026-06-11)
+## Roadmap (v2.3 — Phases 26–31)
+
+**Milestone goal:** Insert an automated, two-layer evaluation step *between* newsletter draft generation and publish — a hard deterministic gate (fabrication/mechanical → hold+escalate, never rewrite) and an LLM-judge + bounded N=2 feedback-rewrite loop (voice/editorial) — so errors are caught (and where safe, auto-corrected) before the operator's Monday review. **Passing the eval does NOT auto-publish; the Monday human gate is unchanged.** Audit R5 (+ a new Layer-2 judge→rewrite loop) with R4 (continuity + exemplar loader) folded in as Phase 26.
 
 | Phase | Goal | Requirements |
 |-------|------|--------------|
-| 19. Smart-Quote / Apostrophe Corruption Fix ✅ | Root-cause + fix-forward the apostrophe→straight-quote corruption (write path / stored markdown), scoped reviewed backfill, regression-tested | QUOTE-01, QUOTE-02 |
-| 20. Width Tokens & Centering Foundation ✅ | Two coexisting both-centered max-widths (`--measure` prose / `--wide` grids) kill the dead left gutter; token-only color + section-rhythm baseline everything else sits on (deployed live 2026-06-11) | WIDTH-01, RHYTHM-01 |
-| 21. Single-Scroll Landing + Scroll-Spy Nav ✅ | Merge the four top-level sections (newsletter/about/map/signals) into one scroll page + scroll-spy nav; editions/blocks stay deep-linkable routes; back-to-landing scroll restore. Re-verifies WIDTH-01/RHYTHM-01 holistically on the assembled page | SCROLL-01, SCROLL-02 |
-| 22. Per-Section Visual Fixes ✅ | Three non-conflicting fixes: edition-header de-dup (detail route), map 3-col grid + maturity legend, About pipeline-vs-supporting agent grid + approval callout | HEAD-01, GRID-01, GRID-02, AGENTS-01 |
-| 23. Distinct Newsletter Excerpts ✅ | Strip the boilerplate intro at render + show the first distinct sentence in the indexed-row archive format — no schema change (deployed live 2026-06-16) | EXCERPT-01 |
-| 24. Signals Section ✅ | `#signals` section in the landing, tier-1 `source_posts` newest-first (capped, safe external links), gated on the one Supabase migration (anon tier-1 RLS on `source_posts`, fail-loud) | SIGNAL-01, SIGNAL-02, SIGNAL-03, SIGNAL-04 |
-| 25. Responsive & Accessibility Pass ✅ | Holistic cross-cutting verify: grids/rows reflow (3→2→1, nav condenses, rows stack), scroll-spy keyboard/motion-safe, visible `:focus-visible`, `prefers-reduced-motion`, real `<a>` links | RESP-01, A11Y-01 |
+| 26. Continuity & Exemplar Context | `load_edition_context()` feeds prior-edition angles + operator-approved exemplars to both writer paths AND the judge; fail-loud-but-not-fatal on empty; resurrects the dead Phase E voice check (audit R4, judge dependency, lowest-risk additive) | CTX-01..05 |
+| 27. Eval Persistence & Governed Agent | Migration 045 `edition_evals` (per-attempt, fail-loud, `verdict-iff-ok` CHECK) + a governed `edition_eval` proxy agent (own hard-capped reject-on-cap wallet, key via `.env`). SQL-first/operator-applied; this phase first realizes the fail-loud-no-silent-zero + no-`.in_()` invariants | EVAL-01..03, GOV-01..02 |
+| 28. Layer 1 Deterministic Gate | No-LLM fabrication (live GitHub repo+star, URL HEAD liveness, arXiv-ID, named-study-vs-fact-base, entity-merge) + mechanical-editorial checks (H1/title echo, mode-label leak, recycled closer, dup-stat-vs-prior) against the CORRECT in-memory fact base; short-circuits to hold+escalate on any fabrication flag with zero LLM/rewrite. Report-only this phase | GATE-01..08 |
+| 29. Layer 2 Judge + Feedback-Rewrite Loop | Standalone module: Sonnet judge (`claude-sonnet-4-6` via proxy) scores 1–5 on exemplar-anchored dimensions (continuity bridge, hedging, clickbait/voice, repeated sub-topics, specificity) + bounded N=2 rewrite loop; runs only when Layer 1 is fabrication-clean; returns final draft + verdict, no retry state outside the module | JUDGE-01..05, LOOP-01..05 |
+| 30. Sequencer Wiring, Hold Action & Activation Gate | `newsletter_poller` invokes gate+module at the two save points, acts on verdicts (fabrication→held+do_not_publish; Layer-2 fail→held+escalate; pass→unchanged human gate, never auto-publish) behind a report-only `enforce` flag the operator flips; Processor stays a dumb sequencer (no LLM/retry state); rollback-safe | WIRE-01..06 |
+| 31. Surfacing & Escalation | Hardened `send_telegram` hold/escalation alerts (never a silent no-op) + Friday-notify per-draft eval summary (plain select, no Processor LLM) + live `/newsletter_eval` (+ `trend`) Gato command (added to `isGatoBrainCommand` + gato rebuild) | SURF-01..03 |
 
-**Coverage:** 17/17 v2.2 requirements mapped (15 original + SCROLL-01/02) — no orphans, no duplicates.
+**Coverage:** 37/37 v2.3 requirements mapped — no orphans, no duplicates. Per-phase: CTX×5 / (EVAL×3+GOV×2) / GATE×8 / (JUDGE×5+LOOP×5) / WIRE×6 / SURF×3.
 
-**Phase nature:** Mostly `ui_phase` (Phases 20–25 touch `docker/web/site/` — `app.js`, `style-base.css`, `style-shared.css`; the other CSS files are legacy/unloaded; `marked.js` renders markdown, no typographer). Phase 21 (single-scroll landing + scroll-spy) is the navigation-architecture change — an `app.js` router refactor. Two phases reach the backend and are deliberately isolated from the CSS work: Phase 19 (content write-path + scoped data backfill) and Phase 24 (the milestone's only Supabase migration — anon tier-1 RLS on `source_posts`). Ordering is low-to-high risk, each phase independently shippable.
+**Execution order:** 26 → 27 → 28 → 29 → 30 → 31 (low-to-high risk; additive before invasive). Phase 27 is an independent additive core (may proceed in parallel with 26) but the harness layers 28/29/30 depend on it.
 
-**Standing constraints apply throughout:** hybrid single-scroll landing (top-level sections scroll + scroll-spy; editions/blocks stay deep-linkable routes — REVISED 2026-06-11); all LLM via `llm-proxy:8200`; isolated-schema / `economy_map` access via direct PostgREST + `Accept-Profile` (never supabase-py `.in_()`); append-only — corrections via the canonical-body-rewrite path, never a raw UPDATE; fail-loud on missing fields; the apostrophe backfill is a scoped reviewed UPDATE shown before/after on ONE edition first, never a blind find-replace; deploy via prod↔main drift check → branch → `/diff` per work group → scoped `docker compose up -d --build web` (NO `--delete`) → operator approval. Worktree-unsafe steps (scoped web rebuild, the Phase 24 migration apply) are orchestrator-owned from the main tree, never a worktree executor.
+**Phase nature:** Backend milestone — no `ui_phase` (no web/frontend keyword matches; Telegram command surface is not web UI). Mostly newsletter-service work at the two generation save points (`docker/newsletter/newsletter_poller.py` + new eval/loader modules). Worktree-unsafe / orchestrator-owned steps: Phase 27 (migration 045 MCP apply + `edition_eval` key mint) and Phase 31 (`inject-gato-brain.mjs` allowlist + gato rebuild). All migrations SQL-first, operator-applied via MCP.
+
+**Standing milestone invariants (apply throughout — operator-confirmed 2026-06-22):**
+- Both eval layers run in the **newsletter service** at the two generation save points (the only place the true fact base lives — `input_data` for single-pass, `blocks_data` for block_v1; gone by publish time). The `newsletter_poller` is the dumb sequencer.
+- The literal **Processor stays a dumb sequencer**: triggers generation, owns the publish gate, surfaces verdicts via a plain select. **No LLM, no retry/rewrite state in the Processor.**
+- All LLM via `llm-proxy:8200` (Sonnet `claude-sonnet-4-6` via `/anthropic/v1/messages`; DeepSeek via `/v1/chat/completions`). No direct provider SDK calls.
+- Fail loud: NULL ≠ intent; no bare excepts; eval error → `eval_status='error'` + reason, never a silent zero. No supabase-py `.in_()`.
+- SQL-first: migrations authored in-phase, applied by the operator via MCP. Scoped rebuilds use service names; worktree-unsafe steps orchestrator/operator-owned on the main tree.
+- Fabrication is a HARD stop (held + escalate, never rewrite). Passing the eval NEVER auto-publishes (Monday human gate unchanged). Auto-hold gated behind a report-only `enforce` flag the operator activates.
 
 ## Accumulated Context
 
 ### Decisions
 
-Operator decisions locked at v2.2 start (2026-06-10, in PROJECT.md Current Milestone):
+Operator decisions locked at v2.3 start (2026-06-22, in PROJECT.md → Current Milestone; reconciled against `.planning/research/INVENTORY.md`):
 
-- **~~Keep separate routes~~ → REVISED 2026-06-11: Hybrid single-scroll landing.** The four top-level sections (newsletter/about/map/signals) merge into ONE scroll page with scroll-spy nav per the mockup; editions (`#/<edition>`) and block pages (`#/map/<slug>`) STAY deep-linkable routes (keeps SEO/deep-linking). Re-scopes Phases 21–24 (see ROADMAP); Phase 20's width/rhythm foundation is layout-agnostic and carries over. Supersedes the 2026-06-10 separate-routes call.
-- **Signals = a section in the single-scroll landing** (`#signals` anchor) — REVISED 2026-06-11 (was its own route+tab); the anon tier-1 RLS migration on `source_posts` is unchanged.
-- **Excerpts = strip-at-render** (no schema / pipeline change; the stored-`summary` path is the deferred EXCERPT-F1).
-- **No domain research** — the 7-task brief + mockup specify the work on an existing, well-understood codebase.
+- **Eval runs in the newsletter service at generation time** (NOT literally in the Processor) — the only place the true fact base lives in memory (`input_data`/`blocks_data`, unrecoverable at publish time). Honors "Processor stays a dumb sequencer, no LLM/retry-state."
+- **R4 (continuity + exemplar loader) folded in as Phase 26** — a hard dependency of the Layer-2 continuity/voice judge (JUDGE-03 needs prior-edition angles; JUDGE-02 needs exemplars).
+- **`edition_evals` = per-attempt telemetry** (supports the rewrite loop): `(edition id/number, attempt, layer, deterministic flags jsonb, judge scores jsonb, feedback, verdict, eval_status)` with the `verdict-iff-ok` CHECK + `UNIQUE(newsletter_id, layer, attempt)`. SQL-first; next migration number = 045 (044 highest applied; 043 unapplied carry-over, out of scope).
+- **Milestone command is authoritative**; audit specs 01 (R5) / 07 (R4) are the implementation reference (wiring points, `verify_draft` reuse, governed-agent seeding pattern, fail-loud rules). Sonnet model = `claude-sonnet-4-6` (spec 01's `claude-sonnet-4-20250514` is EOL).
+- **Activation discipline:** report-only (`enforce:false`) for the first ~2 editions to calibrate thresholds against real drafts, then the operator explicitly flips `enforce:true`. Whole step rollback-safe (`enabled:false` disables invocation).
 
 Open items to resolve in discuss/plan (do NOT decide unilaterally):
 
-- **Phase 19 root cause** (QUOTE-01): is the corruption at storage (write path) or render? Query raw `body_md` bytes around an apostrophe FIRST; the fix follows from the finding (render-layer if data is clean; write-path-first-then-backfill if corrupt). `marked.js` has no typographer, so a render-layer smartquote transform is unlikely — diagnose stored bytes before choosing.
-- **Phase 19 backfill scope** (QUOTE-01): which editions are affected, and the exact before/after on ONE edition shown for operator approval before any batch UPDATE.
-- **Phase 24 RLS shape** (SIGNAL-04): the precise tier-1 predicate for the read-only anon SELECT policy on `source_posts` (which tier column/value defines tier-1), and the migration number (next after 043).
-- **Phase 22 distinct-sentence rule** (EXCERPT-01): the exact boilerplate-intro pattern to strip and the first-distinct-sentence heuristic (verified on editions 29 vs 30).
+- **Eval thresholds** (JUDGE-05 / Phase 29): the per-dimension pass thresholds under `agentpulse-config.json → edition_eval` (proposed defaults in REQUIREMENTS.md — continuity hard-fail-on-absent-bridge, hedging <3 or ≥3 blacklist hits, clickbait/specificity <3, repeated-subtopics <3). Operator confirms/tunes at the Phase 29 plan gate.
+- **`edition_eval` wallet sizing** (GOV-02 / Phase 27): the exact `spending_cap_sats` weekly window + starting balance (DDL proposes 5000/weekly, balance 25000). Confirm at the Phase 27 plan gate.
+- **Layer-1 fabrication check tuning** (Phase 28): the GitHub star-count drift threshold (proposed >20%), the URL HEAD timeout (proposed 5s), and the named-study/arXiv match heuristic against the in-memory fact base. Known DB fixtures: edition 36 ("MCP authentication"), edition 34 ("GroupMemBench").
+- **`do_not_publish` column shape** (WIRE-02 / Phase 30): `do_not_publish` + `do_not_publish_reason` on a *main* `newsletters` row is net-new (today `do_not_publish` lives only inside `data_snapshot`). Decide column-add (a small migration) vs. JSONB at the Phase 30 plan gate.
 
-Standing v1.0/v2.0/v2.1 decisions still in force (PROJECT.md Key Decisions table): append-only `block_body_versions` + `timeline_entries`; schema isolation via direct PostgREST + `Accept-Profile`; sentinels flag-never-block; synthesis via `llm-proxy:8200`; scoped `agentpulse-web` rebuild (no new infra); single light-mode violet accent (dark mode deferred); Source Serif 4 body + IBM Plex Mono chrome.
-
-- [Phase 19 — CORRECTED]: the apostrophe corruption is a DOUBLED apostrophe (`''`, two U+0027), which renders as a *visual* double-quote in the Source Serif 4 body face — NOT a literal `"` character and NOT a clean corpus. The original diagnosis (searched for U+0022, spot-checked one clean `Cash App's`) was WRONG; the operator caught it at live-site verification. Real signature = word-flanked `'{2,}`. 103 occurrences across published editions 26/29/30. Render path is genuinely clean (verified end-to-end: anon REST → marked v15.0.12 → `App&#39;s`). Lesson saved: [[feedback_verify_render_bugs_end_to_end]].
-- [Phase 19 / fix + backfill]: write-path guard `nl.normalize_apostrophe_corruption` corrected to collapse word-flanked `''`→`'` (+ defensive mid-word double-quote repair), fail-loud, genuine quotes preserved; 36 regression tests. Operator-approved scoped backfill (by row id) of editions 26/29/30 — 103 repaired, 0 remaining, genuine `"` counts unchanged. `newsletter` rebuilt to ship the corrected guard; `web` NOT rebuilt (renderer unchanged — stored bytes render directly). Operator confirmed the live site. QUOTE-01 + QUOTE-02 satisfied; Phase 19 closed.
-- [Phase 20 / Plan 01 — WIDTH-01 foundation]: two coexisting centered axes shipped in source — `.prose` (`--measure:64ch`) for reading copy, `.wide` (`--wide:1080px`) for tiled content, `--gutter:clamp(1.25rem,5vw,3.5rem)` side padding (D-01, operator-locked mockup values verbatim). The single 720px `.container` (the D-06 dead-gutter root cause — centered but too narrow, so wide content read as a left gutter) is fully retired (0 refs in index.html + style-shared.css); each route re-homed onto its correct axis per the D-03 apply-map (list/map/status/about-grid/subscribe → wide; reader/block/about-intro → prose; About explicitly split). Nav widened 880px→`var(--wide)` so chrome and content share ONE centered axis (D-02), via the `.nav` rule only — no `.wide` on nav markup (Pitfall 3). `body > header` sticky scoping preserved (Pitfall 1); map grid still 2-col (3-col is Phase 22 post-renumber). Source-only — live-render verification is Plan 02 (orchestrator-owned). 3 atomic commits: 5ce580e / 76888c9 / c974018.
-- [Phase 21 / Plan 01 — SCROLL-01 structural foundation]: the four top-level sections now render on ONE single-scroll `<main id="landing">` (4 stacked `<section>` — `#newsletter`/`#signals`/`#map`/`#about`, LOCKED mockup order, Signals 2nd) REUSING the existing `#list-view`/`#map-view`/`#about-view` DOM verbatim; editions (`#/edition/<n>`) + block pages (`#/map/<slug>`) stay deep-linkable detail routes (siblings outside `#landing`). `getRoute()` is now two-mode (`{mode:'landing'|'detail'}`) — detail prefixes tested FIRST, bare-anchor landing fallthrough via an ANCHORED allowlist `/^#(newsletter|signals|map|about)$/` (Pitfall 1 / Security V5); the old plain-`#/map` (`view:'map'`) + `#/about` (`view:'about'`) routes are REMOVED (now landing sections). `route()` branches on mode (detail → stash `landingScrollY` + `setActiveTab` + dispatch; landing → `showLanding`, NO `setActiveTab` so the Plan-02 scroll-spy IO owns landing active state). `showView()` split into `showLanding()`/`showDetail()`; `loadList()`/`loadHub()` decoupled from view-switching behind an idempotent `ensureLandingDataLoaded()` guard; the mode-toggle/`.hero` re-homed into `#newsletter` (TGL-01). `#signals` is a PURE static shell (zero `source_posts`, no fetch, no new `<script>` — Phase 24 owns data + RLS). All Supabase queries byte-identical (no new `.eq('status','published')`, `.eq('status'` count frozen at 11, D-17); `__SUPABASE_*__` placeholders intact. Source-only — NO `docker compose` build/deploy run (Plan 02 / orchestrator-owned). Deviation: the two detail "Back to the map" backlinks re-pointed `#/map`→bare `#map` (the removed route would land on the wrong section). 3 task gates PASS. 4 commits: a000039 / 4941e57 / 040bdc7 / 80c1e05.
-- [Phase 24 / Plan 01 — SIGNAL-04 backend source]: authored `supabase/migrations/044_signals_anon_view.sql` (source-only, worktree-safe; NO docker/network/MCP/apply). Creates a **security-DEFINER** view `public.signals_feed` (the Postgres default — NO `security_invoker` clause, the LOAD-BEARING inversion of the 001 view idiom: an invoker view would run as anon, hit `source_posts` RLS-with-no-anon-policy, and return ZERO rows forever = silent empty feed) exposing EXACTLY the 5 whitelisted columns `id, title, source_url, source, scraped_at` for `source_tier = 1 AND source_url IS NOT NULL`, newest-first `scraped_at DESC, id DESC` (D-01/D-02/D-04; backed by mig-005 `idx_source_posts_tier_scraped`, no new index), then `GRANT SELECT ON public.signals_feed TO anon` (033 explicit-grant precedent). Base `source_posts` table UNTOUCHED — RLS stays on, no anon policy, so `body`/`metadata`/`score`/`author`/`comment_count`/`tags` stay anon-unreachable (the column ceiling lives in the view, NOT the frontend — operator's "RLS can't hide columns"). All 8 acceptance gates + the plan `<automated>` gate PASS (0 sensitive-col leaks, 0 invoker clause, 0 base-table mutation in the SQL body). 1 atomic commit: 3217464. **SIGNAL-04 stays UNCHECKED** until the orchestrator-owned LIVE apply (Plan 24-03) + frontend fail-loud wiring (Plan 24-02) — source authored ≠ requirement satisfied (mirrors the EXCERPT-01 stays-unchecked-until-live-proof discipline).
-- [Phase 24 / Plan 02 — SIGNAL-01..04 frontend source]: filled the static `#signals` shell (Phase 21) with the live tier-1 feed in source (app.js + style-shared.css + index.html; 2 atomic commits b791e3e/4651134). Net-new `fetchSignals()` queries the public-schema `signals_feed` view (5 cols, `.order('scraped_at',desc).order('id',desc).limit(50)`) with the deliberate **D-07 three-way fail-loud split** (the deviation from `loadList`'s conflated branch): `error`→LOUD `signals-error` diagnostic ("Signals feed is temporarily unavailable") + `console.error('fetchSignals error:', error)` (fires when the view/grant is absent — an HTTP error, NOT `200 []`); `200 []`→benign `signals-empty` ("No tier-1 signals this week"); rows→stash `window.currentSignals` + `renderSignals(data,false)`. `renderSignals(data, expanded)` builds whole-`<a class="row signal-row">` EXTERNAL links — `href=escapeHtml(safeHttpUrl(source_url))` (scheme-gated, unsafe rows skipped — T-24-06), `target=_blank rel="noopener noreferrer"`, `↗` `.num` affordance, `.title`+`.host` (www-stripped domain via `signalHost`), `.date=formatDate(scraped_at)` (D-04); every DB string `escapeHtml`'d at the sink (T-24-05). Capped at 15 with an inline `#signals-view-all` button re-rendering the cached batch EXPANDED (D-03 — no route, no re-query). `signalHost()` strips `^www\.` via an anchored prefix replace (NO lookbehind — WR-01). Wired into `ensureLandingDataLoaded()`'s `Promise.all([loadList(), loadHub(), fetchSignals()])` (gated, non-premature). CSS: token-only `.row .host` + `.view-all` (+ `:hover`/`:focus-visible`), zero new hex; rows reuse the Phase 23 `.row` family. index.html: "Coming soon." placeholder removed, `#signals-list` render target + Phase-21-locked copy intact. `node --check` PASS, 0 lookbehind, `__SUPABASE_*__` placeholders intact, no `#/signals` route, no 2nd client. Source-only — NO docker/network/MCP. **SIGNAL-01..04 stay UNCHECKED** until the orchestrator-owned LIVE apply of migration 044 + scoped `web` rebuild + operator render proof (Plan 24-03) — source authored ≠ requirement satisfied (mirrors the EXCERPT-01 / migration-044 stays-unchecked-until-live-proof discipline).
-- [Phase 23 / Plan 01 — EXCERPT-01 source]: strip-at-render excerpt pipeline shipped in source (app.js + style-shared.css; 3 atomic commits bbda2f4/fba0478/0754a32). DOM-free RECAP_OPENER_RE + cleanExcerptMarkdown/splitSentences/extractDistinctExcerpt helpers (header strip + recap skip + thin-pivot append + link cleanup; D-01..D-05/D-07) behind node-testable sentinels; renderList() rewritten to the mockup indexed-row grid (num·title·conditional-sum·date as one #/edition/<n> deep-link; escapeHtml at every DB sink; mode-aware D-08); net-new token-only .row CSS + D-06 2-line clamp (--line-soft→--line, --violet→--accent). loadList byte-identical (status filters frozen 2/11); __SUPABASE_* intact. 24-assertion offline harness PASS (ed29≠ed30 both modes). Source-only — live ed29/30 verification + scoped web rebuild is Plan 02 (orchestrator-owned). EXCERPT-01 stays UNCHECKED until the Plan 02 live proof.
+Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM via `llm-proxy:8200` (no direct provider SDK); schema isolation via direct PostgREST + `Accept-Profile` (never supabase-py `.in_()`); append-only data; fail-loud governance (NULL ≠ intent, no bare excepts); sentinels flag-never-block; autonomy where cheap/reversible, human gates where expensive/silent.
 
 ### Pending Todos
 
-7 carried-forward backend todos in `.planning/todos/pending/` (all v1.0 follow-ups — analyst/governance/intake/research/phase-review). Out of v2.2 scope; parked in the ROADMAP Backlog (candidate backend-hardening milestone).
+7 carried-forward backend todos in `.planning/todos/pending/` (v1.0 follow-ups — analyst/governance/intake/research/phase-review). Out of v2.3 eval scope; parked in the ROADMAP Backlog (candidate for a later backend-hardening pass).
 
 ### Blockers/Concerns
 
-None for v2.2 start. Source brief (`.planning/docs/REDESIGN_CC_BRIEF.md`, 7 work groups) + the visual mockup (`agentpulse-redesign (1).html`) are present and staged. Frontend files known: `docker/web/site/app.js`, `style-base.css`, `style-shared.css`; migrations live in `supabase/migrations/` (highest is 043).
+None for v2.3 start. System map present + verified (`.planning/research/INVENTORY.md`, 3 parallel code-reading agents + live Supabase reads). Key reconciled facts: the true fact base only exists in-memory at the two newsletter-service save points; `edition_evals` does not exist (design-only, migration 045); `newsletters` has no `do_not_publish` column on the main row; `send_telegram` is fail-soft today (silent `return` on unset env). Audit specs `docs/audit/specs/01_eval_harness.md` (R5) + `07_continuity_and_exemplars.md` (R4) are the implementation reference.
 
-Carry-over advisories (non-blocking): a PRE-EXISTING service_role leak in tracked `.claude/settings.local.json` (logged DEF-17-01 in v2.1 — recommend key rotation + scrub + gitignore); dead `.about-lede` rule in `style-base.css` (trivial cleanup, fold into a future commit — likely touched in Phase 22 About work / Phase 25 pass).
+Carry-over advisories (non-blocking, pre-existing): service_role leak in tracked `.claude/settings.local.json` (DEF-17-01 — recommend rotation + scrub + gitignore); migration 043 unapplied on live (live list jumps 042→044); newsletter image drift (Phase 19 commit `437cdb1`, unrebuilt) — note any v2.3 newsletter rebuild ships the corrected apostrophe guard.
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 260609-fpc | Fix duplicate block title on `#/map/<slug>` — `renderBlock` strips the body's leading `# <Title>` H1 (guarded by trimmed/case-insensitive title match) so the title renders once; deployed live via scoped `agentpulse-web` rebuild | 2026-06-09 | 19115b2 | [260609-fpc-fix-duplicate-block-title-on-map-slug](./quick/260609-fpc-fix-duplicate-block-title-on-map-slug/) |
-| 260609-ivq | Map page rendering fixes (3): site-wide prose paragraph rhythm via `--space-lg` incl. `.hub-storyline p`; hub duplicate-title de-dup via `stripLeadingTitleH1` shared helper; maturity-pill/nav overlap fixed by re-scoping the bare `header{position:sticky}` rule to `body > header`. Deployed live via scoped `agentpulse-web` rebuild | 2026-06-09 | 9e350f3 | [260609-ivq-map-page-rendering-fixes-hub-duplicate-t](./quick/260609-ivq-map-page-rendering-fixes-hub-duplicate-t/) |
-| 260612-kh9 | Proxy governance wiring (audit spec 02 / R1): x-proxy-env compose anchor, processor OPENAI_BASE_URL → proxy (WS-01 closed — governed gpt-4o-mini call settled in wallet_transactions), direct-SDK fallbacks deleted in gato_brain/research, require_env guards in 5 services + web entrypoint, 4 ap_ key literals moved compose→.env (rotation to new values deferred — operator gate). 7 services rebuilt healthy | 2026-06-12 | 1fd56ca | [260612-kh9-implement-audit-spec-02-proxy-governance](./quick/260612-kh9-implement-audit-spec-02-proxy-governance/) |
-| 260619-i3k | Tab gutter + detail-route width (2 live-site defects): (1) restored the side gutter on every tab/section — `.content-area` (style-shared.css) used the physical `padding` shorthand that zeroed padding-left/right and (loaded after style-base) overrode `.wide`/`.prose`'s `padding-inline: var(--gutter)`; switched it to block-only `padding-block` so the gutter survives (mobile override too). (2) widened the agent-economy block deep-dives (`#block-view`) + newsletter edition reader (`#reader-view`) from `.content-area prose` (64ch) to `.content-area wide` to match the main-tab `--wide` band. CSS/HTML only (app.js untouched), token-only. Deployed live via scoped `agentpulse-web` rebuild; served bytes verified | 2026-06-19 | abeaa43,8e0dd6d | [260619-i3k-fix-tab-gutter-and-detail-width](./quick/260619-i3k-fix-tab-gutter-and-detail-width/) |
-| 260619-ko8 | Swap EOL Claude model `claude-sonnet-4-20250514` → `claude-sonnet-4-6` (Sonnet 4 hit Anthropic EOL 2026-06-15, now 404s → broke the Friday newsletter cron and every Claude-routed call system-wide; cron fired on time, model 404'd). 31 refs across 10 files incl. governance `allowed_models`+`downgrade_map` in lockstep + research `entrypoint.sh` fallback; scoped rebuild of newsletter/research/processor/gato_brain/llm-proxy (healthy, init on new model); re-queued + verified edition #102 draft saved (id=26ae854d, 14.7k chars) via two settled `claude-sonnet-4-6` calls (no 404) | 2026-06-19 | 267a6a5 | [260619-ko8-swap-eol-claude-model-claude-sonnet-4-20](./quick/260619-ko8-swap-eol-claude-model-claude-sonnet-4-20/) |
+| 260609-fpc | Fix duplicate block title on `#/map/<slug>` — `renderBlock` strips the body's leading `# <Title>` H1; deployed via scoped `agentpulse-web` rebuild | 2026-06-09 | 19115b2 | [260609-fpc-fix-duplicate-block-title-on-map-slug](./quick/260609-fpc-fix-duplicate-block-title-on-map-slug/) |
+| 260609-ivq | Map page rendering fixes (3): prose rhythm, hub duplicate-title de-dup, maturity-pill/nav overlap. Deployed via scoped `agentpulse-web` rebuild | 2026-06-09 | 9e350f3 | [260609-ivq-map-page-rendering-fixes-hub-duplicate-t](./quick/260609-ivq-map-page-rendering-fixes-hub-duplicate-t/) |
+| 260612-kh9 | Proxy governance wiring (audit spec 02 / R1): x-proxy-env compose anchor, processor OPENAI_BASE_URL → proxy, direct-SDK fallbacks deleted, require_env guards, ap_ keys compose→.env. 7 services rebuilt healthy | 2026-06-12 | 1fd56ca | [260612-kh9-implement-audit-spec-02-proxy-governance](./quick/260612-kh9-implement-audit-spec-02-proxy-governance/) |
+| 260619-i3k | Tab gutter + detail-route width (2 live-site defects): `.content-area` block-only padding restores the gutter; detail routes widened to `.content-area wide`. Deployed via scoped `agentpulse-web` rebuild | 2026-06-19 | abeaa43,8e0dd6d | [260619-i3k-fix-tab-gutter-and-detail-width](./quick/260619-i3k-fix-tab-gutter-and-detail-width/) |
+| 260619-ko8 | Swap EOL Claude model `claude-sonnet-4-20250514` → `claude-sonnet-4-6` (31 refs / 10 files incl. governance `allowed_models`+`downgrade_map`); scoped rebuild of newsletter/research/processor/gato_brain/llm-proxy; re-queued + verified edition #102 draft via two settled `claude-sonnet-4-6` calls | 2026-06-19 | 267a6a5 | [260619-ko8-swap-eol-claude-model-claude-sonnet-4-20](./quick/260619-ko8-swap-eol-claude-model-claude-sonnet-4-20/) |
 
 ## Deferred Items
 
@@ -101,33 +103,20 @@ Items acknowledged and carried forward:
 
 | Category | Item | Status | Deferred At |
 |----------|------|--------|-------------|
-| v2.2 future — Excerpts | Stored `summary` field on `newsletters`, agent-emitted (EXCERPT-F1) | Deferred — strip-at-render chosen this milestone | 2026-06-10 |
-| v2.2 future — Signals | Full Signals archive page behind "view all signals" (SIGNAL-F1) | Deferred — capped feed ships first | 2026-06-10 |
-| ~~v2.2 future — Layout~~ | Single-page scroll + scroll-spy nav (WIDTH-F1) | **PULLED INTO v2.2 (2026-06-11)** as a hybrid single-scroll landing (top-level sections scroll; editions/blocks stay routes) — operator reversed the deferral | 2026-06-10 → 2026-06-11 |
-| v-next — Dark mode | Dark-mode variant of the light palette (DARK-01 / THEME-F1) | Deferred — light mode shipped v2.0 | 2026-06-04 |
-| v-next — Richer About | Pipeline/architecture diagram on About (ABOUT-02 / THEME-F2) | Deferred — About ships as the v2.0 stub + agent-grid fix only | 2026-06-04 |
-| v-next — Per-block tuning | Threshold overrides per block (TUNE-01..03) | Deferred — kept separate from UI milestones | 2026-05-26 |
-| v-next — EU AI Act integration | Wire `eu_ai_act` tracker into regulation-legal block (EUAI-01, EUAI-02) | Deferred — out of v2.2 UI scope | 2026-05-26 |
+| v2.3 future — Edit capture | `edition_revisions` append-only operator-edit trail (REV-01, spec 01 G-07) | Deferred — additive telemetry, not core to the gate | 2026-06-22 |
+| v2.3 future — A/B | Quantitative single-pass vs block_v1 A/B comparison as a trend (AB-01) | Deferred — eval runs on both paths; comparison is a later surface | 2026-06-22 |
+| v2.3 future — Tuning | Per-dimension/per-pipeline threshold auto-tuning from `edition_evals` history (TUNE-01) | Deferred — ship fixed config thresholds first | 2026-06-22 |
+| v2.3 future — Observability | Eval-trend regression alerting (OBS-01, audit R8) | Deferred — surface verdicts first, alert on trends later | 2026-06-22 |
+| v2.2 future — Excerpts | Stored `summary` field on `newsletters` (EXCERPT-F1) | Deferred — strip-at-render shipped v2.2 | 2026-06-10 |
+| v2.2 future — Signals | Full Signals archive page (SIGNAL-F1) | Deferred — capped feed shipped v2.2 | 2026-06-10 |
+| v-next — Dark mode | Dark-mode variant of the light palette (THEME-F1) | Deferred — light mode shipped v2.0 | 2026-06-04 |
+| v-next — Richer About | Pipeline/architecture diagram on About (THEME-F2) | Deferred — About ships as the stub + agent-grid | 2026-06-04 |
+| v-next — Per-block tuning | Synthesis threshold overrides per block (TUNE-01..03, economy_map) | Deferred — kept separate from these milestones | 2026-05-26 |
+| v-next — EU AI Act | Wire `eu_ai_act` tracker into regulation-legal block (EUAI-01/02) | Deferred — out of scope | 2026-05-26 |
 
-### Acknowledged at v2.2 close (2026-06-19)
+### Backend follow-ups (candidate: a later backend-hardening pass)
 
-The pre-close open-artifact audit surfaced 9 items; the operator chose **Acknowledge all & proceed**. All were already-tracked (passed UAT, completed quick-tasks, or backlogged backend follow-ups) — no blocking gaps, no real v2.2 work outstanding.
-
-| Category | Item | Status |
-|----------|------|--------|
-| uat | Phase 19 `19-HUMAN-UAT.md` | passed — 0 pending scenarios (flagged only because the file exists) |
-| quick_task | 260609-fpc-fix-duplicate-block-title-on-map-slug | done (committed `19115b2`; SDK marker absent) |
-| quick_task | 260609-ivq-map-page-rendering-fixes-hub-duplicate-t | done (committed `9e350f3`; SDK marker absent) |
-| quick_task | 260612-kh9-implement-audit-spec-02-proxy-governance | done (committed `1fd56ca`; SDK marker absent) |
-| pending_todo | analyst predictions `title` expire bug | deferred — backend-hardening milestone (P2) |
-| pending_todo | harden soft-caps allow-negative | deferred — backend-hardening milestone (P5) |
-| pending_todo | pay-endpoint 500 transfer-rpc search-path (E2E activation) | deferred — RPC root-cause fixed m037; residual E2E only (P2) |
-| pending_todo | phase05 intake-classifier review follow-ups WR02/04/05 | deferred — backend-hardening milestone (P4) |
-| pending_todo | research trigger file permissions | deferred — backend-hardening milestone (P4) |
-
-### Backend follow-ups (candidate: a backend-hardening milestone)
-
-Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlog, detail in `.planning/todos/pending/`):
+Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval scope (detail in `.planning/todos/pending/`).
 
 | Item | Priority |
 |------|----------|
@@ -136,41 +125,27 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope (parked in ROADMAP Backlo
 | pay-endpoint 500 activation E2E (RPC root-cause fixed m037) | P2 |
 | phase-05 intake-classifier review follow-ups WR02/04/05 | P4 |
 | research trigger file permissions | P4 |
+| migration 043 unapplied on live (042→044 gap) | P3 |
 
 ## Session Continuity
 
-Last session: 2026-06-17T10:48:55.985Z
-Stopped at: Phase 25 context gathered
-Resume file: .planning/phases/25-responsive-accessibility-pass/25-CONTEXT.md
-Next: Phase 25 — Responsive & Accessibility Pass (RESP-01, A11Y-01). Holistic cross-cutting verify: grids/rows reflow (3→2→1, nav condenses, rows stack), scroll-spy keyboard/motion-safe, visible :focus-visible, prefers-reduced-motion, real <a> links. `/gsd-discuss-phase 25` (or plan/execute). The Phase 25 pass should re-check the new #signals section's .row reflow + the .view-all :focus-visible (added Phase 24).
-Carry-overs (NOT Phase 24 scope):
-
-- **Phase 23 Plan 02 EXCERPT-01 live-verify still pending.** The Phase 24 `docker compose up -d --build web` rebuilt from current main, so the committed Phase 23 strip-at-render frontend IS now deployed live — but the operator acceptance proof (ed29 distinct excerpt ≠ ed30 in BOTH modes, on the substituted /srv/app.js) was never run. EXCERPT-01 stays UNCHECKED in REQUIREMENTS until that live proof. Operator can verify it now on the live site (the code is deployed).
-- **Migration 043 (`economy_map_hub_and_negotiation_blocks`) unapplied on live.** Live migrations list jumps 042→044. Out of Phase 24 plan scope (24 applied only 044, "the milestone's only migration"); candidate for a follow-up / the audit milestone.
-- newsletter image drift (Phase 19 commit 437cdb1, unrebuilt); lab-data-provider known carry-over.
-- Pre-existing orphan container `openclaw-rivalscope` (unrelated; not removed — scoped deploys never use --remove-orphans).
+Last session: 2026-06-22T11:30:00.000Z
+Stopped at: v2.3 ROADMAP created (Phases 26–31, 37/37 requirements mapped, traceability written)
+Resume file: .planning/ROADMAP.md (v2.3 phase details) + .planning/REQUIREMENTS.md (traceability)
+Next: Plan Phase 26 — Continuity & Exemplar Context (CTX-01..05). `/gsd-plan-phase 26` (or `/gsd-discuss-phase 26`). The additive continuity + exemplar loader (audit R4) is the hard dependency of the Layer-2 judge and the lowest-risk start; reference `docs/audit/specs/07_continuity_and_exemplars.md`.
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Review the v2.3 ROADMAP (Phases 26–31) — `/gsd-plan-phase 26` to begin, or revise the roadmap if the phase shape/ordering needs adjustment.
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Notes |
 |-------|------|----------|-------|
-| Phase 11 P01 | 8min | 3 tasks | 3 files |
-| Phase 11 P02 | 2min | 3 tasks | 3 files |
-| Phase 12 P01 | 6min | 3 tasks | 1 files |
-| Phase 12 P02 | 4 min | 3 tasks | 2 files |
-| Phase 13 P01 | 4min | 3 tasks | 3 files |
-| Phase 13 P02 | 6min | 3 tasks | 4 files |
-| Phase 14 P01 | 4min | 2 tasks | 2 files |
-| Phase 14 P02 | 6min | 2 tasks | 1 file |
-| Phase 17 P01 | 7min | 3 tasks | 1 files |
 | Phase 19 P01 | ~10min | 3 tasks | 3 files |
-| Phase 19 P02 | ~5min | 3 tasks | 1 file (confirm-and-close; no DB mutation, newsletter rebuilt) |
-| Phase 20 P01 | ~4min | 3 tasks | 4 files (width tokens + .prose/.wide axes; 720px .container retired; source-only) |
+| Phase 19 P02 | ~5min | 3 tasks | 1 file (confirm-and-close; no DB mutation) |
+| Phase 20 P01 | ~4min | 3 tasks | 4 files (width tokens + .prose/.wide axes) |
 | Phase 21 P01 | ~6min | 3 tasks | 2 files |
-| Phase Phase 23 PP01 | ~14min | 3 tasks tasks | 2 files files |
-| Phase 24 P01 | ~3min | 1 task | 1 file (migration 044 — security-definer signals_feed view + anon grant; source-only) |
-| Phase 24 P02 | ~2min | 2 tasks | 3 files (frontend signals fetch/render — fetchSignals/renderSignals/signalHost + view-all + CSS + placeholder removal; source-only) |
+| Phase 23 P01 | ~14min | 3 tasks | 2 files |
+| Phase 24 P01 | ~3min | 1 task | 1 file (migration 044 — signals_feed view) |
+| Phase 24 P02 | ~2min | 2 tasks | 3 files (frontend signals fetch/render) |
