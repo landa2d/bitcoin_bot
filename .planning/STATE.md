@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: executing
-stopped_at: Phase 26 Plan 01 complete
-last_updated: "2026-06-22T20:36:51.763Z"
-last_activity: 2026-06-22 -- Phase 26 Plan 01 (continuity + exemplar loader) complete
+stopped_at: Phase 26 Plan 02 complete
+last_updated: "2026-06-22T20:58:00.000Z"
+last_activity: 2026-06-22 -- Phase 26 Plan 02 (deterministic fixture test for load_edition_context) complete
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 67
 ---
 
 # Project State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Pu
 ## Current Position
 
 Phase: 26 (continuity-exemplar-context) — EXECUTING
-Plan: 2 of 3
-Status: Plan 01 complete (loader + injection + Phase E resurrection); Plan 02 (fixture tests) next
-Last activity: 2026-06-22 -- Phase 26 Plan 01 complete (596b8d5, 536232e, e38cd7c)
+Plan: 3 of 3
+Status: Plans 01–02 complete (loader + injection + Phase E resurrection; deterministic D-16 fixture suite — 10 passing cases against the REAL loader); Plan 03 (operator backfill + live trigger, worktree-unsafe) next
+Last activity: 2026-06-22 -- Phase 26 Plan 02 complete (eb0c5dc)
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -69,6 +69,7 @@ Operator decisions locked at v2.3 start (2026-06-22, in PROJECT.md → Current M
 - **`edition_evals` = per-attempt telemetry** (supports the rewrite loop): `(edition id/number, attempt, layer, deterministic flags jsonb, judge scores jsonb, feedback, verdict, eval_status)` with the `verdict-iff-ok` CHECK + `UNIQUE(newsletter_id, layer, attempt)`. SQL-first; next migration number = 045 (044 highest applied; 043 unapplied carry-over, out of scope).
 - **Milestone command is authoritative**; audit specs 01 (R5) / 07 (R4) are the implementation reference (wiring points, `verify_draft` reuse, governed-agent seeding pattern, fail-loud rules). Sonnet model = `claude-sonnet-4-6` (spec 01's `claude-sonnet-4-20250514` is EOL).
 - **Activation discipline:** report-only (`enforce:false`) for the first ~2 editions to calibrate thresholds against real drafts, then the operator explicitly flips `enforce:true`. Whole step rollback-safe (`enabled:false` disables invocation).
+- **Loader contract locked by fixtures (Phase 26 Plan 02):** `tests/test_26_continuity_loader.py` (10 cases) imports the REAL `nl.load_edition_context` (no reimplementation) and asserts the AS-IMPLEMENTED 4-key contract — `previous_editions / exemplars / exemplars_status('scored'|'not_scored') / empty` — proving the three distinguishable degrade states (empty corpus / empty-operator-pool / scored) against an in-memory Supabase stub, never the live DB. The empty-corpus WARNING literal `"continuity context empty"` is asserted; `weeks_ago` is proven OMITTED on null `published_at`; `primary_theme` is proven sourced from `data_snapshot.lead_theme` (D-07), `None` when absent.
 
 Open items to resolve in discuss/plan (do NOT decide unilaterally):
 
@@ -135,10 +136,10 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-06-22T15:53:22.657Z
-Stopped at: Phase 26 context gathered
-Resume file: .planning/phases/26-continuity-exemplar-context/26-CONTEXT.md
-Next: Plan Phase 26 — Continuity & Exemplar Context (CTX-01..05). `/gsd-plan-phase 26` (or `/gsd-discuss-phase 26`). The additive continuity + exemplar loader (audit R4) is the hard dependency of the Layer-2 judge and the lowest-risk start; reference `docs/audit/specs/07_continuity_and_exemplars.md`.
+Last session: 2026-06-22T20:58:00.000Z
+Stopped at: Phase 26 Plan 02 complete (deterministic fixture suite)
+Resume file: .planning/phases/26-continuity-exemplar-context/26-03-PLAN.md
+Next: Execute Phase 26 Plan 03 (Wave 3) — operator-confirmed `data_snapshot.lead_theme` backfill on operator editions 25–28 + `published_at` non-null verification on all 7 (D-12/D-13, worktree-unsafe Supabase MCP) THEN the live generation trigger end-to-end verify (D-17/D-18). Plan 03's live run MUST confirm exemplars actually reach Phase E (`voice_score.score > 0`, ≥1 observation) given the upstream `narrative_context` pre-population + `setdefault` (see 26-01-SUMMARY Issues).
 
 ## Operator Next Steps
 
@@ -156,3 +157,4 @@ Next: Plan Phase 26 — Continuity & Exemplar Context (CTX-01..05). `/gsd-plan-p
 | Phase 24 P01 | ~3min | 1 task | 1 file (migration 044 — signals_feed view) |
 | Phase 24 P02 | ~2min | 2 tasks | 3 files (frontend signals fetch/render) |
 | Phase 26 P01 | 8min | 3 tasks | 2 files |
+| Phase 26 P02 | ~6min | 1 task | 1 file (deterministic fixture test — 10 cases vs the REAL loader) |
