@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: executing
-stopped_at: Phase 26 Plan 02 complete
-last_updated: "2026-06-22T20:58:00.000Z"
-last_activity: 2026-06-22 -- Phase 26 Plan 02 (deterministic fixture test for load_edition_context) complete
+stopped_at: Phase 26 complete (verified PASSED, 5/5 CTX-01..05); Phase 27 (eval-persistence & governed agent) next
+last_updated: "2026-06-24T13:31:38.749Z"
+last_activity: 2026-06-24
 progress:
   total_phases: 6
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
-  percent: 67
+  completed_plans: 3
+  percent: 17
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 26 — continuity-exemplar-context
+**Current focus:** Phase 27 — eval-persistence-&-governed-agent
 
 ## Current Position
 
-Phase: 26 (continuity-exemplar-context) — EXECUTING
-Plan: 3 of 3
-Status: Plans 01–02 complete (loader + injection + Phase E resurrection; deterministic D-16 fixture suite — 10 passing cases against the REAL loader); Plan 03 (operator backfill + live trigger, worktree-unsafe) next
-Last activity: 2026-06-22 -- Phase 26 Plan 02 complete (eb0c5dc)
+Phase: 27 (eval-persistence-&-governed-agent) — not started
+Plan: Not started
+Status: Phase 26 COMPLETE + verified PASSED (5/5 CTX-01..05; 3/3 plans). CTX-04 (cross-edition bridge) + CTX-05 (Phase E voice_score=4 with 8 exemplars) proven LIVE on 2026-06-24 via the block path. Plan 03 surfaced + fixed 4 pre-existing bugs (loader-authoritative Option C merge, boolean operator_written, proxy TIMEOUT_ANTHROPIC 240s, Phase E voice-client routing) + 3 code-review fail-loud fixes (WR-01/02/03) + a 3rd Theme-omission consumer; all deployed (newsletter + llm-proxy). Phase 27 (migration 045 `edition_evals` + governed `edition_eval` agent) next.
+Last activity: 2026-06-24 — Phase 26 complete (verified PASSED)
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -86,13 +86,13 @@ Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM
 
 ### Blockers/Concerns
 
-None for v2.3 start. System map present + verified (`.planning/research/INVENTORY.md`, 3 parallel code-reading agents + live Supabase reads). Key reconciled facts: the true fact base only exists in-memory at the two newsletter-service save points; `edition_evals` does not exist (design-only, migration 045); `newsletters` has no `do_not_publish` column on the main row; `send_telegram` is fail-soft today (silent `return` on unset env). Audit specs `docs/audit/specs/01_eval_harness.md` (R5) + `07_continuity_and_exemplars.md` (R4) are the implementation reference.
+**🔴 P1 — single-pass newsletter writer broken (Friday-edition risk; surfaced by Phase 26 Plan 03, NOT a Phase 26 gap).** The single-pass writer's `claude-sonnet-4-6` call returns 200 OK with real output (e.g. 83,859 in / **4,703 out tokens**, 322 sats) but the agent reads `response.content[0].text` as **empty** → `json.loads("")` → "Failed to parse model response as JSON (char 0)" → task fails before the A/B path. The small `editorial_prepass` call (same model) parses fine, so it's specific to the LARGE writer response. **No successful newsletter generation since the 2026-06-19 `claude-sonnet-4-6` model swap.** With `block_pipeline.enabled=false` (restored), **the real Friday 2026-06-26 edition will fail identically.** Likely a content-block extraction issue (read the `type=='text'` block, not `content[0]` blindly) — needs reproduction with response-structure logging; do NOT fix blind. **Stopgap option:** set `block_pipeline.enabled=true` (the block path completes + scores Phase E, proven live 2026-06-24). Out of Phase 26 scope — raise as a standalone debug/quick task. (See `26-03-SUMMARY.md` → Issues Encountered.)
 
-Carry-over advisories (non-blocking, pre-existing): service_role leak in tracked `.claude/settings.local.json` (DEF-17-01 — recommend rotation + scrub + gitignore); migration 043 unapplied on live (live list jumps 042→044); newsletter image drift (Phase 19 commit `437cdb1`, unrebuilt) — note any v2.3 newsletter rebuild ships the corrected apostrophe guard.
+Key reconciled facts (still current): the true fact base only exists in-memory at the two newsletter-service save points; `edition_evals` does not exist (design-only, migration 045); `newsletters` has no `do_not_publish` column on the main row; `send_telegram` is fail-soft today (silent `return` on unset env). Audit specs `docs/audit/specs/01_eval_harness.md` (R5) + `07_continuity_and_exemplars.md` (R4) are the implementation reference.
 
-**Phase 26 Plan 01 concern (for Plan 03 live D-17 + the D-12/D-13 backfill):**
-- **Live exemplar-flow:** the processor pre-populates `input_data['narrative_context']` (without `exemplars`) when creating the `write_newsletter` task (`agentpulse_processor.py:5615`). The locked `setdefault` injection (CTX-04/D-14) means that upstream context wins, so the loader's `exemplars` may NOT reach the `generate_from_blocks` call sites in live operation — Phase E could stay `not_scored` despite 7 operator editions. Plan 03's live trigger MUST verify `voice_score.score > 0`; if exemplars don't flow, decide between (a) processor stops pre-populating, (b) merge exemplars into an existing narrative_context, or (c) make the newsletter loader authoritative. Implemented per the locked must-have, flagged here rather than silently worked around. (See `26-01-SUMMARY.md` → Issues Encountered.)
-- **Data-hygiene backfill (D-12/D-13) outstanding:** `data_snapshot.lead_theme` on operator editions 25–28 + `published_at` non-null verification on all 7 — a worktree-unsafe Supabase MCP mutation, operator/orchestrator-owned, NOT in the code plan. Plan 03's bridge/`weeks_ago` quality depends on it.
+Carry-over advisories (non-blocking, pre-existing): service_role leak in tracked `.claude/settings.local.json` (DEF-17-01 — recommend rotation + scrub + gitignore); migration 043 unapplied on live (live list jumps 042→044). ✅ Newsletter image drift RESOLVED — the Phase 26 rebuilds ship current code incl. the Phase 19 apostrophe guard. ✅ Proxy `TIMEOUT_ANTHROPIC` raised 120→240s (was 504'ing the writer call) and deployed.
+
+**Phase 26 Plan 01 concern — ✅ RESOLVED in Plan 03:** the processor's `setdefault` shadowing was fixed via **Option C** (operator-approved loader-authoritative merge in `process_task`), and the deeper blocker — exemplars never loaded because `data_snapshot.operator_written` is a JSON **boolean** (not the string `'true'` the CONTEXT assumed) — was fixed in `_le_is_operator_written`. Live result: 8 exemplars flow, Phase E scores. The D-12/D-13 `lead_theme` backfill (editions 25–28) + `published_at` verification (all 7) are done (operator-confirmed, via MCP; persists).
 
 ### Quick Tasks Completed
 
