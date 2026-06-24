@@ -2224,9 +2224,23 @@ def process_task(task: dict):
 
     # Inject narrative context (continuity + exemplars) — covers BOTH writer
     # paths AND the prepass (all read input_data.get('narrative_context')).
-    # setdefault so an upstream-provided narrative_context still wins (CTX-04).
+    # The newsletter-service loader is AUTHORITATIVE for continuity metadata +
+    # exemplars. The processor pre-populates a thinner narrative_context
+    # (prepare_newsletter_data, agentpulse_processor.py:5615) with NO exemplars,
+    # primary_theme from the always-null column (not data_snapshot.lead_theme),
+    # positional weeks_ago, and an un-stripped opening excerpt. A plain setdefault
+    # let that stale upstream win in every live trigger path, shadowing the loader
+    # entirely — Phase E never scored, the lead_theme backfill never reached the
+    # bridge. Merge so the loader's keys override while preserving upstream-only
+    # keys (recent_spotlights, instruction). Supersedes the original
+    # CTX-04/D-14 "upstream wins" — that rule guarded the now-inferior processor
+    # context. (Phase 26 Plan 03, Option C.)
     ctx = load_edition_context(supabase)
-    input_data.setdefault('narrative_context', ctx)
+    _upstream_ctx = input_data.get('narrative_context')
+    if _upstream_ctx:
+        input_data['narrative_context'] = {**_upstream_ctx, **ctx}
+    else:
+        input_data['narrative_context'] = ctx
 
     # Avoided-angles feed (D-14): the last 3 prepass angles → avoided_themes.
     # Both prepass consumers already read input_data.get('avoided_themes', [])
