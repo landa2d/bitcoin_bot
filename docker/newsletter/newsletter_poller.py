@@ -2321,14 +2321,17 @@ def process_task(task: dict):
             # Phase B + C + E
             prose_model = _bp_config.get('model_prose', 'claude-sonnet-4-6')
             prose_client = claude_client if prose_model.startswith('claude') else deepseek_client
+            _voice_model = _bp_config.get('model_voice', 'deepseek-chat')
+            _voice_client = claude_client if _voice_model.startswith('claude') else deepseek_client
             bp_result = generate_from_blocks(
                 blocks_data,
                 angle=block_angle,
                 llm_client=prose_client,
                 model_structure=_bp_config.get('model_structure', 'deepseek-chat'),
                 model_prose=prose_model,
-                model_voice=_bp_config.get('model_voice', 'deepseek-chat'),
+                model_voice=_voice_model,
                 exemplars=(input_data.get('narrative_context') or {}).get('exemplars'),
+                voice_client=_voice_client,
             )
 
             if bp_result.get('error'):
@@ -2511,6 +2514,8 @@ def process_task(task: dict):
                 # Determine which client to use for prose
                 prose_model = _bp_config.get('model_prose', 'claude-sonnet-4-6')
                 prose_client = claude_client if prose_model.startswith('claude') else deepseek_client
+                _voice_model = _bp_config.get('model_voice', 'deepseek-chat')
+                _voice_client = claude_client if _voice_model.startswith('claude') else deepseek_client
 
                 # Phase B + C + E
                 bp_result = generate_from_blocks(
@@ -2519,8 +2524,9 @@ def process_task(task: dict):
                     llm_client=prose_client,
                     model_structure=_bp_config.get('model_structure', 'deepseek-chat'),
                     model_prose=prose_model,
-                    model_voice=_bp_config.get('model_voice', 'deepseek-chat'),
+                    model_voice=_voice_model,
                     exemplars=(input_data.get('narrative_context') or {}).get('exemplars'),
+                    voice_client=_voice_client,
                 )
 
                 if not bp_result.get('error'):

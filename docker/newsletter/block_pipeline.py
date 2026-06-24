@@ -571,6 +571,7 @@ def generate_from_blocks(
     model_structure: str = 'deepseek-chat',
     model_prose: str = 'claude-sonnet-4-6',
     model_voice: str = 'deepseek-chat',
+    voice_client=None,
 ) -> dict:
     """Run the full block-based pipeline: B → C → E.
 
@@ -680,7 +681,11 @@ def generate_from_blocks(
                     "observations": ["No operator exemplars available — voice not scored"]}
     if exemplars:
         logger.info("[BLOCK PIPELINE] Phase E: checking voice consistency...")
-        voice_result = phase_e_voice_check(md_tech, exemplars, llm_client, model=model_voice)
+        # model_voice (deepseek-chat) needs the OpenAI-compatible client, NOT the
+        # Anthropic prose client — _llm_call routes by client TYPE, so reusing the
+        # Anthropic llm_client sent deepseek-chat to /anthropic and 400'd. Use the
+        # caller-supplied voice_client when given. (Phase 26 Plan 03 live finding.)
+        voice_result = phase_e_voice_check(md_tech, exemplars, voice_client or llm_client, model=model_voice)
         logger.info(f"[BLOCK PIPELINE] Phase E: voice score = {voice_result.get('score', 0)}")
 
     return {
