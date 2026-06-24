@@ -104,7 +104,11 @@ MAX_EMBED_BODY = 524_288   # 512KB
 # Timeouts per endpoint type
 TIMEOUT_CHAT = 120.0
 TIMEOUT_EMBED = 10.0
-TIMEOUT_ANTHROPIC = 120.0
+# 240s: the single-pass newsletter writer's full-edition Sonnet call lands at
+# ~124-128s, just over the old 120s ceiling, so every attempt 504'd (Phase 26
+# Plan 03 live trigger). Doubled to give headroom for large writer prompts while
+# staying well under the newsletter task's 300s budget.
+TIMEOUT_ANTHROPIC = 240.0
 
 # ─── Global state ─────────────────────────────────────────────────────────────
 
