@@ -136,8 +136,8 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-06-22T20:58:00.000Z
-Stopped at: Phase 26 Plan 02 complete (deterministic fixture suite)
+Last session: 2026-06-23 (resumed)
+Stopped at: Session resumed — Phase 26 Plan 02 complete; Plan 03 planned (PLAN.md present, no SUMMARY), proceeding to execute Phase 26 Plan 03
 Resume file: .planning/phases/26-continuity-exemplar-context/26-03-PLAN.md
 Next: Execute Phase 26 Plan 03 (Wave 3) — operator-confirmed `data_snapshot.lead_theme` backfill on operator editions 25–28 + `published_at` non-null verification on all 7 (D-12/D-13, worktree-unsafe Supabase MCP) THEN the live generation trigger end-to-end verify (D-17/D-18). Plan 03's live run MUST confirm exemplars actually reach Phase E (`voice_score.score > 0`, ≥1 observation) given the upstream `narrative_context` pre-population + `setdefault` (see 26-01-SUMMARY Issues).
 

@@ -91,7 +91,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 - **SQL-first:** migrations authored in-phase, applied by the operator via MCP. Scoped rebuilds use service names; migration-apply / key-mint / gato-rebuild steps are worktree-unsafe and orchestrator/operator-owned on the main tree.
 - Fabrication is a **HARD stop** (held + escalate, never rewrite). Passing the eval **never** auto-publishes (Monday human gate unchanged). Auto-hold is gated behind a report-only `enforce` flag the operator activates.
 
-- [ ] **Phase 26: Continuity & Exemplar Context** — `load_edition_context()` feeds prior-edition angles + operator-approved exemplars to both writer paths and the judge; resurrects the dead Phase E voice check (CTX-01..05)
+- [x] **Phase 26: Continuity & Exemplar Context** — `load_edition_context()` feeds prior-edition angles + operator-approved exemplars to both writer paths and the judge; resurrects the dead Phase E voice check (CTX-01..05) (completed 2026-06-24)
 - [ ] **Phase 27: Eval Persistence & Governed Agent** — migration 045 `edition_evals` (per-attempt, fail-loud) + a governed, hard-capped `edition_eval` proxy agent (EVAL-01..03, GOV-01..02)
 - [ ] **Phase 28: Layer 1 Deterministic Gate** — no-LLM fabrication (GitHub/URL/arXiv/named-study/entity-merge) + mechanical-editorial checks against the correct in-memory fact base, short-circuits to hold+escalate (GATE-01..08)
 - [ ] **Phase 29: Layer 2 Judge + Feedback-Rewrite Loop** — standalone module: Sonnet judge on exemplar-anchored dimensions + bounded N=2 rewrite loop, returns final draft + verdict (JUDGE-01..05, LOOP-01..05)
@@ -123,7 +123,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-  - [ ] 26-03-PLAN.md — Operator-confirmed lead_theme backfill (D-12/D-13) + live generation trigger end-to-end verify (D-17/D-18) (CTX-04,05) [Wave 3, worktree-unsafe]
+  - [x] 26-03-PLAN.md — Operator-confirmed lead_theme backfill (D-12/D-13) + live generation trigger end-to-end verify (D-17/D-18) (CTX-04,05) [Wave 3, worktree-unsafe]
 
 **Notes**: Newsletter service only; no LLM new call surface (the loader is DB reads + injection). Fail-loud-but-not-fatal: an empty corpus warns and continues, never aborts generation. No `.in_()` (CTX-01 uses `.eq('status','published')`). Resurrecting Phase E (CTX-05) closes the audit-noted dead voice check; reference `docs/audit/specs/07_continuity_and_exemplars.md`.
 
@@ -235,7 +235,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 23. Distinct Newsletter Excerpts | v2.2 | 2/2 | Complete | 2026-06-16 |
 | 24. Signals Section | v2.2 | 3/3 | Complete | 2026-06-17 |
 | 25. Responsive & Accessibility Pass | v2.2 | 2/2 | Complete | 2026-06-19 |
-| 26. Continuity & Exemplar Context | v2.3 | 2/3 | In Progress|  |
+| 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete   | 2026-06-24 |
 | 27. Eval Persistence & Governed Agent | v2.3 | 0/TBD | Not started | - |
 | 28. Layer 1 Deterministic Gate | v2.3 | 0/TBD | Not started | - |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/TBD | Not started | - |
