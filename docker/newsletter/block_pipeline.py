@@ -408,8 +408,9 @@ def phase_e_voice_check(draft: str, exemplars: list[str],
     Returns: {"score": float, "observations": [str]}
     """
     if not exemplars:
-        # D-04: distinguishable "not scored" — NOT a silent score:0. Distinct
-        # from the genuine-error branch below (which keeps score:0).
+        # D-04: distinguishable "not scored" — NOT a silent score:0. The genuine-
+        # error branch below ALSO returns not_scored (WR-03), so a failed voice
+        # call is never reported as a real zero either.
         return {"score": None, "status": "not_scored",
                 "observations": ["No operator exemplars available — voice not scored"]}
 
@@ -431,8 +432,13 @@ def phase_e_voice_check(draft: str, exemplars: list[str],
         return json.loads(text.strip())
 
     except Exception as e:
+        # WR-03 / D-04: a failed voice call must be a distinguishable "not scored",
+        # never a real-looking score:0 (downstream, a 0 reads as "terrible voice"
+        # rather than "couldn't score"). The caller-supplied voice_client may even
+        # be wrong/None — surface that as not_scored, not a fabricated zero.
         logger.error(f"Phase E voice check failed: {e}")
-        return {"score": 0, "observations": [f"Voice check failed: {e}"]}
+        return {"score": None, "status": "not_scored",
+                "observations": [f"Voice check failed (not scored): {e}"]}
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -686,7 +692,9 @@ def generate_from_blocks(
         # Anthropic llm_client sent deepseek-chat to /anthropic and 400'd. Use the
         # caller-supplied voice_client when given. (Phase 26 Plan 03 live finding.)
         voice_result = phase_e_voice_check(md_tech, exemplars, voice_client or llm_client, model=model_voice)
-        logger.info(f"[BLOCK PIPELINE] Phase E: voice score = {voice_result.get('score', 0)}")
+        _vs = voice_result.get('score')
+        logger.info(f"[BLOCK PIPELINE] Phase E: voice score = "
+                    f"{_vs if _vs is not None else voice_result.get('status', 'not_scored')}")
 
     return {
         'content_markdown': md_tech,

@@ -1364,10 +1364,17 @@ def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -
             for ed in editions_list:
                 excerpt = ed.get('opening_excerpt', '')
                 excerpt_str = f"\n    Excerpt: {excerpt[:200]}" if excerpt else ""
+                # WR-02 / D-08+D-09: the loader sets primary_theme=None and OMITS
+                # weeks_ago on null published_at. Omit those segments entirely —
+                # never emit a literal "Theme: None" / "(?w ago)" placeholder.
+                theme = ed.get('primary_theme')
+                theme_seg = f" — Theme: {theme}" if theme else ""
+                weeks = ed.get('weeks_ago')
+                weeks_seg = f" ({weeks}w ago)" if weeks is not None else ""
                 edition_lines.append(
-                    f"  #{ed.get('edition_number', '?')} ({ed.get('weeks_ago', '?')}w ago):"
+                    f"  #{ed.get('edition_number', '?')}{weeks_seg}:"
                     f" \"{ed.get('title', '?')}\""
-                    f" — Theme: {ed.get('primary_theme', '?')}"
+                    f"{theme_seg}"
                     f"{excerpt_str}"
                 )
             system_prompt += (
@@ -2255,7 +2262,16 @@ def process_task(task: dict):
     ctx = load_edition_context(supabase)
     _upstream_ctx = input_data.get('narrative_context')
     if _upstream_ctx:
-        input_data['narrative_context'] = {**_upstream_ctx, **ctx}
+        _merged = {**_upstream_ctx, **ctx}
+        # WR-01 fail-loud: a loader degrade (empty corpus OR a transient DB error)
+        # both return empty=True with previous_editions=[]. Do NOT clobber a
+        # populated upstream previous_editions (the processor reliably sets it) —
+        # keep the continuity list so the bridge survives a transient loader
+        # failure. The loader still contributes exemplars / exemplars_status
+        # (empty -> not_scored, which is correct when no exemplars loaded).
+        if ctx.get('empty') and _upstream_ctx.get('previous_editions'):
+            _merged['previous_editions'] = _upstream_ctx['previous_editions']
+        input_data['narrative_context'] = _merged
     else:
         input_data['narrative_context'] = ctx
 
