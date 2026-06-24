@@ -130,8 +130,10 @@ LONG_UNDER_HEADER = "### Section Heading\n" + LONG_PARA_NONOP
 MIXED_MD = "\n\n".join([HEADER_LINE, LIST_LINE, SHORT_PARA, LONG_PARA_OP, LONG_UNDER_HEADER]) + "\n"
 
 # Canonical operator data_snapshot per D-07: theme MUST come from `lead_theme`,
-# never the always-null `primary_theme`.
-_OP_SNAPSHOT = {"lead_theme": "test-theme", "operator_written": "true", "primary_theme": None}
+# never the always-null `primary_theme`. operator_written is a JSON BOOLEAN in the
+# live DB (Phase 26 Plan 03 live finding) — NOT the string the original CONTEXT
+# assumed — so the canonical fixture uses the real boolean type.
+_OP_SNAPSHOT = {"lead_theme": "test-theme", "operator_written": True, "primary_theme": None}
 
 
 def _scored_stub():
@@ -216,6 +218,26 @@ def test_operator_written_filtering_excludes_non_operator():
     assert LONG_PARA_NONOP not in ctx["exemplars"], \
         "non-operator (block_v1) paragraph must be excluded from exemplars"
     assert ctx["exemplars_status"] == "scored"
+
+
+def test_operator_written_accepts_boolean_and_string():
+    """REGRESSION (Phase 26 Plan 03): the live DB stores operator_written as a JSON
+    BOOLEAN (true) → supabase-py yields a Python bool. The loader must accept BOTH
+    boolean True (live) and string 'true' (the documented form), and exclude
+    boolean False / absent. The original `== 'true'` check matched only the string,
+    so it returned zero exemplars on live data and Phase E stayed not_scored."""
+    for marker in (True, "true"):
+        ctx = nl.load_edition_context(StubSupabase([
+            _edition(31, content_markdown=LONG_PARA_OP,
+                     data_snapshot={"operator_written": marker, "lead_theme": "t"})]))
+        assert ctx["exemplars_status"] == "scored", f"{marker!r} should count as operator-written"
+        assert LONG_PARA_OP in ctx["exemplars"]
+    # boolean False → excluded → not_scored (never a silent score:0)
+    ctx_false = nl.load_edition_context(StubSupabase([
+        _edition(31, content_markdown=LONG_PARA_OP,
+                 data_snapshot={"operator_written": False, "lead_theme": "t"})]))
+    assert ctx_false["exemplars_status"] == "not_scored"
+    assert LONG_PARA_OP not in ctx_false["exemplars"]
 
 
 # ══════════════════════════════════════════════════════════════════════════════

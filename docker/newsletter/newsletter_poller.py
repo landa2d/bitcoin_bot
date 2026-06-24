@@ -2064,6 +2064,23 @@ def _le_is_exemplar_paragraph(para: str) -> bool:
     return True
 
 
+def _le_is_operator_written(data_snapshot) -> bool:
+    """True iff data_snapshot marks the edition operator-written (D-01).
+
+    LIVE DATA FIX (Phase 26 Plan 03): data_snapshot.operator_written is stored as
+    a JSON BOOLEAN (true) in the live DB, NOT the string 'true' the 26-CONTEXT
+    "live DB facts" assumed (that fact was read via PostgREST `->>`, which
+    stringifies booleans, hiding the real type). supabase-py parses the JSONB to a
+    Python bool, so the original `== 'true'` comparison was False for EVERY
+    operator edition — the loader returned zero exemplars and Phase E stayed
+    not_scored on live data despite 7 operator editions. Accept the boolean True
+    OR the string 'true' (case-insensitive). Still excludes edition 29 / block_v1
+    (operator_written absent or false).
+    """
+    v = (data_snapshot or {}).get('operator_written')
+    return v is True or (isinstance(v, str) and v.strip().lower() == 'true')
+
+
 def load_edition_context(supabase, limit=3, exemplar_paras=8):
     """Load prior-edition continuity context + operator-written voice exemplars.
 
@@ -2135,11 +2152,11 @@ def load_edition_context(supabase, limit=3, exemplar_paras=8):
         previous_editions.reverse()  # oldest first — LLM reads the arc chronologically
 
         # ── exemplars: operator-written editions ONLY (D-01 anti-tic guard).
-        #    'operator_written' is the STRING 'true' in the live DB; this excludes
-        #    edition 29 / pipeline_version='block_v1'. ──
+        #    operator_written is a JSON boolean in the live DB (see
+        #    _le_is_operator_written) — this excludes edition 29 / block_v1. ──
         operator_rows = [
             ed for ed in rows
-            if (ed.get('data_snapshot') or {}).get('operator_written') == 'true'
+            if _le_is_operator_written(ed.get('data_snapshot'))
         ]
         exemplars = []
         # From the 2 most-recent operator editions, expand to a 3rd ONLY to reach
