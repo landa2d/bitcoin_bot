@@ -715,6 +715,105 @@ def validate_fabrication_signals(content_md: str, input_data: dict) -> list[dict
     return issues
 
 
+# ---------------------------------------------------------------------------
+# Robust LLM response extraction
+#
+# Root cause of the single-pass-writer-empty bug (debug 2026-06-24): the writer
+# did `text = response.content[0].text.strip()`, stripped ```fences ONLY when the
+# text START with "```", then json.loads(text). claude-sonnet-4-6 frames the LARGE
+# writer output stochastically (bare JSON / ```json-fenced / occasionally prefixed
+# with a prose preamble). Any framing that is not bare-or-leading-fence skipped the
+# strip and json.loads failed at "char 0" — misdiagnosed as "empty content". These
+# helpers extract the text robustly (joining all text blocks) and recover the JSON
+# regardless of surrounding prose/fences, and FAIL LOUD (raise, with a logged
+# snippet) when no JSON is recoverable — never silently returning empty.
+# ---------------------------------------------------------------------------
+
+_JSON_FENCE_RE = re.compile(r"```(?:json)?\s*(\{.*?\})\s*```", re.DOTALL | re.IGNORECASE)
+
+
+def response_text(response) -> str:
+    """Concatenate the text of every text block in an Anthropic Messages response.
+
+    For the common single-block case this equals response.content[0].text. Robust
+    to (hypothetical) multi-block responses and never raises on a non-text block.
+    """
+    parts = []
+    for block in (getattr(response, "content", None) or []):
+        if getattr(block, "type", None) == "text":
+            parts.append(getattr(block, "text", "") or "")
+    return "".join(parts)
+
+
+def _first_balanced_object(text: str) -> str | None:
+    """Return the first balanced {...} substring, respecting JSON string literals
+    and escapes so braces inside string values do not confuse the matcher."""
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        c = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+        elif c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
+
+
+def parse_llm_json(text: str, *, context: str) -> dict:
+    """Parse a JSON object from an LLM response that may be wrapped in prose or
+    markdown fences. Tries, in order: (1) the raw (stripped) text, (2) the JSON
+    inside the first ```json fenced block, (3) the first balanced {...} object.
+
+    FAIL LOUD: raises json.JSONDecodeError (with a logged head/tail snippet) when
+    nothing parses. NEVER returns empty/None — a genuinely unparseable response
+    must surface as a loud failure, not a silent empty edition.
+    """
+    raw = text or ""
+    candidates = []
+    stripped = raw.strip()
+    if stripped:
+        candidates.append(stripped)
+    m = _JSON_FENCE_RE.search(raw)
+    if m:
+        candidates.append(m.group(1).strip())
+    balanced = _first_balanced_object(raw)
+    if balanced:
+        candidates.append(balanced)
+
+    for cand in candidates:
+        try:
+            parsed = json.loads(cand)
+        except (json.JSONDecodeError, ValueError):
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+
+    logger.error(
+        "[%s] No parseable JSON object in model response (len=%d). head=%r tail=%r",
+        context, len(raw), raw[:300], raw[-200:],
+    )
+    raise json.JSONDecodeError(
+        f"[{context}] no parseable JSON object in model response "
+        f"(len={len(raw)}); head={raw[:200]!r}",
+        raw if raw else "", 0,
+    )
+
+
 def qualitative_review(content_md: str, input_data: dict) -> list[dict]:
     """LLM-based qualitative review: checks grounding, fabrication, tone, structure.
 
@@ -771,12 +870,7 @@ def qualitative_review(content_md: str, input_data: dict) -> list[dict]:
         usage = _Usage(response.usage.input_tokens, response.usage.output_tokens)
         log_llm_call("newsletter", "qualitative_review", response.model, usage, int((time.time() - _t0) * 1000))
 
-        text = response.content[0].text.strip()
-        if text.startswith("```"):
-            text = re.sub(r"^```(?:json)?\s*", "", text)
-            text = re.sub(r"\s*```$", "", text)
-
-        result = json.loads(text)
+        result = parse_llm_json(response_text(response), context="qualitative_review")
         issues = result.get('issues', [])
         logger.info(f"[QUAL REVIEW] Found {len(issues)} issue(s)")
         return issues
@@ -1046,12 +1140,7 @@ def editorial_prepass(input_data: dict) -> dict | None:
         usage = _Usage(response.usage.input_tokens, response.usage.output_tokens)
         log_llm_call("newsletter", "editorial_prepass", response.model, usage, int((time.time() - _t0) * 1000))
 
-        text = response.content[0].text.strip()
-        if text.startswith("```"):
-            text = re.sub(r"^```(?:json)?\s*", "", text)
-            text = re.sub(r"\s*```$", "", text)
-
-        result = json.loads(text)
+        result = parse_llm_json(response_text(response), context="editorial_prepass")
         logger.info(f"[EDITORIAL] Chosen angle: {result.get('chosen_angle', '?')}")
         logger.info(f"[EDITORIAL] Why fresh: {result.get('why_fresh', '?')}")
         logger.info(f"[EDITORIAL] Clusters to emphasize: {result.get('clusters_to_emphasize', [])}")
@@ -1246,7 +1335,7 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
                 self.output_tokens = out
         usage = _Usage(response.usage.input_tokens, response.usage.output_tokens)
         log_llm_call("newsletter", task_type, response.model, usage, int((time.time() - _t0) * 1000))
-        text = response.content[0].text.strip()
+        text = response_text(response)
     else:
         response = routed_llm_call(
             MODEL,
@@ -1258,13 +1347,12 @@ def generate_newsletter(task_type: str, input_data: dict, budget_config: dict) -
             response_format={"type": "json_object"},
         )
         log_llm_call("newsletter", task_type, response.model, response.usage, int((time.time() - _t0) * 1000))
-        text = response.choices[0].message.content.strip()
+        text = response.choices[0].message.content or ""
 
-    if text.startswith("```"):
-        text = re.sub(r"^```(?:json)?\s*", "", text)
-        text = re.sub(r"\s*```$", "", text)
-
-    result = json.loads(text)
+    # Robust JSON extraction — claude-sonnet-4-6 frames the large writer output
+    # stochastically (bare / ```json-fenced / occasionally prose-prefixed). Recover
+    # the JSON regardless of framing; FAIL LOUD (raise, never silent-empty) if none.
+    result = parse_llm_json(text, context=f"generate_newsletter:{task_type}")
 
     # The LLM may wrap content in a "result" key following the SKILL.md output format
     if "result" in result and isinstance(result["result"], dict):
@@ -1451,7 +1539,7 @@ def edit_strategic_mode(content_markdown_impact: str, input_data: dict = None) -
                 self.total_tokens = inp + out
         usage = _Usage(claude_response.usage.input_tokens, claude_response.usage.output_tokens)
         log_llm_call("newsletter", "strategic_editor", claude_response.model, usage, int((time.time() - _t0) * 1000))
-        edited = claude_response.content[0].text.strip()
+        edited = response_text(claude_response).strip()
     else:
         logger.warning("[ROUTING] Claude client not available — falling back to MODEL for strategic editor")
         response = routed_llm_call(
