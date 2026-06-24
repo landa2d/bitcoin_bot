@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: executing
-stopped_at: Phase 26 complete (verified PASSED, 5/5 CTX-01..05); Phase 27 (eval-persistence & governed agent) next
-last_updated: "2026-06-24T13:31:38.749Z"
-last_activity: 2026-06-24
+status: verifying
+stopped_at: Phase 27 context gathered
+last_updated: "2026-06-24T21:43:50.553Z"
+last_activity: 2026-06-24 — Phase 26 complete (verified PASSED)
 progress:
   total_phases: 6
   completed_phases: 1
@@ -136,9 +136,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-06-23 (resumed)
-Stopped at: Session resumed — Phase 26 Plan 02 complete; Plan 03 planned (PLAN.md present, no SUMMARY), proceeding to execute Phase 26 Plan 03
-Resume file: .planning/phases/26-continuity-exemplar-context/26-03-PLAN.md
+Last session: 2026-06-24T21:43:50.549Z
+Stopped at: Phase 27 context gathered
+Resume file: .planning/phases/27-eval-persistence-governed-agent/27-CONTEXT.md
 Next: Execute Phase 26 Plan 03 (Wave 3) — operator-confirmed `data_snapshot.lead_theme` backfill on operator editions 25–28 + `published_at` non-null verification on all 7 (D-12/D-13, worktree-unsafe Supabase MCP) THEN the live generation trigger end-to-end verify (D-17/D-18). Plan 03's live run MUST confirm exemplars actually reach Phase E (`voice_score.score > 0`, ≥1 observation) given the upstream `narrative_context` pre-population + `setdefault` (see 26-01-SUMMARY Issues).
 
 ## Operator Next Steps
