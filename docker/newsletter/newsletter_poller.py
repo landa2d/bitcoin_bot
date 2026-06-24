@@ -951,9 +951,16 @@ def editorial_prepass(input_data: dict) -> dict | None:
     edition_lines = []
     for ed in editions:
         excerpt = (ed.get('opening_excerpt') or '')[:150]
+        # D-08/D-09: omit Theme / weeks_ago when absent (loader sets
+        # primary_theme=None and omits weeks_ago on null published_at) — no
+        # literal "Theme: None" / "(?w ago)" in the angle-selection prompt.
+        theme = ed.get('primary_theme')
+        theme_seg = f" — Theme: {theme}" if theme else ""
+        weeks = ed.get('weeks_ago')
+        weeks_seg = f" ({weeks}w ago)" if weeks is not None else ""
         edition_lines.append(
-            f"#{ed.get('edition_number', '?')} ({ed.get('weeks_ago', '?')}w ago): "
-            f"\"{ed.get('title', '?')}\" — Theme: {ed.get('primary_theme', '?')}"
+            f"#{ed.get('edition_number', '?')}{weeks_seg}: "
+            f"\"{ed.get('title', '?')}\"{theme_seg}"
             f"\n  Excerpt: {excerpt}"
         )
 
