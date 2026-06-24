@@ -1,6 +1,8 @@
 ---
 created: 2026-06-24T13:40:00Z
-updated: 2026-06-24T13:40:00Z
+updated: 2026-06-24T20:40:00Z
+status: resolved
+resolved_at: 2026-06-24T20:40:00Z
 title: single-pass newsletter writer parses claude-sonnet-4-6 large response as empty (breaks live generation)
 area: newsletter
 priority: P1
@@ -8,6 +10,31 @@ phase_candidate: false
 files:
   - docker/newsletter/newsletter_poller.py
 ---
+
+## RESOLVED 2026-06-24 (commit bdb45ee; debug .planning/debug/resolved/single-pass-writer-empty.md)
+
+Root cause was NOT "empty content[0].text" and NOT a content-block structure issue — the
+"join text blocks" hypothesis in this todo was REFUTED. Inspecting 7 real claude-sonnet-4-6
+responses showed they are ALWAYS a single, fully-populated text block. The actual bug: a
+BRITTLE JSON extractor — `content[0].text.strip()`, strip fences ONLY when
+`text.startswith("\`\`\`")`, then `json.loads()`. The model frames the large writer output
+stochastically (bare / `\`\`\`json`-fenced / occasionally prose-prefixed); any framing that
+wasn't bare-or-leading-fence skipped the strip → `json.loads` failed at "char 0".
+
+Fix: shared `response_text()` (joins text blocks, defensive) + `parse_llm_json()` that recovers
+JSON from raw → `\`\`\`json|\`\`\`` fenced (case-insensitive, DOTALL) → first balanced `{...}`
+(string/escape-aware), and FAILS LOUD (raises + logs head/tail) when nothing parses — never
+silent-empty. Applied at all 3 JSON sites (qualitative_review, editorial_prepass, the writer
+both branches); strategic_editor uses `response_text()` for multi-block safety.
+
+Verified end-to-end on the REAL prod path: processor built a current-data task → running
+newsletter poller drafted edition 103 single-pass draft (`f2b9537e…`, 14,255-char body) with no
+writer parse failure. 22 new deterministic tests (tests/test_27_llm_json_extract.py) + 69
+regression green. Deployed via scoped `newsletter` rebuild.
+
+Optional follow-up (separate, non-blocking): bump `qualitative_review`/`editorial_prepass`
+`max_tokens=1024` — a verbose 16-issue review truncates and trips the new (non-blocking)
+fail-loud log. Pre-existing, harmless to generation.
 
 ## Problem (P1 — blocks the real Friday edition)
 
