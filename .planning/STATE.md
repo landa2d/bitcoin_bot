@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: completed
-stopped_at: Phase 27 Plan 02 complete (edition_eval.py persistence helper + fixture test)
+status: executing
+stopped_at: Phase 27 complete (3/3 plans + verification passed; edition_evals table + governed edition_eval agent live, settled call proven). Next: Phase 28.
 last_updated: "2026-06-25T16:40:59.574Z"
 last_activity: 2026-06-25
 progress:
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 27 — eval-persistence-governed-agent
+**Current focus:** Phase 28 — layer-1-deterministic-gate (Phase 27 complete)
 
 ## Current Position
 
 Phase: 28
 Plan: Not started
-Status: Plans 01–02 complete (migration 045 authored; edition_eval.py fail-loud persistence helper + 9-case fixture test shipped); Plan 03 (orchestrator/operator-owned key-mint + MCP apply) ready
+Status: Phase 27 COMPLETE — all 3 plans + verification (4/4 must-haves). Migration 045 authored + MCP-applied live (edition_evals table + governed edition_eval agent + GOV-02 wallet); edition_eval.py fail-loud persistence helper + 15-case fixture test; settled proxy call proven (wallet 25000→24999). Code review CR-01/WR-01/WR-02 fixed. Next: Phase 28 (layer-1-deterministic-gate).
 Last activity: 2026-06-25
 
 ## Roadmap (v2.3 — Phases 26–31)
