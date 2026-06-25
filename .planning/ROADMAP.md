@@ -139,7 +139,16 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
   3. All `edition_evals` reads/writes use plain supabase-py `.eq()` (no `.in_()`).
   4. A governed `edition_eval` agent (its own `agent_registry` + `agent_wallets_v2` rows, `allow_negative=false`, weekly `spending_cap_sats`, `on_cap_behavior='reject'`, `uncapped=false`) routes all model calls through `llm-proxy:8200` (Sonnet via `/anthropic/v1/messages`, DeepSeek via `/v1/chat/completions`) with no direct provider SDK calls; the key is delivered via `.env` (`LLM_PROXY_EVAL_KEY`), never in compose.
 
-**Plans**: TBD
+**Plans**: 3 plans (Wave 1 autonomous code/SQL authoring + helper/test in parallel, Wave 2 orchestrator/operator-owned key-mint + MCP apply + settled-call verify)
+
+**Wave 1** *(parallel — no file overlap)*
+
+  - [ ] 27-01-PLAN.md — Author migration 045 `edition_evals.sql`: SECTION 1 (table + verdict-iff-ok CHECK + UNIQUE(newsletter_id,layer,attempt) + trend index) + SECTION 2 (governed `edition_eval` agent seed, GOV-02 wallet, `<bcrypt-hash>` placeholder) (EVAL-01, GOV-01, GOV-02) [Wave 1, autonomous]
+  - [ ] 27-02-PLAN.md — `docker/newsletter/edition_eval.py` fail-loud `write_eval_row` + `.eq()`-only readers + LLM_PROXY_EVAL_KEY identity getter, and `tests/test_27_edition_eval.py` deterministic fixture suite (EVAL-02, EVAL-03) [Wave 1, autonomous]
+
+**Wave 2** *(blocked on 27-01; worktree-unsafe, orchestrator/operator-owned)*
+
+  - [ ] 27-03-PLAN.md — Mint the `edition_eval` key + substitute the real bcrypt hash into 045 + deliver `LLM_PROXY_EVAL_KEY` to `config/.env`; MCP-apply migration 045; verify a settled proxy call as `edition_eval` (EVAL-01 live, GOV-01, GOV-02) [Wave 2, autonomous:false]
 **Notes**: SQL-FIRST + cross-cutting persistence core. Sequential / partly worktree-unsafe: the migration apply (MCP) + the agent key mint are orchestrator/operator-owned on the main tree (a worktree executor cannot apply migrations or mint keys). Next free migration number is 045 (044 is highest applied; 043 is an unapplied carry-over, out of scope). Verdict taxonomy: `passed` / `held_fabrication` / `held_voice` / `escalated`. Reference `docs/audit/specs/01_eval_harness.md` for the agent/wallet seeding pattern.
 
 ### Phase 28: Layer 1 Deterministic Gate
@@ -236,7 +245,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 24. Signals Section | v2.2 | 3/3 | Complete | 2026-06-17 |
 | 25. Responsive & Accessibility Pass | v2.2 | 2/2 | Complete | 2026-06-19 |
 | 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete    | 2026-06-24 |
-| 27. Eval Persistence & Governed Agent | v2.3 | 0/TBD | Not started | - |
+| 27. Eval Persistence & Governed Agent | v2.3 | 0/3 | Planned | - |
 | 28. Layer 1 Deterministic Gate | v2.3 | 0/TBD | Not started | - |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/TBD | Not started | - |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
