@@ -12,7 +12,12 @@ findings:
   warning: 3
   info: 3
   total: 7
-status: issues_found
+status: resolved
+resolution:
+  commit: 9e71a49
+  resolved: [CR-01, WR-01, WR-02]
+  deferred: [WR-03, IN-01, IN-03]
+  note: "CR-01/WR-01/WR-02 (ledger-corruption + fail-loud gaps) fixed before phase verify per operator preference; +6 tests (15 pass). WR-03 (trend-reader semantics — no consumer yet, no data loss), IN-01/IN-03 left as advisories. IN-02 was confirmed a non-finding (intentional audit hash)."
 ---
 
 # Phase 27: Code Review Report
@@ -20,7 +25,7 @@ status: issues_found
 **Reviewed:** 2026-06-25
 **Depth:** standard
 **Files Reviewed:** 3
-**Status:** issues_found
+**Status:** resolved (CR-01, WR-01, WR-02 fixed in 9e71a49; WR-03 + Info deferred as advisories)
 
 ## Summary
 
