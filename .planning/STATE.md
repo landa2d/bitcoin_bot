@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: executing
+status: completed
 stopped_at: Phase 27 Plan 02 complete (edition_eval.py persistence helper + fixture test)
-last_updated: "2026-06-25T16:05:00.000Z"
-last_activity: 2026-06-25 -- Phase 27 Plan 02 complete
+last_updated: "2026-06-25T16:40:59.574Z"
+last_activity: 2026-06-25
 progress:
   total_phases: 6
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 17
+  completed_plans: 6
+  percent: 33
 ---
 
 # Project State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Pu
 
 ## Current Position
 
-Phase: 27 (eval-persistence-governed-agent) — EXECUTING
-Plan: 3 of 3
+Phase: 28
+Plan: Not started
 Status: Plans 01–02 complete (migration 045 authored; edition_eval.py fail-loud persistence helper + 9-case fixture test shipped); Plan 03 (orchestrator/operator-owned key-mint + MCP apply) ready
-Last activity: 2026-06-25 -- Phase 27 Plan 02 complete
+Last activity: 2026-06-25
 
 ## Roadmap (v2.3 — Phases 26–31)
 

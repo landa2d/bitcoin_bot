@@ -47,14 +47,14 @@
 
 ### EVAL — Persistence & Telemetry (`edition_evals`, migration 045 — SQL-first)
 
-- [ ] **EVAL-01**: A new `edition_evals` table persists, per edition per attempt: newsletter/edition id + number, attempt number, timestamp, layer (`deterministic`/`judge`), deterministic flags (jsonb), per-dimension judge scores (jsonb), judge feedback (text), final verdict (`passed`/`held_fabrication`/`held_voice`/`escalated`). DDL applied by the operator via MCP after review (proposed DDL below).
-- [ ] **EVAL-02**: Fail-loud — an eval that errors writes `eval_status='error'` + reason, never a silent zero score; a proxy 402 (cap hit) is an error state, not a zero; the eval-row write failing is logged ERROR + Telegram-alerted, never swallowed. No bare excepts.
-- [ ] **EVAL-03**: All `edition_evals` reads/writes use plain supabase-py `.eq()` (no `.in_()`).
+- [x] **EVAL-01**: A new `edition_evals` table persists, per edition per attempt: newsletter/edition id + number, attempt number, timestamp, layer (`deterministic`/`judge`), deterministic flags (jsonb), per-dimension judge scores (jsonb), judge feedback (text), final verdict (`passed`/`held_fabrication`/`held_voice`/`escalated`). DDL applied by the operator via MCP after review (proposed DDL below).
+- [x] **EVAL-02**: Fail-loud — an eval that errors writes `eval_status='error'` + reason, never a silent zero score; a proxy 402 (cap hit) is an error state, not a zero; the eval-row write failing is logged ERROR + Telegram-alerted, never swallowed. No bare excepts.
+- [x] **EVAL-03**: All `edition_evals` reads/writes use plain supabase-py `.eq()` (no `.in_()`).
 
 ### GOV — Governed Eval Agent (budget via proxy)
 
-- [ ] **GOV-01**: A governed `edition_eval` agent routes all model calls through `llm-proxy:8200` (Sonnet via `/anthropic/v1/messages`, DeepSeek via `/v1/chat/completions`); no direct provider SDK calls.
-- [ ] **GOV-02**: The eval agent has its own `agent_registry` + `agent_wallets_v2` rows with `allow_negative=false`, a hard `spending_cap_sats` weekly window, `on_cap_behavior='reject'`, `uncapped=false` — it hard-stops on budget (a runaway eval loop has no editorial value). Key delivered via `.env` (`LLM_PROXY_EVAL_KEY`), never in compose.
+- [x] **GOV-01**: A governed `edition_eval` agent routes all model calls through `llm-proxy:8200` (Sonnet via `/anthropic/v1/messages`, DeepSeek via `/v1/chat/completions`); no direct provider SDK calls.
+- [x] **GOV-02**: The eval agent has its own `agent_registry` + `agent_wallets_v2` rows with `allow_negative=false`, a hard `spending_cap_sats` weekly window, `on_cap_behavior='reject'`, `uncapped=false` — it hard-stops on budget (a runaway eval loop has no editorial value). Key delivered via `.env` (`LLM_PROXY_EVAL_KEY`), never in compose.
 
 ### WIRE — Sequencer Wiring, Hold Action & Activation Gate
 
@@ -169,11 +169,11 @@ Every v1 requirement maps to exactly one phase. No orphans, no duplicates.
 | CTX-03 | Phase 26 — Continuity & Exemplar Context | Complete |
 | CTX-04 | Phase 26 — Continuity & Exemplar Context | Complete |
 | CTX-05 | Phase 26 — Continuity & Exemplar Context | Complete |
-| EVAL-01 | Phase 27 — Eval Persistence & Governed Agent | Pending |
-| EVAL-02 | Phase 27 — Eval Persistence & Governed Agent | Pending |
-| EVAL-03 | Phase 27 — Eval Persistence & Governed Agent | Pending |
-| GOV-01 | Phase 27 — Eval Persistence & Governed Agent | Pending |
-| GOV-02 | Phase 27 — Eval Persistence & Governed Agent | Pending |
+| EVAL-01 | Phase 27 — Eval Persistence & Governed Agent | Complete |
+| EVAL-02 | Phase 27 — Eval Persistence & Governed Agent | Complete |
+| EVAL-03 | Phase 27 — Eval Persistence & Governed Agent | Complete |
+| GOV-01 | Phase 27 — Eval Persistence & Governed Agent | Complete |
+| GOV-02 | Phase 27 — Eval Persistence & Governed Agent | Complete |
 | GATE-01 | Phase 28 — Layer 1 Deterministic Gate | Pending |
 | GATE-02 | Phase 28 — Layer 1 Deterministic Gate | Pending |
 | GATE-03 | Phase 28 — Layer 1 Deterministic Gate | Pending |
