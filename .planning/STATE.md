@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: executing
-stopped_at: Phase 27 context gathered
-last_updated: "2026-06-25T07:56:37.453Z"
-last_activity: 2026-06-25 -- Phase 27 planning complete
+status: completed
+stopped_at: Phase 27 Plan 01 complete (migration 045 authored)
+last_updated: "2026-06-25T15:12:26.600Z"
+last_activity: 2026-06-25 -- Phase 27 Plan 01 complete
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
   percent: 17
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 27 — eval-persistence-&-governed-agent
+**Current focus:** Phase 27 — eval-persistence-governed-agent
 
 ## Current Position
 
-Phase: 27 (eval-persistence-&-governed-agent) — not started
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-06-25 -- Phase 27 planning complete
+Phase: 27 (eval-persistence-governed-agent) — EXECUTING
+Plan: 2 of 3
+Status: Plan 01 complete (migration 045 SQL authored); Plan 02 (persistence helper + fixture test) ready
+Last activity: 2026-06-25 -- Phase 27 Plan 01 complete
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -79,6 +79,9 @@ Open items to resolve in discuss/plan (do NOT decide unilaterally):
 - **`do_not_publish` column shape** (WIRE-02 / Phase 30): `do_not_publish` + `do_not_publish_reason` on a *main* `newsletters` row is net-new (today `do_not_publish` lives only inside `data_snapshot`). Decide column-add (a small migration) vs. JSONB at the Phase 30 plan gate.
 
 Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM via `llm-proxy:8200` (no direct provider SDK); schema isolation via direct PostgREST + `Accept-Profile` (never supabase-py `.in_()`); append-only data; fail-loud governance (NULL ≠ intent, no bare excepts); sentinels flag-never-block; autonomy where cheap/reversible, human gates where expensive/silent.
+
+- [Phase 27]: Phase 27 Plan 01: authored migration 045 (edition_evals DDL SECTION 1 + governed edition_eval agent seed SECTION 2) as ONE sectioned idempotent SQL file; table DDL verbatim from REQUIREMENTS.md (JSONB-only, no spec-01 materialized columns, D-04/D-07); agent api_key_hash left as the literal placeholder for orchestrator substitution + MCP apply in 27-03 (D-12/D-13).
+- [Phase 27]: EVAL-01/GOV-01/GOV-02 left Pending after 27-01: this plan only AUTHORS SQL text; live realization (MCP apply + edition_eval key mint to config/.env LLM_PROXY_EVAL_KEY) is orchestrator-owned in 27-03, so requirement closure is deferred to phase end (fail-loud accuracy over premature mark-complete).
 
 ### Pending Todos
 
@@ -136,10 +139,10 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-06-24T21:43:50.549Z
-Stopped at: Phase 27 context gathered
-Resume file: .planning/phases/27-eval-persistence-governed-agent/27-CONTEXT.md
-Next: Execute Phase 26 Plan 03 (Wave 3) — operator-confirmed `data_snapshot.lead_theme` backfill on operator editions 25–28 + `published_at` non-null verification on all 7 (D-12/D-13, worktree-unsafe Supabase MCP) THEN the live generation trigger end-to-end verify (D-17/D-18). Plan 03's live run MUST confirm exemplars actually reach Phase E (`voice_score.score > 0`, ≥1 observation) given the upstream `narrative_context` pre-population + `setdefault` (see 26-01-SUMMARY Issues).
+Last session: 2026-06-25T15:09:41.630Z
+Stopped at: Phase 27 Plan 01 complete (migration 045 authored)
+Resume file: .planning/phases/27-eval-persistence-governed-agent/27-02-PLAN.md
+Next: Execute Phase 27 Plan 02 — ship the fail-loud persistence helper `docker/newsletter/edition_eval.py` (`write_eval_row()` + by-`newsletter_id` reader + `edition_number DESC` trend reader + the `LLM_PROXY_EVAL_KEY` identity getter, no LLM call this phase) and its deterministic fixture test `tests/test_27_edition_eval.py` (imports the REAL module, in-memory Supabase stub, proves ok-row/error-row/loud-raise-on-write-failure/`.eq()`-only — EVAL-02/EVAL-03). Worktree-SAFE/autonomous; wires NO caller into newsletter_poller.py. THEN Plan 03 (orchestrator/operator-owned, worktree-UNSAFE): mint the `edition_eval` key + bcrypt hash, substitute the REAL hash into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call (closes EVAL-01 live form / GOV-01 / GOV-02).
 
 ## Operator Next Steps
 
@@ -158,3 +161,4 @@ Next: Execute Phase 26 Plan 03 (Wave 3) — operator-confirmed `data_snapshot.le
 | Phase 24 P02 | ~2min | 2 tasks | 3 files (frontend signals fetch/render) |
 | Phase 26 P01 | 8min | 3 tasks | 2 files |
 | Phase 26 P02 | ~6min | 1 task | 1 file (deterministic fixture test — 10 cases vs the REAL loader) |
+| Phase 27 P01 | 10min | 2 tasks | 1 files |
