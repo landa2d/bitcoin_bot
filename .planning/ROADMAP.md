@@ -144,7 +144,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 **Wave 1** *(parallel — no file overlap)*
 
   - [x] 27-01-PLAN.md — Author migration 045 `edition_evals.sql`: SECTION 1 (table + verdict-iff-ok CHECK + UNIQUE(newsletter_id,layer,attempt) + trend index) + SECTION 2 (governed `edition_eval` agent seed, GOV-02 wallet, `<bcrypt-hash>` placeholder) (EVAL-01, GOV-01, GOV-02) [Wave 1, autonomous]
-  - [ ] 27-02-PLAN.md — `docker/newsletter/edition_eval.py` fail-loud `write_eval_row` + `.eq()`-only readers + LLM_PROXY_EVAL_KEY identity getter, and `tests/test_27_edition_eval.py` deterministic fixture suite (EVAL-02, EVAL-03) [Wave 1, autonomous]
+  - [x] 27-02-PLAN.md — `docker/newsletter/edition_eval.py` fail-loud `write_eval_row` + `.eq()`-only readers + LLM_PROXY_EVAL_KEY identity getter, and `tests/test_27_edition_eval.py` deterministic fixture suite (EVAL-02, EVAL-03) [Wave 1, autonomous] (completed 2026-06-25)
 
 **Wave 2** *(blocked on 27-01; worktree-unsafe, orchestrator/operator-owned)*
 

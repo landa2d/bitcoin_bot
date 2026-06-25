@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: executing
-stopped_at: Phase 27 Plan 01 complete (migration 045 authored)
-last_updated: "2026-06-25T15:12:26.600Z"
-last_activity: 2026-06-25 -- Phase 27 Plan 01 complete
+stopped_at: Phase 27 Plan 02 complete (edition_eval.py persistence helper + fixture test)
+last_updated: "2026-06-25T16:05:00.000Z"
+last_activity: 2026-06-25 -- Phase 27 Plan 02 complete
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
   percent: 17
 ---
 
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Pu
 ## Current Position
 
 Phase: 27 (eval-persistence-governed-agent) — EXECUTING
-Plan: 2 of 3
-Status: Plan 01 complete (migration 045 SQL authored); Plan 02 (persistence helper + fixture test) ready
-Last activity: 2026-06-25 -- Phase 27 Plan 01 complete
+Plan: 3 of 3
+Status: Plans 01–02 complete (migration 045 authored; edition_eval.py fail-loud persistence helper + 9-case fixture test shipped); Plan 03 (orchestrator/operator-owned key-mint + MCP apply) ready
+Last activity: 2026-06-25 -- Phase 27 Plan 02 complete
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -82,6 +82,7 @@ Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM
 
 - [Phase 27]: Phase 27 Plan 01: authored migration 045 (edition_evals DDL SECTION 1 + governed edition_eval agent seed SECTION 2) as ONE sectioned idempotent SQL file; table DDL verbatim from REQUIREMENTS.md (JSONB-only, no spec-01 materialized columns, D-04/D-07); agent api_key_hash left as the literal placeholder for orchestrator substitution + MCP apply in 27-03 (D-12/D-13).
 - [Phase 27]: EVAL-01/GOV-01/GOV-02 left Pending after 27-01: this plan only AUTHORS SQL text; live realization (MCP apply + edition_eval key mint to config/.env LLM_PROXY_EVAL_KEY) is orchestrator-owned in 27-03, so requirement closure is deferred to phase end (fail-loud accuracy over premature mark-complete).
+- [Phase 27]: Phase 27 Plan 02: shipped `docker/newsletter/edition_eval.py` (`write_eval_row` + `read_evals_by_newsletter` + `read_eval_trend` + `LLM_PROXY_EVAL_KEY` identity getter — NO LLM call) and `tests/test_27_edition_eval.py` (9 deterministic fixture cases vs an in-memory Supabase stub). EVAL-02 structural half + EVAL-03 realized in CODE: verdict-iff-ok validated in Python BEFORE insert (mirror of the DB CHECK), errored evals write `eval_status='error'`+reason+NULL verdict (never a silent zero), insert failure logs ERROR `exc_info=True`+re-raises (never swallowed), `.eq()`-only reads (no in-list filter). NO caller wired into `newsletter_poller.py` (D-08 — first real caller is Phase 28). EVAL-02 left Pending (its Telegram-delivery half is Phase 30/31, D-10); EVAL-03 left Pending to close with the phase after 27-03 (consistent with the 27-01 fail-loud-accuracy posture).
 
 ### Pending Todos
 
@@ -139,10 +140,10 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-06-25T15:09:41.630Z
-Stopped at: Phase 27 Plan 01 complete (migration 045 authored)
-Resume file: .planning/phases/27-eval-persistence-governed-agent/27-02-PLAN.md
-Next: Execute Phase 27 Plan 02 — ship the fail-loud persistence helper `docker/newsletter/edition_eval.py` (`write_eval_row()` + by-`newsletter_id` reader + `edition_number DESC` trend reader + the `LLM_PROXY_EVAL_KEY` identity getter, no LLM call this phase) and its deterministic fixture test `tests/test_27_edition_eval.py` (imports the REAL module, in-memory Supabase stub, proves ok-row/error-row/loud-raise-on-write-failure/`.eq()`-only — EVAL-02/EVAL-03). Worktree-SAFE/autonomous; wires NO caller into newsletter_poller.py. THEN Plan 03 (orchestrator/operator-owned, worktree-UNSAFE): mint the `edition_eval` key + bcrypt hash, substitute the REAL hash into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call (closes EVAL-01 live form / GOV-01 / GOV-02).
+Last session: 2026-06-25T16:05:00.000Z
+Stopped at: Phase 27 Plan 02 complete (edition_eval.py persistence helper + fixture test)
+Resume file: .planning/phases/27-eval-persistence-governed-agent/27-03-PLAN.md
+Next: Execute Phase 27 Plan 03 (orchestrator/operator-owned, worktree-UNSAFE): mint the `edition_eval` key + bcrypt hash, substitute the REAL hash into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call as `edition_eval` (closes EVAL-01 live form / GOV-01 / GOV-02). With 27-03 done, do the phase-end requirement-closure pass for EVAL-02 (structural half shipped in 27-02; Telegram half remains Phase 30/31, D-10) + EVAL-03.
 
 ## Operator Next Steps
 
@@ -162,3 +163,4 @@ Next: Execute Phase 27 Plan 02 — ship the fail-loud persistence helper `docker
 | Phase 26 P01 | 8min | 3 tasks | 2 files |
 | Phase 26 P02 | ~6min | 1 task | 1 file (deterministic fixture test — 10 cases vs the REAL loader) |
 | Phase 27 P01 | 10min | 2 tasks | 1 files |
+| Phase 27 P02 | ~12min | 2 tasks | 2 files (edition_eval.py helper + 9-case fixture test) |
