@@ -92,7 +92,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 - Fabrication is a **HARD stop** (held + escalate, never rewrite). Passing the eval **never** auto-publishes (Monday human gate unchanged). Auto-hold is gated behind a report-only `enforce` flag the operator activates.
 
 - [x] **Phase 26: Continuity & Exemplar Context** — `load_edition_context()` feeds prior-edition angles + operator-approved exemplars to both writer paths and the judge; resurrects the dead Phase E voice check (CTX-01..05) (completed 2026-06-24)
-- [ ] **Phase 27: Eval Persistence & Governed Agent** — migration 045 `edition_evals` (per-attempt, fail-loud) + a governed, hard-capped `edition_eval` proxy agent (EVAL-01..03, GOV-01..02)
+- [x] **Phase 27: Eval Persistence & Governed Agent** — migration 045 `edition_evals` (per-attempt, fail-loud) + a governed, hard-capped `edition_eval` proxy agent (EVAL-01..03, GOV-01..02) (completed 2026-06-25)
 - [ ] **Phase 28: Layer 1 Deterministic Gate** — no-LLM fabrication (GitHub/URL/arXiv/named-study/entity-merge) + mechanical-editorial checks against the correct in-memory fact base, short-circuits to hold+escalate (GATE-01..08)
 - [ ] **Phase 29: Layer 2 Judge + Feedback-Rewrite Loop** — standalone module: Sonnet judge on exemplar-anchored dimensions + bounded N=2 rewrite loop, returns final draft + verdict (JUDGE-01..05, LOOP-01..05)
 - [ ] **Phase 30: Sequencer Wiring, Hold Action & Activation Gate** — invoke gate+module at the two save points, act on verdicts (held/do_not_publish), behind a report-only `enforce` flag; Processor stays dumb (WIRE-01..06)
@@ -148,7 +148,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 2** *(blocked on 27-01; worktree-unsafe, orchestrator/operator-owned)*
 
-  - [ ] 27-03-PLAN.md — Mint the `edition_eval` key + substitute the real bcrypt hash into 045 + deliver `LLM_PROXY_EVAL_KEY` to `config/.env`; MCP-apply migration 045; verify a settled proxy call as `edition_eval` (EVAL-01 live, GOV-01, GOV-02) [Wave 2, autonomous:false]
+  - [x] 27-03-PLAN.md — Mint the `edition_eval` key + substitute the real bcrypt hash into 045 + deliver `LLM_PROXY_EVAL_KEY` to `config/.env`; MCP-apply migration 045; verify a settled proxy call as `edition_eval` (EVAL-01 live, GOV-01, GOV-02) [Wave 2, autonomous:false]
 
 **Notes**: SQL-FIRST + cross-cutting persistence core. Sequential / partly worktree-unsafe: the migration apply (MCP) + the agent key mint are orchestrator/operator-owned on the main tree (a worktree executor cannot apply migrations or mint keys). Next free migration number is 045 (044 is highest applied; 043 is an unapplied carry-over, out of scope). Verdict taxonomy: `passed` / `held_fabrication` / `held_voice` / `escalated`. Reference `docs/audit/specs/01_eval_harness.md` for the agent/wallet seeding pattern.
 
@@ -246,7 +246,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 24. Signals Section | v2.2 | 3/3 | Complete | 2026-06-17 |
 | 25. Responsive & Accessibility Pass | v2.2 | 2/2 | Complete | 2026-06-19 |
 | 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete    | 2026-06-24 |
-| 27. Eval Persistence & Governed Agent | v2.3 | 1/3 | In Progress|  |
+| 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete   | 2026-06-25 |
 | 28. Layer 1 Deterministic Gate | v2.3 | 0/TBD | Not started | - |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/TBD | Not started | - |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
