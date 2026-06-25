@@ -70,7 +70,7 @@ INSERT INTO agent_registry (agent_name, agent_type, api_key_hash, access_tier, a
 VALUES (
     'edition_eval',
     'internal',
-    '<bcrypt-hash>',
+    '$2b$12$f5GdntnlKYDfQZueVVoij.HwfueQ9WTcYwGTxSibO/xV32i9U1UpG',
     'internal',
     ARRAY['deepseek-chat','claude-sonnet-4-6'],   -- non-EOL Sonnet model id (D-07)
     10,
