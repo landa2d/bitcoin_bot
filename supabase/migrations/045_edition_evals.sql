@@ -10,7 +10,7 @@
 --                with its hard-capped, reject-on-cap wallet (GOV-01 / GOV-02 / D-01).
 --
 -- SQL-FIRST — the operator applies this via MCP after DDL review (project ref
--- zxzaaqfowtqvmsbitqpu). The SECTION 2 api_key_hash is the literal `<bcrypt-hash>`
+-- zxzaaqfowtqvmsbitqpu). The SECTION 2 api_key_hash is left as the literal bcrypt-hash
 -- placeholder here; the orchestrator mints the real ap_edition_eval_<…> key, substitutes
 -- the real bcrypt hash, and MCP-applies the whole file in plan 27-03 (D-12 / D-13).
 -- Do NOT apply this from a worktree and do NOT run `supabase db push`.
@@ -54,3 +54,58 @@ CREATE TABLE IF NOT EXISTS edition_evals (
 );
 
 CREATE INDEX IF NOT EXISTS idx_edition_evals_trend ON edition_evals (edition_number DESC, pipeline_version);
+
+-- ═══════════════════════════════════════════════════════
+-- SECTION 2 — Governed edition_eval proxy agent seed (GOV-01 / GOV-02 / D-01)
+-- ═══════════════════════════════════════════════════════
+-- A 6th capped, reject-on-cap agent joining the existing five (analyst/processor/research/
+-- newsletter/gato). Both INSERTs upsert via the 029 on-conflict-do-update idempotency
+-- pattern so a re-apply re-asserts the canonical values rather than erroring. All eval LLM calls
+-- run under this identity (LLM_PROXY_EVAL_KEY), NOT the newsletter agent key (D-15).
+
+-- The api_key_hash below is the literal placeholder. The orchestrator mints the real
+-- ap_edition_eval_<…> key + its bcrypt hash and substitutes it here at key-mint time
+-- (plan 27-03); the committed hash is then the audit record of the live key (D-12 / D-13).
+INSERT INTO agent_registry (agent_name, agent_type, api_key_hash, access_tier, allowed_models, rate_limit_rpm, is_active)
+VALUES (
+    'edition_eval',
+    'internal',
+    '<bcrypt-hash>',
+    'internal',
+    ARRAY['deepseek-chat','claude-sonnet-4-6'],   -- non-EOL Sonnet model id (D-07)
+    10,
+    TRUE
+)
+ON CONFLICT (agent_name) DO UPDATE SET
+    api_key_hash = EXCLUDED.api_key_hash,
+    allowed_models = EXCLUDED.allowed_models,
+    is_active = TRUE;
+
+-- GOV-02 hard-capped, reject-on-cap wallet (D-01): allow_negative=FALSE, a positive
+-- spending_cap_sats=5000 weekly (satisfies the migration-034 agent_wallets_v2_cap_or_uncapped
+-- CHECK since 5000 > 0), uncapped=FALSE, on_cap_behavior='reject'. A runaway eval loop
+-- hard-stops; reject is a SAFE failure (proxy 402 → eval_status='error' → escalated, never
+-- a silent pass — D-02). Uses the EXTENDED post-034 column list so the governance columns
+-- are populated explicitly.
+INSERT INTO agent_wallets_v2 (agent_name, balance_sats, total_deposited_sats, allow_negative,
+                              spending_cap_sats, spending_cap_window, uncapped, on_cap_behavior, downgrade_map)
+VALUES (
+    'edition_eval',
+    25000,
+    25000,
+    FALSE,
+    5000,
+    'weekly',
+    FALSE,
+    'reject',
+    '{}'::jsonb
+)
+ON CONFLICT (agent_name) DO UPDATE SET
+    balance_sats = EXCLUDED.balance_sats,
+    total_deposited_sats = EXCLUDED.total_deposited_sats,
+    allow_negative = EXCLUDED.allow_negative,
+    spending_cap_sats = EXCLUDED.spending_cap_sats,
+    spending_cap_window = EXCLUDED.spending_cap_window,
+    uncapped = EXCLUDED.uncapped,
+    on_cap_behavior = EXCLUDED.on_cap_behavior,
+    downgrade_map = EXCLUDED.downgrade_map;
