@@ -115,6 +115,22 @@ class RaisingSupabase:
         return _RaisingQuery()
 
 
+class _EmptyInsertQuery:
+    """An insert whose `.execute()` returns data=[] with NO exception — drives the
+    successful-but-empty-insert fail-loud test (WR-02)."""
+
+    def insert(self, payload):
+        return self
+
+    def execute(self):
+        return _StubResult([])
+
+
+class EmptyInsertSupabase:
+    def table(self, name):
+        return _EmptyInsertQuery()
+
+
 # Common kwargs for a valid ok-row write (each test overrides what it exercises).
 def _ok_kwargs(**overrides):
     base = dict(
@@ -199,6 +215,62 @@ def test_unknown_eval_status_raises_before_insert():
     with pytest.raises(ValueError):
         ee.write_eval_row(stub, **_ok_kwargs(eval_status="bogus"))
     assert stub.captured == []
+
+
+# WR-01 — value-domain mirroring: a numeric-0 / empty-string verdict (which pass `is not
+# None`) must be rejected exactly as the DB `verdict IN (...)` CHECK would. This is the
+# no-silent-zero invariant the milestone exists to enforce.
+
+
+def test_ok_status_with_numeric_zero_verdict_raises_before_insert():
+    stub = StubSupabase()
+    with pytest.raises(ValueError):
+        ee.write_eval_row(stub, **_ok_kwargs(eval_status="ok", verdict=0))
+    assert stub.captured == [], "a numeric 0 verdict is a silent-zero — must be rejected"
+
+
+def test_ok_status_with_empty_string_verdict_raises_before_insert():
+    stub = StubSupabase()
+    with pytest.raises(ValueError):
+        ee.write_eval_row(stub, **_ok_kwargs(eval_status="ok", verdict=""))
+    assert stub.captured == []
+
+
+def test_error_status_with_empty_error_string_raises_before_insert():
+    stub = StubSupabase()
+    with pytest.raises(ValueError):
+        ee.write_eval_row(
+            stub, **_ok_kwargs(eval_status="error", verdict=None, error="   ")
+        )
+    assert stub.captured == [], "a blank error reason is not a real error — must be rejected"
+
+
+def test_invalid_pipeline_version_raises_before_insert():
+    stub = StubSupabase()
+    with pytest.raises(ValueError):
+        ee.write_eval_row(stub, **_ok_kwargs(pipeline_version="v2_experimental"))
+    assert stub.captured == []
+
+
+def test_invalid_layer_raises_before_insert():
+    stub = StubSupabase()
+    with pytest.raises(ValueError):
+        ee.write_eval_row(stub, **_ok_kwargs(layer="heuristic"))
+    assert stub.captured == []
+
+
+# WR-02 — a successful-but-empty insert (no exception, no row) is fail-loud, not a silent
+# None: the caller must not be able to continue as if the write landed.
+
+
+def test_empty_insert_result_raises_loudly(caplog):
+    stub = EmptyInsertSupabase()
+    with caplog.at_level(logging.ERROR):
+        with pytest.raises(RuntimeError):
+            ee.write_eval_row(stub, **_ok_kwargs(newsletter_id="nid-empty"))
+    assert any(
+        "edition_evals insert returned no row" in r.getMessage() for r in caplog.records
+    ), "an empty insert result must log ERROR and raise, never return None"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

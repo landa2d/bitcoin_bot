@@ -100,9 +100,13 @@ VALUES (
     'reject',
     '{}'::jsonb
 )
+-- Re-apply re-asserts ONLY the governance fields (caps, behavior, allow_negative,
+-- downgrade_map) — NOT the balance ledger. Resetting balance_sats / total_deposited_sats
+-- on conflict would refill the wallet and desync the ledger invariant
+-- (balance = total_deposited - total_spent) after the agent has spent, since total_spent_sats
+-- is not reset (CR-01). 029_rivalscope_agent.sql:28-30 is the precedent: its wallet upsert
+-- touches only the cap fields. First-apply still seeds balance via the INSERT VALUES above.
 ON CONFLICT (agent_name) DO UPDATE SET
-    balance_sats = EXCLUDED.balance_sats,
-    total_deposited_sats = EXCLUDED.total_deposited_sats,
     allow_negative = EXCLUDED.allow_negative,
     spending_cap_sats = EXCLUDED.spending_cap_sats,
     spending_cap_window = EXCLUDED.spending_cap_window,
