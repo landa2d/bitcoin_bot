@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: verifying
+status: executing
 stopped_at: Phase 28 context gathered
-last_updated: "2026-06-30T09:26:58.994Z"
-last_activity: 2026-06-25
+last_updated: "2026-06-30T10:51:42.659Z"
+last_activity: 2026-06-30 -- Phase 28 planning complete
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 6
+  total_plans: 9
   completed_plans: 6
   percent: 33
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Pu
 
 Phase: 28
 Plan: Not started
-Status: Phase 27 COMPLETE — all 3 plans + verification (4/4 must-haves). Migration 045 authored + MCP-applied live (edition_evals table + governed edition_eval agent + GOV-02 wallet); edition_eval.py fail-loud persistence helper + 15-case fixture test; settled proxy call proven (wallet 25000→24999). Code review CR-01/WR-01/WR-02 fixed. Next: Phase 28 (layer-1-deterministic-gate).
-Last activity: 2026-06-25
+Status: Ready to execute
+Last activity: 2026-06-30 -- Phase 28 planning complete
 
 ## Roadmap (v2.3 — Phases 26–31)
 
