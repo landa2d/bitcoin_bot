@@ -619,5 +619,89 @@ def test_url_response_body_never_in_flags():
     assert "SHOULD_NEVER_APPEAR" not in json.dumps(flags)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# GATE-06 (Plan 03) — mechanical-editorial checks: H1/title echo + reading-mode-label
+# leak via the tunable READING_MODE_LABELS blacklist. These flags land under
+# `mechanical` (NEVER `fabrication`) — they may feed the Phase 29 rewrite loop, never a
+# hard fabrication hold. No bare-word ("impact"/"Technical") false positives.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_mechanical_gate06_h1_in_body():
+    # A single-hash `# ` H1 line in the body (bodies must start at the `##` marker, no H1).
+    body = f"{gate.BODY_START_MARKER}\n\n# Some Title\n\nSome content here.\n"
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), None)
+    kinds = [m["kind"] for m in flags["mechanical"]]
+    assert "h1_in_body" in kinds
+    assert any(m["kind"] == "h1_in_body" and m["version"] == "technical"
+               for m in flags["mechanical"])
+
+
+def test_mechanical_gate06_clean_body_no_h1():
+    # A clean body that starts at the `## Read This, Skip the Rest` marker → no h1 flag.
+    draft = _make_draft(content_markdown=_clean_body(), content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), None)
+    assert not any(m["kind"] == "h1_in_body" for m in flags["mechanical"])
+
+
+def test_mechanical_gate06_title_echo():
+    # A header line that echoes the edition title → a title_echo mechanical flag.
+    body = f"{gate.BODY_START_MARKER}\n\n## Test Edition\n\nSome content here.\n"
+    draft = _make_draft(title="Test Edition", content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), None)
+    echoes = [m for m in flags["mechanical"] if m["kind"] == "title_echo"]
+    assert any(m["version"] == "technical" and m["value"] == "Test Edition" for m in echoes)
+
+
+def test_mechanical_gate06_title_echo_impact_uses_title_impact():
+    # The impact body echoing title_impact → title_echo on the impact version.
+    body = f"{gate.BODY_START_MARKER}\n\n### Impact Edition Title\n\nContent.\n"
+    draft = _make_draft(title="Technical Title", title_impact="Impact Edition Title",
+                        content_markdown="", content_markdown_impact=body)
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), None)
+    echoes = [m for m in flags["mechanical"] if m["kind"] == "title_echo"]
+    assert any(m["version"] == "impact" and m["value"] == "Impact Edition Title" for m in echoes)
+
+
+def test_mechanical_gate06_reading_mode_label_leak():
+    # A leaked `AUDIENCE:` scaffolding label → a reading_mode_leak flag with the matched label.
+    body = _body("AUDIENCE: Technical builders and infrastructure teams. The week was busy.")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), None)
+    leaks = [m for m in flags["mechanical"] if m["kind"] == "reading_mode_leak"]
+    assert any(m["version"] == "technical" and m["label"] == "AUDIENCE:" for m in leaks)
+
+
+def test_mechanical_gate06_bare_word_no_label_leak():
+    # Bare "impact"/"Technical" in legitimate prose must NOT trip the label blacklist.
+    body = _body("This release will have a big impact on Technical teams everywhere.")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), None)
+    assert not any(m["kind"] == "reading_mode_leak" for m in flags["mechanical"])
+
+
+def test_mechanical_gate06_labels_are_tunable_module_constant():
+    # READING_MODE_LABELS is a module-level constant; bare single words are absent from it.
+    assert isinstance(gate.READING_MODE_LABELS, list)
+    assert "AUDIENCE:" in gate.READING_MODE_LABELS
+    # the bare-word false-positive guard: neither bare "IMPACT" nor "Technical" is blacklisted
+    assert "IMPACT" not in gate.READING_MODE_LABELS
+    assert "Technical" not in gate.READING_MODE_LABELS
+
+
+def test_mechanical_gate06_flags_under_mechanical_not_fabrication():
+    # Mechanical flags stay distinct from fabrication (never a hard hold).
+    body = f"{gate.BODY_START_MARKER}\n\n# Echoed H1\n\nAUDIENCE: Technical builders.\n"
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), None)
+    mech_kinds = {m["kind"] for m in flags["mechanical"]}
+    assert "h1_in_body" in mech_kinds
+    assert "reading_mode_leak" in mech_kinds
+    # none of the mechanical kinds leaked into fabrication
+    assert not any(f["kind"] in ("h1_in_body", "title_echo", "reading_mode_leak")
+                   for f in flags["fabrication"])
+
+
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-v"]))
