@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: executing
-stopped_at: Phase 28 context gathered
-last_updated: "2026-06-30T11:32:25.229Z"
+status: verifying
+stopped_at: Completed Phase 28 Plan 03 (phase 28 complete — ready for verification)
+last_updated: "2026-06-30T11:52:17.008Z"
 last_activity: 2026-06-30
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 9
-  completed_plans: 8
-  percent: 33
+  completed_plans: 9
+  percent: 50
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Pu
 
 Phase: 28 (layer-1-deterministic-gate) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-30
 
 ## Roadmap (v2.3 — Phases 26–31)
@@ -86,6 +86,9 @@ Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM
 - [Phase 28]: Plan 01: shipped docker/newsletter/deterministic_gate.py (run_deterministic_gate emit-only orchestrator + arXiv-membership GATE-04 + entity-merge per-source GATE-05, reusing verify_draft per D-04) + tests/test_28_deterministic_gate.py (14 GATE-01/04/05/08 cases vs the REAL module). Flags contract {fabrication,unverified,mechanical,meta} locked (migration 045 shape; unverified first-class D-01, emit-only D-05). GATE-01/04/05/08 closure deferred to phase end (build-only/report-only; runs-on-every-edition short-circuit is Phase 30) per the 27-01/27-02 fail-loud-accuracy posture.
 - [Phase 28]: Plan 02: shipped the GATE-02/03 network-liveness layer in deterministic_gate.py (GitHub /repos repo+star classifier + URL HEAD classifier) implementing the locked D-01 three-outcome taxonomy (404/410->fabricated, transient 5xx/quota-403/timeout->first-class unverified, 200->verified), D-02 retry-once-on-transient (never on 404), D-03 per-run dedup cache shared across both layers; +13 GitHub/URL/SSRF tests vs an injected fake httpx client (no live egress). GATE-02/03 closure deferred to phase end (build-only/report-only; live poller wiring is Phase 30) per the 27/28-01 fail-loud-accuracy posture.
 - [Phase 28]: Plan 02: SSRF guard _is_safe_public_url (security-critical) rejects non-http(s) schemes + loopback/RFC-1918/link-local(incl 169.254.169.254 metadata)/unique-local IPs + the compose internal-service denylist + *.internal, routing unsafe URLs to unverified(reason=unsafe_host) with ZERO fetch (call-counter asserted); GITHUB_TOKEN read from env/param, sent only to api.github.com over HTTPS, never logged/in flags (meta.github_token_present is a bool); the network layer runs ONLY when an http_client is injected (no default client) to preserve the Plan-01 zero-egress contract.
+- [Phase 28]: Plan 03: shipped GATE-06 (single-hash `# ` H1 detection + version-appropriate title-echo + reading-mode-label leak via the tunable READING_MODE_LABELS blacklist; bare "impact"/"Technical" deliberately NOT blacklisted to avoid prose false positives) and GATE-07 (D-06 normalized-exact recycled-closer + per-token duplicated-stat vs the FULL prior edition, reusing the imported `_STATISTIC` regex — no new number regex; `prior_edition=None`/empty is a clean skip, never raises) in deterministic_gate.py. Mechanical flags land under `mechanical`, never `fabrication` (editorial miss, never a hard hold). READING_MODE_LABELS comment notes Phase 30 report-only tunability (open question A1).
+- [Phase 28]: Plan 03: golden-draft integration suite proves GATE-01..08 + D-01 end-to-end against the historical worst offenders (ed-36 MCP-auth study, ed-34 GroupMemBench, fake arXiv, 404 github repo, dead URL, transient-5xx->unverified, recycled closer, duplicated stat, leaked AUDIENCE: label) on the REAL module with an injected fake httpx client (zero live egress); BOTH GATE-08 fact-base paths (single-pass input_data + block_v1 blocks) exercised. Aggregated flags {fabrication,unverified,mechanical,meta} — unverified NON-EMPTY + DISTINCT from fabrication (D-01 "an error is not evidence"), top-level keys EXACTLY the four (fits migration 045 deterministic_flags JSONB; JSON round-trip asserted), NO verdict (emit-only D-05). test_28 56/56 green; test_26/27 regression green.
+- [Phase 28]: GATE-06/07 marked complete (detection cores fully realized + proven by tests on the real module). GATE-01..05/08 detection is proven by the golden suite but their runs-on-every-edition / live-egress / hold-action closure is Phase 30 wiring (report-only/build-only this phase, D-05) — phase-end verification reconciles the remaining GATE requirements (consistent with the 27/28-01/02 fail-loud-accuracy posture).
 
 ### Pending Todos
 
@@ -143,10 +146,10 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-06-30T11:30:38.804Z
-Stopped at: Phase 28 context gathered
+Last session: 2026-06-30T11:48:19.847Z
+Stopped at: Completed Phase 28 Plan 03 (phase 28 complete — ready for verification)
 Resume file: None
-Next: Execute Phase 27 Plan 03 (orchestrator/operator-owned, worktree-UNSAFE): mint the `edition_eval` key + bcrypt hash, substitute the REAL hash into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call as `edition_eval` (closes EVAL-01 live form / GOV-01 / GOV-02). With 27-03 done, do the phase-end requirement-closure pass for EVAL-02 (structural half shipped in 27-02; Telegram half remains Phase 30/31, D-10) + EVAL-03.
+Next: Phase 28 (layer-1-deterministic-gate) is code-complete — all 3 plans executed; deterministic_gate.py has the full GATE-01..08 surface (fabrication core + network liveness + mechanical-editorial) proven by tests/test_28_deterministic_gate.py (56 cases on the REAL module, mocked network, zero live egress). Run `/gsd-verify-work` to reconcile the deferred GATE-01..05/08 requirement closures against the now-complete + proven gate (GATE-06/07 already marked complete). STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call (closes EVAL-01 live / GOV-01 / GOV-02 + the EVAL-02/03 phase-end pass).
 
 ## Operator Next Steps
 
@@ -169,3 +172,4 @@ Next: Execute Phase 27 Plan 03 (orchestrator/operator-owned, worktree-UNSAFE): m
 | Phase 27 P02 | ~12min | 2 tasks | 2 files (edition_eval.py helper + 9-case fixture test) |
 | Phase 28 P01 | 12min | 2 tasks | 2 files |
 | Phase 28 P02 | 7min | 2 tasks | 2 files |
+| Phase 28 P03 | ~15min | 3 tasks | 2 files (GATE-06/07 + golden integration suite; phase-closing) |

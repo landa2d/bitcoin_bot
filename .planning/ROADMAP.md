@@ -93,7 +93,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 - [x] **Phase 26: Continuity & Exemplar Context** — `load_edition_context()` feeds prior-edition angles + operator-approved exemplars to both writer paths and the judge; resurrects the dead Phase E voice check (CTX-01..05) (completed 2026-06-24)
 - [x] **Phase 27: Eval Persistence & Governed Agent** — migration 045 `edition_evals` (per-attempt, fail-loud) + a governed, hard-capped `edition_eval` proxy agent (EVAL-01..03, GOV-01..02) (completed 2026-06-25)
-- [ ] **Phase 28: Layer 1 Deterministic Gate** — no-LLM fabrication (GitHub/URL/arXiv/named-study/entity-merge) + mechanical-editorial checks against the correct in-memory fact base, short-circuits to hold+escalate (GATE-01..08)
+- [x] **Phase 28: Layer 1 Deterministic Gate** — no-LLM fabrication (GitHub/URL/arXiv/named-study/entity-merge) + mechanical-editorial checks against the correct in-memory fact base, short-circuits to hold+escalate (GATE-01..08) (completed 2026-06-30)
 - [ ] **Phase 29: Layer 2 Judge + Feedback-Rewrite Loop** — standalone module: Sonnet judge on exemplar-anchored dimensions + bounded N=2 rewrite loop, returns final draft + verdict (JUDGE-01..05, LOOP-01..05)
 - [ ] **Phase 30: Sequencer Wiring, Hold Action & Activation Gate** — invoke gate+module at the two save points, act on verdicts (held/do_not_publish), behind a report-only `enforce` flag; Processor stays dumb (WIRE-01..06)
 - [ ] **Phase 31: Surfacing & Escalation** — hardened `send_telegram` alerts + Friday-notify eval summary + live `/newsletter_eval` Gato command (+ allowlist + gato rebuild) (SURF-01..03)
@@ -176,7 +176,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 3** *(blocked on 28-02 — same module/test files)*
 
-  - [ ] 28-03-PLAN.md — Mechanical checks (H1/title echo + reading-mode-label leak; recycled closer + duplicated stat vs prior edition, normalized-exact) + golden-draft integration suite + phase gate (GATE-06, GATE-07) [Wave 3, autonomous, depends 28-02]
+  - [x] 28-03-PLAN.md — Mechanical checks (H1/title echo + reading-mode-label leak; recycled closer + duplicated stat vs prior edition, normalized-exact) + golden-draft integration suite + phase gate (GATE-06, GATE-07) [Wave 3, autonomous, depends 28-02]
 
 **Notes**: Newsletter service only; no LLM (Layer 1 is deterministic and short-circuits before any model call — the token-saving core of the design). Resolves the operator's "Phase D verified against the wrong fact base" warning (GATE-08): the gate must run inline at the two generation save points where `input_data`/`blocks_data` live (unrecoverable at publish time). Extends, not replaces, the existing `verify_draft` (Phase D). Known DB fixtures for the named-study check: edition 36 ("MCP authentication"), edition 34 ("GroupMemBench"). Run report-only this phase; the consequential hold action is wired in Phase 30.
 
@@ -260,7 +260,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 25. Responsive & Accessibility Pass | v2.2 | 2/2 | Complete | 2026-06-19 |
 | 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete    | 2026-06-24 |
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
-| 28. Layer 1 Deterministic Gate | v2.3 | 2/3 | In Progress|  |
+| 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete   | 2026-06-30 |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/TBD | Not started | - |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |

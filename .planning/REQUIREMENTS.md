@@ -25,8 +25,8 @@
 - [ ] **GATE-03**: Every URL gets a HEAD request (5s timeout); connection failure or 4xx/5xx → flag.
 - [ ] **GATE-04**: Every named study/benchmark/paper title and arXiv ID asserted in the draft is cross-checked against the edition's source fact base; no matching ingested source → flag fabricated. (Targets the worst offenders: invented "MCP authentication security study", "GroupMemBench", fake arXiv IDs.)
 - [ ] **GATE-05**: Entity-merge — a named entity (e.g. owner/repo) not present verbatim in any single source is flagged; attributes from two sources must not be merged into one fabricated entity.
-- [ ] **GATE-06**: Mechanical — an H1/edition title echoed in the body is flagged (body must start at `## Read This, Skip the Rest`); reading-mode labels leaked into the body ("IMPACT / STRATEGIC READING MODE", etc.) are flagged.
-- [ ] **GATE-07**: Mechanical — recycled closer lines and numeric stats duplicated verbatim from the previous published edition are flagged.
+- [x] **GATE-06**: Mechanical — an H1/edition title echoed in the body is flagged (body must start at `## Read This, Skip the Rest`); reading-mode labels leaked into the body ("IMPACT / STRATEGIC READING MODE", etc.) are flagged.
+- [x] **GATE-07**: Mechanical — recycled closer lines and numeric stats duplicated verbatim from the previous published edition are flagged.
 - [ ] **GATE-08**: The gate verifies against the **correct** fact base — `blocks` for block_v1, `input_data` for single-pass — read in-memory at the two generation save points (reusing the existing dual-fact-base wiring), never a reconstructed/wrong fact base.
 
 ### JUDGE — Layer 2 LLM Judge (Sonnet via proxy; only if Layer 1 found no fabrication)
@@ -179,8 +179,8 @@ Every v1 requirement maps to exactly one phase. No orphans, no duplicates.
 | GATE-03 | Phase 28 — Layer 1 Deterministic Gate | Pending |
 | GATE-04 | Phase 28 — Layer 1 Deterministic Gate | Pending |
 | GATE-05 | Phase 28 — Layer 1 Deterministic Gate | Pending |
-| GATE-06 | Phase 28 — Layer 1 Deterministic Gate | Pending |
-| GATE-07 | Phase 28 — Layer 1 Deterministic Gate | Pending |
+| GATE-06 | Phase 28 — Layer 1 Deterministic Gate | Complete |
+| GATE-07 | Phase 28 — Layer 1 Deterministic Gate | Complete |
 | GATE-08 | Phase 28 — Layer 1 Deterministic Gate | Pending |
 | JUDGE-01 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
 | JUDGE-02 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
