@@ -115,6 +115,10 @@ def run_deterministic_gate(
         ("impact", draft.get("content_markdown_impact", "") or "", draft.get("title_impact", "") or ""),
     ]
 
+    # Per-source provenance for the two net-new fabrication sub-checks (GATE-04/05). Built once;
+    # the flat engine union (verification.py:309) lacks this provenance.
+    source_texts = _fact_base_source_texts(fact_base)
+
     for label, body, _title in versions:
         if not body.strip():
             continue
@@ -128,6 +132,10 @@ def run_deterministic_gate(
                 "version": label,
             })
         tier1_count[label] = report["summary"]["tier1_count"]
+
+        # ── Net-new fabrication sub-checks layered ON TOP of the reused engine ──
+        fabrication.extend(_check_arxiv_membership(body, source_texts, label))
+        fabrication.extend(_check_entity_merge(body, source_texts, label))
 
     return {
         "fabrication": fabrication,
@@ -143,3 +151,116 @@ def run_deterministic_gate(
             "tier1_count": tier1_count,
         },
     }
+
+
+def _fact_base_source_texts(fact_base: dict) -> list[str]:
+    """Return a PER-SOURCE (NOT unioned) list of raw text strings, mirroring the field
+    accessors `_build_block_list` reads (verification.py:299-480) but keeping each item
+    separate. This is the per-source provenance the flat engine union (verification.py:309)
+    lacks — consumed by the arXiv-membership (GATE-04) and entity-merge (GATE-05) checks.
+
+    Does NOT touch `_build_block_list`, `_STOP_WORDS`, or the tier classifier (FP-regression
+    risk).
+    """
+    texts: list[str] = []
+
+    blocks = fact_base.get("blocks") or []
+    if blocks:
+        # block_v1 path: each block contributes description + its named_entities.
+        for block in blocks:
+            ents = " ".join(str(e) for e in (block.get("named_entities") or []))
+            texts.append(f"{block.get('description', '')} {ents}".strip())
+        # Tracked entity signals (same shape as blocks) — block path only, mirroring the engine.
+        for signal in fact_base.get("tracked_entity_signals", []) or []:
+            ents = " ".join(str(e) for e in (signal.get("named_entities") or []))
+            texts.append(f"{signal.get('description', '')} {ents}".strip())
+    else:
+        # single-pass path: each premium source post / emerging signal / cluster as its own item.
+        for post in fact_base.get("premium_source_posts", []) or []:
+            texts.append(
+                f"{post.get('title', '')} {post.get('summary', '')} "
+                f"{post.get('source_display', '')}".strip()
+            )
+        for signal in fact_base.get("section_b_emerging", []) or []:
+            texts.append(f"{signal.get('theme', '')} {signal.get('description', '')}".strip())
+        for cluster in fact_base.get("clusters", []) or []:
+            texts.append(f"{cluster.get('theme', '')} {cluster.get('description', '')}".strip())
+
+    # Tool / prediction text per item — read by the engine in BOTH paths (verification.py:407,432).
+    for tool in fact_base.get("trending_tools", []) or []:
+        name = tool.get("tool_name", "")
+        alts = " ".join(str(a) for a in (tool.get("top_alternatives") or []))
+        texts.append(f"{name} {alts}".strip())
+    for pred in fact_base.get("predictions", []) or []:
+        texts.append(
+            str(pred.get("prediction_text", pred.get("prediction", pred.get("description", "")))).strip()
+        )
+
+    return [t for t in texts if t]
+
+
+def _check_arxiv_membership(body: str, source_texts: list[str], version: str) -> list[dict]:
+    """GATE-04: flag any arXiv ID in the body that does NOT appear verbatim in the concatenated
+    fact-base source text. Closes the extract-then-discard gap (verification.py:287-289) — the
+    engine removes arXiv IDs from the stat set but never tests membership. A real arXiv ID
+    present in a source is clean (the ed-36 fake-arXiv golden fixture).
+    """
+    flags: list[dict] = []
+    concatenated = " ".join(source_texts)
+    seen: set[str] = set()
+    for match in _ARXIV_ID.finditer(body):
+        arxiv_id = match.group(0)
+        if arxiv_id in seen:
+            continue
+        seen.add(arxiv_id)
+        if arxiv_id not in concatenated:
+            flags.append({
+                "kind": "arxiv",
+                "id": arxiv_id,
+                "version": version,
+                "detail": "arXiv ID not present in fact base",
+            })
+    return flags
+
+
+def _check_entity_merge(body: str, source_texts: list[str], version: str) -> list[dict]:
+    """GATE-05: the per-source verbatim entity-merge refinement (NOT a rebuild). Restrict to
+    COMPOSITE entities — multi-word entities (`len(split()) >= 2`) from the reused
+    `_extract_claims_from_prose`, plus any `owner/repo` token captured by `_GITHUB_URL` in the
+    body. Flag a composite iff its full string does NOT appear (case-insensitive) within at
+    least ONE single source string. Appearing only split-across separate sources == a fabricated
+    merge (the engine's flat union + fuzzy substring match masks this — verification.py:499-514).
+    Single-word entities are left entirely to the reused verify_draft tier1 path.
+    """
+    flags: list[dict] = []
+    lowered_sources = [s.lower() for s in source_texts]
+
+    composites: list[str] = []
+    seen: set[str] = set()
+
+    # Multi-word entities from the reused extractor (do NOT re-roll extraction).
+    for entity in _extract_claims_from_prose(body).get("entities", []):
+        if len(entity.split()) >= 2:
+            key = entity.lower()
+            if key not in seen:
+                seen.add(key)
+                composites.append(entity)
+
+    # owner/repo tokens captured by the GitHub-URL regex in the body (the `/` breaks the
+    # _PROPER_NOUN tokenizer, so the engine never sees these as single entities).
+    for match in _GITHUB_URL.finditer(body):
+        owner_repo = f"{match.group(1)}/{match.group(2)}"
+        key = owner_repo.lower()
+        if key not in seen:
+            seen.add(key)
+            composites.append(owner_repo)
+
+    for composite in composites:
+        c_lower = composite.lower()
+        if not any(c_lower in src for src in lowered_sources):
+            flags.append({
+                "kind": "entity_merge",
+                "entity": composite,
+                "version": version,
+            })
+    return flags
