@@ -801,5 +801,137 @@ def test_mechanical_gate07_no_fuzzy_threshold():
     assert not any(m["kind"] == "recycled_closer" for m in flags["mechanical"])
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Task 3 (Plan 03) — combined golden-draft integration suite. ONE realistic offender
+# draft per fact-base path (single-pass input_data + block_v1 blocks) embeds EVERY
+# historical worst offender at once, run end-to-end through the REAL gate with the
+# injected fake httpx client (zero live egress). Asserts the AGGREGATED flags object:
+#   - fabrication: the ed-36 study, the ed-34 benchmark, a fake arXiv, a 404 github repo, a dead URL
+#   - unverified: a transient 5xx (NON-EMPTY, DISTINCT from fabrication — the D-01 headline invariant)
+#   - mechanical: a recycled closer, a duplicated stat, a leaked AUDIENCE: label
+#   - meta: the correct fact_base_path, the github/url counts, github_token_present as a bool
+#   - top-level keys EXACTLY {fabrication, unverified, mechanical, meta}; NO verdict (emit-only, D-05)
+# locking the object to migration 045's deterministic_flags JSONB before Phase 30 wires it.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+# The named offenders embedded in one body: ed-36 "MCP Authentication Security Study",
+# ed-34 "GroupMemBench", a fake arXiv ID, a 404 github repo, a dead URL, a transient-5xx URL,
+# a recycled closer (matches the prior edition), a duplicated stat ("42%"), a leaked AUDIENCE:.
+_GOLDEN_DEAD_URL = "https://dead.example.com/page"
+_GOLDEN_5XX_URL = "https://flaky.example.com/x"
+
+
+def _golden_offender_body():
+    return (
+        f"{gate.BODY_START_MARKER}\n\n"
+        "AUDIENCE: Technical builders and infrastructure teams.\n\n"
+        "The **MCP Authentication Security Study** and the **GroupMemBench** benchmark "
+        "dominated the week, per arXiv 2699.88888. Adoption reached 42% across teams. "
+        "The code lives at github.com/ghost/missing and the docs at "
+        f"{_GOLDEN_DEAD_URL} with a mirror at {_GOLDEN_5XX_URL} for redundancy.\n\n"
+        "Until next week, keep building the future.\n"
+    )
+
+
+def _golden_prior():
+    return _prior_edition(
+        content_markdown=(
+            f"{gate.BODY_START_MARKER}\n\n"
+            "Last week adoption was at 42% as builders shipped steadily.\n\n"
+            "Until next week, keep building the future.\n"
+        ),
+        content_markdown_impact="",
+        edition_number=101,
+    )
+
+
+def _golden_client():
+    # ghost/missing → 404 (fabrication); dead URL → 404 (fabrication);
+    # flaky URL → 503 (unverified after retry-once). A single queued outcome is sticky.
+    return _FakeHTTPClient({
+        _GH_API.format("ghost", "missing"): [(404, {})],
+        _GOLDEN_DEAD_URL: [(404, {})],
+        _GOLDEN_5XX_URL: [(503, {})],
+    })
+
+
+def _assert_golden_flags(flags, client, *, expected_fact_base_path):
+    """The single aggregated assertion for a golden offender draft (shared by both paths)."""
+    # ── top-level shape: EXACTLY the four migration-045-compatible keys; emit-only (no verdict) ──
+    assert set(flags.keys()) == {"fabrication", "unverified", "mechanical", "meta"}
+    assert "verdict" not in flags
+
+    # ── fabrication: study + benchmark (tier1) + fake arXiv + github 404 + dead URL ──
+    tier1_values = {f.get("value") for f in flags["fabrication"] if f["kind"] == "tier1_entity"}
+    assert "MCP Authentication Security Study" in tier1_values  # ed-36
+    assert "GroupMemBench" in tier1_values                      # ed-34
+    assert any(f["kind"] == "arxiv" and f["id"] == "2699.88888" for f in flags["fabrication"])
+    assert any(f["kind"] == "github_repo" and f["ref"] == "ghost/missing"
+               for f in flags["fabrication"])
+    assert any(f["kind"] == "dead_url" and f["url"] == _GOLDEN_DEAD_URL
+               for f in flags["fabrication"])
+
+    # ── unverified: the transient 5xx — NON-EMPTY and DISTINCT from fabrication (D-01 headline) ──
+    assert flags["unverified"], "unverified must be non-empty (the transient 5xx is visible)"
+    assert any(u["kind"] == "url" and u["url"] == _GOLDEN_5XX_URL
+               and u["reason"] == "server_error_5xx" for u in flags["unverified"])
+    # the transient failure is NEVER a fabrication ("an error is not evidence")
+    assert not any(f.get("url") == _GOLDEN_5XX_URL for f in flags["fabrication"])
+
+    # ── mechanical: recycled closer + duplicated stat + leaked label ──
+    assert any(m["kind"] == "recycled_closer" for m in flags["mechanical"])
+    assert any(m["kind"] == "duplicated_stat" and m["stat"] == "42%"
+               for m in flags["mechanical"])
+    assert any(m["kind"] == "reading_mode_leak" and m["label"] == "AUDIENCE:"
+               for m in flags["mechanical"])
+
+    # ── meta: correct fact-base path, counts, token-present bool ──
+    meta = flags["meta"]
+    assert meta["fact_base_path"] == expected_fact_base_path
+    assert meta["github_checked"] == 1            # ghost/missing only
+    assert meta["urls_checked"] == 2              # dead + flaky (github ref excluded)
+    assert isinstance(meta["github_token_present"], bool)
+
+    # ── zero live egress: every fetch went through the injected fake client ──
+    assert set(client.calls) == {
+        _GH_API.format("ghost", "missing"), _GOLDEN_DEAD_URL, _GOLDEN_5XX_URL,
+    }
+
+
+def test_golden_offender_single_pass_input_data_end_to_end():
+    # GATE-08 single-pass path: the gate verifies against input_data (no `blocks` key).
+    fb = _single_pass_fact_base(premium_source_posts=[
+        {"title": "Weekly roundup", "summary": "General ecosystem coverage, no specific claims.",
+         "source_display": "HN"},
+    ])
+    draft = _make_draft(content_markdown=_golden_offender_body(), content_markdown_impact="")
+    client = _golden_client()
+    flags = gate.run_deterministic_gate(draft, fb, _golden_prior(), http_client=client)
+    _assert_golden_flags(flags, client, expected_fact_base_path="input_data")
+
+
+def test_golden_offender_block_v1_end_to_end():
+    # GATE-08 block_v1 path: the gate verifies against `blocks`.
+    fb = _block_fact_base(blocks=[
+        {"description": "General ecosystem coverage, no specific claims.",
+         "named_entities": ["SomeRealProject"]},
+    ])
+    draft = _make_draft(content_markdown=_golden_offender_body(), content_markdown_impact="",
+                        pipeline_version="block_v1")
+    client = _golden_client()
+    flags = gate.run_deterministic_gate(draft, fb, _golden_prior(), http_client=client)
+    _assert_golden_flags(flags, client, expected_fact_base_path="blocks")
+
+
+def test_golden_flags_object_is_json_serializable():
+    # The whole flags object must serialize cleanly (Phase 30 maps it into 045's JSONB column).
+    fb = _single_pass_fact_base()
+    draft = _make_draft(content_markdown=_golden_offender_body(), content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, fb, _golden_prior(), http_client=_golden_client())
+    dumped = json.loads(json.dumps(flags))  # round-trips → JSONB-compatible
+    assert set(dumped.keys()) == {"fabrication", "unverified", "mechanical", "meta"}
+
+
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-v"]))
