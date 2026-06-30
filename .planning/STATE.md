@@ -4,13 +4,13 @@ milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: executing
 stopped_at: Phase 28 context gathered
-last_updated: "2026-06-30T10:51:42.659Z"
-last_activity: 2026-06-30 -- Phase 28 planning complete
+last_updated: "2026-06-30T11:14:59.279Z"
+last_activity: 2026-06-30
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 7
   percent: 33
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 28 — layer-1-deterministic-gate (Phase 27 complete)
+**Current focus:** Phase 28 — layer-1-deterministic-gate
 
 ## Current Position
 
-Phase: 28
-Plan: Not started
+Phase: 28 (layer-1-deterministic-gate) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-06-30 -- Phase 28 planning complete
+Last activity: 2026-06-30
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -83,6 +83,7 @@ Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM
 - [Phase 27]: Phase 27 Plan 01: authored migration 045 (edition_evals DDL SECTION 1 + governed edition_eval agent seed SECTION 2) as ONE sectioned idempotent SQL file; table DDL verbatim from REQUIREMENTS.md (JSONB-only, no spec-01 materialized columns, D-04/D-07); agent api_key_hash left as the literal placeholder for orchestrator substitution + MCP apply in 27-03 (D-12/D-13).
 - [Phase 27]: EVAL-01/GOV-01/GOV-02 left Pending after 27-01: this plan only AUTHORS SQL text; live realization (MCP apply + edition_eval key mint to config/.env LLM_PROXY_EVAL_KEY) is orchestrator-owned in 27-03, so requirement closure is deferred to phase end (fail-loud accuracy over premature mark-complete).
 - [Phase 27]: Phase 27 Plan 02: shipped `docker/newsletter/edition_eval.py` (`write_eval_row` + `read_evals_by_newsletter` + `read_eval_trend` + `LLM_PROXY_EVAL_KEY` identity getter — NO LLM call) and `tests/test_27_edition_eval.py` (9 deterministic fixture cases vs an in-memory Supabase stub). EVAL-02 structural half + EVAL-03 realized in CODE: verdict-iff-ok validated in Python BEFORE insert (mirror of the DB CHECK), errored evals write `eval_status='error'`+reason+NULL verdict (never a silent zero), insert failure logs ERROR `exc_info=True`+re-raises (never swallowed), `.eq()`-only reads (no in-list filter). NO caller wired into `newsletter_poller.py` (D-08 — first real caller is Phase 28). EVAL-02 left Pending (its Telegram-delivery half is Phase 30/31, D-10); EVAL-03 left Pending to close with the phase after 27-03 (consistent with the 27-01 fail-loud-accuracy posture).
+- [Phase 28]: Plan 01: shipped docker/newsletter/deterministic_gate.py (run_deterministic_gate emit-only orchestrator + arXiv-membership GATE-04 + entity-merge per-source GATE-05, reusing verify_draft per D-04) + tests/test_28_deterministic_gate.py (14 GATE-01/04/05/08 cases vs the REAL module). Flags contract {fabrication,unverified,mechanical,meta} locked (migration 045 shape; unverified first-class D-01, emit-only D-05). GATE-01/04/05/08 closure deferred to phase end (build-only/report-only; runs-on-every-edition short-circuit is Phase 30) per the 27-01/27-02 fail-loud-accuracy posture.
 
 ### Pending Todos
 
@@ -140,9 +141,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-06-30T09:26:58.988Z
+Last session: 2026-06-30T11:14:18.507Z
 Stopped at: Phase 28 context gathered
-Resume file: .planning/phases/28-layer-1-deterministic-gate/28-CONTEXT.md
+Resume file: None
 Next: Execute Phase 27 Plan 03 (orchestrator/operator-owned, worktree-UNSAFE): mint the `edition_eval` key + bcrypt hash, substitute the REAL hash into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call as `edition_eval` (closes EVAL-01 live form / GOV-01 / GOV-02). With 27-03 done, do the phase-end requirement-closure pass for EVAL-02 (structural half shipped in 27-02; Telegram half remains Phase 30/31, D-10) + EVAL-03.
 
 ## Operator Next Steps
@@ -164,3 +165,4 @@ Next: Execute Phase 27 Plan 03 (orchestrator/operator-owned, worktree-UNSAFE): m
 | Phase 26 P02 | ~6min | 1 task | 1 file (deterministic fixture test — 10 cases vs the REAL loader) |
 | Phase 27 P01 | 10min | 2 tasks | 1 files |
 | Phase 27 P02 | ~12min | 2 tasks | 2 files (edition_eval.py helper + 9-case fixture test) |
+| Phase 28 P01 | 12min | 2 tasks | 2 files |

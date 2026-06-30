@@ -168,7 +168,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 1**
 
-  - [ ] 28-01-PLAN.md — Module scaffold + flags-object contract + both-version orchestrator reusing `verify_draft`; arXiv-ID membership + entity-merge per-source verbatim refinement (GATE-01, GATE-04, GATE-05, GATE-08) [Wave 1, autonomous]
+  - [x] 28-01-PLAN.md — Module scaffold + flags-object contract + both-version orchestrator reusing `verify_draft`; arXiv-ID membership + entity-merge per-source verbatim refinement (GATE-01, GATE-04, GATE-05, GATE-08) [Wave 1, autonomous]
 
 **Wave 2** *(blocked on 28-01 — same module/test files)*
 
@@ -260,7 +260,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 25. Responsive & Accessibility Pass | v2.2 | 2/2 | Complete | 2026-06-19 |
 | 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete    | 2026-06-24 |
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
-| 28. Layer 1 Deterministic Gate | v2.3 | 0/3 | Not started | - |
+| 28. Layer 1 Deterministic Gate | v2.3 | 1/3 | In Progress|  |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/TBD | Not started | - |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
