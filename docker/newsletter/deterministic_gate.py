@@ -47,10 +47,13 @@ logger = logging.getLogger("newsletter")
 # for the H1/title-echo mechanical check.
 BODY_START_MARKER = "## Read This, Skip the Rest"
 
-# GATE-06 reading-mode-label leak blacklist (operator-tunable; Plan 03 consumes it). Seeded
-# from the code-derived writer scaffolding literals (`AUDIENCE:` — block_pipeline.py:347-350)
+# GATE-06 reading-mode-label leak blacklist. **Operator-tunable** — confirm/adjust this exact
+# membership during the Phase 30 report-only calibration window (RESEARCH open question A1);
+# the constant is the single tuning point so a too-broad/too-narrow set is a one-line edit.
+# Seeded from the code-derived writer scaffolding literals (`AUDIENCE:` — block_pipeline.py:347-350)
 # plus the CONTEXT illustrative set. Multi-word uppercase scaffolding only — bare "IMPACT" /
-# "Technical" are legitimate prose and are deliberately NOT blacklisted.
+# "Technical" are legitimate prose and are DELIBERATELY NOT blacklisted (they appear constantly
+# in edited prose; blacklisting them would flood `mechanical` with false positives).
 READING_MODE_LABELS = [
     "AUDIENCE:", "READING MODE", "BUILDER MODE", "IMPACT MODE",
     "TECHNICAL MODE", "STRATEGIC MODE", "TECHNICAL READING MODE",
@@ -68,6 +71,13 @@ _BARE_URL = re.compile(r'https?://[^\s)>\]]+')
 # An asserted star count adjacent to a repo ref (GATE-02 star-drift). Bounded — `[\d,]+` then a
 # non-overlapping optional decimal, an optional k/m magnitude, then the literal unit word.
 _STAR_ASSERTION = re.compile(r'([\d,]+(?:\.\d+)?)\s*([kKmM]?)\s*(?:stars|stargazers)', re.IGNORECASE)
+
+# GATE-06 mechanical regexes (net-new this plan). Simple line-anchored patterns — no nested
+# quantifiers (T-28-09 ReDoS mitigation). `_H1_LINE` matches a single-hash `# ` H1 line (the
+# `[ \t]` second char excludes the legitimate two-hash `## ` body-start marker). `_HEADER_LINE`
+# captures the text of any 1–6 hash markdown header line for the title-echo comparison.
+_H1_LINE = re.compile(r'^#[ \t]', re.MULTILINE)
+_HEADER_LINE = re.compile(r'^#{1,6}[ \t]+(.+)$', re.MULTILINE)
 
 # SSRF denylist (T-28-04): the compose internal-service names + localhost. A draft-supplied URL
 # whose host is any of these (or a literal private/loopback/link-local IP, or a `*.internal`
@@ -125,6 +135,7 @@ def run_deterministic_gate(
     logger.info("deterministic_gate: verifying against fact_base_path=%s", fact_base_path)
 
     fabrication: list[dict[str, Any]] = []
+    mechanical: list[dict[str, Any]] = []
     tier1_count = {"technical": 0, "impact": 0}
 
     # GATE-01: run BOTH body versions through the SAME engine (mirrors verify_draft tech+impact
@@ -138,7 +149,7 @@ def run_deterministic_gate(
     # the flat engine union (verification.py:309) lacks this provenance.
     source_texts = _fact_base_source_texts(fact_base)
 
-    for label, body, _title in versions:
+    for label, body, title in versions:
         if not body.strip():
             continue
 
@@ -155,6 +166,12 @@ def run_deterministic_gate(
         # ── Net-new fabrication sub-checks layered ON TOP of the reused engine ──
         fabrication.extend(_check_arxiv_membership(body, source_texts, label))
         fabrication.extend(_check_entity_merge(body, source_texts, label))
+
+        # ── Mechanical-editorial checks (GATE-06) — flag into `mechanical`, NEVER
+        # `fabrication`. An H1/title echo or a leaked reading-mode/audience label is an
+        # editorial miss (may feed the Phase 29 rewrite loop), not a hard fabrication hold.
+        mechanical.extend(_check_h1_and_title_echo(body, title, label))
+        mechanical.extend(_check_reading_mode_leak(body, label))
 
     # ── Network-liveness layer (GATE-02/03, D-01/D-02/D-03) ──────────────────────────────────
     # Runs ONLY when an http_client is injected. We deliberately do NOT construct a default
@@ -187,8 +204,9 @@ def run_deterministic_gate(
         # `unverified` is a first-class top-level key (D-01) — a transient/quota network failure
         # is a visible "could not verify" state, NEVER folded into fabrication and NEVER a pass.
         "unverified": unverified,
-        # Mechanical (Plan 03) populates `mechanical`.
-        "mechanical": [],
+        # Mechanical-editorial misses (GATE-06/07) — H1/title echo, reading-mode-label leak,
+        # recycled closer, duplicated stat. Distinct from `fabrication`: never a hard hold.
+        "mechanical": mechanical,
         "meta": {
             "fact_base_path": fact_base_path,
             "github_checked": github_checked,
@@ -603,3 +621,43 @@ def _run_url_layer(
                 unverified.append({"kind": "url", "url": url, "reason": reason})
             # verified → no flag
     return fabrication, unverified, len(checked)
+
+
+# ── Mechanical-editorial layer (GATE-06/07, D-06) ────────────────────────────────────────────
+# Pure string ops on the draft (and, for GATE-07, the FULL prior-published edition body). These
+# flag editorial misses into `mechanical` — distinct from `fabrication`, never a hard hold. No
+# network, no LLM. The cross-edition checks (GATE-07) use normalized-exact matching (D-06:
+# lowercase + collapse whitespace + strip trailing punctuation) — NO fuzzy similarity threshold.
+
+
+def _check_h1_and_title_echo(body: str, title: str, version: str) -> list[dict]:
+    """GATE-06 (part 1): flag a single-hash `# ` H1 line in the body (published bodies start at
+    the two-hash `## Read This, Skip the Rest` marker with no H1 — newsletter_poller.py:2120;
+    the title is a SEPARATE DB column, never in the body), and flag the edition title echoed as
+    a markdown header line in its own body. `title` is the version-appropriate title
+    (technical→draft['title'], impact→draft['title_impact']). Whitespace-normalized,
+    case-insensitive comparison."""
+    flags: list[dict] = []
+    if _H1_LINE.search(body):
+        flags.append({"kind": "h1_in_body", "version": version})
+    title_norm = re.sub(r'\s+', ' ', title).strip().lower()
+    if title_norm:
+        for match in _HEADER_LINE.finditer(body):
+            header_norm = re.sub(r'\s+', ' ', match.group(1)).strip().lower()
+            if header_norm == title_norm:
+                flags.append({"kind": "title_echo", "version": version, "value": title})
+                break
+    return flags
+
+
+def _check_reading_mode_leak(body: str, version: str) -> list[dict]:
+    """GATE-06 (part 2): case-insensitive substring scan for each tunable `READING_MODE_LABELS`
+    member (uppercase scaffolding tokens like `AUDIENCE:` unlikely in edited prose). On a hit
+    emit a `reading_mode_leak` mechanical flag with the matched label. Bare `"IMPACT"` /
+    `"Technical"` are NOT in the blacklist, so legitimate prose never trips this."""
+    flags: list[dict] = []
+    body_lower = body.lower()
+    for label in READING_MODE_LABELS:
+        if label.lower() in body_lower:
+            flags.append({"kind": "reading_mode_leak", "version": version, "label": label})
+    return flags
