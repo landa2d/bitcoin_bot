@@ -312,6 +312,21 @@ def test_arxiv_real_id_clean():
     assert arxiv_flags == []
 
 
+def test_arxiv_fake_id_substring_of_real_id_still_flagged():
+    # WR-03: a fabricated 4-fraction ID (2605.9999) that is a SUBSTRING of a longer real ID in a
+    # source (2605.99999) must still be flagged — the old unanchored `in concatenated` test
+    # silently grounded it. Anchored set membership keeps it a fabrication.
+    body = _body("A new method in arXiv 2605.9999 changes everything, allegedly.")
+    fb = _single_pass_fact_base(premium_source_posts=[
+        {"title": "Real paper", "summary": "Covers arXiv 2605.99999 in detail.",
+         "source_display": "arXiv"},
+    ])
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, fb, None)
+    arxiv = [f for f in flags["fabrication"] if f["kind"] == "arxiv"]
+    assert any(f["id"] == "2605.9999" and f["version"] == "technical" for f in arxiv)
+
+
 def test_entity_merge_split_across_sources_fabrication():
     # Source A names "Acme", source B names "widgets"; neither contains "Acme Widgets"
     # verbatim → a kind=='entity_merge' fabrication (the fabricated cross-source merge).

@@ -289,14 +289,20 @@ def _check_arxiv_membership(body: str, source_texts: list[str], version: str) ->
     present in a source is clean (the ed-36 fake-arXiv golden fixture).
     """
     flags: list[dict] = []
-    concatenated = " ".join(source_texts)
+    # WR-03: test membership against the SET of arXiv IDs EXTRACTED from the sources (same
+    # `\b`-anchored `_ARXIV_ID` pattern used on the body), NOT a raw substring of the joined text.
+    # A bare `id not in concatenated` silently grounds a fabricated ID that is a substring of a
+    # longer real ID present in a source (body `2605.9999` ⊂ source `2605.99999`) or of any
+    # unrelated digit run — a missed fabrication. Exact-ID set membership is anchored and
+    # symmetric with the extraction boundaries.
+    source_ids = {m.group(0) for s in source_texts for m in _ARXIV_ID.finditer(s)}
     seen: set[str] = set()
     for match in _ARXIV_ID.finditer(body):
         arxiv_id = match.group(0)
         if arxiv_id in seen:
             continue
         seen.add(arxiv_id)
-        if arxiv_id not in concatenated:
+        if arxiv_id not in source_ids:
             flags.append({
                 "kind": "arxiv",
                 "id": arxiv_id,
