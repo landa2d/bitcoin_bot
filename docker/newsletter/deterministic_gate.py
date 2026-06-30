@@ -107,9 +107,13 @@ def run_deterministic_gate(
             `input_data` OR a block_v1 dict {blocks, tracked_entity_signals, trending_tools,
             predictions}. The gate TRUSTS the handed dict (GATE-08); it does not re-derive which
             base to use — Phase 30 selects it via the existing poller branch.
-        prior_edition: the FULL previous-published edition body (+ _impact) or None. Unused this
-            plan (the recycled-closer / duplicated-stat checks are Plan 03); part of the
-            interface-first contract.
+        prior_edition: the FULL previous-published edition as
+            {content_markdown, content_markdown_impact, edition_number}, or None. Drives the
+            GATE-07 cross-edition mechanical checks (recycled closer + duplicated stat,
+            normalized-exact per D-06): the technical body compares against `content_markdown`,
+            the impact body against `content_markdown_impact`. When None (no prior edition) the
+            cross-edition checks skip cleanly without raising; GATE-06 still runs. Phase 30
+            supplies the FULL prior body (NOT load_edition_context's truncated excerpt — A3).
         http_client: injectable httpx client (tests inject a fake). When provided, the network
             layer (GATE-02 GitHub + GATE-03 URL HEAD) runs against it; when None, NO network
             check runs (zero egress) and the network counters stay 0. A default client is
@@ -149,6 +153,15 @@ def run_deterministic_gate(
     # the flat engine union (verification.py:309) lacks this provenance.
     source_texts = _fact_base_source_texts(fact_base)
 
+    # GATE-07 cross-edition inputs — the FULL prior-published edition body per version (a
+    # Phase-30 wiring responsibility; the gate trusts the dict it is handed, A3). When
+    # prior_edition is None there is no prior edition → the cross-edition checks skip cleanly.
+    prior_number = prior_edition.get("edition_number") if prior_edition else None
+    prior_bodies = {
+        "technical": (prior_edition or {}).get("content_markdown", "") or "",
+        "impact": (prior_edition or {}).get("content_markdown_impact", "") or "",
+    }
+
     for label, body, title in versions:
         if not body.strip():
             continue
@@ -172,6 +185,11 @@ def run_deterministic_gate(
         # editorial miss (may feed the Phase 29 rewrite loop), not a hard fabrication hold.
         mechanical.extend(_check_h1_and_title_echo(body, title, label))
         mechanical.extend(_check_reading_mode_leak(body, label))
+
+        # ── Cross-edition mechanical checks (GATE-07, D-06) — recycled closer + duplicated
+        # stat vs the FULL prior-published edition. Normalized-exact only (no fuzzy). When
+        # prior_edition is None, prior_bodies[label] is "" → _check_cross_edition skips cleanly.
+        mechanical.extend(_check_cross_edition(body, prior_bodies[label], label, prior_number))
 
     # ── Network-liveness layer (GATE-02/03, D-01/D-02/D-03) ──────────────────────────────────
     # Runs ONLY when an http_client is injected. We deliberately do NOT construct a default
@@ -660,4 +678,51 @@ def _check_reading_mode_leak(body: str, version: str) -> list[dict]:
     for label in READING_MODE_LABELS:
         if label.lower() in body_lower:
             flags.append({"kind": "reading_mode_leak", "version": version, "label": label})
+    return flags
+
+
+def _normalize(s: str) -> str:
+    """D-06 normalized-exact key: collapse internal whitespace, strip, lowercase, strip trailing
+    punctuation. Uses a simple linear `\\s+` collapse only — no nested-quantifier pattern
+    (T-28-09 ReDoS mitigation). NO fuzzy/similarity transform (D-06: normalized-exact only)."""
+    return re.sub(r'\s+', ' ', s).strip().lower().rstrip('.!?,:;—-')
+
+
+def _closer_line(body: str) -> str:
+    """The normalized last non-empty paragraph (split on blank lines) — the closer."""
+    paras = [p for p in re.split(r'\n\s*\n', body) if p.strip()]
+    return _normalize(paras[-1]) if paras else ""
+
+
+def _stat_tokens(body: str) -> set[str]:
+    """The set of normalized numeric-stat tokens in the body, reusing the engine's `_STATISTIC`
+    regex (D-04 — no new number regex)."""
+    return {_normalize(m.group(0)) for m in _STATISTIC.finditer(body)}
+
+
+def _check_cross_edition(
+    body: str, prior_body: str, version: str, prior_edition_number: int | None = None,
+) -> list[dict]:
+    """GATE-07: cross-edition mechanical checks vs the FULL prior-published edition body, using
+    normalized-exact matching (D-06 — NO fuzzy threshold). If `prior_body` is empty/None there is
+    no prior edition → return `[]` (clean skip, never raise — T-28-11). Otherwise flag:
+      - `recycled_closer` iff the normalized closer line is non-empty AND equals the prior
+        edition's normalized closer line;
+      - `duplicated_stat` (one per token) for every normalized stat token present in BOTH bodies.
+    `prior_edition_number` is recorded on each flag for the Phase-30 mapping."""
+    if not prior_body:
+        return []
+    flags: list[dict] = []
+    closer = _closer_line(body)
+    if closer and closer == _closer_line(prior_body):
+        flags.append({
+            "kind": "recycled_closer", "version": version,
+            "prior_edition": prior_edition_number,
+        })
+    shared_stats = _stat_tokens(body) & _stat_tokens(prior_body)
+    for stat in sorted(shared_stats):
+        flags.append({
+            "kind": "duplicated_stat", "version": version, "stat": stat,
+            "prior_edition": prior_edition_number,
+        })
     return flags
