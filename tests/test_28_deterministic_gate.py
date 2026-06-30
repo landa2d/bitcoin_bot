@@ -703,5 +703,103 @@ def test_mechanical_gate06_flags_under_mechanical_not_fabrication():
                    for f in flags["fabrication"])
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# GATE-07 (Plan 03) — cross-edition mechanical checks vs the FULL prior published
+# edition: recycled closer line + verbatim-duplicated numeric stat. D-06 normalized-
+# exact matching (lowercase + collapse whitespace + strip trailing punctuation) — NO
+# fuzzy threshold. prior_edition=None is a clean skip (no flags, no raise).
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _prior_edition(*, content_markdown="", content_markdown_impact="", edition_number=42):
+    """A stubbed FULL prior-published edition dict (Phase-30 supplies the real one)."""
+    return {
+        "content_markdown": content_markdown,
+        "content_markdown_impact": content_markdown_impact,
+        "edition_number": edition_number,
+    }
+
+
+def test_mechanical_gate07_recycled_closer():
+    closer = "Until next week, keep building the future."
+    prior = _prior_edition(content_markdown=_body(f"Last week was eventful.\n\n{closer}"),
+                           edition_number=42)
+    body = _body(f"This week had a different lead story.\n\n{closer}")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), prior)
+    rc = [m for m in flags["mechanical"] if m["kind"] == "recycled_closer"]
+    assert any(m["version"] == "technical" and m["prior_edition"] == 42 for m in rc)
+
+
+def test_mechanical_gate07_recycled_closer_normalized_match():
+    # Differ ONLY by trailing punctuation, casing, and whitespace → still matches (D-06).
+    prior = _prior_edition(content_markdown=_body("Lead.\n\nUntil next week, keep building."),
+                           edition_number=7)
+    body = _body("Other lead.\n\nuntil   next week,   KEEP building")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), prior)
+    assert any(m["kind"] == "recycled_closer" for m in flags["mechanical"])
+
+
+def test_mechanical_gate07_recycled_closer_distinct_no_flag():
+    prior = _prior_edition(content_markdown=_body("Lead.\n\nUntil next week, keep building."),
+                           edition_number=7)
+    body = _body("Other lead.\n\nSee you in a fortnight, friends.")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), prior)
+    assert not any(m["kind"] == "recycled_closer" for m in flags["mechanical"])
+
+
+def test_mechanical_gate07_duplicated_stat():
+    prior = _prior_edition(content_markdown=_body("Adoption hit 42% last week."),
+                           edition_number=42)
+    body = _body("This quarter adoption reached 42% across the board, a fresh milestone.")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), prior)
+    dup = [m for m in flags["mechanical"] if m["kind"] == "duplicated_stat"]
+    assert any(m["stat"] == "42%" and m["version"] == "technical"
+               and m["prior_edition"] == 42 for m in dup)
+
+
+def test_mechanical_gate07_duplicated_stat_current_only_no_flag():
+    prior = _prior_edition(content_markdown=_body("Nothing numeric in here at all."),
+                           edition_number=42)
+    body = _body("This quarter adoption reached 42% across the board.")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), prior)
+    assert not any(m["kind"] == "duplicated_stat" for m in flags["mechanical"])
+
+
+def test_mechanical_gate07_cross_edition_impact_version():
+    # The impact body compares against prior_edition['content_markdown_impact'].
+    closer = "That is the impact view for this edition."
+    prior = _prior_edition(content_markdown_impact=_body(f"Impact lead.\n\n{closer}"),
+                           edition_number=11)
+    body = _body(f"A different impact lead.\n\n{closer}")
+    draft = _make_draft(content_markdown="", content_markdown_impact=body)
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), prior)
+    rc = [m for m in flags["mechanical"] if m["kind"] == "recycled_closer"]
+    assert any(m["version"] == "impact" and m["prior_edition"] == 11 for m in rc)
+
+
+def test_mechanical_gate07_prior_none_skips_cleanly():
+    # prior_edition=None → no GATE-07 flags and no raise (GATE-06 still runs).
+    body = _body("Adoption reached 42%. Until next week, keep building.")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), None)
+    assert not any(m["kind"] in ("recycled_closer", "duplicated_stat")
+                   for m in flags["mechanical"])
+
+
+def test_mechanical_gate07_no_fuzzy_threshold():
+    # A near-but-not-normalized-equal closer must NOT match (normalized-exact only, D-06).
+    prior = _prior_edition(content_markdown=_body("Lead.\n\nUntil next week, keep building."),
+                           edition_number=7)
+    body = _body("Other.\n\nUntil next week, keep building great things.")  # extra words
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), prior)
+    assert not any(m["kind"] == "recycled_closer" for m in flags["mechanical"])
+
+
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-v"]))
