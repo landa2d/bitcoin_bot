@@ -175,8 +175,12 @@ def run_deterministic_gate(
         )
         fabrication.extend(gh_fab)
         unverified.extend(gh_unv)
-        # The URL HEAD layer (GATE-03) is wired here by Plan 02 Task 2 — it reuses the same
-        # `cache` (D-03) and populates `urls_checked`.
+        # GATE-03 URL HEAD layer — reuses the same `cache` (D-03) and populates `urls_checked`.
+        url_fab, url_unv, urls_checked = _run_url_layer(
+            versions, client=http_client, cache=cache
+        )
+        fabrication.extend(url_fab)
+        unverified.extend(url_unv)
 
     return {
         "fabrication": fabrication,
@@ -499,4 +503,103 @@ def _run_github_layer(
                             "kind": "github_stars", "ref": ref_str, "version": label,
                             "detail": f"asserted {asserted} vs live {stars} (>20% drift)",
                         })
+    return fabrication, unverified, len(checked)
+
+
+def _normalize_url(url: str) -> str:
+    """Strip trailing sentence punctuation the bare-URL scan over-captures
+    ("https://x.com/p." → "https://x.com/p"). Used both as the dedup-cache key and the
+    fetched target."""
+    return url.rstrip('.,;:!?\'")')
+
+
+def _iter_urls(body: str) -> list[str]:
+    """Unique normalized URLs in a body: markdown-link targets (`_MD_LINK`) plus a bare-URL
+    scan (`_BARE_URL`). EXCLUDES `github.com/owner/repo` refs (handled by the GitHub API layer)
+    to avoid double-checking. Deduplicated within the body."""
+    urls: list[str] = []
+    seen: set[str] = set()
+    for match in _MD_LINK.finditer(body):
+        _add_url(match.group(2), urls, seen)
+    for match in _BARE_URL.finditer(body):
+        _add_url(match.group(0), urls, seen)
+    return urls
+
+
+def _add_url(raw: str, urls: list[str], seen: set[str]) -> None:
+    url = _normalize_url(raw)
+    if not url or url in seen:
+        return
+    # Skip github.com/owner/repo URLs — the GitHub API layer already checks those.
+    if _GITHUB_URL.search(url):
+        return
+    seen.add(url)
+    urls.append(url)
+
+
+def _classify_url(url: str, *, client: httpx.Client) -> tuple[str, str]:
+    """Map a URL HEAD result into the locked three-outcome taxonomy (GATE-03, D-01) with
+    retry-once-on-transient (D-02). Returns (outcome, reason):
+      - SSRF guard FIRST: an unsafe/internal host → ("unverified", "unsafe_host") WITHOUT any
+        request (T-28-04 — the host is NEVER fetched).
+      - 404/410 → ("fabricated", "http_<code>").
+      - timeout (retried once) → ("unverified", "timeout"); conn-refused → "conn_refused".
+      - >=500 (retried once) → ("unverified", "server_error_5xx").
+      - other 4xx (401/403/429) → ("unverified", "http_<code>") — an auth/rate wall is not
+        evidence of fabrication ("an error is not evidence").
+      - 200 / redirect-resolved-2xx → ("verified", "ok").
+    Only the status code drives the outcome — the response body is never read (T-28-08)."""
+    if not _is_safe_public_url(url):
+        return ("unverified", "unsafe_host")  # SSRF: never fetched (T-28-04)
+    for attempt in (1, 2):  # D-02: at most one retry, on transient failures ONLY
+        try:
+            resp = client.head(url, timeout=5, follow_redirects=True)
+        except httpx.TimeoutException:
+            if attempt == 1:
+                continue
+            return ("unverified", "timeout")
+        except httpx.ConnectError:
+            if attempt == 1:
+                continue
+            return ("unverified", "conn_refused")
+        code = resp.status_code
+        if code in (404, 410):
+            return ("fabricated", f"http_{code}")        # D-02: definitive — NEVER retried
+        if code >= 500:
+            if attempt == 1:
+                continue                                  # D-02: retry once on transient 5xx
+            return ("unverified", "server_error_5xx")
+        if 400 <= code < 500:
+            return ("unverified", f"http_{code}")         # auth/rate wall — not evidence
+        return ("verified", "ok")                         # 200 / resolved 2xx
+    return ("unverified", "unknown")  # pragma: no cover — loop always returns above
+
+
+def _run_url_layer(
+    versions: list[tuple[str, str, str]], *, client: httpx.Client, cache: dict[tuple, Any],
+) -> tuple[list[dict], list[dict], int]:
+    """GATE-03: HEAD-check every unique non-github URL across both versions into the D-01
+    taxonomy (dedup via the shared per-run `cache`, D-03). Unsafe/internal hosts route to
+    `unverified` without a fetch. Returns (fabrication_entries, unverified_entries,
+    unique_urls_checked)."""
+    fabrication: list[dict] = []
+    unverified: list[dict] = []
+    checked: set[str] = set()
+    for label, body, _title in versions:
+        if not body.strip():
+            continue
+        for url in _iter_urls(body):
+            cache_key = ("url", url)
+            if cache_key not in cache:
+                cache[cache_key] = _classify_url(url, client=client)
+                checked.add(url)
+            outcome, reason = cache[cache_key]
+            if outcome == "fabricated":
+                fabrication.append({
+                    "kind": "dead_url", "url": url, "version": label,
+                    "detail": reason.replace("http_", "HTTP "),
+                })
+            elif outcome == "unverified":
+                unverified.append({"kind": "url", "url": url, "reason": reason})
+            # verified → no flag
     return fabrication, unverified, len(checked)
