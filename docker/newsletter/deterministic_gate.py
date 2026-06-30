@@ -30,6 +30,7 @@ and the empty `unverified` / `mechanical` lists are already part of the stable c
 
 import os
 import re
+import socket
 import ipaddress
 import logging
 from typing import Any
@@ -355,6 +356,23 @@ def _check_entity_merge(body: str, source_texts: list[str], version: str) -> lis
 # real egress in tests), and gated by the SSRF allowlist for the URL HEAD layer.
 
 
+def _is_blocked_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """True if an IP is in a non-public range we must NEVER fetch (loopback / RFC-1918 private /
+    link-local incl. the 169.254.169.254 metadata endpoint / reserved / unspecified / multicast).
+    The single predicate applied both to a literal-IP host AND to every resolved address
+    (CR-01 / WR-02)."""
+    return (ip.is_loopback or ip.is_private or ip.is_link_local
+            or ip.is_reserved or ip.is_unspecified or ip.is_multicast)
+
+
+def _resolve_host(host: str) -> list[str]:
+    """Resolve a hostname to its IP string(s) via the OS resolver. Isolated as a single seam so
+    the SSRF guard's resolve-then-validate step (CR-01 / WR-02) is fully mockable in tests with
+    ZERO real network egress (T-28-04). Raises OSError on resolution failure — the caller treats
+    that as unsafe (fail-closed)."""
+    return [info[4][0] for info in socket.getaddrinfo(host, None)]
+
+
 def _is_safe_public_url(url: str) -> bool:
     """SSRF guard (ASVS L1, T-28-04). Return True ONLY for an http(s) URL whose host is a
     public, non-internal destination. Reject:
@@ -385,20 +403,39 @@ def _is_safe_public_url(url: str) -> bool:
     # `*.internal` (and a bare `internal`) — Docker/k8s internal DNS suffix.
     if host == "internal" or host.endswith(".internal"):
         return False
-    # Literal IP host → reject any non-public range.
+    # Literal (canonical) IP host → reject any non-public range directly, no resolution needed.
     try:
         ip = ipaddress.ip_address(host)
     except ValueError:
         ip = None
     if ip is not None:
-        if (ip.is_loopback or ip.is_private or ip.is_link_local
-                or ip.is_reserved or ip.is_unspecified or ip.is_multicast):
-            return False
-        return True
-    # Hostname (not a literal IP): a bare single-label name (no dot) is an internal Docker
-    # service alias — reject. A dotted public name is allowed.
+        return not _is_blocked_ip(ip)
+    # Not a canonical IP literal. A bare single-label name (no dot) is an internal Docker service
+    # alias — reject outright (fail-closed; no resolution needed).
     if "." not in host:
         return False
+    # CR-01 / WR-02 — resolve-then-validate. The host is either a registrable DNS name OR a
+    # NON-canonical numeric form (127.1, 0x7f.0.0.1, 0177.0.0.1, 10.1, 0xa9.0xfe.0xa9.0xfe) that
+    # ipaddress.ip_address rejects but the OS resolver (glibc getaddrinfo, used by the real
+    # httpx.Client) collapses to loopback / RFC-1918 / link-local / the metadata IP. Resolve the
+    # host and validate EVERY answer, so neither a shorthand/octal/hex literal NOR a public
+    # hostname whose A record points at internal space can slip past the string checks. Host text
+    # comes verbatim from untrusted (possibly prompt-injected) LLM draft prose, so this is the
+    # guard's one job. Fail-closed: resolution failure / no answers / an unparseable answer →
+    # unsafe (routed to unverified, zero egress).
+    try:
+        resolved = _resolve_host(host)
+    except OSError:
+        return False
+    if not resolved:
+        return False
+    for addr in resolved:
+        try:
+            candidate = ipaddress.ip_address(addr.split("%")[0])  # strip any IPv6 %scope suffix
+        except ValueError:
+            return False
+        if _is_blocked_ip(candidate):
+            return False
     return True
 
 

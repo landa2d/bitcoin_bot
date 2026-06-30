@@ -41,6 +41,19 @@ if str(NL_DIR) not in sys.path:
 import deterministic_gate as gate  # noqa: E402  — the REAL production module
 
 
+@pytest.fixture(autouse=True)
+def _stub_dns(monkeypatch):
+    """Default resolver stub for the SSRF guard's resolve-then-validate step (CR-01 / WR-02).
+
+    The guard now RESOLVES every non-denylisted dotted host (so a non-canonical numeric form or a
+    public hostname pointing at internal space cannot slip past the string checks). Without a stub
+    every URL-layer test would perform REAL DNS — live egress (T-28-04) and flaky/offline-hostile.
+    This autouse fixture makes every hostname resolve to ONE public IP by default, so the suite
+    has ZERO live egress. The SSRF-specific tests below override gate._resolve_host on the SAME
+    monkeypatch instance to point a host at a loopback / RFC-1918 / link-local / metadata IP."""
+    monkeypatch.setattr(gate, "_resolve_host", lambda host: ["93.184.216.34"])  # a public IP
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Fixture builders — small helpers that build the draft + fact_base dicts carrying
 # every field the gate / engine reads. Hand-authored markdown bodies start with the
@@ -355,6 +368,62 @@ def test_ssrf_guard_allows_public_https():
     assert gate._is_safe_public_url("https://github.com/a/b") is True
     assert gate._is_safe_public_url("https://example.com/path") is True
     assert gate._is_safe_public_url("http://docs.python.org/3/") is True
+
+
+def test_ssrf_guard_rejects_noncanonical_ip_encodings(monkeypatch):
+    # CR-01: shorthand / octal / hex numeric hosts that ipaddress.ip_address rejects but the OS
+    # resolver collapses to loopback / RFC-1918 / the 169.254.169.254 metadata IP. The guard must
+    # resolve-then-validate and reject every one (the OLD string-only guard returned True for all).
+    mapping = {
+        "127.1": "127.0.0.1",                  # shorthand loopback
+        "0x7f.0.0.1": "127.0.0.1",             # hex loopback
+        "0177.0.0.1": "127.0.0.1",             # octal loopback
+        "10.1": "10.0.0.1",                    # shorthand RFC-1918
+        "0xa9.0xfe.0xa9.0xfe": "169.254.169.254",  # hex cloud-metadata IP
+    }
+    monkeypatch.setattr(gate, "_resolve_host", lambda host: [mapping[host]])
+    for host in mapping:
+        assert gate._is_safe_public_url(f"http://{host}/") is False, host
+
+
+def test_ssrf_guard_rejects_public_hostname_pointing_internal(monkeypatch):
+    # WR-02 (DNS rebinding / public name → internal A record): a dotted public-looking hostname
+    # whose resolved address is loopback / RFC-1918 / link-local must be rejected.
+    monkeypatch.setattr(gate, "_resolve_host", lambda host: ["127.0.0.1"])
+    assert gate._is_safe_public_url("http://attacker-controlled.example.com/") is False
+    monkeypatch.setattr(gate, "_resolve_host", lambda host: ["10.5.5.5"])
+    assert gate._is_safe_public_url("http://rebind.example.org/x") is False
+    monkeypatch.setattr(gate, "_resolve_host", lambda host: ["169.254.169.254"])
+    assert gate._is_safe_public_url("http://metadata.example.net/latest/") is False
+
+
+def test_ssrf_guard_rejects_if_any_resolved_addr_is_internal(monkeypatch):
+    # Multi-homed: if ANY resolved address is internal the host is unsafe (a public answer must
+    # not launder an internal one).
+    monkeypatch.setattr(gate, "_resolve_host", lambda host: ["93.184.216.34", "10.0.0.9"])
+    assert gate._is_safe_public_url("http://multi.example.com/") is False
+
+
+def test_ssrf_guard_fail_closed_on_resolution_failure(monkeypatch):
+    # Fail-closed: an unresolvable host (OSError) routes to unsafe — never fetched (zero egress).
+    def _boom(host):
+        raise OSError("name resolution failed")
+    monkeypatch.setattr(gate, "_resolve_host", _boom)
+    assert gate._is_safe_public_url("http://nonexistent.invalid/") is False
+
+
+def test_ssrf_guard_url_layer_rejects_noncanonical_loopback_no_fetch(monkeypatch):
+    # End-to-end: a non-canonical loopback host in a draft URL routes to unverified=unsafe_host
+    # through run_deterministic_gate WITHOUT any fetch (T-28-04 zero egress).
+    url = "http://127.1/admin"
+    body = _md(f"see [internal]({url}) here.")
+    draft = _make_draft(content_markdown=body)
+    monkeypatch.setattr(gate, "_resolve_host", lambda host: ["127.0.0.1"])
+    client = _FakeHTTPClient({})  # nothing queued — any fetch would raise
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    assert any(u["kind"] == "url" and u["url"] == url and u["reason"] == "unsafe_host"
+               for u in flags["unverified"])
+    assert client.calls == []
 
 
 # ──────────────────────────────────────────────────────────────────────────────
