@@ -164,7 +164,20 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
   3. Mechanical checks fire: an H1/edition title echoed in the body is flagged (body must start at `## Read This, Skip the Rest`); leaked reading-mode labels are flagged; recycled closer lines and stats duplicated verbatim from the previous published edition are flagged.
   4. The gate verifies against the correct fact base — `blocks` for block_v1, `input_data` for single-pass — read in-memory at the two generation save points (reusing the existing dual-fact-base wiring), never a reconstructed/wrong fact base.
 
-**Plans**: TBD
+**Plans**: 3 plans (Wave 1 fabrication + fact-base core, Wave 2 network + SSRF, Wave 3 mechanical + integration — all autonomous, build-only / worktree-safe)
+
+**Wave 1**
+
+  - [ ] 28-01-PLAN.md — Module scaffold + flags-object contract + both-version orchestrator reusing `verify_draft`; arXiv-ID membership + entity-merge per-source verbatim refinement (GATE-01, GATE-04, GATE-05, GATE-08) [Wave 1, autonomous]
+
+**Wave 2** *(blocked on 28-01 — same module/test files)*
+
+  - [ ] 28-02-PLAN.md — Network liveness layer: SSRF guard + GitHub repo/star classifier + URL HEAD classifier + D-01 three-outcome / D-02 retry-once / D-03 dedup (GATE-02, GATE-03) [Wave 2, autonomous, depends 28-01]
+
+**Wave 3** *(blocked on 28-02 — same module/test files)*
+
+  - [ ] 28-03-PLAN.md — Mechanical checks (H1/title echo + reading-mode-label leak; recycled closer + duplicated stat vs prior edition, normalized-exact) + golden-draft integration suite + phase gate (GATE-06, GATE-07) [Wave 3, autonomous, depends 28-02]
+
 **Notes**: Newsletter service only; no LLM (Layer 1 is deterministic and short-circuits before any model call — the token-saving core of the design). Resolves the operator's "Phase D verified against the wrong fact base" warning (GATE-08): the gate must run inline at the two generation save points where `input_data`/`blocks_data` live (unrecoverable at publish time). Extends, not replaces, the existing `verify_draft` (Phase D). Known DB fixtures for the named-study check: edition 36 ("MCP authentication"), edition 34 ("GroupMemBench"). Run report-only this phase; the consequential hold action is wired in Phase 30.
 
 ### Phase 29: Layer 2 Judge + Feedback-Rewrite Loop
@@ -247,7 +260,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 25. Responsive & Accessibility Pass | v2.2 | 2/2 | Complete | 2026-06-19 |
 | 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete    | 2026-06-24 |
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
-| 28. Layer 1 Deterministic Gate | v2.3 | 0/TBD | Not started | - |
+| 28. Layer 1 Deterministic Gate | v2.3 | 0/3 | Not started | - |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/TBD | Not started | - |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
