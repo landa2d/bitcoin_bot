@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: executing
-stopped_at: Phase 27 complete (3/3 plans + verification passed; edition_evals table + governed edition_eval agent live, settled call proven). Next: Phase 28.
-last_updated: "2026-06-25T16:40:59.574Z"
+status: verifying
+stopped_at: Phase 28 context gathered
+last_updated: "2026-06-30T09:26:58.994Z"
 last_activity: 2026-06-25
 progress:
   total_phases: 6
@@ -140,9 +140,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-06-25T16:05:00.000Z
-Stopped at: Phase 27 Plan 02 complete (edition_eval.py persistence helper + fixture test)
-Resume file: .planning/phases/27-eval-persistence-governed-agent/27-03-PLAN.md
+Last session: 2026-06-30T09:26:58.988Z
+Stopped at: Phase 28 context gathered
+Resume file: .planning/phases/28-layer-1-deterministic-gate/28-CONTEXT.md
 Next: Execute Phase 27 Plan 03 (orchestrator/operator-owned, worktree-UNSAFE): mint the `edition_eval` key + bcrypt hash, substitute the REAL hash into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call as `edition_eval` (closes EVAL-01 live form / GOV-01 / GOV-02). With 27-03 done, do the phase-end requirement-closure pass for EVAL-02 (structural half shipped in 27-02; Telegram half remains Phase 30/31, D-10) + EVAL-03.
 
 ## Operator Next Steps
