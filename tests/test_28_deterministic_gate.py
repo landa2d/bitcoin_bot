@@ -186,5 +186,82 @@ def test_gate08_non_dict_factbase_fails_loud():
         gate.run_deterministic_gate(draft, None, None)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# GATE-04 / GATE-05 — named-study tier1, arXiv-ID membership, entity-merge per-source
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_study_groupmem_tier1_fabrication():
+    # ed-34 invented benchmark — caught by the reused verify_draft tier1 path.
+    body = _body("Researchers introduced **GroupMemBench**, a memory benchmark, this week.")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), None)
+    values = [f.get("value") for f in flags["fabrication"] if f["kind"] == "tier1_entity"]
+    assert "GroupMemBench" in values
+
+
+def test_study_mcp_auth_fabrication():
+    # ed-36 invented "MCP authentication" study — a multi-word tier1 fabrication.
+    body = _body("The **MCP Authentication Security Study** claims a breakthrough, with no source.")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, _block_fact_base(), None)
+    values = [f.get("value") for f in flags["fabrication"] if f["kind"] == "tier1_entity"]
+    assert "MCP Authentication Security Study" in values
+
+
+def test_arxiv_fake_id_fabrication():
+    # A fake arXiv ID absent from the fact-base source text → a kind=='arxiv' fabrication.
+    body = _body("A new method in arXiv 2605.99999 changes everything, allegedly.")
+    fb = _single_pass_fact_base(premium_source_posts=[
+        {"title": "Real work", "summary": "Discusses methods.", "source_display": "arXiv"},
+    ])
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, fb, None)
+    arxiv_flags = [f for f in flags["fabrication"] if f["kind"] == "arxiv"]
+    assert any(f["id"] == "2605.99999" and f["version"] == "technical" for f in arxiv_flags)
+
+
+def test_arxiv_real_id_clean():
+    # A real arXiv ID present verbatim in a source summary → NO arxiv fabrication flag.
+    body = _body("The paper arXiv 2605.12673 is discussed in depth here.")
+    fb = _single_pass_fact_base(premium_source_posts=[
+        {"title": "Paper roundup", "summary": "Covers arXiv 2605.12673 in detail.",
+         "source_display": "arXiv"},
+    ])
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, fb, None)
+    arxiv_flags = [f for f in flags["fabrication"] if f["kind"] == "arxiv"]
+    assert arxiv_flags == []
+
+
+def test_entity_merge_split_across_sources_fabrication():
+    # Source A names "Acme", source B names "widgets"; neither contains "Acme Widgets"
+    # verbatim → a kind=='entity_merge' fabrication (the fabricated cross-source merge).
+    body = _body("The new tool **Acme Widgets** launched to great fanfare this week.")
+    fb = _single_pass_fact_base(premium_source_posts=[
+        {"title": "Acme raises funding", "summary": "Acme is an organization doing things.",
+         "source_display": "HN"},
+        {"title": "Widgets are popular", "summary": "Many widgets shipped recently.",
+         "source_display": "HN"},
+    ])
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, fb, None)
+    merge_flags = [f for f in flags["fabrication"] if f["kind"] == "entity_merge"]
+    assert any(f["entity"] == "Acme Widgets" for f in merge_flags)
+
+
+def test_entity_merge_single_source_verbatim_clean():
+    # The composite appears verbatim within ONE source → NO entity_merge flag.
+    body = _body("The new tool **Acme Widgets** launched to great fanfare this week.")
+    fb = _single_pass_fact_base(premium_source_posts=[
+        {"title": "Acme Widgets launches", "summary": "Acme Widgets is a single product.",
+         "source_display": "HN"},
+    ])
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, fb, None)
+    merge_flags = [f for f in flags["fabrication"] if f["kind"] == "entity_merge"]
+    assert not any(f["entity"] == "Acme Widgets" for f in merge_flags)
+
+
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-v"]))
