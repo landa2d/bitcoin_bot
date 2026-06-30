@@ -474,5 +474,150 @@ def test_github_token_present_flag_and_never_leaked(caplog):
     assert secret not in caplog.text
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# GATE-03 — URL HEAD liveness, D-01 three outcomes, D-02 retry-once,
+# D-03 dedup, SSRF routing (unsafe host → unverified WITHOUT fetch).
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _md(line: str) -> str:
+    """A published-shaped body whose single paragraph carries a markdown link / bare URL."""
+    return _body(line)
+
+
+def test_url_dead_404_fabrication():
+    url = "https://dead.example.com/page"
+    body = _md(f"the documentation lives at [docs]({url}) for now.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({url: [(404, {})]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    dead = [f for f in flags["fabrication"] if f["kind"] == "dead_url"]
+    assert any(f["url"] == url and f["version"] == "technical" for f in dead)
+    assert flags["meta"]["urls_checked"] == 1
+
+
+def test_url_410_dead_fabrication():
+    url = "https://gone.example.com/old"
+    body = _md(f"reference: [archive]({url}).")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({url: [(410, {})]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    assert any(f["kind"] == "dead_url" and f["url"] == url for f in flags["fabrication"])
+
+
+def test_url_timeout_unverified_after_retry_once():
+    url = "https://slow.example.com/x"
+    body = _md(f"see [slow]({url}) here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({url: [httpx.TimeoutException("t")]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    unv = [u for u in flags["unverified"] if u["kind"] == "url"]
+    assert any(u["url"] == url and u["reason"] == "timeout" for u in unv)
+    assert not any(f["kind"] == "dead_url" for f in flags["fabrication"])
+    assert len(client.calls) == 2  # D-02: retry-once on transient
+
+
+def test_url_conn_refused_unverified():
+    url = "https://refused.example.com/x"
+    body = _md(f"see [r]({url}) here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({url: [httpx.ConnectError("refused")]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    unv = [u for u in flags["unverified"] if u["kind"] == "url"]
+    assert any(u["url"] == url and u["reason"] == "conn_refused" for u in unv)
+    assert len(client.calls) == 2
+
+
+def test_url_5xx_unverified():
+    url = "https://err.example.com/x"
+    body = _md(f"see [e]({url}) here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({url: [(503, {})]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    unv = [u for u in flags["unverified"] if u["kind"] == "url"]
+    assert any(u["url"] == url and u["reason"] == "server_error_5xx" for u in unv)
+    assert len(client.calls) == 2  # retry-once on transient 5xx
+
+
+def test_url_403_unverified_not_fabrication():
+    # "An error is not evidence" (D-01): an auth/rate wall is unverified, never fabricated.
+    url = "https://wall.example.com/x"
+    body = _md(f"see [w]({url}) here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({url: [(403, {})]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    assert not any(f["kind"] == "dead_url" for f in flags["fabrication"])
+    unv = [u for u in flags["unverified"] if u["kind"] == "url"]
+    assert any(u["url"] == url and u["reason"] == "http_403" for u in unv)
+    assert len(client.calls) == 1  # a 4xx wall is not transient — not retried
+
+
+def test_url_unsafe_internal_host_no_fetch():
+    # SSRF: an internal-service host is routed to unverified WITHOUT any request (T-28-04).
+    url = "http://llm-proxy:8200/admin"
+    body = _md(f"see [internal]({url}) here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({})  # nothing queued — a fetch would raise
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    unv = [u for u in flags["unverified"] if u["kind"] == "url"]
+    assert any(u["url"] == url and u["reason"] == "unsafe_host" for u in unv)
+    assert client.calls == []  # ZERO egress — the guard short-circuits before any fetch
+
+
+def test_url_unsafe_metadata_ip_no_fetch():
+    url = "http://169.254.169.254/latest/meta-data/"
+    body = _md(f"see [meta]({url}) here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    assert any(u["kind"] == "url" and u["reason"] == "unsafe_host" for u in flags["unverified"])
+    assert client.calls == []
+
+
+def test_url_200_clean():
+    url = "https://live.example.com/ok"
+    body = _md(f"see [live]({url}) here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({url: [(200, {})]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    assert not any(f["kind"] == "dead_url" for f in flags["fabrication"])
+    assert not any(u["kind"] == "url" for u in flags["unverified"])
+    assert flags["meta"]["urls_checked"] == 1
+
+
+def test_url_dedup_single_head_call():
+    url = "https://dup.example.com/x"
+    body = _md(f"first [a]({url}) and again [b]({url}).")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({url: [(200, {})]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    # D-03: a duplicate URL is HEAD-checked exactly once.
+    assert client.calls == [url]
+    assert flags["meta"]["urls_checked"] == 1
+
+
+def test_url_github_excluded_from_head():
+    # github.com/owner/repo URLs are handled by the GitHub API layer — NOT double-HEAD-checked.
+    gh_url = "https://github.com/acme/tool"
+    body = _md(f"the repo is at [repo]({gh_url}).")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({_GH_API.format("acme", "tool"): [(200, {"stargazers_count": 100})]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("acme/tool"), None, http_client=client)
+    # Only the GitHub API GET happened; the URL HEAD layer skipped the github.com link.
+    assert client.calls == [_GH_API.format("acme", "tool")]
+    assert flags["meta"]["urls_checked"] == 0
+    assert flags["meta"]["github_checked"] == 1
+
+
+def test_url_response_body_never_in_flags():
+    # T-28-08: only the status code drives the outcome; a response body is never stored.
+    url = "https://dead.example.com/x"
+    body = _md(f"see [d]({url}) here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({url: [(404, {"secret_body": "SHOULD_NEVER_APPEAR"})]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    assert "SHOULD_NEVER_APPEAR" not in json.dumps(flags)
+
+
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-v"]))
