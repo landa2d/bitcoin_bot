@@ -264,6 +264,15 @@ def test_gate08_non_dict_factbase_fails_loud():
         gate.run_deterministic_gate(draft, None, None)
 
 
+def test_gate_non_dict_draft_fails_loud():
+    # WR-04: `draft` must be validated symmetrically with `fact_base` — a None/non-dict draft
+    # raises a clear ValueError, not a bare AttributeError deep in the body.
+    with pytest.raises(ValueError):
+        gate.run_deterministic_gate(None, _block_fact_base(), None)
+    with pytest.raises(ValueError):
+        gate.run_deterministic_gate("not a draft", _block_fact_base(), None)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # GATE-04 / GATE-05 — named-study tier1, arXiv-ID membership, entity-merge per-source
 # ──────────────────────────────────────────────────────────────────────────────

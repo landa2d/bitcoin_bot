@@ -126,8 +126,14 @@ def run_deterministic_gate(
         {fabrication: [...], unverified: [...], mechanical: [...], meta: {...}} — matching
         migration 045 deterministic_flags JSONB plus the first-class `unverified` key (D-01).
     """
-    # Fail loud (carry-forward 27-CONTEXT "an error is not evidence"): a wrong/missing fact base
-    # must surface, never silently verify against an empty/other base (T-28-03 / Pitfall 3).
+    # Fail loud (carry-forward 27-CONTEXT "an error is not evidence"): a wrong/missing draft or
+    # fact base must surface as a clear contract-level error, never a bare AttributeError deep in
+    # the body (WR-04) and never a silent verify against an empty/other base (T-28-03 / Pitfall 3).
+    if not isinstance(draft, dict):
+        raise ValueError(
+            "run_deterministic_gate: draft must be a dict, got "
+            f"{type(draft).__name__} — refusing to verify a wrong/missing draft"
+        )
     if not isinstance(fact_base, dict):
         raise ValueError(
             "run_deterministic_gate: fact_base must be a dict, got "
