@@ -428,17 +428,19 @@ Not applicable — Phase 28 is a greenfield additive module (build-only, D-05). 
 
 **These are the only items needing confirmation.** All structural facts (engine semantics, fact-base shapes, body marker, save points) are VERIFIED from code with line citations above.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **GATE-06 reading-mode-label blacklist membership (A1).**
+> Both items are dispositioned for Phase 28 — neither blocks planning or execution. Each carries a forward action for Phase 30 report-only calibration. The plans act on both dispositions (28-01 ships `READING_MODE_LABELS` as a tunable constant; D-05 emit-only is upheld — no verdict computed).
+
+1. **GATE-06 reading-mode-label blacklist membership (A1). — RESOLVED (Phase 28 disposition; operator confirms exact membership in Phase 30).**
    - What we know: code-derived candidates are `AUDIENCE:`, `BUILDER MODE`, `IMPACT MODE`, `Technical`/`Strategic` toggle labels; CONTEXT's "...READING MODE" strings are illustrative.
    - What's unclear: which exact strings the operator wants flagged as a body leak.
-   - Recommendation: ship the seeded list as a tunable module constant; confirm/adjust during Phase 30 report-only calibration. Not a Phase 28 blocker.
+   - **RESOLVED:** ship the seeded list as a tunable module constant (`READING_MODE_LABELS`); confirm/adjust during Phase 30 report-only calibration. **Not a Phase 28 blocker.**
 
-2. **Deterministic verdict for clean+unverified (A2).**
+2. **Deterministic verdict for clean+unverified (A2). — RESOLVED (Phase 28 emits-only; Phase 30 decides the mapping).**
    - What we know: D-01 says `unverified` must be visible and never a silent pass; the verdict taxonomy has only `passed/held_fabrication/held_voice/escalated`.
    - What's unclear: whether a no-fabrication-but-has-unverified edition maps to `passed` (with `unverified` surfaced) or to `escalated`.
-   - Recommendation: Phase 28 emits the `unverified` list and does NOT compute the verdict (emit-only, D-05). Phase 30 decides the mapping. Make `unverified` first-class so either choice is supported.
+   - **RESOLVED:** Phase 28 emits the `unverified` list and does NOT compute the verdict (emit-only, D-05). Phase 30 decides the mapping. `unverified` is first-class on the flags object so either choice is supported.
 
 ## Environment Availability
 
