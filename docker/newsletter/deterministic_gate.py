@@ -30,8 +30,10 @@ and the empty `unverified` / `mechanical` lists are already part of the stable c
 
 import os
 import re
+import ipaddress
 import logging
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -60,6 +62,21 @@ READING_MODE_LABELS = [
 # catastrophic backtracking (T-28-01 ReDoS mitigation).
 _GITHUB_URL = re.compile(r'github\.com/([A-Za-z0-9._-]+)/([A-Za-z0-9._-]+)', re.IGNORECASE)
 _MD_LINK = re.compile(r'\[([^\]]+)\]\((https?://[^)\s]+)\)')
+# Bare http(s) URLs (the URL HEAD layer, Plan 02 Task 2). Bounded char-class only (no nested
+# quantifiers — T-28-01 ReDoS mitigation); stops at whitespace and common closers.
+_BARE_URL = re.compile(r'https?://[^\s)>\]]+')
+# An asserted star count adjacent to a repo ref (GATE-02 star-drift). Bounded — `[\d,]+` then a
+# non-overlapping optional decimal, an optional k/m magnitude, then the literal unit word.
+_STAR_ASSERTION = re.compile(r'([\d,]+(?:\.\d+)?)\s*([kKmM]?)\s*(?:stars|stargazers)', re.IGNORECASE)
+
+# SSRF denylist (T-28-04): the compose internal-service names + localhost. A draft-supplied URL
+# whose host is any of these (or a literal private/loopback/link-local IP, or a `*.internal`
+# host) is routed to `unverified` (reason=unsafe_host) and is NEVER fetched.
+_INTERNAL_SERVICE_HOSTS = {
+    "llm-proxy", "supabase", "gato_brain", "gato-brain", "processor",
+    "analyst", "research", "newsletter", "web", "lab-data-provider",
+    "localhost",
+}
 
 
 def run_deterministic_gate(
@@ -83,10 +100,12 @@ def run_deterministic_gate(
         prior_edition: the FULL previous-published edition body (+ _impact) or None. Unused this
             plan (the recycled-closer / duplicated-stat checks are Plan 03); part of the
             interface-first contract.
-        http_client: injectable httpx client (tests inject a fake). Unused this plan — the
-            network layer (GATE-02/03) is Plan 02.
-        github_token: GitHub token override; defaults to os.getenv('GITHUB_TOKEN'). Unused this
-            plan; Plan 02 uses it.
+        http_client: injectable httpx client (tests inject a fake). When provided, the network
+            layer (GATE-02 GitHub + GATE-03 URL HEAD) runs against it; when None, NO network
+            check runs (zero egress) and the network counters stay 0. A default client is
+            deliberately NOT constructed for None — Phase 30 injects a real httpx.Client.
+        github_token: GitHub token override; defaults to os.getenv('GITHUB_TOKEN'). Sent only to
+            api.github.com over HTTPS; never logged, never placed in the flags object (T-28-05).
 
     Returns:
         {fabrication: [...], unverified: [...], mechanical: [...], meta: {...}} — matching
@@ -137,16 +156,39 @@ def run_deterministic_gate(
         fabrication.extend(_check_arxiv_membership(body, source_texts, label))
         fabrication.extend(_check_entity_merge(body, source_texts, label))
 
+    # ── Network-liveness layer (GATE-02/03, D-01/D-02/D-03) ──────────────────────────────────
+    # Runs ONLY when an http_client is injected. We deliberately do NOT construct a default
+    # client when http_client is None: that preserves the Plan-01 contract (http_client=None →
+    # zero egress, github/urls_checked==0) and guarantees the test suite never touches the
+    # network. The Phase 30 live caller injects a real httpx.Client(timeout=5).
+    unverified: list[dict[str, Any]] = []
+    github_checked = 0
+    urls_checked = 0
+    if http_client is not None:
+        # Token read from param/env ONLY; sent only to api.github.com over HTTPS; never logged,
+        # never placed in the flags object (T-28-05). The per-run dedup cache (D-03) is shared
+        # across the GitHub and URL layers (distinct ("gh",..) / ("url",..) key prefixes).
+        effective_token = github_token or os.getenv("GITHUB_TOKEN")
+        cache: dict[tuple, Any] = {}
+        gh_fab, gh_unv, github_checked = _run_github_layer(
+            versions, client=http_client, token=effective_token, cache=cache
+        )
+        fabrication.extend(gh_fab)
+        unverified.extend(gh_unv)
+        # The URL HEAD layer (GATE-03) is wired here by Plan 02 Task 2 — it reuses the same
+        # `cache` (D-03) and populates `urls_checked`.
+
     return {
         "fabrication": fabrication,
-        # Network (Plan 02) populates `unverified`; mechanical (Plan 03) populates `mechanical`.
-        # They stay empty here — and `unverified` is NEVER folded into fabrication/pass (D-01).
-        "unverified": [],
+        # `unverified` is a first-class top-level key (D-01) — a transient/quota network failure
+        # is a visible "could not verify" state, NEVER folded into fabrication and NEVER a pass.
+        "unverified": unverified,
+        # Mechanical (Plan 03) populates `mechanical`.
         "mechanical": [],
         "meta": {
             "fact_base_path": fact_base_path,
-            "github_checked": 0,
-            "urls_checked": 0,
+            "github_checked": github_checked,
+            "urls_checked": urls_checked,
             "github_token_present": bool(github_token or os.getenv("GITHUB_TOKEN")),
             "tier1_count": tier1_count,
         },
@@ -264,3 +306,197 @@ def _check_entity_merge(body: str, source_texts: list[str], version: str) -> lis
                 "version": version,
             })
     return flags
+
+
+# ── Network-liveness layer (GATE-02/03, D-01/D-02/D-03) + SSRF guard ─────────────────────────
+# This is the security-critical surface: URLs and owner/repo refs are extracted from untrusted
+# LLM-generated draft text and used to issue outbound requests. Every check is bounded
+# (5s timeout, per-run dedup, sequential), routed through the injected `http_client` seam (no
+# real egress in tests), and gated by the SSRF allowlist for the URL HEAD layer.
+
+
+def _is_safe_public_url(url: str) -> bool:
+    """SSRF guard (ASVS L1, T-28-04). Return True ONLY for an http(s) URL whose host is a
+    public, non-internal destination. Reject:
+      - non-http(s) schemes (file:, gopher:, data:, ...),
+      - the compose internal-service denylist + `localhost`,
+      - any `*.internal` host,
+      - literal loopback / RFC-1918 private / link-local (incl. 169.254.169.254 metadata) /
+        unique-local / reserved / unspecified / multicast IPs (IPv4 + IPv6),
+      - bare single-label hostnames (no dot — treated as internal Docker DNS).
+    Used to gate the URL HEAD layer: a rejected URL is routed to `unverified`
+    (reason=unsafe_host) and is NEVER fetched (T-28-04 zero-egress guarantee).
+    """
+    try:
+        parsed = urlparse(url)
+    except (ValueError, TypeError):
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    try:
+        host = (parsed.hostname or "").strip().lower()
+    except ValueError:
+        return False
+    if not host:
+        return False
+    # Internal-service denylist (compose service names) + localhost.
+    if host in _INTERNAL_SERVICE_HOSTS:
+        return False
+    # `*.internal` (and a bare `internal`) — Docker/k8s internal DNS suffix.
+    if host == "internal" or host.endswith(".internal"):
+        return False
+    # Literal IP host → reject any non-public range.
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        ip = None
+    if ip is not None:
+        if (ip.is_loopback or ip.is_private or ip.is_link_local
+                or ip.is_reserved or ip.is_unspecified or ip.is_multicast):
+            return False
+        return True
+    # Hostname (not a literal IP): a bare single-label name (no dot) is an internal Docker
+    # service alias — reject. A dotted public name is allowed.
+    if "." not in host:
+        return False
+    return True
+
+
+def _classify_github(
+    owner: str, repo: str, *, client: httpx.Client, token: str | None
+) -> tuple[str, int | None, str | None]:
+    """Map a GitHub `/repos/{owner}/{repo}` result into the locked three-outcome taxonomy
+    (D-01) with retry-once-on-transient (D-02). Returns (outcome, stars, reason):
+      - ("fabricated", None, None)   → HTTP 404 (NEVER retried — D-02).
+      - ("verified", stars, None)    → HTTP 200 (stars = stargazers_count or None).
+      - ("unverified", None, reason) → 403/429 quota (reason=rate_limit_403, NOT retried),
+                                        >=500 (server_error_5xx, retried once),
+                                        timeout (retried once), conn_refused (retried once),
+                                        other 4xx (http_<code>).
+    Headers/token convention copied verbatim from processor:1134-1136. The token is sent ONLY
+    to api.github.com over HTTPS and is NEVER logged or returned (T-28-05).
+    """
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if token:
+        headers["Authorization"] = f"token {token}"
+    url = f"https://api.github.com/repos/{owner}/{repo}"
+    for attempt in (1, 2):  # D-02: at most one retry, on transient failures ONLY
+        try:
+            resp = client.get(url, headers=headers, timeout=5)
+        except httpx.TimeoutException:
+            if attempt == 1:
+                continue
+            return ("unverified", None, "timeout")
+        except httpx.ConnectError:
+            if attempt == 1:
+                continue
+            return ("unverified", None, "conn_refused")
+        code = resp.status_code
+        if code == 404:
+            return ("fabricated", None, None)            # D-02: definitive — NEVER retried
+        if code in (403, 429):
+            return ("unverified", None, "rate_limit_403")  # quota is not transient — no retry
+        if code >= 500:
+            if attempt == 1:
+                continue                                  # D-02: retry once on transient 5xx
+            return ("unverified", None, "server_error_5xx")
+        if code == 200:
+            try:
+                stars = resp.json().get("stargazers_count")
+            except (ValueError, AttributeError):
+                stars = None
+            return ("verified", stars, None)
+        return ("unverified", None, f"http_{code}")       # other 4xx/3xx → not evidence
+    return ("unverified", None, "unknown")  # pragma: no cover — loop always returns above
+
+
+def _iter_github_refs(body: str) -> list[tuple[str, str]]:
+    """Unique (owner, repo) tuples from a body via `_GITHUB_URL` (a trailing `.git` is
+    stripped). Deduplicated within the body so each repo flags at most once per version."""
+    refs: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for match in _GITHUB_URL.finditer(body):
+        owner = match.group(1)
+        repo = match.group(2)
+        # The repo char-class includes `.`, so a trailing sentence period
+        # ("github.com/acme/tool.") is over-captured — strip it (a real GitHub repo name
+        # never ends with a dot). Then strip a trailing `.git`.
+        repo = repo.rstrip(".")
+        if repo.lower().endswith(".git"):
+            repo = repo[:-4]
+        if not repo:
+            continue
+        key = (owner.lower(), repo.lower())
+        if key not in seen:
+            seen.add(key)
+            refs.append((owner, repo))
+    return refs
+
+
+def _parse_star_count(text: str) -> int | None:
+    """Parse an asserted star count adjacent to a repo ref ("50000 stars", "12,500 stars",
+    "2k stars", "1.5k stargazers"). Returns the integer count, or None if none asserted."""
+    match = _STAR_ASSERTION.search(text)
+    if not match:
+        return None
+    num_str = match.group(1).replace(",", "")
+    try:
+        value = float(num_str)
+    except ValueError:
+        return None
+    suffix = match.group(2).lower()
+    if suffix == "k":
+        value *= 1_000
+    elif suffix == "m":
+        value *= 1_000_000
+    return int(value)
+
+
+def _asserted_star_count_for_ref(body: str, owner: str, repo: str) -> int | None:
+    """The star count asserted on the same line as a `github.com/owner/repo` ref, or None.
+    Line-scoped adjacency (per CONTEXT "same line/sentence") avoids cross-paragraph mismatch."""
+    needle = f"github.com/{owner}/{repo}".lower()
+    for line in body.splitlines():
+        if needle in line.lower():
+            count = _parse_star_count(line)
+            if count is not None:
+                return count
+    return None
+
+
+def _run_github_layer(
+    versions: list[tuple[str, str, str]], *, client: httpx.Client, token: str | None,
+    cache: dict[tuple, Any],
+) -> tuple[list[dict], list[dict], int]:
+    """GATE-02: classify every unique owner/repo ref across both versions into the D-01 taxonomy
+    (dedup via the shared per-run `cache`, D-03), and flag >20% star drift on verified repos.
+    Returns (fabrication_entries, unverified_entries, unique_repos_checked)."""
+    fabrication: list[dict] = []
+    unverified: list[dict] = []
+    checked: set[tuple[str, str]] = set()
+    for label, body, _title in versions:
+        if not body.strip():
+            continue
+        for owner, repo in _iter_github_refs(body):
+            cache_key = ("gh", owner.lower(), repo.lower())
+            if cache_key not in cache:
+                cache[cache_key] = _classify_github(owner, repo, client=client, token=token)
+                checked.add((owner.lower(), repo.lower()))
+            outcome, stars, reason = cache[cache_key]
+            ref_str = f"{owner}/{repo}"
+            if outcome == "fabricated":
+                fabrication.append({
+                    "kind": "github_repo", "ref": ref_str,
+                    "version": label, "detail": "GitHub 404",
+                })
+            elif outcome == "unverified":
+                unverified.append({"kind": "github_repo", "ref": ref_str, "reason": reason})
+            elif outcome == "verified":
+                asserted = _asserted_star_count_for_ref(body, owner, repo)
+                if asserted is not None and stars is not None:
+                    if abs(asserted - stars) / max(stars, 1) > 0.20:
+                        fabrication.append({
+                            "kind": "github_stars", "ref": ref_str, "version": label,
+                            "detail": f"asserted {asserted} vs live {stars} (>20% drift)",
+                        })
+    return fabrication, unverified, len(checked)
