@@ -460,7 +460,7 @@ def _classify_github(
     for attempt in (1, 2):  # D-02: at most one retry, on transient failures ONLY
         try:
             resp = client.get(url, headers=headers, timeout=5)
-        except httpx.TimeoutException:
+        except httpx.TimeoutException:  # incl. PoolTimeout — transient
             if attempt == 1:
                 continue
             return ("unverified", None, "timeout")
@@ -468,6 +468,18 @@ def _classify_github(
             if attempt == 1:
                 continue
             return ("unverified", None, "conn_refused")
+        except httpx.TooManyRedirects:
+            return ("unverified", None, "too_many_redirects")  # not transient — NOT retried
+        except httpx.HTTPError:
+            # CR-02: the broad transport/protocol family (ReadError, WriteError,
+            # RemoteProtocolError, ProxyError, DecodingError, ...) are SIBLINGS of the two
+            # specific catches above, not subclasses — uncaught they propagate out of the gate
+            # and discard every already-computed fabrication/mechanical flag. Catch the base so a
+            # network failure becomes a visible `unverified` ("an error is not evidence"), NEVER a
+            # crash and NEVER a silent pass. Retry once like the other transient failures.
+            if attempt == 1:
+                continue
+            return ("unverified", None, "network_error")
         code = resp.status_code
         if code == 404:
             return ("fabricated", None, None)            # D-02: definitive — NEVER retried
@@ -627,7 +639,7 @@ def _classify_url(url: str, *, client: httpx.Client) -> tuple[str, str]:
     for attempt in (1, 2):  # D-02: at most one retry, on transient failures ONLY
         try:
             resp = client.head(url, timeout=5, follow_redirects=True)
-        except httpx.TimeoutException:
+        except httpx.TimeoutException:  # incl. PoolTimeout — transient
             if attempt == 1:
                 continue
             return ("unverified", "timeout")
@@ -635,6 +647,18 @@ def _classify_url(url: str, *, client: httpx.Client) -> tuple[str, str]:
             if attempt == 1:
                 continue
             return ("unverified", "conn_refused")
+        except httpx.TooManyRedirects:
+            # follow_redirects=True makes this a realistic outcome for parked/dead domains; a
+            # redirect loop is not transient — settle on unverified WITHOUT a retry.
+            return ("unverified", "too_many_redirects")
+        except httpx.HTTPError:
+            # CR-02: broad transport/protocol catch-all (ReadError, RemoteProtocolError,
+            # ProxyError, DecodingError, WriteError, ...). HEAD-probing dead/flaky/untrusted URLs
+            # is exactly the population that raises these — never let one crash the gate and throw
+            # away the flags already computed; never collapse into a pass. Retry once.
+            if attempt == 1:
+                continue
+            return ("unverified", "network_error")
         code = resp.status_code
         if code in (404, 410):
             return ("fabricated", f"http_{code}")        # D-02: definitive — NEVER retried

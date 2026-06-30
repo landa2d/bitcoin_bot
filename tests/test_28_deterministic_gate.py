@@ -1002,5 +1002,73 @@ def test_golden_flags_object_is_json_serializable():
     assert set(dumped.keys()) == {"fabrication", "unverified", "mechanical", "meta"}
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# CR-02 — broad httpx transport/protocol errors must yield `unverified`, NEVER crash
+# the gate (which would discard every already-computed flag) and NEVER collapse into a
+# pass. ReadError/RemoteProtocolError/ProxyError/DecodingError are siblings of
+# Timeout/Connect (not subclasses); TooManyRedirects is realistic with follow_redirects.
+# Every case must still return the full {fabrication, unverified, mechanical, meta} dict.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+_TRANSPORT_ERRORS = [
+    (httpx.ReadError("connection reset mid-read"), "network_error", 2),
+    (httpx.RemoteProtocolError("server disconnected"), "network_error", 2),
+    (httpx.ProxyError("bad proxy"), "network_error", 2),
+    (httpx.DecodingError("bad content-encoding"), "network_error", 2),
+    (httpx.WriteError("write failed"), "network_error", 2),
+    (httpx.TooManyRedirects("redirect loop"), "too_many_redirects", 1),  # not transient → no retry
+]
+
+
+@pytest.mark.parametrize("exc,expected_reason,expected_calls", _TRANSPORT_ERRORS)
+def test_url_transport_error_unverified_full_dict(exc, expected_reason, expected_calls):
+    url = "https://transport-fail.example.com/x"
+    body = _md(f"see [x]({url}) here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({url: [exc]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    # The gate never crashed — the full four-key dict is still returned.
+    assert set(flags.keys()) == {"fabrication", "unverified", "mechanical", "meta"}
+    unv = [u for u in flags["unverified"] if u["kind"] == "url"]
+    assert any(u["url"] == url and u["reason"] == expected_reason for u in unv)
+    # An error is NEVER a fabrication ("an error is not evidence").
+    assert not any(f["kind"] == "dead_url" for f in flags["fabrication"])
+    assert len(client.calls) == expected_calls
+
+
+@pytest.mark.parametrize("exc,expected_reason,expected_calls", _TRANSPORT_ERRORS)
+def test_github_transport_error_unverified_full_dict(exc, expected_reason, expected_calls):
+    body = _gh_body("repo at github.com/acme/tool here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({_GH_API.format("acme", "tool"): [exc]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("acme/tool"), None, http_client=client)
+    assert set(flags.keys()) == {"fabrication", "unverified", "mechanical", "meta"}
+    unv = [u for u in flags["unverified"] if u["kind"] == "github_repo"]
+    assert any(u["ref"] == "acme/tool" and u["reason"] == expected_reason for u in unv)
+    assert not any(f["kind"] == "github_repo" for f in flags["fabrication"])
+    assert len(client.calls) == expected_calls
+
+
+def test_transport_error_preserves_other_flags():
+    # A single malformed/dead URL that raises a transport error must NOT abort the gate: the
+    # tier1 study fabrication and the mechanical label leak computed for the same draft survive.
+    url = "https://transport-fail.example.com/x"
+    body = _body(
+        "AUDIENCE: Technical builders.\n\n"
+        f"Researchers introduced **GroupMemBench**, a memory benchmark. Mirror at {url}."
+    )
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    client = _FakeHTTPClient({url: [httpx.ReadError("reset")]})
+    flags = gate.run_deterministic_gate(draft, _single_pass_fact_base(), None, http_client=client)
+    # the transport error surfaced as unverified ...
+    assert any(u["kind"] == "url" and u["reason"] == "network_error" for u in flags["unverified"])
+    # ... and the other layers' flags were preserved (gate did not crash before building them).
+    assert "GroupMemBench" in {f.get("value") for f in flags["fabrication"]
+                               if f["kind"] == "tier1_entity"}
+    assert any(m["kind"] == "reading_mode_leak" and m["label"] == "AUDIENCE:"
+               for m in flags["mechanical"])
+
+
 if __name__ == "__main__":  # pragma: no cover
     sys.exit(pytest.main([__file__, "-v"]))
