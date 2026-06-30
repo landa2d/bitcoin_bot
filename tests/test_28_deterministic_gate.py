@@ -23,10 +23,12 @@ parameter, so a plain sys.path insert makes both the gate and its engine importa
 conftest preload required. NO network: every assertion runs with `http_client=None` against
 in-memory fixture dicts — never the live DB, never GitHub, never the network.
 """
+import json
 import logging
 import sys
 from pathlib import Path
 
+import httpx
 import pytest
 
 # Put docker/newsletter on sys.path and import the REAL production module. The gate's bare
@@ -95,6 +97,69 @@ def _clean_body() -> str:
 def _body_with_study(name: str) -> str:
     """A body naming an invented multi-word benchmark (→ a tier1 fabrication when ungrounded)."""
     return _body(f"The newly released **{name} Benchmark Suite** reportedly outperforms the rest.")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Fake injectable httpx client double (Plan 02) — mirrors the test_26/test_27
+# in-memory-stub-with-call-counter pattern (PATTERNS §"In-memory stub double").
+# Maps each URL → a FIFO queue of outcomes; an outcome is either a
+# (status_code, json_dict) tuple OR an Exception instance to raise. `.calls`
+# records every requested URL so a test can assert D-02 retry-once and D-03 dedup.
+# Injected via the gate's `http_client` param — NEVER monkeypatches the real
+# network, so the suite has ZERO live egress (T-28-04/T-28-06 / verification gate).
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class _FakeResponse:
+    def __init__(self, status_code, json_data=None):
+        self.status_code = status_code
+        self._json = json_data if json_data is not None else {}
+
+    def json(self):
+        return self._json
+
+
+class _FakeHTTPClient:
+    """A dict of {url: [outcome, ...]}. An outcome is (status_code, json) or an Exception.
+    FIFO with last-element-sticky semantics (a single queued outcome is reused for every
+    call to that URL — so a 5xx queued once is returned on both retry attempts)."""
+
+    def __init__(self, responses=None):
+        self._responses = {k: list(v) for k, v in (responses or {}).items()}
+        self.calls = []          # every requested URL, in order (get + head)
+
+    def _next(self, url):
+        self.calls.append(url)
+        queue = self._responses.get(url)
+        if not queue:
+            raise AssertionError(f"_FakeHTTPClient: no queued response for {url!r}")
+        outcome = queue.pop(0) if len(queue) > 1 else queue[0]
+        if isinstance(outcome, Exception):
+            raise outcome
+        code, json_data = outcome
+        return _FakeResponse(code, json_data)
+
+    def get(self, url, *, headers=None, timeout=None, **kwargs):
+        return self._next(url)
+
+    def head(self, url, *, timeout=None, follow_redirects=None, **kwargs):
+        return self._next(url)
+
+
+def _gh_body(line: str) -> str:
+    """A published-shaped body whose single paragraph carries a github.com ref."""
+    return _body(line)
+
+
+def _gh_fact_base(*refs):
+    """A single-pass fact base that grounds each owner/repo verbatim (so the entity-merge
+    refinement stays quiet and only the network layer drives the github_* assertions)."""
+    posts = [{"title": r, "summary": f"the project {r} is real and grounded in source.",
+              "source_display": "HN"} for r in refs]
+    return _single_pass_fact_base(premium_source_posts=posts)
+
+
+_GH_API = "https://api.github.com/repos/{}/{}"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -261,6 +326,152 @@ def test_entity_merge_single_source_verbatim_clean():
     flags = gate.run_deterministic_gate(draft, fb, None)
     merge_flags = [f for f in flags["fabrication"] if f["kind"] == "entity_merge"]
     assert not any(f["entity"] == "Acme Widgets" for f in merge_flags)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Plan 02 — SSRF guard (_is_safe_public_url): the URL HEAD layer (Task 2) gate.
+# Built in Task 1 so the fixtures are shared. ASVS L1 (T-28-04).
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_ssrf_guard_rejects_internal_and_private():
+    # Loopback, internal-service denylist, link-local metadata IP, non-http(s) scheme,
+    # RFC-1918 private ranges, bare service names, and *.internal must all be rejected.
+    assert gate._is_safe_public_url("http://127.0.0.1/x") is False
+    assert gate._is_safe_public_url("http://llm-proxy:8200") is False
+    assert gate._is_safe_public_url("http://169.254.169.254/") is False
+    assert gate._is_safe_public_url("file:///etc/passwd") is False
+    assert gate._is_safe_public_url("http://10.0.0.5/admin") is False
+    assert gate._is_safe_public_url("http://172.16.4.4/") is False
+    assert gate._is_safe_public_url("http://192.168.1.1/") is False
+    assert gate._is_safe_public_url("http://supabase/rest/v1") is False
+    assert gate._is_safe_public_url("http://gato_brain:8100/x") is False
+    assert gate._is_safe_public_url("http://service.internal/x") is False
+    assert gate._is_safe_public_url("http://[::1]/x") is False
+    assert gate._is_safe_public_url("not-a-url") is False
+
+
+def test_ssrf_guard_allows_public_https():
+    assert gate._is_safe_public_url("https://github.com/a/b") is True
+    assert gate._is_safe_public_url("https://example.com/path") is True
+    assert gate._is_safe_public_url("http://docs.python.org/3/") is True
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# GATE-02 — GitHub repo existence + star-drift, D-01 three outcomes,
+# D-02 retry-once (404 NEVER retried), D-03 per-run dedup, token hygiene.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def test_github_404_fabrication_and_no_retry():
+    body = _gh_body("the project lives at github.com/ghost/missing for reference.")
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    client = _FakeHTTPClient({_GH_API.format("ghost", "missing"): [(404, {})]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("ghost/missing"), None,
+                                        http_client=client)
+    gh = [f for f in flags["fabrication"] if f["kind"] == "github_repo"]
+    assert any(f["ref"] == "ghost/missing" and f["version"] == "technical" for f in gh)
+    # D-02: a definitive 404 is NEVER retried — exactly one call.
+    assert client.calls == [_GH_API.format("ghost", "missing")]
+    # D-01: a 404 is a fabrication, NEVER an unverified entry.
+    assert not any(u["kind"] == "github_repo" for u in flags["unverified"])
+    assert flags["meta"]["github_checked"] == 1
+
+
+def test_github_403_unverified_not_fabrication():
+    body = _gh_body("see github.com/acme/tool for the code.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({_GH_API.format("acme", "tool"): [(403, {})]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("acme/tool"), None,
+                                        http_client=client)
+    # D-01: a 403 quota wall is UNVERIFIED, never a fabrication flag.
+    assert not any(f["kind"] == "github_repo" for f in flags["fabrication"])
+    unv = [u for u in flags["unverified"] if u["kind"] == "github_repo"]
+    assert any(u["ref"] == "acme/tool" and u["reason"] == "rate_limit_403" for u in unv)
+    # D-02: quota is not transient — not retried.
+    assert len(client.calls) == 1
+
+
+def test_github_5xx_unverified_after_retry_once():
+    body = _gh_body("repo at github.com/acme/tool here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({_GH_API.format("acme", "tool"): [(500, {})]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("acme/tool"), None,
+                                        http_client=client)
+    unv = [u for u in flags["unverified"] if u["kind"] == "github_repo"]
+    assert any(u["reason"] == "server_error_5xx" for u in unv)
+    assert not any(f["kind"] == "github_repo" for f in flags["fabrication"])
+    # D-02: a transient 5xx is retried exactly once → exactly two calls.
+    assert len(client.calls) == 2
+
+
+def test_github_timeout_unverified_after_retry_once():
+    body = _gh_body("repo at github.com/acme/tool here.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({_GH_API.format("acme", "tool"): [httpx.TimeoutException("t")]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("acme/tool"), None,
+                                        http_client=client)
+    unv = [u for u in flags["unverified"] if u["kind"] == "github_repo"]
+    assert any(u["reason"] == "timeout" for u in unv)
+    assert len(client.calls) == 2  # retry-once on transient
+
+
+def test_github_stars_drift_fabrication():
+    body = _gh_body("the popular repo github.com/acme/tool boasts 50000 stars today.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({_GH_API.format("acme", "tool"): [(200, {"stargazers_count": 1000})]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("acme/tool"), None,
+                                        http_client=client)
+    stars = [f for f in flags["fabrication"] if f["kind"] == "github_stars"]
+    assert any(f["ref"] == "acme/tool" and f["version"] == "technical" for f in stars)
+    assert len(client.calls) == 1
+
+
+def test_github_stars_within_band_clean():
+    body = _gh_body("the repo github.com/acme/tool has 1100 stars now.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({_GH_API.format("acme", "tool"): [(200, {"stargazers_count": 1000})]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("acme/tool"), None,
+                                        http_client=client)
+    # 1100 vs 1000 == 10% drift, within the 20% band → no star flag.
+    assert not any(f["kind"] == "github_stars" for f in flags["fabrication"])
+
+
+def test_github_existence_only_no_star_flag():
+    body = _gh_body("see github.com/acme/tool for the implementation details.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({_GH_API.format("acme", "tool"): [(200, {"stargazers_count": 1000})]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("acme/tool"), None,
+                                        http_client=client)
+    # No asserted count → existence-only is sufficient, no star flag, no repo fabrication.
+    assert not any(f["kind"] == "github_stars" for f in flags["fabrication"])
+    assert not any(f["kind"] == "github_repo" for f in flags["fabrication"])
+
+
+def test_github_dedup_same_repo_one_call():
+    body = _gh_body("github.com/acme/tool is great. again github.com/acme/tool. "
+                    "and once more github.com/acme/tool.")
+    draft = _make_draft(content_markdown=body)
+    client = _FakeHTTPClient({_GH_API.format("acme", "tool"): [(200, {"stargazers_count": 1000})]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("acme/tool"), None,
+                                        http_client=client)
+    # D-03: the same repo referenced 3× → exactly ONE GitHub call.
+    assert len(client.calls) == 1
+    assert flags["meta"]["github_checked"] == 1
+
+
+def test_github_token_present_flag_and_never_leaked(caplog):
+    caplog.set_level(logging.INFO)
+    body = _gh_body("github.com/acme/tool reference here.")
+    draft = _make_draft(content_markdown=body)
+    secret = "ghp_THISISASECRETTOKENVALUE1234567890"
+    client = _FakeHTTPClient({_GH_API.format("acme", "tool"): [(200, {"stargazers_count": 1000})]})
+    flags = gate.run_deterministic_gate(draft, _gh_fact_base("acme/tool"), None,
+                                        http_client=client, github_token=secret)
+    # T-28-05: meta exposes only a bool; the literal token never appears in flags or logs.
+    assert flags["meta"]["github_token_present"] is True
+    assert secret not in json.dumps(flags)
+    assert secret not in caplog.text
 
 
 if __name__ == "__main__":  # pragma: no cover
