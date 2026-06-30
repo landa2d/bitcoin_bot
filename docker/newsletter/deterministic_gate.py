@@ -340,12 +340,35 @@ def _check_entity_merge(body: str, source_texts: list[str], version: str) -> lis
 
     for composite in composites:
         c_lower = composite.lower()
-        if not any(c_lower in src for src in lowered_sources):
-            flags.append({
-                "kind": "entity_merge",
-                "entity": composite,
-                "version": version,
-            })
+        # (1) Grounded: the full composite appears verbatim within a SINGLE source → clean. This
+        # is the only "verbatim in one source" gate; everything below is the cross-source path.
+        if any(c_lower in src for src in lowered_sources):
+            continue
+        tokens = [t for t in c_lower.split() if t]
+        # (2) A single-token composite (notably an `owner/repo` token — it has no whitespace to
+        # split on) cannot be a cross-source MERGE: there are no parts to split across sources.
+        # Repo liveness is the GitHub layer's job (a live repo is verified there, a dead one is
+        # flagged `github_repo`); never double-flag a grounded/live repo as a fabricated merge
+        # here (WR-01 case B — GATE-02 verified vs GATE-05 fabricated was contradictory).
+        if len(tokens) < 2:
+            continue
+        # (3) Honor the docstring contract — flag ONLY a genuine cross-source merge. Every part
+        # must appear in SOME source (else a wholly-absent token is a tier-1 problem the reused
+        # verify_draft engine already owns — defer, don't double-flag). AND no SINGLE source may
+        # contain ALL the parts: if one source supplies them all, the composite is merely phrased
+        # differently within that source ("Acme's Widgets" → "Acme Widgets", WR-01 case A) — a
+        # tier-1 fuzzy-match concern, NOT a fabricated cross-source merge. What survives is a
+        # composite whose parts are split across ≥2 DISTINCT sources, preserving the Edition-34
+        # ~0-FP calibration intent rather than introducing a new strict-verbatim FP path.
+        if not all(any(tok in src for src in lowered_sources) for tok in tokens):
+            continue
+        if any(all(tok in src for tok in tokens) for src in lowered_sources):
+            continue
+        flags.append({
+            "kind": "entity_merge",
+            "entity": composite,
+            "version": version,
+        })
     return flags
 
 

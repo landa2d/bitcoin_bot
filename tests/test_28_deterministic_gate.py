@@ -341,6 +341,39 @@ def test_entity_merge_single_source_verbatim_clean():
     assert not any(f["entity"] == "Acme Widgets" for f in merge_flags)
 
 
+def test_entity_merge_noncontiguous_within_single_source_clean():
+    # WR-01 case A: both parts live in ONE source but not contiguously ("Acme's Widgets" — the
+    # apostrophe-s breaks the verbatim match). This is a phrasing variant the tier-1 fuzzy path
+    # owns, NOT a fabricated cross-source merge → must NOT be flagged entity_merge (hard-hold FP).
+    body = _body("The new tool **Acme Widgets** launched to great fanfare this week.")
+    fb = _single_pass_fact_base(premium_source_posts=[
+        {"title": "Acme news", "summary": "Acme's Widgets are popular.", "source_display": "HN"},
+    ])
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    flags = gate.run_deterministic_gate(draft, fb, None)
+    assert not any(f["kind"] == "entity_merge" and f["entity"] == "Acme Widgets"
+                   for f in flags["fabrication"])
+
+
+def test_entity_merge_live_repo_not_double_flagged():
+    # WR-01 case B: a github.com/owner/repo ref the GitHub layer verifies LIVE (HTTP 200) must
+    # never simultaneously be branded a fabricated entity_merge, even when the text fact base
+    # lacks the literal "owner/repo" token.
+    body = _body("the kernel lives at github.com/torvalds/linux for reference.")
+    fb = _single_pass_fact_base(premium_source_posts=[
+        {"title": "Kernel news", "summary": "The linux kernel keeps shipping.",
+         "source_display": "HN"},
+    ])
+    draft = _make_draft(content_markdown=body, content_markdown_impact="")
+    client = _FakeHTTPClient({_GH_API.format("torvalds", "linux"): [(200, {"stargazers_count": 1})]})
+    flags = gate.run_deterministic_gate(draft, fb, None, http_client=client)
+    # GATE-02 verified it live → no github_repo fabrication ...
+    assert not any(f["kind"] == "github_repo" for f in flags["fabrication"])
+    # ... and GATE-05 must NOT contradict that by flagging it a fabricated merge.
+    assert not any(f["kind"] == "entity_merge" and f["entity"] == "torvalds/linux"
+                   for f in flags["fabrication"])
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Plan 02 — SSRF guard (_is_safe_public_url): the URL HEAD layer (Task 2) gate.
 # Built in Task 1 so the fixtures are shared. ASVS L1 (T-28-04).
