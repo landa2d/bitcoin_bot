@@ -172,7 +172,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 2** *(blocked on 28-01 — same module/test files)*
 
-  - [ ] 28-02-PLAN.md — Network liveness layer: SSRF guard + GitHub repo/star classifier + URL HEAD classifier + D-01 three-outcome / D-02 retry-once / D-03 dedup (GATE-02, GATE-03) [Wave 2, autonomous, depends 28-01]
+  - [x] 28-02-PLAN.md — Network liveness layer: SSRF guard + GitHub repo/star classifier + URL HEAD classifier + D-01 three-outcome / D-02 retry-once / D-03 dedup (GATE-02, GATE-03) [Wave 2, autonomous, depends 28-01]
 
 **Wave 3** *(blocked on 28-02 — same module/test files)*
 
@@ -260,7 +260,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 25. Responsive & Accessibility Pass | v2.2 | 2/2 | Complete | 2026-06-19 |
 | 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete    | 2026-06-24 |
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
-| 28. Layer 1 Deterministic Gate | v2.3 | 1/3 | In Progress|  |
+| 28. Layer 1 Deterministic Gate | v2.3 | 2/3 | In Progress|  |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/TBD | Not started | - |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
