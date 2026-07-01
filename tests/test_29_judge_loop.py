@@ -216,6 +216,24 @@ def _judge_json_missing_evidence():
     return json.dumps(payload)
 
 
+def _revise_json(*, content_markdown="REVISED technical body",
+                 content_markdown_impact="REVISED impact body"):
+    """A canned targeted-revise output: BOTH bodies rewritten as a unit (D-08)."""
+    return json.dumps({"content_markdown": content_markdown,
+                       "content_markdown_impact": content_markdown_impact})
+
+
+def _revise_calls(llm):
+    """The subset of `_FakeLLM.calls` whose SYSTEM prompt marks it as a targeted revise (not a
+    judge). Judge + revise share the same model, so the call purpose is read off the system
+    prompt ("Fix EXACTLY ..." only appears in the revise system)."""
+    return [c for c in llm.calls if "fix exactly" in c["messages"][0]["content"].lower()]
+
+
+def _judge_calls(llm):
+    return [c for c in llm.calls if "editorial judge" in c["messages"][0]["content"].lower()]
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # JUDGE-01 — fail-loud entry guard
 # ══════════════════════════════════════════════════════════════════════════════
@@ -411,6 +429,168 @@ def test_continuity_na_excluded():
     # The judge was told no prior editions exist (so it does not fabricate a bridge).
     user_msg = llm.calls[0]["messages"][-1]["content"]
     assert "NO prior published editions exist" in user_msg
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LOOP-01 / D-07 / D-08 — targeted revise call + structured feedback builder (Plan 02 Task 1)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_revise_called_with_feedback():
+    """LOOP-01/D-07/D-08: a failing dimension drives a TARGETED revise (not a full writer
+    re-run). The revise call's user message carries the failing dimension name + the judge's
+    quoted evidence/exemplar (structured feedback, not "improve X") AND the source-facts
+    guardrail; the returned draft has BOTH bodies replaced from the revise JSON while
+    title/title_impact stay unchanged (D-08)."""
+    draft = _make_draft(title="Keep Title", title_impact="Keep Impact Title",
+                        content_markdown="original tech body",
+                        content_markdown_impact="original impact body")
+    scores = _judge_payload(technical={"specificity": 2}, impact={"specificity": 2})
+    feedback = jl._build_feedback(scores, ["specificity"], None)
+
+    # Structured feedback names the dim + carries the judge evidence/exemplar (not vague).
+    assert "specificity" in feedback
+    assert "a quoted sentence from the draft" in feedback   # the judge evidence
+    assert "a sharper phrasing" in feedback                 # the judge exemplar_after
+    assert "improve specificity" not in feedback.lower()
+
+    fact_base = _block_fact_base(
+        blocks=[{"description": "OpenAI shipped Agents SDK", "named_entities": ["OpenAI"]}])
+    llm = _FakeLLM(_revise_json())
+    cfg = jl._merged_config({})
+    revised = jl._revise_draft(draft, feedback, fact_base, llm, cfg)
+
+    # BOTH bodies replaced as a unit (D-08); titles untouched.
+    assert revised["content_markdown"] == "REVISED technical body"
+    assert revised["content_markdown_impact"] == "REVISED impact body"
+    assert revised["title"] == "Keep Title"
+    assert revised["title_impact"] == "Keep Impact Title"
+
+    # Exactly one (revise) call; its user message carried the structured feedback + source facts.
+    assert len(llm.calls) == 1
+    user_msg = llm.calls[0]["messages"][-1]["content"]
+    assert "specificity" in user_msg
+    assert "a sharper phrasing" in user_msg                 # judge exemplar rode into the prompt
+    assert "OpenAI shipped Agents SDK" in user_msg          # the _fact_base_source_texts guardrail
+
+
+def test_build_feedback_continuity_bridge_and_no_fabrication():
+    """D-06: a failing continuity dim yields an EXPLICIT bridge-to-prior-edition instruction (not
+    the vague "improve continuity"). Fabrication-shaped flags NEVER appear in the feedback;
+    mechanical flags ride along only when a judge dim fails (D-12)."""
+    scores = _judge_payload(technical={"continuity": 1}, impact={"continuity": 1})
+    feedback = jl._build_feedback(scores, ["continuity"], None)
+    low = feedback.lower()
+    assert "bridge" in low                     # explicit bridge instruction (D-06)
+    assert "continuity" in low
+    assert "improve continuity" not in low     # NOT the vague phrasing
+    assert "FakeCorp" not in feedback          # no fabrication value leaks in (only mechanical rides)
+
+    # Mechanical rides along when a dim independently fails (LOOP-04/D-12) — but never fabrication.
+    scores2 = _judge_payload(technical={"specificity": 2}, impact={"specificity": 2})
+    fb2 = jl._build_feedback(scores2, ["specificity"],
+                             [{"kind": "recycled_closer", "detail": "closer echoes prior edition"}])
+    assert "recycled_closer" in fb2 or "closer echoes prior edition" in fb2
+    assert "FakeCorp" not in fb2
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LOOP-02 / D-06 / D-08 / D-11 — the N=2 loop + best-attempt selection (Plan 02 Task 2)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_n2_hard_stop():
+    """LOOP-02 / Pitfall 5: a draft failing EVERY attempt terminates HARD at N=2 →
+    verdict='held_voice', EXACTLY 2 revise calls (no 3rd), and 3 judged attempts in telemetry
+    (attempt 0 + 2 rewrites). No best-effort publish."""
+    draft = _make_draft()
+    j = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})
+    r = _revise_json()
+    llm = _FakeLLM(j, r, j, r, j)   # J0, R1, J1, R2, J2
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {}, llm)
+
+    assert out["verdict"] == "held_voice"
+    assert len(_revise_calls(llm)) == 2                                  # exactly 2 revises, no 3rd
+    assert len(_judge_calls(llm)) == 3                                   # judge scored 3 drafts
+    ok_attempts = [a for a in out["attempts"] if a["eval_status"] == "ok"]
+    assert len(ok_attempts) == 3
+    assert set(out.keys()) == {"final_draft", "verdict", "selected_attempt", "attempts"}  # LOOP-05 shape
+
+
+def test_continuity_absent_triggers():
+    """D-06 / LOOP-01: a continuity hard-fail (bridge absent → score 1) TRIGGERS the rewrite
+    loop; the attempt-1 revise that adds the bridge → verdict='passed', selected_attempt=1,
+    EXACTLY 1 revise call, and the revise feedback carried a bridge instruction."""
+    draft = _make_draft()
+    j_fail = _judge_json(technical={"continuity": 1}, impact={"continuity": 1})
+    r = _revise_json()
+    j_pass = _judge_json(default=5)
+    llm = _FakeLLM(j_fail, r, j_pass)
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {}, llm)
+
+    assert out["verdict"] == "passed"
+    assert out["selected_attempt"] == 1
+    revises = _revise_calls(llm)
+    assert len(revises) == 1
+    assert "bridge" in revises[0]["messages"][-1]["content"].lower()    # D-06 bridge instruction
+
+
+def test_both_bodies_fail_together():
+    """D-08: an impact-only dimension failure (impact specificity 2, technical 5) still counts as
+    failing (worst-case min) and fires a revise that rewrites BOTH bodies as a unit."""
+    draft = _make_draft(content_markdown="tech", content_markdown_impact="impact")
+    j_fail = _judge_json(technical={"specificity": 5}, impact={"specificity": 2})
+    r = _revise_json(content_markdown="NEW TECH", content_markdown_impact="NEW IMPACT")
+    j_pass = _judge_json(default=5)
+    llm = _FakeLLM(j_fail, r, j_pass)
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {}, llm)
+
+    assert out["verdict"] == "passed"
+    assert out["selected_attempt"] == 1
+    assert len(_revise_calls(llm)) == 1
+    # BOTH bodies were rewritten together (D-08).
+    assert out["final_draft"]["content_markdown"] == "NEW TECH"
+    assert out["final_draft"]["content_markdown_impact"] == "NEW IMPACT"
+
+
+def test_best_attempt_selection():
+    """D-11: `_select_best_attempt` returns the FEWEST-failing attempt (not necessarily the
+    latest); ties break by highest summed per-dimension score, then by latest attempt."""
+    a0 = {"attempt": 0, "eval_status": "ok", "failing": ["a", "b"], "summed_score": 30, "draft": {"id": 0}}
+    a1 = {"attempt": 1, "eval_status": "ok", "failing": ["a"], "summed_score": 40, "draft": {"id": 1}}
+    a2 = {"attempt": 2, "eval_status": "ok", "failing": ["a", "b"], "summed_score": 45, "draft": {"id": 2}}
+    assert jl._select_best_attempt([a0, a1, a2])["attempt"] == 1    # fewest fails, NOT latest
+
+    # Tie on failing count → highest summed score wins.
+    b0 = {"attempt": 0, "eval_status": "ok", "failing": ["a"], "summed_score": 30, "draft": {}}
+    b1 = {"attempt": 1, "eval_status": "ok", "failing": ["a"], "summed_score": 50, "draft": {}}
+    b2 = {"attempt": 2, "eval_status": "ok", "failing": ["a"], "summed_score": 40, "draft": {}}
+    assert jl._select_best_attempt([b0, b1, b2])["attempt"] == 1    # highest summed score
+
+    # Full tie (failing count AND summed score) → latest wins.
+    c1 = {"attempt": 1, "eval_status": "ok", "failing": ["a"], "summed_score": 40, "draft": {}}
+    c2 = {"attempt": 2, "eval_status": "ok", "failing": ["a"], "summed_score": 40, "draft": {}}
+    assert jl._select_best_attempt([c1, c2])["attempt"] == 2        # latest on a full tie
+
+
+def test_held_voice_returns_best_not_latest():
+    """D-11 end-to-end: with N=2 exhausted, held_voice returns the BEST attempt (fewest fails),
+    NOT the latest. attempt-1 fails 1 dim; attempts 0 and 2 fail 2 dims → selected_attempt=1 and
+    final_draft is attempt-1's revised body."""
+    draft = _make_draft()
+    j0 = _judge_json(technical={"specificity": 2, "clickbait": 2},
+                     impact={"specificity": 2, "clickbait": 2})       # 2 failing dims
+    r1 = _revise_json(content_markdown="ATTEMPT1 TECH", content_markdown_impact="ATTEMPT1 IMPACT")
+    j1 = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})   # 1 failing dim
+    r2 = _revise_json(content_markdown="ATTEMPT2 TECH", content_markdown_impact="ATTEMPT2 IMPACT")
+    j2 = _judge_json(technical={"specificity": 2, "clickbait": 2},
+                     impact={"specificity": 2, "clickbait": 2})       # 2 failing dims
+    llm = _FakeLLM(j0, r1, j1, r2, j2)
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {}, llm)
+
+    assert out["verdict"] == "held_voice"
+    assert out["selected_attempt"] == 1                              # best = fewest fails, not latest (2)
+    assert out["final_draft"]["content_markdown"] == "ATTEMPT1 TECH"
 
 
 if __name__ == "__main__":
