@@ -469,7 +469,7 @@ def _find_attempt(res: dict, selected):
 def run_edition_eval(
     supabase, draft, fact_base, prior_context, prior_edition, *,
     pipeline_version, newsletter_id, edition, config, llm_client, http_client,
-    github_token=None,
+    github_token=None, suppress_alerts=False,
 ) -> dict:
     """Sequence Layer-1 gate → fabrication short-circuit → Layer-2 judge → verdict, persisting every
     layer/attempt to `edition_evals`; fail-open-but-loud (D-06/D-07). Returns
@@ -479,12 +479,16 @@ def run_edition_eval(
     returned verdict. It NEVER flips newsletter status / do-not-publish state (that is 30-03) and
     NEVER re-raises — an eval error must not block generation; the draft still reaches the Monday
     human gate. The SAME injected `http_client` reaches BOTH eval modules (D-08 live re-check), and
-    `llm_client` is the GOVERNED `edition_eval` identity the caller built (GOV-01)."""
-    from deterministic_gate import run_deterministic_gate
-    from judge_loop import run_layer2, _persistable_attempt
-    from edition_eval import write_eval_row
-
+    `llm_client` is the GOVERNED `edition_eval` identity the caller built (GOV-01).
+    `suppress_alerts=True` (the telemetry-only block_v1 shadow-row call, D-14) keeps the error /
+    telemetry rows but silences operator pages so one edition is never double-paged (WR-03)."""
     try:
+        # Lazy seam imports live INSIDE the try so an ImportError in any eval module is caught by
+        # the fail-open handler below (the unit NEVER re-raises — WR-01), not propagated to callers.
+        from deterministic_gate import run_deterministic_gate
+        from judge_loop import run_layer2, _persistable_attempt
+        from edition_eval import write_eval_row
+
         # (a) Outage (D-07): the operator has not minted the governed edition_eval key, so the caller
         # handed llm_client=None. Write a fail-loud error row, alert loudly, and return WITHOUT
         # running the gate/judge — never a silent skip, never a fallback to the newsletter identity.
@@ -495,7 +499,8 @@ def run_edition_eval(
                 eval_status="error",
                 error="LLM_PROXY_EVAL_KEY unset — eval did not run",
             )
-            _alert_operator(f"eval did not run for edition #{edition}: eval key unset")
+            if not suppress_alerts:
+                _alert_operator(f"eval did not run for edition #{edition}: eval key unset")
             return {"verdict": "escalated", "reason": "eval key unset", "details": {}, "ran": False}
 
         # (b) Layer 1 — the no-LLM deterministic gate, with the live network re-check active (D-08:
@@ -562,7 +567,10 @@ def run_edition_eval(
 
         if verdict == "held_voice":
             failing = (sel or {}).get("failing") or []
-            dim_parts = [f"{dim}={_dim_score(sel_scores, dim)}" for dim in failing]
+            dim_parts = []
+            for dim in failing:
+                _sc = _dim_score(sel_scores, dim)
+                dim_parts.append(f"{dim}={_sc if _sc is not None else 'n/a'}")
             excerpt = _one_line_excerpt((sel or {}).get("feedback"))
             reason = "held_voice: " + ", ".join(dim_parts)
             if excerpt:
@@ -577,7 +585,8 @@ def run_edition_eval(
             reason = str(verdict)
 
         # D-12: an escalation loudly pages the operator (still NO status flip here — that is 30-03).
-        if verdict == "escalated":
+        # Suppressed for the telemetry-only shadow-row call so the primary eval pages just once (WR-03).
+        if verdict == "escalated" and not suppress_alerts:
             _alert_operator(f"eval escalated for edition #{edition}: {reason}")
 
         return {"verdict": verdict, "reason": reason, "details": details, "ran": True}
@@ -595,10 +604,11 @@ def run_edition_eval(
             )
         except Exception:
             logger.error("[EVAL] telemetry write failed inside the fail-open handler", exc_info=True)
-        try:
-            _alert_operator(f"eval did not run for edition #{edition}: {type(e).__name__}")
-        except Exception:
-            logger.error("[EVAL] operator alert failed inside the fail-open handler", exc_info=True)
+        if not suppress_alerts:
+            try:
+                _alert_operator(f"eval did not run for edition #{edition}: {type(e).__name__}")
+            except Exception:
+                logger.error("[EVAL] operator alert failed inside the fail-open handler", exc_info=True)
         logger.error("[EVAL] failed open for edition #%s", edition, exc_info=True)
         return {"verdict": "escalated", "reason": "eval outage", "details": {}, "ran": False}
 
@@ -3099,7 +3109,9 @@ def process_task(task: dict):
                     # would-have-held alert (only the PRIMARY draft's verdict drives publish
                     # state, D-13). Guarded by enabled + a real row id; fail-open via the
                     # enclosing A/B try/except-continue. The return value is intentionally
-                    # discarded (telemetry rows only).
+                    # discarded (telemetry rows only). suppress_alerts=True silences the
+                    # orchestrator's own escalated/outage pages so a single edition is not
+                    # double-paged by the shadow eval (WR-03); the error rows still persist.
                     _eval_cfg = _read_edition_eval_config()
                     if _eval_cfg.get('enabled', False) and bp_row_id is not None:
                         bp_draft = {
@@ -3118,6 +3130,7 @@ def process_task(task: dict):
                                 edition=edition, config=_eval_cfg,
                                 llm_client=_build_eval_llm_client(), http_client=hc,
                                 github_token=os.getenv('GITHUB_TOKEN'),
+                                suppress_alerts=True,
                             )
                 else:
                     logger.warning(f"[A/B] Block pipeline failed: {bp_result.get('error')}")
