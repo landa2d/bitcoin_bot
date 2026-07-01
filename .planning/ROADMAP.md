@@ -193,7 +193,20 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
   4. On any dimension failing threshold the writer is re-called with structured, specific feedback (which dimensions failed + the judge's specific reason + the exemplar of the fix); mechanical-only Layer-1 flags may enter the loop, fabrication flags **never** do.
   5. The rewrite is re-evaluated; the loop terminates hard at **N=2 attempts max** (no best-effort publish); every attempt's per-dimension scores + feedback are logged to `edition_evals` (attempt-2-not-beating-attempt-1 surfaced); the module returns the final draft + verdict with no retry state living outside it.
 
-**Plans**: TBD
+**Plans**: 3 plans (Wave 1 judge + scoring core, Wave 2 rewrite loop, Wave 3 rewrite-safety re-check + telemetry + integration — all autonomous, build-only / worktree-safe)
+
+**Wave 1**
+
+  - [ ] 29-01-PLAN.md — Module scaffold + `edition_eval` config block (continuity_fail_below=4) + fail-loud entry guard + filler pre-pass + 5-dimension exemplar-anchored Sonnet judge + schema-reject→retry→error + config-tunable threshold engine (JUDGE-01, JUDGE-02, JUDGE-03, JUDGE-04, JUDGE-05) [Wave 1, autonomous]
+
+**Wave 2** *(blocked on 29-01 — same module/test files)*
+
+  - [ ] 29-02-PLAN.md — Targeted both-body revise (D-07) + structured feedback builder + N=2 rewrite loop + best-attempt/held_voice selection (D-11) (LOOP-01, LOOP-02) [Wave 2, autonomous, depends 29-01]
+
+**Wave 3** *(blocked on 29-02 — same module/test files)*
+
+  - [ ] 29-03-PLAN.md — Per-rewrite Layer-1 re-check + `_CachingHTTPClient` cross-attempt dedup (D-01) + held_fabrication abort keeping attempt-0 (D-02) + unverified telemetry-only (D-03) + finalized write_eval_row telemetry mapping + mechanical ride-along + golden integration + phase gate (LOOP-03, LOOP-04, LOOP-05) [Wave 3, autonomous, depends 29-02]
+
 **Notes**: Newsletter service only; standalone eval-phase module the sequencer calls (the sequencer passes draft + fact base, the module runs the loop internally). All LLM via the proxy on the governed `edition_eval` agent. Judge + loop are tightly coupled (the loop re-evals via the judge) → one phase. Thresholds are config-tunable under `agentpulse-config.json → edition_eval` (operator confirms/tunes at the plan gate; proposed defaults in REQUIREMENTS.md). Reference `docs/audit/specs/01_eval_harness.md`.
 
 ### Phase 30: Sequencer Wiring, Hold Action & Activation Gate
@@ -261,7 +274,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete    | 2026-06-24 |
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
-| 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/TBD | Not started | - |
+| 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/3 | Planned | - |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
 
