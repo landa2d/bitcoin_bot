@@ -421,6 +421,188 @@ def _fetch_prior_published_edition() -> dict | None:
         return None
 
 
+def _summarize_flags(flags) -> str:
+    """Render a flags list as category-label counts (e.g. 'github_repo x2, url_dead x1') — NEVER
+    raw draft prose (T-30-LOG). Used to build fabrication/mechanical `reason` text safely."""
+    from collections import Counter
+    counts: "Counter[str]" = Counter()
+    for f in flags or []:
+        if isinstance(f, dict):
+            kind = f.get("kind") or f.get("type") or f.get("check") or "flag"
+        else:
+            kind = "flag"
+        counts[str(kind)] += 1
+    return ", ".join(f"{k} x{n}" for k, n in counts.items()) or "0"
+
+
+def _dim_score(judge_scores: dict, dim: str):
+    """The worst-body (min) numeric score for a judge dimension, or None. `judge_scores` is
+    {version: {dim: {score, evidence, ...}}} — a failing dim scores lower on the offending body."""
+    vals = []
+    for version in ("technical", "impact"):
+        entry = (judge_scores or {}).get(version, {})
+        if isinstance(entry, dict):
+            cell = entry.get(dim)
+            if isinstance(cell, dict) and isinstance(cell.get("score"), (int, float)):
+                vals.append(cell["score"])
+    return min(vals) if vals else None
+
+
+def _one_line_excerpt(text, limit: int = 240) -> str:
+    """Single-line + length-bounded excerpt of judge-critique text (log-injection hygiene, T-30-LOG).
+    Strips all newlines to one line and truncates; returns '' for empty/None."""
+    if not text:
+        return ""
+    return " ".join(str(text).split())[:limit]
+
+
+def _find_attempt(res: dict, selected):
+    """Return the run_layer2 attempt row whose `attempt` == selected (the D-11 best attempt), or the
+    last attempt as a defensive fallback, or None."""
+    attempts = res.get("attempts") or []
+    for a in attempts:
+        if a.get("attempt") == selected:
+            return a
+    return attempts[-1] if attempts else None
+
+
+def run_edition_eval(
+    supabase, draft, fact_base, prior_context, prior_edition, *,
+    pipeline_version, newsletter_id, edition, config, llm_client, http_client,
+    github_token=None,
+) -> dict:
+    """Sequence Layer-1 gate → fabrication short-circuit → Layer-2 judge → verdict, persisting every
+    layer/attempt to `edition_evals`; fail-open-but-loud (D-06/D-07). Returns
+    `{verdict, reason, details, ran}`.
+
+    This is the single, testable eval-invocation unit; Plan 30-03 only calls it and acts on the
+    returned verdict. It NEVER flips newsletter status / do-not-publish state (that is 30-03) and
+    NEVER re-raises — an eval error must not block generation; the draft still reaches the Monday
+    human gate. The SAME injected `http_client` reaches BOTH eval modules (D-08 live re-check), and
+    `llm_client` is the GOVERNED `edition_eval` identity the caller built (GOV-01)."""
+    from deterministic_gate import run_deterministic_gate
+    from judge_loop import run_layer2, _persistable_attempt
+    from edition_eval import write_eval_row
+
+    try:
+        # (a) Outage (D-07): the operator has not minted the governed edition_eval key, so the caller
+        # handed llm_client=None. Write a fail-loud error row, alert loudly, and return WITHOUT
+        # running the gate/judge — never a silent skip, never a fallback to the newsletter identity.
+        if llm_client is None:
+            write_eval_row(
+                supabase, newsletter_id=newsletter_id, edition_number=edition,
+                pipeline_version=pipeline_version, attempt=0, layer="deterministic",
+                eval_status="error",
+                error="LLM_PROXY_EVAL_KEY unset — eval did not run",
+            )
+            _alert_operator(f"eval did not run for edition #{edition}: eval key unset")
+            return {"verdict": "escalated", "reason": "eval key unset", "details": {}, "ran": False}
+
+        # (b) Layer 1 — the no-LLM deterministic gate, with the live network re-check active (D-08:
+        # the SAME injected http_client reaches both the gate and, below, the judge).
+        det = run_deterministic_gate(
+            draft, fact_base, prior_edition,
+            http_client=http_client, github_token=github_token,
+        )
+
+        # (c) Fabrication short-circuit (D-09): a non-empty fabrication list is a HARD hold — Layer 2
+        # NEVER runs (run_layer2 would ValueError on it anyway). Reason from category labels + counts,
+        # NEVER raw draft prose (T-30-LOG).
+        if det.get("fabrication"):
+            reason = f"held_fabrication: {_summarize_flags(det['fabrication'])}"
+            write_eval_row(
+                supabase, newsletter_id=newsletter_id, edition_number=edition,
+                pipeline_version=pipeline_version, attempt=0, layer="deterministic",
+                eval_status="ok", verdict="held_fabrication", deterministic_flags=det,
+            )
+            return {"verdict": "held_fabrication", "reason": reason,
+                    "details": {"det": det}, "ran": True}
+
+        # (d) Layer-1 clean → write the clean deterministic row ('passed' here == "Layer-1 clean"),
+        # then run Layer 2 with the GOVERNED client + the SAME injected http_client (D-08).
+        write_eval_row(
+            supabase, newsletter_id=newsletter_id, edition_number=edition,
+            pipeline_version=pipeline_version, attempt=0, layer="deterministic",
+            eval_status="ok", verdict="passed", deterministic_flags=det,
+        )
+        res = run_layer2(
+            draft, fact_base, prior_context, det, config, llm_client,
+            http_client=http_client, github_token=github_token,
+        )
+
+        # (e) Persist EVERY judge attempt (LOOP-03/D-14 telemetry) — the documented 1:1 mapping via
+        # _persistable_attempt (reverify_flags→deterministic_flags, feedback→judge_feedback, etc.),
+        # respecting verdict-iff-ok (an 'ok' attempt carries res['verdict']; an 'error' attempt
+        # carries verdict=None + its own error).
+        for a in res.get("attempts", []):
+            p = _persistable_attempt(a)
+            write_eval_row(
+                supabase, newsletter_id=newsletter_id, edition_number=edition,
+                pipeline_version=pipeline_version, attempt=p["attempt"], layer="judge",
+                eval_status=p["eval_status"],
+                verdict=(res["verdict"] if p["eval_status"] == "ok" else None),
+                error=p.get("error"),
+                deterministic_flags=p.get("reverify_flags") or {},
+                judge_scores=p.get("judge_scores") or {},
+                judge_feedback=p.get("feedback"),
+                sats_spent=p.get("sats", 0),
+                model_calls=p.get("model_calls") or [],
+            )
+
+        # (f) Build the verdict object. For held_voice (WIRE-03/D-10) the reason MUST carry each
+        # failing judge dimension's NAME + its per-dimension SCORE + a bounded one-line judge_feedback
+        # excerpt (sourced from the selected attempt's judge_scores + feedback) — labels-only would
+        # UNDER-deliver WIRE-03's "final per-dimension scores + feedback". `details` carries the full
+        # per-dimension judge_scores dict from the selected attempt. Feedback is the judge's OWN
+        # critique output (NOT raw draft prose) — still single-lined + bounded (log-injection hygiene).
+        verdict = res["verdict"]
+        sel = _find_attempt(res, res.get("selected_attempt"))
+        sel_scores = (sel or {}).get("judge_scores") or {}
+        details: dict = {"judge_scores": sel_scores}
+
+        if verdict == "held_voice":
+            failing = (sel or {}).get("failing") or []
+            dim_parts = [f"{dim}={_dim_score(sel_scores, dim)}" for dim in failing]
+            excerpt = _one_line_excerpt((sel or {}).get("feedback"))
+            reason = "held_voice: " + ", ".join(dim_parts)
+            if excerpt:
+                reason += f" | judge_feedback: {excerpt}"
+        elif verdict == "held_fabrication":
+            # A rewrite that INVENTED a new entity (run_layer2 D-02) — reason from re-check flags.
+            fab = ((sel or {}).get("reverify_flags") or {}).get("fabrication") or []
+            reason = f"held_fabrication (rewrite): {_summarize_flags(fab)}"
+        elif verdict == "escalated":
+            reason = "escalated: eval un-scoreable (see edition_evals)"
+        else:  # passed / any other
+            reason = str(verdict)
+
+        # D-12: an escalation loudly pages the operator (still NO status flip here — that is 30-03).
+        if verdict == "escalated":
+            _alert_operator(f"eval escalated for edition #{edition}: {reason}")
+
+        return {"verdict": verdict, "reason": reason, "details": details, "ran": True}
+
+    except Exception as e:
+        # Fail-open-but-loud (D-06/D-07): NEVER re-raise — generation must continue to the Monday
+        # human gate. Write a fail-loud error row + page the operator; guard each so a telemetry OR
+        # alert failure inside the handler still returns (a telemetry write failure must not crash
+        # generation).
+        try:
+            write_eval_row(
+                supabase, newsletter_id=newsletter_id, edition_number=edition,
+                pipeline_version=pipeline_version, attempt=0, layer="deterministic",
+                eval_status="error", error=(str(e) or type(e).__name__)[:500],
+            )
+        except Exception:
+            logger.error("[EVAL] telemetry write failed inside the fail-open handler", exc_info=True)
+        try:
+            _alert_operator(f"eval did not run for edition #{edition}: {type(e).__name__}")
+        except Exception:
+            logger.error("[EVAL] operator alert failed inside the fail-open handler", exc_info=True)
+        logger.error("[EVAL] failed open for edition #%s", edition, exc_info=True)
+        return {"verdict": "escalated", "reason": "eval outage", "details": {}, "ran": False}
+
+
 def ensure_dirs():
     NEWSLETTERS_DIR.mkdir(parents=True, exist_ok=True)
 

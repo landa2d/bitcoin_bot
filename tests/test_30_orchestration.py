@@ -301,8 +301,11 @@ def test_llm_client_none_is_outage(harness, monkeypatch):
 
 
 def test_no_status_or_do_not_publish_update_in_orchestrator():
-    """run_edition_eval computes a verdict but NEVER flips status/do_not_publish (that is 30-03)."""
+    """run_edition_eval computes a verdict but NEVER flips status/do_not_publish (that is 30-03).
+    Structural: it persists via write_eval_row (edition_evals) only — it makes NO `.update(` call on
+    newsletters and carries no `do_not_publish` / `"status": "held"` write."""
     import inspect
     src = inspect.getsource(nl.run_edition_eval)
     assert "do_not_publish" not in src
-    assert "status" not in src or "\"status\": \"held\"" not in src
+    assert ".update(" not in src
+    assert '"status": "held"' not in src
