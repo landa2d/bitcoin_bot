@@ -506,6 +506,54 @@ def test_build_feedback_continuity_bridge_and_no_fabrication():
     assert "FakeCorp" not in fb2
 
 
+def test_wr01_build_feedback_filler_only_names_phrases():
+    """WR-01: when `hedging_filler` fails ONLY on the deterministic filler-hit combination (the
+    judge's hedging SCORE is passing), the feedback must NAME the exact banned phrases to remove
+    — NOT quote the judge's clean-graded evidence (which would misdirect the revise). When the
+    judge score itself is failing, the existing evidence/exemplar behavior is preserved."""
+    cfg = jl._merged_config({})
+    filler_matches = {"technical": ["as we move forward", "it remains to be seen"], "impact": []}
+
+    # Passing judge score (5) + matched blacklist phrases → name the phrases, no clean evidence.
+    scores_pass = _judge_payload(technical={"hedging_filler": 5}, impact={"hedging_filler": 5})
+    fb = jl._build_feedback(scores_pass, ["hedging_filler"], None,
+                            filler_matches=filler_matches, cfg=cfg)
+    assert "banned filler phrases" in fb
+    assert "as we move forward" in fb                    # at least one matched phrase is named
+    assert "it remains to be seen" in fb
+    assert "a quoted sentence from the draft" not in fb  # the judge's CLEAN evidence is NOT quoted
+
+    # A failing judge SCORE preserves the existing evidence/exemplar behavior (WR-01 guard).
+    scores_low = _judge_payload(technical={"hedging_filler": 2}, impact={"hedging_filler": 2})
+    fb_low = jl._build_feedback(scores_low, ["hedging_filler"], None,
+                                filler_matches=filler_matches, cfg=cfg)
+    assert "a quoted sentence from the draft" in fb_low  # judge evidence preserved on a score fail
+
+
+def test_wr01_filler_only_failure_names_phrases_end_to_end():
+    """WR-01 end-to-end: a body carrying 3 blacklist phrases with a PASSING judge hedging score
+    fails `hedging_filler` purely on the filler-hit combination. The revise feedback recorded on
+    attempt-0 must NAME the banned phrases so the loop can actually remove them (rather than being
+    told to fix a sentence the judge graded clean)."""
+    body = ("The agent space kept shipping this week. As we move forward, it remains to be seen "
+            "where this goes; only time will tell.")
+    draft = _make_draft(content_markdown=body, content_markdown_impact=body)
+    j_fail = _judge_json(default=5)   # every judge dim passes — the ONLY failure is the 3 filler hits
+    r = _revise_json()                # revised bodies carry NO filler → the loop converges
+    j_pass = _judge_json(default=5)
+    llm = _FakeLLM(j_fail, r, j_pass)
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {}, llm)
+
+    assert out["verdict"] == "passed"
+    assert out["selected_attempt"] == 1
+    assert len(_revise_calls(llm)) == 1
+    fb0 = out["attempts"][0]["feedback"]
+    assert "banned filler phrases" in fb0
+    assert "as we move forward" in fb0                   # the exact matched phrase is named (WR-01)
+    # the named phrase also rode into the actual revise prompt.
+    assert "as we move forward" in _revise_calls(llm)[0]["messages"][-1]["content"]
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # LOOP-02 / D-06 / D-08 / D-11 — the N=2 loop + best-attempt selection (Plan 02 Task 2)
 # ══════════════════════════════════════════════════════════════════════════════

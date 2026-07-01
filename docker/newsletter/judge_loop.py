@@ -393,8 +393,23 @@ def _describe_mechanical(flag: Any) -> str:
     return f"{kind}: {detail}".strip() if detail else str(kind)
 
 
+def _unique_filler_matches(filler_matches: dict | None) -> list[str]:
+    """Flatten the per-body matched-filler-phrase map into a de-duplicated, order-preserving list
+    (WR-01). `filler_matches` is `{version: [phrase, ...]}` — the exact blacklist phrases the
+    deterministic pre-pass found in each body. Returns [] when nothing matched / no map given."""
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for phrases in (filler_matches or {}).values():
+        for phrase in phrases or []:
+            if phrase not in seen:
+                seen.add(phrase)
+                ordered.append(phrase)
+    return ordered
+
+
 def _build_feedback(
     judge_scores: dict, failing: list[str], mechanical: list[dict] | None = None,
+    *, filler_matches: dict | None = None, cfg: dict | None = None,
 ) -> str:
     """Build STRUCTURED, SPECIFIC per-dimension revise feedback (LOOP-01). For each failing
     dimension: name it, quote the judge's offending `evidence`, and give the concrete
@@ -403,13 +418,37 @@ def _build_feedback(
     optional `mechanical` list rides along as extra guidance ONLY here, and this function is
     called ONLY when `failing` is non-empty (mechanical-only never triggers a rewrite — D-12).
     Fabrication flags NEVER appear (fabrication never enters the loop — LOOP-04); the caller
-    passes only the mechanical list, never the fabrication list."""
+    passes only the mechanical list, never the fabrication list.
+
+    WR-01: when `hedging_filler` fails ONLY on the deterministic filler-hit combination (the
+    judge's hedging SCORE is passing but a banned phrase tripped `hedging_filler_hits_max`), the
+    judge's evidence/exemplar quotes a sentence it graded CLEAN — misdirecting the revise. In that
+    case emit an explicit, actionable line NAMING the exact banned phrases from `filler_matches`
+    instead. When the judge score itself is below `hedging_fail_below`, the existing
+    evidence/exemplar behavior is preserved."""
+    hedging_fail_below = ((cfg or {}).get("thresholds") or {}).get("hedging_fail_below")
     lines = [
         "Fix EXACTLY the issues below. Change nothing else. Invent no new entity or number.",
         "",
     ]
     for dim in failing:
         entry = _worst_body_entry(judge_scores, dim)
+        if dim == "hedging_filler":
+            worst_score = entry.get("score")
+            score_below = (
+                hedging_fail_below is not None
+                and _is_number(worst_score)
+                and worst_score < hedging_fail_below
+            )
+            matched = _unique_filler_matches(filler_matches)
+            # Fail on banned phrases while the judge score is passing → name the phrases to remove
+            # (the judge evidence here is a CLEAN sentence and would misdirect the revise — WR-01).
+            if matched and not score_below:
+                quoted = ", ".join(f'"{phrase}"' for phrase in matched)
+                lines.append(
+                    f"- hedging_filler: remove these banned filler phrases: {quoted}."
+                )
+                continue
         evidence = str(entry.get("evidence") or "").strip()
         before = str(entry.get("exemplar_before") or "").strip()
         after = str(entry.get("exemplar_after") or "").strip()
@@ -734,6 +773,12 @@ def run_layer2(
         scores = judged["scores"]
         filler = {version: _count_filler_hits(current.get(field) or "", cfg["filler_blacklist"])
                   for version, field in _BODIES}
+        # WR-01: also capture WHICH blacklist phrases matched per body, so a filler-only
+        # hedging_filler failure (passing judge score) can name the exact phrases to remove
+        # instead of quoting the judge's clean-graded evidence.
+        filler_matches = {version: [p for p in cfg["filler_blacklist"]
+                                    if p.lower() in (current.get(field) or "").lower()]
+                          for version, field in _BODIES}
         failing = _compute_failing_dims(scores, filler, cfg,
                                         continuity_applicable=continuity_applicable)
         attempts.append(_attempt_row(
@@ -751,7 +796,8 @@ def run_layer2(
         # A dimension still fails → build targeted feedback for the next revise. The mechanical
         # Layer-1 flags ride ONLY because a judge dim independently failed (LOOP-04/D-12); the
         # fabrication list is NEVER passed (fabrication never enters the loop).
-        feedback = _build_feedback(scores, failing, (det_flags.get("mechanical") or None))
+        feedback = _build_feedback(scores, failing, (det_flags.get("mechanical") or None),
+                                   filler_matches=filler_matches, cfg=cfg)
         # LOOP-03: record the feedback that produced the NEXT attempt on THIS attempt's telemetry
         # (Pattern 9 — `feedback` maps to the eval row's `judge_feedback`).
         attempts[-1]["feedback"] = feedback
