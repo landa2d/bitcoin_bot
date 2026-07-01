@@ -132,6 +132,27 @@
     "model_prose": "claude-sonnet-4-6",
     "model_voice": "deepseek-chat"
   },
+  "edition_eval": {
+    "enabled": false,
+    "enforce": false,
+    "max_attempts": 2,
+    "judge_model": "claude-sonnet-4-6",
+    "judge_temperature": 0.2,
+    "judge_max_tokens": 1500,
+    "revise_model": "claude-sonnet-4-6",
+    "revise_temperature": 0.3,
+    "revise_max_tokens": 3000,
+    "thresholds": {
+      "continuity_fail_below": 4,
+      "hedging_fail_below": 3,
+      "hedging_filler_hits_max": 3,
+      "clickbait_fail_below": 3,
+      "repeated_subtopics_fail_below": 3,
+      "specificity_fail_below": 3,
+      "warn_below": 4
+    },
+    "filler_blacklist": []
+  },
   "wallet_pricing": {
     "deepseek-chat": 2,
     "deepseek-reasoner": 5,

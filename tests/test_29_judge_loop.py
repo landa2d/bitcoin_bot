@@ -1,0 +1,320 @@
+#!/usr/bin/env python3
+"""
+Phase 29 / Plan 01 — unit suite for `judge_loop.run_layer2` (Layer-2 judge + scoring core).
+
+Locks the Layer-2 module contract BEFORE any Phase 30 caller wires it into `newsletter_poller`:
+  - JUDGE-01: `run_layer2` refuses a mis-wired caller — a non-empty `det_flags['fabrication']`
+    raises ValueError (Layer 1 must short-circuit first),
+  - JUDGE-04: the config-tunable both-bodies threshold engine (`_compute_failing_dims`) — a
+    dimension fails for the version if EITHER body fails (`min` worst-case, D-08); the hedging
+    dimension ALSO fails on the deterministic filler-hit combination (D-04),
+  - JUDGE-03 / D-05: continuity is EXCLUDED from the failing set on an empty corpus,
+  - JUDGE-02 / JUDGE-05 (Task 2): the exemplar-anchored judge scores both bodies in ONE call,
+    schema-rejects a response missing evidence/exemplars, retries once, then escalates.
+
+This imports the REAL `judge_loop` module (no re-implementation — the test_19 rule). A copy
+could pass while production regresses. `judge_loop` imports `parse_llm_json` from
+`newsletter_poller` (conftest preloads it), `_llm_call` from `block_pipeline`, and
+`run_deterministic_gate` from `deterministic_gate` — all importable once NL_DIR is on sys.path.
+NO network, NO live proxy: every judge call runs against the in-memory OpenAI-shape `_FakeLLM`
+(FIFO canned JSON); the reused httpx fake is carried for Plan 03's re-check. Zero live egress.
+"""
+import json
+import sys
+from pathlib import Path
+
+import pytest
+
+# Put docker/newsletter on sys.path and import the REAL production module.
+NL_DIR = Path(__file__).resolve().parent.parent / "docker" / "newsletter"
+if str(NL_DIR) not in sys.path:
+    sys.path.insert(0, str(NL_DIR))
+
+import judge_loop as jl  # noqa: E402 — the REAL production module
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Fixture builders — draft + fact_base shapes identical to what run_layer2 consumes
+# (mirrors tests/test_28_deterministic_gate.py:64-113; kept self-contained so this
+# suite carries no cross-file fixture coupling).
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _make_draft(*, title="Test Edition", title_impact="Test Edition (Impact)",
+                content_markdown="Technical body prose.", content_markdown_impact="Impact body prose.",
+                pipeline_version="block_v1"):
+    return {
+        "title": title,
+        "title_impact": title_impact,
+        "content_markdown": content_markdown,
+        "content_markdown_impact": content_markdown_impact,
+        "pipeline_version": pipeline_version,
+    }
+
+
+def _single_pass_fact_base(*, premium_source_posts=None, section_b_emerging=None,
+                           clusters=None, trending_tools=None, predictions=None):
+    return {
+        "premium_source_posts": premium_source_posts or [],
+        "section_b_emerging": section_b_emerging or [],
+        "clusters": clusters or [],
+        "trending_tools": trending_tools or [],
+        "predictions": predictions or [],
+    }
+
+
+def _block_fact_base(*, blocks=None, tracked_entity_signals=None,
+                     trending_tools=None, predictions=None):
+    return {
+        "blocks": blocks or [{"description": "", "named_entities": []}],
+        "tracked_entity_signals": tracked_entity_signals or [],
+        "trending_tools": trending_tools or [],
+        "predictions": predictions or [],
+    }
+
+
+def _clean_det_flags():
+    """A fabrication-CLEAN Layer-1 gate result (the only shape run_layer2 accepts)."""
+    return {"fabrication": [], "unverified": [], "mechanical": [], "meta": {}}
+
+
+def _applicable_prior():
+    """A prior_context with a prior edition → continuity applies (judge scores it numerically)."""
+    return {
+        "empty": False,
+        "previous_editions": [
+            {"edition_number": 5, "title": "Prior angle", "opening_excerpt": "last week", "weeks_ago": 1},
+        ],
+        "exemplars": ["An exemplar paragraph in the target voice."],
+        "exemplars_status": "scored",
+    }
+
+
+def _empty_prior():
+    """An empty corpus → continuity is n/a and excluded (D-05)."""
+    return {"empty": True, "previous_editions": [], "exemplars": [], "exemplars_status": "not_scored"}
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Test doubles.
+#   _FakeLLM   — OpenAI-shape FIFO proxy client (anthropic is None in the test env → the
+#                OpenAI branch of block_pipeline._llm_call is exercised). Records `.calls`.
+#   _FakeHTTPClient — the test_28 httpx double, carried verbatim for Plan 03's gate re-check.
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class _Choice:
+    def __init__(self, text):
+        self.message = type("_M", (), {"content": text})()
+
+
+class _Resp:
+    def __init__(self, text):
+        self.choices = [_Choice(text)]
+        self.usage = None
+
+
+class _FakeLLM:
+    """FIFO OpenAI-shape client. Each `.chat.completions.create(...)` pops the next canned
+    response string (last one is sticky, reused for every further call) and records the call."""
+
+    def __init__(self, *responses):
+        self._q = list(responses)
+        self.calls = []
+
+    class _CC:
+        def __init__(self, outer):
+            self._o = outer
+
+        def create(self, *, model, messages, temperature, max_tokens, **k):
+            self._o.calls.append({"model": model, "messages": messages})
+            text = self._o._q.pop(0) if len(self._o._q) > 1 else self._o._q[0]
+            return _Resp(text)
+
+    @property
+    def chat(self):
+        return type("_Chat", (), {"completions": _FakeLLM._CC(self)})()
+
+
+class _FakeResponse:
+    def __init__(self, status_code, json_data=None):
+        self.status_code = status_code
+        self._json = json_data if json_data is not None else {}
+
+    def json(self):
+        return self._json
+
+
+class _FakeHTTPClient:
+    """{url: [outcome, ...]} FIFO with last-element-sticky semantics (test_28 shape). Carried
+    for the Plan-03 dedup-cache assert; unused in Plans 01/02 (no gate re-check yet)."""
+
+    def __init__(self, responses=None):
+        self._responses = {k: list(v) for k, v in (responses or {}).items()}
+        self.calls = []
+
+    def _next(self, url):
+        self.calls.append(url)
+        queue = self._responses.get(url)
+        if not queue:
+            raise AssertionError(f"_FakeHTTPClient: no queued response for {url!r}")
+        outcome = queue.pop(0) if len(queue) > 1 else queue[0]
+        if isinstance(outcome, Exception):
+            raise outcome
+        code, json_data = outcome
+        return _FakeResponse(code, json_data)
+
+    def get(self, url, *, headers=None, timeout=None, **kwargs):
+        return self._next(url)
+
+    def head(self, url, *, timeout=None, follow_redirects=None, **kwargs):
+        return self._next(url)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Canned-judge-JSON builders — emit a valid both-bodies × 5-dim judge payload with the
+# per-dimension scores a test passes in (default score used for unspecified dims).
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _dim_entry(score):
+    return {
+        "score": score,
+        "evidence": "a quoted sentence from the draft",
+        "exemplar_before": "a weaker phrasing",
+        "exemplar_after": "a sharper phrasing",
+    }
+
+
+def _body_scores(overrides=None, *, default=5, continuity_na=False):
+    overrides = overrides or {}
+    out = {}
+    for dim in jl._DIMENSIONS:
+        if dim == "continuity" and continuity_na:
+            out[dim] = {"score": "n/a", "evidence": "no prior editions",
+                        "exemplar_before": "n/a", "exemplar_after": "n/a"}
+        else:
+            out[dim] = _dim_entry(overrides.get(dim, default))
+    return out
+
+
+def _judge_payload(*, technical=None, impact=None, default=5, continuity_na=False):
+    return {
+        "technical": _body_scores(technical, default=default, continuity_na=continuity_na),
+        "impact": _body_scores(impact, default=default, continuity_na=continuity_na),
+    }
+
+
+def _judge_json(**kwargs):
+    return json.dumps(_judge_payload(**kwargs))
+
+
+def _judge_json_missing_evidence():
+    """A schema-INVALID judge payload: one dimension lacks the required `evidence` (JUDGE-05)."""
+    payload = _judge_payload()
+    del payload["technical"]["hedging_filler"]["evidence"]
+    return json.dumps(payload)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# JUDGE-01 — fail-loud entry guard
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_guard_and_shortcircuit():
+    """A non-empty `det_flags['fabrication']` is a mis-wired caller → hard ValueError. Layer 2
+    must NEVER run (and never auto-revise) a draft that carries a live fabrication (JUDGE-01)."""
+    draft = _make_draft()
+    det = {"fabrication": [{"kind": "tier1_entity", "value": "FakeCorp"}],
+           "unverified": [], "mechanical": [], "meta": {}}
+    with pytest.raises(ValueError, match="fabrication"):
+        jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), det, {}, _FakeLLM("{}"))
+
+
+def test_guard_rejects_non_dict_draft():
+    """A wrong/missing draft surfaces as a clear contract error (not a bare AttributeError)."""
+    with pytest.raises(ValueError, match="draft must be a dict"):
+        jl.run_layer2("not a draft", _block_fact_base(), _applicable_prior(),
+                      _clean_det_flags(), {}, _FakeLLM("{}"))
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# JUDGE-04 / D-04 — deterministic filler pre-pass + threshold engine
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_count_filler_hits():
+    """Case-insensitive count of every blacklist-phrase occurrence."""
+    text = ("As we move forward, it remains to be seen where this goes. "
+            "AS WE MOVE FORWARD, nothing is certain.")
+    hits = jl._count_filler_hits(text, jl.DEFAULT_FILLER_BLACKLIST)
+    assert hits == 3  # "as we move forward" ×2 (case-insensitive) + "it remains to be seen" ×1
+
+
+def test_filler_hit_combination():
+    """D-04: hedging fails on the deterministic filler combination even with a passing score
+    (score >= hedging_fail_below but hits >= hedging_filler_hits_max)."""
+    cfg = jl._merged_config({})
+    scores = _judge_payload(technical={"hedging_filler": 4}, impact={"hedging_filler": 4})
+    # 3 filler hits on the technical body >= hedging_filler_hits_max (3) → fails despite score 4.
+    failing = jl._compute_failing_dims(scores, {"technical": 3, "impact": 0}, cfg,
+                                       continuity_applicable=True)
+    assert "hedging_filler" in failing
+    # Score 4 + 0 hits → not failing.
+    failing2 = jl._compute_failing_dims(scores, {"technical": 0, "impact": 0}, cfg,
+                                        continuity_applicable=True)
+    assert "hedging_filler" not in failing2
+
+
+def test_compute_failing_dims_below_threshold():
+    """A dimension whose score is below its fail_below threshold is in the failing set; a
+    passing dimension is not."""
+    cfg = jl._merged_config({})
+    scores = _judge_payload(technical={"specificity": 2}, impact={"specificity": 2})
+    failing = jl._compute_failing_dims(scores, {"technical": 0, "impact": 0}, cfg,
+                                       continuity_applicable=True)
+    assert "specificity" in failing
+    assert "clickbait" not in failing
+
+
+def test_compute_failing_both_bodies_min():
+    """D-08: a dimension fails for the version if EITHER body fails (worst-case via min) —
+    impact score 2 + technical score 5 → the dimension fails."""
+    cfg = jl._merged_config({})
+    scores = _judge_payload(technical={"clickbait": 5}, impact={"clickbait": 2})
+    failing = jl._compute_failing_dims(scores, {"technical": 0, "impact": 0}, cfg,
+                                       continuity_applicable=True)
+    assert "clickbait" in failing
+
+
+def test_continuity_na_compute():
+    """D-05: continuity scores 1 (hard-fail) when applicable, but is EXCLUDED entirely when the
+    corpus is empty (never a fail, never counted)."""
+    cfg = jl._merged_config({})
+    # Applicable + continuity 1 → in failing (continuity_fail_below defaults to 4).
+    scores = _judge_payload(technical={"continuity": 1}, impact={"continuity": 1})
+    failing = jl._compute_failing_dims(scores, {"technical": 0, "impact": 0}, cfg,
+                                       continuity_applicable=True)
+    assert "continuity" in failing
+    # Not applicable + continuity "n/a" (other dims clean) → continuity excluded, nothing fails.
+    scores_na = _judge_payload(default=5, continuity_na=True)
+    failing_na = jl._compute_failing_dims(scores_na, {"technical": 0, "impact": 0}, cfg,
+                                          continuity_applicable=False)
+    assert "continuity" not in failing_na
+    assert failing_na == []
+
+
+def test_merged_config_partial_and_blacklist_fallback():
+    """A partial `edition_eval` merges over DEFAULT_CONFIG; an empty filler_blacklist falls back
+    to DEFAULT_FILLER_BLACKLIST (RESEARCH A4)."""
+    cfg = jl._merged_config({"edition_eval": {"judge_temperature": 0.9,
+                                              "thresholds": {"specificity_fail_below": 5}}})
+    assert cfg["judge_temperature"] == 0.9           # caller override
+    assert cfg["judge_model"] == "claude-sonnet-4-6"  # default preserved
+    assert cfg["thresholds"]["specificity_fail_below"] == 5      # merged threshold
+    assert cfg["thresholds"]["continuity_fail_below"] == 4       # default threshold preserved
+    assert cfg["filler_blacklist"] == jl.DEFAULT_FILLER_BLACKLIST  # empty → fallback
+
+
+if __name__ == "__main__":
+    sys.exit(pytest.main([__file__, "-v"]))
