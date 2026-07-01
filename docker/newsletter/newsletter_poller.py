@@ -299,6 +299,128 @@ def init():
     return True
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 30 — pre-publish eval orchestration helpers (Plan 30-02).
+#
+# These are the "dumb sequencer" support surface for `run_edition_eval`: read the config
+# gate, build the GOVERNED `edition_eval` identity client, alert the operator loudly on an
+# eval outage, and fetch the FULL prior published edition for the gate's cross-edition
+# mechanical checks. NO status flip / do_not_publish action lives here — that is Plan 30-03.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _read_edition_eval_config() -> dict:
+    """Read the `edition_eval` block from agentpulse-config.json (D-15).
+
+    Mirrors the existing block_pipeline config-read idiom (process_task, ~:2396-2400), swapping
+    the block key. Callers read `.get('enabled', False)` (gates INVOCATION — rollback-safe) and
+    `.get('enforce', False)` (gates the status flip — report-only) off the returned dict; the whole
+    block is passed to `run_layer2`'s `config` arg. Returns {} when the file or block is absent
+    (fail-safe: an absent block reads as enabled=False, so the eval simply never runs)."""
+    try:
+        cfg_path = Path(OPENCLAW_DATA_DIR) / "config" / "agentpulse-config.json"
+        if cfg_path.exists():
+            return json.loads(cfg_path.read_text()).get("edition_eval", {}) or {}
+    except Exception as e:
+        logger.warning(f"[EVAL] could not read edition_eval config (non-fatal): {e}")
+    return {}
+
+
+def _build_eval_llm_client():
+    """Construct a NEW anthropic client authenticating as the GOVERNED `edition_eval` identity
+    (GOV-01), or return None when the eval key is unset (the D-07 outage case).
+
+    THE signature landmine: `run_layer2` requires an `llm_client` on the `edition_eval` wallet,
+    NEVER the newsletter service's own module Claude client. Reusing that client would attribute
+    eval spend to the newsletter wallet and defeat the governed-budget design. The key is read fresh
+    via `edition_eval._get_eval_api_key()` (LLM_PROXY_EVAL_KEY) and passed ONLY to
+    `anthropic.Anthropic(api_key=...)` — it is NEVER logged (we log a boolean only) and never lands
+    in a DB row or the flags object (T-30-KEY). When the operator has not yet minted the key, return
+    None — the caller treats that as an outage (error row + loud alert), NOT a fallback to the
+    newsletter identity."""
+    from edition_eval import _get_eval_api_key  # lazy, mirrors `from verification import verify_draft`
+
+    eval_key = _get_eval_api_key()
+    if not eval_key:
+        # Loud, key-free signal (D-07): the operator has not minted LLM_PROXY_EVAL_KEY yet. Log a
+        # boolean-style fact ("unset"), NEVER the key; return None so the caller fails open-but-loud.
+        logger.error(
+            "[EVAL] eval key unset (LLM_PROXY_EVAL_KEY) — cannot build the governed edition_eval "
+            "client; the eval will not run. NOT falling back to the newsletter identity."
+        )
+        return None
+    if anthropic is None:
+        # Fail loud — the SDK must be present at runtime to build the governed client.
+        raise RuntimeError(
+            "anthropic SDK is not installed but _build_eval_llm_client needs it to build the "
+            "governed edition_eval client. Install it in the service image."
+        )
+    logger.info("[EVAL] governed edition_eval client built (proxy: %s/anthropic)", LLM_PROXY_URL)
+    return anthropic.Anthropic(
+        api_key=eval_key,                       # the GOVERNED edition_eval identity (NOT the newsletter key)
+        base_url=f"{LLM_PROXY_URL}/anthropic",
+    )
+
+
+def _alert_operator(message: str) -> None:
+    """Loud, non-silent operator alert from the newsletter service (D-07).
+
+    Phase 30 INTERIM path: a direct httpx POST to Telegram (mirrors the processor's send_telegram
+    shape). Phase 31 (SURF) hardens/centralizes this via the shared send_telegram. Unlike the
+    processor's fail-SOFT send_telegram (silent `return` on unset env), this MUST fail LOUD: if
+    either TELEGRAM env is unset we ERROR-log (never a bare return) so an eval outage can never
+    vanish silently. `message` is operator-facing text the caller builds from labels/counts (edition
+    number, verdict, category counts) — NEVER raw draft prose (log/injection hygiene, T-30-LOG); we
+    still single-line + bound it defensively before sending. The eval key is NEVER included."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    owner = os.getenv("TELEGRAM_OWNER_ID")
+    safe = " ".join(str(message).split())[:1000]  # single-line + bound (log/injection hygiene)
+    if not token or not owner:
+        # Fail LOUD (D-07): never a silent no-op. Log a LABEL only — never the eval key.
+        logger.error(
+            "[EVAL-ALERT] cannot alert operator — TELEGRAM_BOT_TOKEN/TELEGRAM_OWNER_ID unset; "
+            "message=%s", safe,
+        )
+        return
+    try:
+        with httpx.Client(timeout=10) as hc:
+            resp = hc.post(
+                f"https://api.telegram.org/bot{token}/sendMessage",
+                data={"chat_id": owner, "text": safe},
+            )
+            if resp.status_code != 200:
+                logger.error(
+                    "[EVAL-ALERT] Telegram send failed (%s): %s", resp.status_code, resp.text[:200]
+                )
+    except Exception:
+        # Never swallow silently — a failed alert is itself surfaced loudly (exc_info, no key).
+        logger.error("[EVAL-ALERT] operator alert send failed", exc_info=True)
+
+
+def _fetch_prior_published_edition() -> dict | None:
+    """Fetch the FULL latest PUBLISHED edition for the gate's cross-edition mechanical checks
+    (GATE-07 recycled-closer + duplicated-stat), or None.
+
+    Plain `.eq('status','published')` — NEVER the supabase-py in-list filter (the silent-failure
+    rule). The gate needs the FULL prior body (both versions), NOT `load_edition_context`'s truncated
+    excerpt (contract note A3). Fail-loud-but-not-fatal: on any error log a WARNING + return None (the
+    gate treats None as a clean cross-edition skip and never raises)."""
+    try:
+        result = (
+            supabase.table("newsletters")
+            .select("content_markdown, content_markdown_impact, edition_number")
+            .eq("status", "published")
+            .order("published_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        rows = result.data or []
+        return rows[0] if rows else None
+    except Exception as e:
+        logger.warning(f"[EVAL] prior-published-edition fetch failed (non-fatal): {e}")
+        return None
+
+
 def ensure_dirs():
     NEWSLETTERS_DIR.mkdir(parents=True, exist_ok=True)
 
