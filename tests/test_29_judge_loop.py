@@ -31,6 +31,18 @@ if str(NL_DIR) not in sys.path:
     sys.path.insert(0, str(NL_DIR))
 
 import judge_loop as jl  # noqa: E402 — the REAL production module
+import deterministic_gate as gate  # noqa: E402 — the reused Layer-1 engine (DNS-patched in _stub_dns)
+
+
+@pytest.fixture(autouse=True)
+def _stub_dns(monkeypatch):
+    """Zero-egress SSRF-guard resolver stub (mirrors tests/test_28_deterministic_gate.py:44-54).
+
+    The Plan-03 per-rewrite re-check re-runs `run_deterministic_gate`, whose URL-layer SSRF guard
+    RESOLVES every dotted host; without this stub the reverify tests would perform REAL DNS (live
+    egress, T-28-04). Patch the symbol on the `deterministic_gate` module `judge_loop` imports so
+    every host resolves to ONE public IP by default — the whole suite has ZERO live egress."""
+    monkeypatch.setattr(gate, "_resolve_host", lambda host: ["93.184.216.34"])  # a public IP
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -591,6 +603,87 @@ def test_held_voice_returns_best_not_latest():
     assert out["verdict"] == "held_voice"
     assert out["selected_attempt"] == 1                              # best = fewest fails, not latest (2)
     assert out["final_draft"]["content_markdown"] == "ATTEMPT1 TECH"
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# D-01 / D-02 / D-03 — per-rewrite Layer-1 re-check (Plan 03 Task 1)
+#   The rewrite is untrusted LLM output. EVERY rewrite is re-verified by re-running the SAME
+#   deterministic engine (run_deterministic_gate) BEFORE it is re-judged. A NEW fabrication is a
+#   hard abort that keeps the clean attempt-0 draft (D-02); a transient network error is visible
+#   telemetry that never holds (D-03); an unchanged ref is served from the cross-attempt dedup
+#   cache (D-01). All three inject the reused test_28 _FakeHTTPClient (zero live egress).
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_held_fabrication_keeps_attempt0():
+    """D-01/D-02: attempt-0 is fabrication-clean but fails a voice dim; the attempt-1 revise
+    INTRODUCES a `github.com/owner/newrepo` that the fake client 404s → the per-rewrite Layer-1
+    re-check aborts to verdict='held_fabrication', `final_draft` is the ORIGINAL attempt-0 draft
+    (NEVER the fabricated rewrite), and the rejected rewrite's flags live in telemetry ONLY."""
+    draft = _make_draft(content_markdown="original clean technical prose about agents",
+                        content_markdown_impact="original clean impact prose about agents")
+    j0 = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})   # fail → triggers revise
+    r_fab = _revise_json(content_markdown="the tool now lives at github.com/owner/newrepo",
+                         content_markdown_impact="the tool now lives at github.com/owner/newrepo")
+    llm = _FakeLLM(j0, r_fab)
+    fake = _FakeHTTPClient({"https://api.github.com/repos/owner/newrepo": [(404, {})]})
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {},
+                        llm, http_client=fake)
+
+    assert out["verdict"] == "held_fabrication"
+    assert out["selected_attempt"] == 0
+    # final_draft is the ORIGINAL fabrication-clean attempt-0 draft, NEVER the fabricated rewrite.
+    assert out["final_draft"]["content_markdown"] == "original clean technical prose about agents"
+    assert "newrepo" not in out["final_draft"]["content_markdown"]
+    # the rejected rewrite's flags are in telemetry ONLY (the judge never scored it).
+    rejected = out["attempts"][-1]
+    assert rejected["attempt"] == 1
+    assert rejected["reverify_flags"]["fabrication"]         # non-empty — the invented repo
+    assert rejected["judge_scores"] is None                 # never judged (aborted before judging)
+    # exactly one judge + one revise call — the fabricated rewrite is NEVER judged.
+    assert len(_judge_calls(llm)) == 1
+    assert len(_revise_calls(llm)) == 1
+
+
+def test_unverified_never_holds():
+    """D-03: the attempt-1 revise introduces a URL the fake client 5xx's → the re-check records
+    `unverified` but NEVER aborts and NEVER holds ('an error is not evidence'). The loop proceeds,
+    the attempt-1 draft passes, and the `unverified` entry appears in that attempt's reverify_flags
+    (never folded into fabrication)."""
+    draft = _make_draft()
+    j_fail = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})
+    r_unv = _revise_json(content_markdown="the team shipped an update, see https://example.com/missing",
+                         content_markdown_impact="the team shipped an update, see https://example.com/missing")
+    j_pass = _judge_json(default=5)
+    llm = _FakeLLM(j_fail, r_unv, j_pass)
+    fake = _FakeHTTPClient({"https://example.com/missing": [(500, {})]})
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {},
+                        llm, http_client=fake)
+
+    assert out["verdict"] == "passed"                        # unverified NEVER holds/aborts (D-03)
+    assert out["selected_attempt"] == 1
+    reverify = out["attempts"][1]["reverify_flags"]
+    assert reverify["unverified"]                            # the 5xx URL recorded as unverified
+    assert not reverify["fabrication"]                       # never folded into fabrication (D-03)
+
+
+def test_dedup_cache_calls_do_not_grow():
+    """D-01 (Pitfall 3): the SAME github ref appears in BOTH rewrites; the module-owned
+    _CachingHTTPClient persists the Phase-28 dedup cache ACROSS attempts, so an unchanged ref is
+    fetched ONCE (attempt-1 re-check) and served from cache on attempt-2 — `_FakeHTTPClient.calls`
+    does NOT grow for that url across attempts."""
+    draft = _make_draft()
+    j_fail = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})
+    r = _revise_json(content_markdown="the update is live, see github.com/owner/liverepo",
+                     content_markdown_impact="the update is live, see github.com/owner/liverepo")
+    llm = _FakeLLM(j_fail, r, j_fail, r, j_fail)             # J0,R1,J1,R2,J2 → held_voice (2 revises)
+    fake = _FakeHTTPClient({"https://api.github.com/repos/owner/liverepo": [(200, {"stargazers_count": 100})]})
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {},
+                        llm, http_client=fake)
+
+    assert out["verdict"] == "held_voice"
+    gh_calls = [c for c in fake.calls if "owner/liverepo" in c]
+    assert len(gh_calls) == 1                                # fetched once, cache-served on attempt-2 (D-01)
 
 
 if __name__ == "__main__":
