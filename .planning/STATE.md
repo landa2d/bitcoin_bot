@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: executing
-stopped_at: Phase 30 context gathered
-last_updated: "2026-07-01T16:21:22.185Z"
-last_activity: 2026-07-01 -- Phase 30 planning complete
+stopped_at: Completed 30-01-PLAN.md
+last_updated: "2026-07-01T16:34:01.639Z"
+last_activity: 2026-07-01
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 16
-  completed_plans: 12
+  completed_plans: 13
   percent: 67
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 30 — sequencer-wiring, hold-action & activation-gate (Phase 29 complete + verified)
+**Current focus:** Phase 30 — sequencer-wiring-hold-action-activation-gate
 
 ## Current Position
 
-Phase: 30
-Plan: Not started
+Phase: 30 (sequencer-wiring-hold-action-activation-gate) — EXECUTING
+Plan: 2 of 4
 Status: Ready to execute
-Last activity: 2026-07-01 -- Phase 30 planning complete
+Last activity: 2026-07-01
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -94,6 +94,8 @@ Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM
 - [Phase ?]: Phase 29 Plan 03: the per-rewrite Layer-1 re-check is gated on an injected http_client — run_deterministic_gate's verify_draft flags all-caps placeholder revise bodies (TECH/NEW/REVISED) as tier1 fabrications, so gating on a client preserves the zero-egress contract + the 19 prior tests (which inject none) AND satisfies every D-01/02/03 acceptance (all inject a fake client); production always injects a real httpx.Client so the re-check is always active live.
 - [Phase ?]: Phase 29 Plan 03: _CachingHTTPClient (D-01, Open Q1 Option a) memoizes GET/HEAD on (method,url) so the Phase-28 per-call dedup cache persists across N=2 attempts; a raised delegate (timeout/connect) is NOT cached (only unverified, which never holds). held_fabrication keeps the fabrication-clean attempt-0 draft (D-02); unverified/mechanical on the re-check ride to reverify_flags telemetry only (D-03).
 - [Phase ?]: Phase 29 Plan 03: _persistable_attempt strips internal failing/summed_score/draft so each attempt maps 1:1 onto the edition_eval row-write params; verdict-iff-ok proven by calling the REAL write_eval_row in-test. Requirement closure (JUDGE/LOOP) deferred to phase-end /gsd-verify-work per the 27/28/29 fail-loud-accuracy posture.
+- [Phase 30]: Plan 01: authored migration 046 (first-class do_not_publish + do_not_publish_reason columns on newsletters, ADD COLUMN IF NOT EXISTS house style, SQL-first operator-apply banner, schema-only no backfill per D-13) — AUTHORED NOT APPLIED: apply is the 30-04 operator MCP runbook, so WIRE-02 stays Pending (fail-loud accuracy).
+- [Phase 30]: Plan 01: guarded BOTH processor publish gates (publish_newsletter + scheduled_auto_publish_newsletter) on the do_not_publish column via in-Python .get('do_not_publish', False) — apply-order-robust belt-and-suspenders behind the status='held' exclusion (D-01/WIRE-04); auto-publish select widened to '*'; logs edition+fixed label only, never the raw reason (T-30-LOG); processor eval-ref count held at 0 (WIRE-05). WIRE-04/05 closure deferred to phase-end verify.
 
 ### Pending Todos
 
@@ -151,9 +153,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-07-01T15:31:17.352Z
-Stopped at: Phase 30 context gathered
-Resume file: .planning/phases/30-sequencer-wiring-hold-action-activation-gate/30-CONTEXT.md
+Last session: 2026-07-01T16:32:57.257Z
+Stopped at: Completed 30-01-PLAN.md
+Resume file: .planning/phases/30-sequencer-wiring-hold-action-activation-gate/30-02-PLAN.md
 Next: **Phase 29 is COMPLETE + VERIFIED** (all 3 plans done, goal-verified 5/5, code review 0-critical with both WARNINGs fixed; 31 test_29 + 104 regression green). judge_loop.py is the finished PURE Layer-2 module. judge_loop.py is the finished PURE Layer-2 module: the 5-dim exemplar-anchored judge + bounded N=2 loop (29-01/02) PLUS the per-rewrite `run_deterministic_gate` re-check via the module-owned `_CachingHTTPClient` (D-01 cross-attempt dedup), the `held_fabrication` abort keeping the clean attempt-0 draft (D-02), `unverified`/`mechanical` telemetry-only (D-03), and the finalized per-attempt telemetry (`_persistable_attempt` maps 1:1 onto the `edition_eval` row-write params respecting verdict-iff-ok; mechanical-only stays `passed`, D-10/D-12) (29-03). NOTE: the re-check is gated on an injected `http_client` — Phase 30 must inject a real `httpx.Client` to activate it live (verify_draft flags all-caps placeholder bodies as fabrications, so the pure/unit path passes none). Proven by tests/test_29_judge_loop.py (28 cases, zero egress; test_26/27/28 104 regression green; full `tests/` failures are all pre-existing env/integration, none import judge_loop — see deferred-items.md). Next: `/gsd-verify-work` reconciles the deferred JUDGE-01..05 / LOOP-01..05 closures, THEN Phase 30 (WIRE) wires the gate + `run_layer2` at the two save points + persists every attempt via `write_eval_row`. STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call — the prerequisite for the FIRST live Phase-30 invocation.
 
 ## Operator Next Steps
@@ -181,3 +183,4 @@ Next: **Phase 29 is COMPLETE + VERIFIED** (all 3 plans done, goal-verified 5/5, 
 | Phase 29 P29-01 | 14min | 2 tasks | 3 files |
 | Phase 29 P29-02 | 8min | 2 tasks | 2 files |
 | Phase 29 P29-03 | 17min | 2 tasks | 2 files |
+| Phase 30 P01 | ~8min | 2 tasks | 2 files |

@@ -226,7 +226,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 1** *(parallel — no file overlap)*
 
-  - [ ] 30-01-PLAN.md — Migration 046 `do_not_publish` columns + Processor publish-gate column guard (WIRE-02/04/05) [autonomous]
+  - [x] 30-01-PLAN.md — Migration 046 `do_not_publish` columns + Processor publish-gate column guard (WIRE-02/04/05) [autonomous]
   - [ ] 30-02-PLAN.md — `run_edition_eval` orchestrator: governed edition_eval client + injected httpx.Client + fail-open-but-loud + config gating + co-located unit suite (WIRE-01/05/06) [autonomous]
 
 **Wave 2** *(blocked on 30-02 — same poller file)*
@@ -289,7 +289,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete    | 2026-07-01 |
-| 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/4 | Not started | - |
+| 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 1/4 | In Progress|  |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
 
 ## Backlog
