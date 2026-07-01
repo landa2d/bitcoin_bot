@@ -94,7 +94,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 - [x] **Phase 26: Continuity & Exemplar Context** — `load_edition_context()` feeds prior-edition angles + operator-approved exemplars to both writer paths and the judge; resurrects the dead Phase E voice check (CTX-01..05) (completed 2026-06-24)
 - [x] **Phase 27: Eval Persistence & Governed Agent** — migration 045 `edition_evals` (per-attempt, fail-loud) + a governed, hard-capped `edition_eval` proxy agent (EVAL-01..03, GOV-01..02) (completed 2026-06-25)
 - [x] **Phase 28: Layer 1 Deterministic Gate** — no-LLM fabrication (GitHub/URL/arXiv/named-study/entity-merge) + mechanical-editorial checks against the correct in-memory fact base, short-circuits to hold+escalate (GATE-01..08) (completed 2026-06-30)
-- [ ] **Phase 29: Layer 2 Judge + Feedback-Rewrite Loop** — standalone module: Sonnet judge on exemplar-anchored dimensions + bounded N=2 rewrite loop, returns final draft + verdict (JUDGE-01..05, LOOP-01..05)
+- [x] **Phase 29: Layer 2 Judge + Feedback-Rewrite Loop** — standalone module: Sonnet judge on exemplar-anchored dimensions + bounded N=2 rewrite loop, returns final draft + verdict (JUDGE-01..05, LOOP-01..05) (completed 2026-07-01)
 - [ ] **Phase 30: Sequencer Wiring, Hold Action & Activation Gate** — invoke gate+module at the two save points, act on verdicts (held/do_not_publish), behind a report-only `enforce` flag; Processor stays dumb (WIRE-01..06)
 - [ ] **Phase 31: Surfacing & Escalation** — hardened `send_telegram` alerts + Friday-notify eval summary + live `/newsletter_eval` Gato command (+ allowlist + gato rebuild) (SURF-01..03)
 
@@ -205,7 +205,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 3** *(blocked on 29-02 — same module/test files)*
 
-  - [ ] 29-03-PLAN.md — Per-rewrite Layer-1 re-check + `_CachingHTTPClient` cross-attempt dedup (D-01) + held_fabrication abort keeping attempt-0 (D-02) + unverified telemetry-only (D-03) + finalized write_eval_row telemetry mapping + mechanical ride-along + golden integration + phase gate (LOOP-03, LOOP-04, LOOP-05) [Wave 3, autonomous, depends 29-02]
+  - [x] 29-03-PLAN.md — Per-rewrite Layer-1 re-check + `_CachingHTTPClient` cross-attempt dedup (D-01) + held_fabrication abort keeping attempt-0 (D-02) + unverified telemetry-only (D-03) + finalized write_eval_row telemetry mapping + mechanical ride-along + golden integration + phase gate (LOOP-03, LOOP-04, LOOP-05) [Wave 3, autonomous, depends 29-02]
 
 **Notes**: Newsletter service only; standalone eval-phase module the sequencer calls (the sequencer passes draft + fact base, the module runs the loop internally). All LLM via the proxy on the governed `edition_eval` agent. Judge + loop are tightly coupled (the loop re-evals via the judge) → one phase. Thresholds are config-tunable under `agentpulse-config.json → edition_eval` (operator confirms/tunes at the plan gate; proposed defaults in REQUIREMENTS.md). Reference `docs/audit/specs/01_eval_harness.md`.
 
@@ -274,7 +274,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete    | 2026-06-24 |
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
-| 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 2/3 | In Progress|  |
+| 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete   | 2026-07-01 |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
 

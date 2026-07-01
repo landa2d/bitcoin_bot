@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: executing
-stopped_at: Completed 29-02-PLAN.md
-last_updated: "2026-07-01T11:17:46.048Z"
+status: verifying
+stopped_at: Completed 29-03-PLAN.md (phase 29 complete — ready for verification)
+last_updated: "2026-07-01T11:48:42.735Z"
 last_activity: 2026-07-01
 progress:
   total_phases: 6
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 12
-  completed_plans: 11
-  percent: 92
+  completed_plans: 12
+  percent: 67
 ---
 
 # Project State
@@ -25,9 +25,9 @@ See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Pu
 
 ## Current Position
 
-Phase: 29 (layer-2-judge-feedback-rewrite-loop) — EXECUTING
-Plan: 3 of 3
-Status: Ready to execute
+Phase: 29 (layer-2-judge-feedback-rewrite-loop) — CODE-COMPLETE, VERIFYING
+Plan: 3 of 3 (all done)
+Status: Phase complete — ready for verification
 Last activity: 2026-07-01
 
 ## Roadmap (v2.3 — Phases 26–31)
@@ -91,6 +91,9 @@ Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM
 - [Phase 28]: GATE-06/07 marked complete (detection cores fully realized + proven by tests on the real module). GATE-01..05/08 detection is proven by the golden suite but their runs-on-every-edition / live-egress / hold-action closure is Phase 30 wiring (report-only/build-only this phase, D-05) — phase-end verification reconciles the remaining GATE requirements (consistent with the 27/28-01/02 fail-loud-accuracy posture).
 - [Phase 29]: Plan 01: shipped docker/newsletter/judge_loop.py (PURE run_layer2 module — fail-loud entry guard JUDGE-01, _merged_config over DEFAULT_CONFIG, DEFAULT_FILLER_BLACKLIST verbatim, _count_filler_hits, both-bodies min() threshold engine _compute_failing_dims D-04/D-05/D-08) + the 5-dim exemplar-anchored Sonnet judge (both bodies ONE call D-08, parse_llm_json + schema-reject->one-retry->status='error' JUDGE-05, attempt-0 verdicts passed/escalated) + config edition_eval block (continuity_fail_below=4). tests/test_29_judge_loop.py 12 cases on the REAL module w/ OpenAI-shape _FakeLLM, zero egress; test_26/27/28 104 regression green. JUDGE-01..05 cores BUILT+PROVEN; requirement closure deferred to phase end (Plans 02/03 + verify) per the 27/28 fail-loud-accuracy posture. N=2 revise loop + held_voice/held_fabrication are Plan 02 (documented NotImplementedError seam).
 - [Phase 29]: Plan 02: shipped the bounded N=2 feedback-rewrite loop in judge_loop.py — _revise_draft (targeted both-body revise via _llm_call + _fact_base_source_texts guardrail, D-07/D-08, NOT a full writer re-run), _build_feedback (structured per-dim feedback + explicit continuity bridge D-06 + mechanical-rides-only-when-a-dim-fails D-12, fabrication never present), _select_best_attempt (D-11 fewest-fails->highest-summed->latest, attempt-0 a candidate) + the full run_layer2 loop (revise only attempt_no>0 -> at most 2 revises/3 judged; passed/escalated/held_voice; no best-effort publish LOOP-02; pure LOOP-05 4-key contract). Replaced the Plan-01 NotImplementedError seam; Plan-03 per-rewrite Layer-1 re-check (D-01/D-02/D-03) is a marked insertion point. test_29 19 passed; test_26/27/28 104 regression green. LOOP-01/02 cores BUILT+PROVEN; closure deferred to phase end.
+- [Phase ?]: Phase 29 Plan 03: the per-rewrite Layer-1 re-check is gated on an injected http_client — run_deterministic_gate's verify_draft flags all-caps placeholder revise bodies (TECH/NEW/REVISED) as tier1 fabrications, so gating on a client preserves the zero-egress contract + the 19 prior tests (which inject none) AND satisfies every D-01/02/03 acceptance (all inject a fake client); production always injects a real httpx.Client so the re-check is always active live.
+- [Phase ?]: Phase 29 Plan 03: _CachingHTTPClient (D-01, Open Q1 Option a) memoizes GET/HEAD on (method,url) so the Phase-28 per-call dedup cache persists across N=2 attempts; a raised delegate (timeout/connect) is NOT cached (only unverified, which never holds). held_fabrication keeps the fabrication-clean attempt-0 draft (D-02); unverified/mechanical on the re-check ride to reverify_flags telemetry only (D-03).
+- [Phase ?]: Phase 29 Plan 03: _persistable_attempt strips internal failing/summed_score/draft so each attempt maps 1:1 onto the edition_eval row-write params; verdict-iff-ok proven by calling the REAL write_eval_row in-test. Requirement closure (JUDGE/LOOP) deferred to phase-end /gsd-verify-work per the 27/28/29 fail-loud-accuracy posture.
 
 ### Pending Todos
 
@@ -148,10 +151,10 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-07-01T11:17:15.479Z
-Stopped at: Completed 29-02-PLAN.md
+Last session: 2026-07-01T11:48:42.735Z
+Stopped at: Completed 29-03-PLAN.md (phase 29 complete — ready for verification)
 Resume file: None
-Next: Phase 29 Plan 02 is code-complete — judge_loop.py now has the full bounded N=2 feedback-rewrite loop (targeted `_revise_draft` with the `_fact_base_source_texts` guardrail D-07/D-08, structured `_build_feedback` + continuity bridge D-06, `_select_best_attempt` D-11, and the passed/escalated/held_voice `run_layer2` loop replacing the Plan-01 NotImplementedError seam), proven by tests/test_29_judge_loop.py (19 cases on the REAL module, OpenAI-shape mock, zero egress; test_26/27/28 104 regression green). Next: Plan 29-03 wires the per-rewrite `run_deterministic_gate` re-check at the marked insertion point (D-01 → held_fabrication keeping attempt-0 D-02, unverified telemetry-only D-03) + finalizes the `sats`/`model_calls` telemetry mapping onto `write_eval_row`. Then `/gsd-verify-work` reconciles the deferred JUDGE-01..05 / LOOP-01..05 closures. STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call — the prerequisite for the FIRST live Phase-30 invocation.
+Next: **Phase 29 is CODE-COMPLETE** (all 3 plans done). judge_loop.py is the finished PURE Layer-2 module: the 5-dim exemplar-anchored judge + bounded N=2 loop (29-01/02) PLUS the per-rewrite `run_deterministic_gate` re-check via the module-owned `_CachingHTTPClient` (D-01 cross-attempt dedup), the `held_fabrication` abort keeping the clean attempt-0 draft (D-02), `unverified`/`mechanical` telemetry-only (D-03), and the finalized per-attempt telemetry (`_persistable_attempt` maps 1:1 onto the `edition_eval` row-write params respecting verdict-iff-ok; mechanical-only stays `passed`, D-10/D-12) (29-03). NOTE: the re-check is gated on an injected `http_client` — Phase 30 must inject a real `httpx.Client` to activate it live (verify_draft flags all-caps placeholder bodies as fabrications, so the pure/unit path passes none). Proven by tests/test_29_judge_loop.py (28 cases, zero egress; test_26/27/28 104 regression green; full `tests/` failures are all pre-existing env/integration, none import judge_loop — see deferred-items.md). Next: `/gsd-verify-work` reconciles the deferred JUDGE-01..05 / LOOP-01..05 closures, THEN Phase 30 (WIRE) wires the gate + `run_layer2` at the two save points + persists every attempt via `write_eval_row`. STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call — the prerequisite for the FIRST live Phase-30 invocation.
 
 ## Operator Next Steps
 
@@ -177,3 +180,4 @@ Next: Phase 29 Plan 02 is code-complete — judge_loop.py now has the full bound
 | Phase 28 P03 | ~15min | 3 tasks | 2 files (GATE-06/07 + golden integration suite; phase-closing) |
 | Phase 29 P29-01 | 14min | 2 tasks | 3 files |
 | Phase 29 P29-02 | 8min | 2 tasks | 2 files |
+| Phase 29 P29-03 | 17min | 2 tasks | 2 files |
