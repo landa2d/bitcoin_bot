@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: verifying
-stopped_at: Completed 29-03-PLAN.md (phase 29 complete — ready for verification)
-last_updated: "2026-07-01T11:48:42.735Z"
+status: verified
+stopped_at: Phase 29 complete + verified (5/5 must-haves passed; 2 review WARNINGs fixed) — ready to start Phase 30
+last_updated: "2026-07-01T12:18:50.638Z"
 last_activity: 2026-07-01
 progress:
   total_phases: 6
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 29 — layer-2-judge-feedback-rewrite-loop
+**Current focus:** Phase 30 — sequencer-wiring, hold-action & activation-gate (Phase 29 complete + verified)
 
 ## Current Position
 
-Phase: 29 (layer-2-judge-feedback-rewrite-loop) — CODE-COMPLETE, VERIFYING
-Plan: 3 of 3 (all done)
-Status: Phase complete — ready for verification
+Phase: 30
+Plan: Not started
+Status: Phase 29 complete + verified (5/5 must-haves) — Phase 30 not started
 Last activity: 2026-07-01
 
 ## Roadmap (v2.3 — Phases 26–31)
@@ -152,9 +152,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 ## Session Continuity
 
 Last session: 2026-07-01T11:48:42.735Z
-Stopped at: Completed 29-03-PLAN.md (phase 29 complete — ready for verification)
+Stopped at: Phase 29 complete + verified (5/5 must-haves; VERIFICATION.md status=passed) + 2 code-review WARNINGs (WR-01 filler-feedback, WR-02 fail-loud re-check gap) fixed
 Resume file: None
-Next: **Phase 29 is CODE-COMPLETE** (all 3 plans done). judge_loop.py is the finished PURE Layer-2 module: the 5-dim exemplar-anchored judge + bounded N=2 loop (29-01/02) PLUS the per-rewrite `run_deterministic_gate` re-check via the module-owned `_CachingHTTPClient` (D-01 cross-attempt dedup), the `held_fabrication` abort keeping the clean attempt-0 draft (D-02), `unverified`/`mechanical` telemetry-only (D-03), and the finalized per-attempt telemetry (`_persistable_attempt` maps 1:1 onto the `edition_eval` row-write params respecting verdict-iff-ok; mechanical-only stays `passed`, D-10/D-12) (29-03). NOTE: the re-check is gated on an injected `http_client` — Phase 30 must inject a real `httpx.Client` to activate it live (verify_draft flags all-caps placeholder bodies as fabrications, so the pure/unit path passes none). Proven by tests/test_29_judge_loop.py (28 cases, zero egress; test_26/27/28 104 regression green; full `tests/` failures are all pre-existing env/integration, none import judge_loop — see deferred-items.md). Next: `/gsd-verify-work` reconciles the deferred JUDGE-01..05 / LOOP-01..05 closures, THEN Phase 30 (WIRE) wires the gate + `run_layer2` at the two save points + persists every attempt via `write_eval_row`. STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call — the prerequisite for the FIRST live Phase-30 invocation.
+Next: **Phase 29 is COMPLETE + VERIFIED** (all 3 plans done, goal-verified 5/5, code review 0-critical with both WARNINGs fixed; 31 test_29 + 104 regression green). judge_loop.py is the finished PURE Layer-2 module. judge_loop.py is the finished PURE Layer-2 module: the 5-dim exemplar-anchored judge + bounded N=2 loop (29-01/02) PLUS the per-rewrite `run_deterministic_gate` re-check via the module-owned `_CachingHTTPClient` (D-01 cross-attempt dedup), the `held_fabrication` abort keeping the clean attempt-0 draft (D-02), `unverified`/`mechanical` telemetry-only (D-03), and the finalized per-attempt telemetry (`_persistable_attempt` maps 1:1 onto the `edition_eval` row-write params respecting verdict-iff-ok; mechanical-only stays `passed`, D-10/D-12) (29-03). NOTE: the re-check is gated on an injected `http_client` — Phase 30 must inject a real `httpx.Client` to activate it live (verify_draft flags all-caps placeholder bodies as fabrications, so the pure/unit path passes none). Proven by tests/test_29_judge_loop.py (28 cases, zero egress; test_26/27/28 104 regression green; full `tests/` failures are all pre-existing env/integration, none import judge_loop — see deferred-items.md). Next: `/gsd-verify-work` reconciles the deferred JUDGE-01..05 / LOOP-01..05 closures, THEN Phase 30 (WIRE) wires the gate + `run_layer2` at the two save points + persists every attempt via `write_eval_row`. STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call — the prerequisite for the FIRST live Phase-30 invocation.
 
 ## Operator Next Steps
 

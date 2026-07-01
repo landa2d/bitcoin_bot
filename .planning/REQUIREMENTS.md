@@ -31,19 +31,19 @@
 
 ### JUDGE — Layer 2 LLM Judge (Sonnet via proxy; only if Layer 1 found no fabrication)
 
-- [ ] **JUDGE-01**: Layer 2 runs only when Layer 1 found no fabrication (fabrication short-circuits before any LLM call, saving tokens).
-- [ ] **JUDGE-02**: A Sonnet judge (via `llm-proxy:8200`, editorial-synthesis model `claude-sonnet-4-6`) scores each draft version 1–5 per dimension, each anchored by a concrete before/after exemplar in the prompt (exemplars, not a bare rubric checklist).
-- [ ] **JUDGE-03**: Cross-edition continuity — the lead MUST contain an explicit bridge to a prior edition; score **1** if absent regardless of thematic connection; the judge is given the last 3 editions' angles to verify the bridge is real and accurate.
-- [ ] **JUDGE-04**: The remaining dimensions are scored with exemplar anchoring: hedging filler; clickbait/second-person fear hooks (strategic = professor voice: concept-first, defines terms on first use); repeated sub-topics from the previous edition; specificity (named entities, numbers tied to timelines, a falsifiable prediction where the format calls for it).
-- [ ] **JUDGE-05**: A judge response without the required quoted evidence / before-after exemplars is rejected (schema-validated, one retry, then `eval_status='error'`); a verdict is computed from per-dimension pass thresholds (config-tunable — proposed defaults below).
+- [x] **JUDGE-01**: Layer 2 runs only when Layer 1 found no fabrication (fabrication short-circuits before any LLM call, saving tokens).
+- [x] **JUDGE-02**: A Sonnet judge (via `llm-proxy:8200`, editorial-synthesis model `claude-sonnet-4-6`) scores each draft version 1–5 per dimension, each anchored by a concrete before/after exemplar in the prompt (exemplars, not a bare rubric checklist).
+- [x] **JUDGE-03**: Cross-edition continuity — the lead MUST contain an explicit bridge to a prior edition; score **1** if absent regardless of thematic connection; the judge is given the last 3 editions' angles to verify the bridge is real and accurate.
+- [x] **JUDGE-04**: The remaining dimensions are scored with exemplar anchoring: hedging filler; clickbait/second-person fear hooks (strategic = professor voice: concept-first, defines terms on first use); repeated sub-topics from the previous edition; specificity (named entities, numbers tied to timelines, a falsifiable prediction where the format calls for it).
+- [x] **JUDGE-05**: A judge response without the required quoted evidence / before-after exemplars is rejected (schema-validated, one retry, then `eval_status='error'`); a verdict is computed from per-dimension pass thresholds (config-tunable — proposed defaults below).
 
 ### LOOP — Layer 2 Feedback-Rewrite Loop (standalone module the sequencer calls)
 
-- [ ] **LOOP-01**: On any dimension failing threshold, the writer is re-called with the draft PLUS structured, specific feedback — which dimensions failed, the judge's specific reason, and the exemplar of the fix ("no bridge to edition N-1; add a lead sentence connecting to last week's permissions-bottleneck thread", not "improve continuity").
-- [ ] **LOOP-02**: The rewritten draft is re-evaluated; the loop terminates hard at **N=2 attempts max**; after 2 failed attempts it stops and does **not** publish best-effort.
-- [ ] **LOOP-03**: Every attempt's per-dimension scores + feedback are logged to `edition_evals`; if attempt 2 does not beat attempt 1, that signal (judge feedback too vague) is surfaced.
-- [ ] **LOOP-04**: Mechanical-only Layer-1 flags (no fabrication) may be passed into the rewrite loop as feedback; fabrication flags **never** enter the loop.
-- [ ] **LOOP-05**: The loop is a standalone eval-phase module; the sequencer passes in the draft + source fact base, the module runs the loop internally and returns the final draft + a verdict object — loop internals are never exposed to the Processor and no retry state lives outside the module.
+- [x] **LOOP-01**: On any dimension failing threshold, the writer is re-called with the draft PLUS structured, specific feedback — which dimensions failed, the judge's specific reason, and the exemplar of the fix ("no bridge to edition N-1; add a lead sentence connecting to last week's permissions-bottleneck thread", not "improve continuity").
+- [x] **LOOP-02**: The rewritten draft is re-evaluated; the loop terminates hard at **N=2 attempts max**; after 2 failed attempts it stops and does **not** publish best-effort.
+- [x] **LOOP-03**: Every attempt's per-dimension scores + feedback are logged to `edition_evals`; if attempt 2 does not beat attempt 1, that signal (judge feedback too vague) is surfaced.
+- [x] **LOOP-04**: Mechanical-only Layer-1 flags (no fabrication) may be passed into the rewrite loop as feedback; fabrication flags **never** enter the loop.
+- [x] **LOOP-05**: The loop is a standalone eval-phase module; the sequencer passes in the draft + source fact base, the module runs the loop internally and returns the final draft + a verdict object — loop internals are never exposed to the Processor and no retry state lives outside the module.
 
 ### EVAL — Persistence & Telemetry (`edition_evals`, migration 045 — SQL-first)
 
@@ -182,16 +182,16 @@ Every v1 requirement maps to exactly one phase. No orphans, no duplicates.
 | GATE-06 | Phase 28 — Layer 1 Deterministic Gate | Complete |
 | GATE-07 | Phase 28 — Layer 1 Deterministic Gate | Complete |
 | GATE-08 | Phase 28 — Layer 1 Deterministic Gate | Complete |
-| JUDGE-01 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
-| JUDGE-02 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
-| JUDGE-03 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
-| JUDGE-04 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
-| JUDGE-05 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
-| LOOP-01 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
-| LOOP-02 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
-| LOOP-03 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
-| LOOP-04 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
-| LOOP-05 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Pending |
+| JUDGE-01 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
+| JUDGE-02 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
+| JUDGE-03 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
+| JUDGE-04 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
+| JUDGE-05 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
+| LOOP-01 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
+| LOOP-02 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
+| LOOP-03 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
+| LOOP-04 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
+| LOOP-05 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
 | WIRE-01 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Pending |
 | WIRE-02 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Pending |
 | WIRE-03 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Pending |

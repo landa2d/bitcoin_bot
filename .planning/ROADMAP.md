@@ -274,7 +274,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete    | 2026-06-24 |
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
-| 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete   | 2026-07-01 |
+| 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete    | 2026-07-01 |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
 
