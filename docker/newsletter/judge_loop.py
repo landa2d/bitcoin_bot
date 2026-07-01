@@ -31,7 +31,7 @@ from typing import Any
 
 from newsletter_poller import parse_llm_json
 from block_pipeline import _llm_call
-from deterministic_gate import run_deterministic_gate, _fact_base_source_texts  # noqa: F401 — Plan 02 re-check + revise guardrail
+from deterministic_gate import run_deterministic_gate, _fact_base_source_texts  # D-01 per-rewrite re-check + D-07 revise guardrail
 
 logger = logging.getLogger("newsletter")
 
@@ -517,6 +517,43 @@ def _select_best_attempt(ok_attempts: list[dict]) -> dict:
     )[0]
 
 
+# ── The cross-attempt dedup cache (D-01, RESEARCH §Open Q1 Option a) ───────────────────────────
+# `run_deterministic_gate` builds its per-call dedup cache FRESH inside each call
+# (deterministic_gate.py:214) and takes NO cache param — so a naive re-run on every rewrite
+# refetches every unchanged ref (Pitfall 3). This thin wrapper memoizes the injected client's
+# GET/HEAD responses on the key `(method, url)` so unchanged owner/repo + URL refs are served from
+# cache ACROSS the N=2 attempts and only NEWLY-introduced refs actually hit the network.
+#
+# SAFE for correctness (Open Q1): only `fabrication` outcomes (404 / >20% star-drift) are
+# consequential, and those are stable under caching (a 404 is never retried; a 200 stays 200). The
+# only interaction — caching a transient 5xx neuters the gate's within-call retry-once — affects
+# `unverified` ONLY, which never holds or aborts (D-03). A delegate that RAISES (timeout / connect
+# error) is NOT cached (the assignment never completes), so a transient error propagates to the
+# gate's own retry path. The wrapper adds NO raw egress of its own: it only forwards to the gate's
+# SSRF-guarded fetches (T-29-SSRF).
+class _CachingHTTPClient:
+    """Memoizing shim over the injected httpx client, exposing the SAME `get`/`head` surface
+    `run_deterministic_gate`'s network layers call (deterministic_gate.py:497 GET, :676 HEAD)."""
+
+    def __init__(self, client):
+        self._client = client
+        self._cache: dict[tuple, Any] = {}
+
+    def get(self, url, *, headers=None, timeout=None, **kwargs):
+        key = ("get", url)
+        if key not in self._cache:  # MISS → delegate + store (an exception is NOT cached)
+            self._cache[key] = self._client.get(url, headers=headers, timeout=timeout, **kwargs)
+        return self._cache[key]
+
+    def head(self, url, *, timeout=None, follow_redirects=None, **kwargs):
+        key = ("head", url)
+        if key not in self._cache:  # MISS → delegate + store (an exception is NOT cached)
+            self._cache[key] = self._client.head(
+                url, timeout=timeout, follow_redirects=follow_redirects, **kwargs
+            )
+        return self._cache[key]
+
+
 def run_layer2(
     draft: dict,
     fact_base: dict,
@@ -600,29 +637,69 @@ def run_layer2(
     # ── The bounded N=2 feedback-rewrite loop (LOOP-02, Pattern 5) ──────────────────────────────
     # range(0, max_attempts+1) → attempts 0,1,2: the judge scores up to 3 drafts and there are AT
     # MOST 2 targeted revises (revise only when attempt_no > 0). No best-effort publish (LOOP-02).
+    #
+    # D-01: ONE `_CachingHTTPClient` per run_layer2 call so the Phase-28 per-call dedup cache
+    # (rebuilt fresh inside every run_deterministic_gate — deterministic_gate.py:214) persists
+    # ACROSS the N=2 attempts. Constructed ONLY when an http_client is injected; when http_client
+    # is None the per-rewrite re-check does NOT run (zero-egress contract — the live Phase-30 caller
+    # always injects a real httpx.Client, so the re-check is always active in production).
+    caching_client = _CachingHTTPClient(http_client) if http_client is not None else None
+
     attempts: list[dict] = []
     current = draft
     feedback: str | None = None
 
     for attempt_no in range(0, cfg["max_attempts"] + 1):
+        # attempt-0's reverify_flags IS the passed-in Layer-1 gate result (det_flags); a rewrite's
+        # is the per-rewrite re-check result (or None when no http_client is injected — no re-check).
+        reverify: dict | None = det_flags if attempt_no == 0 else None
+
         if attempt_no > 0:
             # LOOP-01/D-07/D-08: targeted revise of BOTH bodies, fixing exactly the failing dims.
             current = _revise_draft(current, feedback, fact_base, llm_client, cfg)
-            # ── Plan 03 insertion point (D-01/D-02/D-03): re-run the Layer-1 deterministic gate
-            # on `current` HERE (reusing the carried http_client dedup cache). A NEW `fabrication`
-            # flag aborts to verdict='held_fabrication' keeping the clean attempt-0 draft (D-02);
-            # `unverified`/`mechanical` ride to telemetry only, never hold (D-03). NOT this plan.
+
+            # ── D-01 per-rewrite Layer-1 re-check ──────────────────────────────────────────────
+            # Re-run the SAME deterministic engine that gated entry on the untrusted rewrite BEFORE
+            # re-judging it — the `specificity` dimension pushes the writer to add named
+            # entities/numbers, exactly when a rewrite would fabricate (T-29-FABRW). `prior_edition
+            # =None` (Open Q3): GATE-07 is mechanical-only and can NEVER cause a false
+            # held_fabrication; the `fabrication` signal is what D-02 keys off. The shared caching
+            # client serves unchanged refs from cache; only newly-introduced refs hit the network.
+            if caching_client is not None:
+                reverify = run_deterministic_gate(current, fact_base, None,  # prior_edition=None (Open Q3)
+                                                  http_client=caching_client,
+                                                  github_token=github_token)
+                if reverify.get("fabrication"):
+                    # D-02: a rewrite that INVENTS a new entity/repo/URL is a HARD abort. Keep the
+                    # fabrication-clean attempt-0 draft (NEVER the fabricated rewrite); the rejected
+                    # rewrite's flags/scores live in telemetry ONLY (the operator can see what was
+                    # invented, but a live fabrication is never one accidental approve from publish).
+                    # verdict=held_fabrication is the loudest signal ("the rewrite hallucinated").
+                    attempts.append(_attempt_row(
+                        attempt_no, eval_status="ok", error=None, judge_scores=None,
+                        feedback=feedback, reverify=reverify, draft=current,
+                    ))
+                    logger.info(
+                        "run_layer2: held_fabrication — rewrite attempt %d introduced %d "
+                        "fabrication flag(s); keeping the clean attempt-0 draft",
+                        attempt_no, len(reverify["fabrication"]),
+                    )
+                    return {"final_draft": draft, "verdict": "held_fabrication",
+                            "selected_attempt": 0, "attempts": attempts}
+                # D-03: `unverified` / `mechanical` on the re-check ride to the attempt's
+                # `reverify_flags` telemetry ONLY — a transient error (5xx / timeout / rate-limit) is
+                # NOT evidence: it NEVER aborts and NEVER holds ("an error is not evidence").
 
         logger.info("run_layer2: judging attempt %d", attempt_no)
         judged = _judge_draft(current, prior_context, llm_client, cfg)
 
         if judged["status"] == "error":
             # JUDGE-05: an un-scoreable judge is NOT evidence — escalate (does NOT hold), never a
-            # fabricated 0. Return the fabrication-clean attempt-0 draft (A2): it is the only
-            # draft guaranteed clean here (a rewrite's Layer-1 re-check lands in Plan 03).
+            # fabricated 0. Return the fabrication-clean attempt-0 draft (A2): it is the only draft
+            # guaranteed clean (each rewrite's re-check above proves the returned attempt-0 clean).
             attempts.append(_attempt_row(
                 attempt_no, eval_status="error", error=judged["error"], judge_scores=None,
-                feedback=feedback, reverify=(det_flags if attempt_no == 0 else None), draft=current,
+                feedback=feedback, reverify=reverify, draft=current,
             ))
             return {"final_draft": draft, "verdict": "escalated",
                     "selected_attempt": attempt_no, "attempts": attempts}
@@ -634,7 +711,7 @@ def run_layer2(
                                         continuity_applicable=continuity_applicable)
         attempts.append(_attempt_row(
             attempt_no, eval_status="ok", error=None, judge_scores=scores, feedback=None,
-            reverify=(det_flags if attempt_no == 0 else None), failing=failing,
+            reverify=reverify, failing=failing,
             summed_score=_summed_score(scores), draft=current,
         ))
 
