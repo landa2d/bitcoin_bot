@@ -182,6 +182,178 @@ def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
+# ── The 5-dimension exemplar-anchored Sonnet judge (JUDGE-02/03/04/05) ─────────────────────────
+# Generalizes block_pipeline.py::phase_e_voice_check from one dimension to five × two bodies,
+# scored in ONE call per pipeline_version (D-08). Every dimension REQUIRES a numeric score, a
+# quoted evidence sentence, and a before/after exemplar — a bare score is schema-rejected
+# (JUDGE-05). Parsing is the robust `parse_llm_json` (NEVER the brittle inline fence strip).
+
+JUDGE_SYSTEM = (
+    "You are the editorial judge for AgentPulse, a weekly intelligence brief about the AI "
+    "agent economy. Score BOTH draft versions (technical and impact) 1-5 on five voice "
+    "dimensions. For EVERY dimension you MUST return a numeric score (1-5), a short quoted "
+    "sentence of EVIDENCE from the draft, and a before/after EXEMPLAR showing the concrete "
+    "fix. A score with no quoted evidence or before/after exemplar is invalid. Respond ONLY "
+    "with valid JSON — no prose, no markdown fences."
+)
+
+JUDGE_PROMPT = """PRIOR EDITIONS (verify the continuity bridge is real and accurate):
+{prior_editions}
+
+EXEMPLARS (the target voice — observational, specific, concept-first professor tone):
+{exemplars}
+
+TECHNICAL BODY:
+{content_markdown}
+
+IMPACT BODY:
+{content_markdown_impact}
+
+Score these five dimensions for BOTH bodies:
+- continuity: the lead MUST bridge to a prior edition's theme; a missing/absent bridge scores 1. Score the STRING "n/a" only if you are told NO prior editions exist.
+- hedging_filler: penalize hedging and generic filler phrases that could appear in any business deck.
+- clickbait: professor voice = concept-first, defines its terms, no second-person fear hooks; second-person clickbait/fear framing scores low.
+- repeated_subtopics: penalize sub-topics recycled from the last edition.
+- specificity: reward named entities, dated numbers, and a falsifiable prediction; penalize vague/unfalsifiable claims.
+
+Return ONLY this JSON shape (a numeric score, a quoted evidence sentence, and a before/after exemplar for EVERY dimension in EACH body):
+{{"technical": {{"continuity": {{"score": 4, "evidence": "...", "exemplar_before": "...", "exemplar_after": "..."}}, "hedging_filler": {{"score": 4, "evidence": "...", "exemplar_before": "...", "exemplar_after": "..."}}, "clickbait": {{"score": 4, "evidence": "...", "exemplar_before": "...", "exemplar_after": "..."}}, "repeated_subtopics": {{"score": 4, "evidence": "...", "exemplar_before": "...", "exemplar_after": "..."}}, "specificity": {{"score": 4, "evidence": "...", "exemplar_before": "...", "exemplar_after": "..."}}}}, "impact": {{"continuity": {{"score": 4, "evidence": "...", "exemplar_before": "...", "exemplar_after": "..."}}, "hedging_filler": {{"score": 4, "evidence": "...", "exemplar_before": "...", "exemplar_after": "..."}}, "clickbait": {{"score": 4, "evidence": "...", "exemplar_before": "...", "exemplar_after": "..."}}, "repeated_subtopics": {{"score": 4, "evidence": "...", "exemplar_before": "...", "exemplar_after": "..."}}, "specificity": {{"score": 4, "evidence": "...", "exemplar_before": "...", "exemplar_after": "..."}}}}}}"""
+
+# Cap the body prose injected into the judge prompt (token budget; also bounds untrusted draft
+# text embedded into the prompt — the draft is model-generated and never logged raw at INFO).
+_JUDGE_BODY_CHAR_CAP = 6000
+
+
+def _render_prior_editions(prior_context: dict, continuity_applicable: bool) -> str:
+    """Render the last-3-editions angles for the continuity dimension, reusing the shape
+    `editorial_prepass_from_blocks` consumes (block_pipeline.py:516-525). When continuity is NOT
+    applicable (empty corpus, D-05), tell the judge explicitly so it scores "n/a" and does not
+    fabricate a bridge."""
+    if not continuity_applicable:
+        return ('NO prior published editions exist — score continuity as the string "n/a" and '
+                "do not invent a bridge.")
+    lines = []
+    for ed in prior_context.get("previous_editions") or []:
+        excerpt = (ed.get("opening_excerpt") or "")[:100]
+        lines.append(
+            f"#{ed.get('edition_number', '?')} ({ed.get('weeks_ago', '?')}w ago): "
+            f"\"{ed.get('title', '?')}\" — {excerpt}"
+        )
+    return "\n".join(lines) if lines else "No previous editions available."
+
+
+def _build_judge_prompt(
+    draft: dict, prior_context: dict, continuity_applicable: bool, cfg: dict,
+) -> tuple[str, str]:
+    """Build the (system, user) judge prompt. Injects the prior-editions render, the operator
+    exemplars, and BOTH bodies (D-08). `str.format` only touches JUDGE_PROMPT's own braces — the
+    substituted values (draft prose, exemplars) may contain braces safely."""
+    prior_editions = _render_prior_editions(prior_context, continuity_applicable)
+    exemplars = prior_context.get("exemplars") or []
+    exemplar_text = ("\n\n---\n\n".join(str(e) for e in exemplars[:10])
+                     if exemplars else "No operator exemplars available.")
+    user = JUDGE_PROMPT.format(
+        prior_editions=prior_editions,
+        exemplars=exemplar_text,
+        content_markdown=(draft.get("content_markdown") or "")[:_JUDGE_BODY_CHAR_CAP],
+        content_markdown_impact=(draft.get("content_markdown_impact") or "")[:_JUDGE_BODY_CHAR_CAP],
+    )
+    return JUDGE_SYSTEM, user
+
+
+def _validate_judge_response(parsed: dict, *, continuity_applicable: bool) -> None:
+    """JUDGE-05 schema gate. Raise ValueError if the judge response is missing a body, a
+    dimension, or — for any scored dimension — a numeric 1-5 `score`, a non-empty `evidence`,
+    or a non-empty `exemplar_before`/`exemplar_after`. The string "n/a" is accepted for the
+    `continuity` score ONLY when continuity is NOT applicable (D-05); an n/a continuity is exempt
+    from the evidence/exemplar requirement (there is nothing to bridge to). A score without
+    quoted evidence + a before/after exemplar is rejected — never a fabricated 0."""
+    if not isinstance(parsed, dict):
+        raise ValueError("judge response is not a JSON object")
+    for body in ("technical", "impact"):
+        body_scores = parsed.get(body)
+        if not isinstance(body_scores, dict):
+            raise ValueError(f"judge response missing body '{body}'")
+        for dim in _DIMENSIONS:
+            entry = body_scores.get(dim)
+            if not isinstance(entry, dict):
+                raise ValueError(f"judge response missing dimension '{dim}' in body '{body}'")
+            score = entry.get("score")
+            if dim == "continuity" and not continuity_applicable:
+                if score != "n/a":
+                    raise ValueError(
+                        'continuity must be scored the string "n/a" when there are no prior '
+                        "editions (D-05)"
+                    )
+                continue  # n/a continuity: no evidence/exemplar required
+            for field in ("evidence", "exemplar_before", "exemplar_after"):
+                val = entry.get(field)
+                if not isinstance(val, str) or not val.strip():
+                    raise ValueError(
+                        f"judge dimension '{dim}' ({body}) missing non-empty '{field}' — a score "
+                        "without quoted evidence/exemplars is rejected (JUDGE-05)"
+                    )
+            if not _is_number(score):
+                raise ValueError(
+                    f"judge dimension '{dim}' ({body}) score must be numeric 1-5, got {score!r}"
+                )
+            if not (1 <= score <= 5):
+                raise ValueError(
+                    f"judge dimension '{dim}' ({body}) score {score} out of range 1-5"
+                )
+
+
+def _judge_draft(draft: dict, prior_context: dict, llm_client, cfg: dict) -> dict:
+    """Run the 5-dimension judge over BOTH bodies in ONE call (D-08), with the JUDGE-05
+    schema-reject → one-retry → error contract. Returns:
+      {"status": "ok", "scores": {both bodies × 5 dims}, "continuity_applicable": bool}, or
+      {"status": "error", "error": str, "continuity_applicable": bool}.
+    An error is NOT evidence — the caller maps it to `escalated`, never a fabricated 0."""
+    continuity_applicable = not (
+        prior_context.get("empty") or not prior_context.get("previous_editions")
+    )
+    system, user = _build_judge_prompt(draft, prior_context, continuity_applicable, cfg)
+    last_err: Exception | None = None
+    for attempt_i in (1, 2):  # 1 call + at most 1 retry (JUDGE-05)
+        try:
+            text = _llm_call(
+                llm_client, cfg["judge_model"], system, user,
+                temperature=cfg["judge_temperature"], max_tokens=cfg["judge_max_tokens"],
+            )
+            parsed = parse_llm_json(text, context="layer2_judge")  # FAILS LOUD, never silent-empty
+            _validate_judge_response(parsed, continuity_applicable=continuity_applicable)
+            return {"status": "ok", "scores": parsed,
+                    "continuity_applicable": continuity_applicable}
+        except Exception as e:  # json.JSONDecodeError (parse) or ValueError (schema)
+            last_err = e
+            logger.warning("layer2 judge attempt %d rejected: %s", attempt_i, e)
+            continue
+    return {"status": "error",
+            "error": f"judge schema-invalid after retry: {last_err}",
+            "continuity_applicable": continuity_applicable}
+
+
+def _attempt_row(
+    attempt: int, *, eval_status: str, error: str | None, judge_scores: dict | None,
+    feedback: str | None, reverify: dict | None, failing: list[str] | None = None,
+) -> dict:
+    """Per-attempt telemetry object (RESEARCH §Pattern 9) — maps 1:1 onto `write_eval_row`
+    params (Phase 30 persists it; this module never writes). `reverify_flags` is the Layer-1
+    gate result for the attempt (attempt-0 = the passed-in `det_flags`). `failing` is
+    internal-only (drives Plan 02's D-11 best-attempt selection; not persisted)."""
+    return {
+        "attempt": attempt,
+        "eval_status": eval_status,
+        "error": error,
+        "judge_scores": judge_scores,
+        "feedback": feedback,
+        "reverify_flags": reverify,
+        "sats": 0,               # best-effort; the proxy's wallet_transactions settle is authoritative
+        "model_calls": [],       # Plan 03 finalizes the per-call token/sat mapping
+        "failing": failing or [],  # internal-only (not a write_eval_row param)
+    }
+
+
 def run_layer2(
     draft: dict,
     fact_base: dict,
@@ -251,9 +423,39 @@ def run_layer2(
 
     cfg = _merged_config(config)
 
-    # ── Attempt-0 + the N=2 rewrite loop are implemented in Task 2 / Plan 02. This scaffold locks
-    # the signature, the entry guard, the config merge, the filler pre-pass, and the threshold
-    # engine on a stable base. Shipping a wrong verdict here would be worse than an explicit stub.
+    # Log only the label/version (never raw draft prose at INFO — log-injection discipline).
+    logger.info("run_layer2: judging pipeline_version=%s (attempt 0)",
+                draft.get("pipeline_version"))
+
+    # ── Attempt 0: judge the passed-in fabrication-clean draft ──────────────────────────────────
+    judged = _judge_draft(draft, prior_context, llm_client, cfg)
+    continuity_applicable = judged.get("continuity_applicable", True)
+
+    if judged["status"] == "error":
+        # JUDGE-05: an un-scoreable judge is NOT evidence — escalate (does NOT hold), never a
+        # fabricated 0. The last fully-evaluated clean draft (attempt 0) is returned (A2).
+        attempt = _attempt_row(0, eval_status="error", error=judged["error"],
+                               judge_scores=None, feedback=None, reverify=det_flags)
+        return {"final_draft": draft, "verdict": "escalated",
+                "selected_attempt": 0, "attempts": [attempt]}
+
+    scores = judged["scores"]
+    filler = {version: _count_filler_hits(draft.get(field) or "", cfg["filler_blacklist"])
+              for version, field in _BODIES}
+    failing = _compute_failing_dims(scores, filler, cfg,
+                                    continuity_applicable=continuity_applicable)
+    attempt = _attempt_row(0, eval_status="ok", error=None, judge_scores=scores,
+                           feedback=None, reverify=det_flags, failing=failing)
+
+    if not failing:
+        # All dimensions pass within N=0 (mechanical-only Layer-1 flags stay `passed`, D-12).
+        return {"final_draft": draft, "verdict": "passed",
+                "selected_attempt": 0, "attempts": [attempt]}
+
+    # ── Attempt 0 has failing dimensions → the N=2 targeted-revise loop is Plan 02's. This plan
+    # locks the judge + scoring on a stable base; emitting a `held_voice`/`passed` here without
+    # the revise loop would be a wrong verdict. Plan 02 replaces this with the loop body.
     raise NotImplementedError(
-        "run_layer2 attempt-0 + N=2 rewrite loop — implemented in Task 2 / Plan 02"
+        "N=2 targeted-revise rewrite loop — implemented in Plan 02 "
+        f"(attempt 0 failing dims: {failing})"
     )

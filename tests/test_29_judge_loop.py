@@ -223,12 +223,24 @@ def _judge_json_missing_evidence():
 
 def test_guard_and_shortcircuit():
     """A non-empty `det_flags['fabrication']` is a mis-wired caller → hard ValueError. Layer 2
-    must NEVER run (and never auto-revise) a draft that carries a live fabrication (JUDGE-01)."""
+    must NEVER run (and never auto-revise) a draft that carries a live fabrication (JUDGE-01).
+    Conversely, a clean all-pass judge on a fabrication-clean draft returns `passed` at
+    attempt 0 with NO revise call."""
     draft = _make_draft()
     det = {"fabrication": [{"kind": "tier1_entity", "value": "FakeCorp"}],
            "unverified": [], "mechanical": [], "meta": {}}
     with pytest.raises(ValueError, match="fabrication"):
         jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), det, {}, _FakeLLM("{}"))
+
+    # Clean all-pass canned judge (every dim 5) → passed at attempt 0, exactly one judge call.
+    llm = _FakeLLM(_judge_json(default=5))
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(),
+                        _clean_det_flags(), {}, llm)
+    assert out["verdict"] == "passed"
+    assert out["selected_attempt"] == 0
+    assert len(out["attempts"]) == 1
+    assert out["attempts"][0]["eval_status"] == "ok"
+    assert len(llm.calls) == 1  # judge only — no revise call (attempt 0 clean)
 
 
 def test_guard_rejects_non_dict_draft():
@@ -314,6 +326,91 @@ def test_merged_config_partial_and_blacklist_fallback():
     assert cfg["thresholds"]["specificity_fail_below"] == 5      # merged threshold
     assert cfg["thresholds"]["continuity_fail_below"] == 4       # default threshold preserved
     assert cfg["filler_blacklist"] == jl.DEFAULT_FILLER_BLACKLIST  # empty → fallback
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# JUDGE-02 / D-08 — the 5-dimension judge scores both bodies in ONE call
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_judge_scores_both_bodies():
+    """One judge call per pipeline_version scores BOTH bodies across all five dimensions, each
+    with a numeric score + non-empty evidence + before/after exemplar (JUDGE-02, D-08)."""
+    llm = _FakeLLM(_judge_json(default=4))
+    draft = _make_draft(content_markdown="tech body", content_markdown_impact="impact body")
+    cfg = jl._merged_config({})
+    result = jl._judge_draft(draft, _applicable_prior(), llm, cfg)
+    assert result["status"] == "ok"
+    scores = result["scores"]
+    for body in ("technical", "impact"):
+        assert set(scores[body].keys()) == set(jl._DIMENSIONS)
+        for dim in jl._DIMENSIONS:
+            entry = scores[body][dim]
+            assert isinstance(entry["score"], (int, float))
+            assert entry["evidence"].strip()
+            assert entry["exemplar_before"].strip()
+            assert entry["exemplar_after"].strip()
+    assert len(llm.calls) == 1  # exactly ONE call for both bodies (D-08)
+    # The single call carried BOTH bodies in the prompt.
+    user_msg = llm.calls[0]["messages"][-1]["content"]
+    assert "TECHNICAL BODY" in user_msg and "IMPACT BODY" in user_msg
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# JUDGE-05 — schema-reject → one retry → error → escalated (never a fabricated 0)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_schema_reject_retry_then_error():
+    """A judge response missing evidence is schema-rejected and retried ONCE; a valid retry
+    recovers `ok` after exactly 2 calls, and two invalids escalate — never a fabricated 0."""
+    draft = _make_draft()
+    cfg = jl._merged_config({})
+
+    # invalid (missing evidence) → valid: recovers ok after exactly 2 calls.
+    llm_ok = _FakeLLM(_judge_json_missing_evidence(), _judge_json(default=5))
+    recovered = jl._judge_draft(draft, _applicable_prior(), llm_ok, cfg)
+    assert recovered["status"] == "ok"
+    assert len(llm_ok.calls) == 2
+
+    # two invalids → judge status error → run_layer2 maps to verdict 'escalated' (does NOT hold).
+    llm_err = _FakeLLM(_judge_json_missing_evidence(), _judge_json_missing_evidence())
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(),
+                        _clean_det_flags(), {}, llm_err)
+    assert out["verdict"] == "escalated"
+    assert out["selected_attempt"] == 0
+    assert out["attempts"][0]["eval_status"] == "error"
+    assert out["attempts"][0]["error"] and "schema-invalid" in out["attempts"][0]["error"]
+    assert out["attempts"][0]["judge_scores"] is None  # never a fabricated 0
+    assert len(llm_err.calls) == 2  # 1 + 1 retry, no revise
+
+
+def test_validate_judge_response_rejects_missing_evidence():
+    """`_validate_judge_response` raises on a dimension missing quoted evidence (JUDGE-05)."""
+    payload = _judge_payload()
+    del payload["impact"]["specificity"]["exemplar_after"]
+    with pytest.raises(ValueError, match="exemplar_after"):
+        jl._validate_judge_response(payload, continuity_applicable=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# JUDGE-03 / D-05 — continuity n/a excluded on an empty corpus (no bridge fabricated)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_continuity_na_excluded():
+    """With an empty corpus the judge scores continuity "n/a" (other dims ≥4); run_layer2
+    excludes continuity from the verdict and returns `passed` — no bridge fabricated (D-05)."""
+    draft = _make_draft()
+    llm = _FakeLLM(_judge_json(default=4, continuity_na=True))
+    out = jl.run_layer2(draft, _block_fact_base(), _empty_prior(),
+                        _clean_det_flags(), {}, llm)
+    assert out["verdict"] == "passed"
+    assert out["selected_attempt"] == 0
+    assert len(llm.calls) == 1  # judge only, no revise
+    # The judge was told no prior editions exist (so it does not fabricate a bridge).
+    user_msg = llm.calls[0]["messages"][-1]["content"]
+    assert "NO prior published editions exist" in user_msg
 
 
 if __name__ == "__main__":
