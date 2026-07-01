@@ -333,14 +333,151 @@ def _judge_draft(draft: dict, prior_context: dict, llm_client, cfg: dict) -> dic
             "continuity_applicable": continuity_applicable}
 
 
+# ── The targeted revise call + the structured per-dimension feedback builder (LOOP-01/D-07/D-08) ─
+# The loop re-calls the writer via a TARGETED revise (dedicated "fix exactly these issues, change
+# nothing else, invent nothing" Sonnet call) — NOT a full writer re-run. ONE writer-agnostic
+# function serves both single_pass and block_v1 (D-07). The revise carries the source-facts
+# guardrail from `_fact_base_source_texts` (the same accessor the gate uses) and rewrites BOTH
+# bodies as a unit (D-08). Parsing is the robust `parse_llm_json` (NEVER a brittle fence strip).
+
+REVISE_SYSTEM = (
+    "You are revising a published-quality newsletter draft for AgentPulse, a weekly intelligence "
+    "brief about the AI agent economy. Fix EXACTLY the issues listed below and change NOTHING "
+    "else. You may ONLY use entities, numbers, and claims present in SOURCE FACTS — introduce NO "
+    "new entity or number and invent nothing. Rewrite BOTH the technical and the impact body "
+    "together as a coherent pair. Respond ONLY with valid JSON of the shape "
+    '{"content_markdown": "...", "content_markdown_impact": "..."} — no prose, no markdown fences.'
+)
+
+REVISE_PROMPT = """ISSUES TO FIX (change nothing else):
+{feedback}
+
+SOURCE FACTS (the ONLY facts you may use — introduce nothing outside this list):
+{source_facts}
+
+CURRENT TECHNICAL BODY (content_markdown):
+{content_markdown}
+
+CURRENT IMPACT BODY (content_markdown_impact):
+{content_markdown_impact}
+
+Rewrite BOTH bodies together, fixing exactly the issues above and keeping everything else intact.
+Return ONLY the JSON object {{"content_markdown": "...", "content_markdown_impact": "..."}}."""
+
+# Bound the source-facts list injected into the revise prompt (token budget; the guardrail list
+# is per-source, so a cap keeps the prompt bounded on a large fact base without dropping the
+# revise's ability to rewrite the whole body — bodies are passed in full, unlike the judge sample).
+_REVISE_SOURCE_CAP = 150
+
+
+def _worst_body_entry(judge_scores: dict, dim: str) -> dict:
+    """Return the LOWER-scoring (worst) body's per-dimension entry for `dim` — the offending
+    body whose evidence/exemplar drives the feedback. A failing dim always has numeric scores on
+    both bodies (that is how it entered `failing`); the non-numeric guard is purely defensive."""
+    tech = judge_scores["technical"][dim]
+    impact = judge_scores["impact"][dim]
+    ts, is_ = tech.get("score"), impact.get("score")
+    if _is_number(ts) and _is_number(is_):
+        return tech if ts <= is_ else impact
+    return tech if _is_number(ts) else impact
+
+
+def _describe_mechanical(flag: Any) -> str:
+    """Render a single Layer-1 mechanical flag as a short revise note (telemetry-shaped dict →
+    'kind: detail'). Defensive to unknown shapes; never raises."""
+    if not isinstance(flag, dict):
+        return str(flag)
+    kind = flag.get("kind") or flag.get("type") or flag.get("check") or "mechanical"
+    detail = (flag.get("detail") or flag.get("message") or flag.get("reason")
+              or flag.get("value") or "")
+    return f"{kind}: {detail}".strip() if detail else str(kind)
+
+
+def _build_feedback(
+    judge_scores: dict, failing: list[str], mechanical: list[dict] | None = None,
+) -> str:
+    """Build STRUCTURED, SPECIFIC per-dimension revise feedback (LOOP-01). For each failing
+    dimension: name it, quote the judge's offending `evidence`, and give the concrete
+    before/after exemplar fix — never the vague "improve X". A failing `continuity` dim gets an
+    EXPLICIT bridge-to-prior-edition instruction (D-06 — severity ≠ rewrite-eligibility). The
+    optional `mechanical` list rides along as extra guidance ONLY here, and this function is
+    called ONLY when `failing` is non-empty (mechanical-only never triggers a rewrite — D-12).
+    Fabrication flags NEVER appear (fabrication never enters the loop — LOOP-04); the caller
+    passes only the mechanical list, never the fabrication list."""
+    lines = [
+        "Fix EXACTLY the issues below. Change nothing else. Invent no new entity or number.",
+        "",
+    ]
+    for dim in failing:
+        entry = _worst_body_entry(judge_scores, dim)
+        evidence = str(entry.get("evidence") or "").strip()
+        before = str(entry.get("exemplar_before") or "").strip()
+        after = str(entry.get("exemplar_after") or "").strip()
+        if dim == "continuity":
+            lines.append(
+                "- continuity: the lead does NOT bridge to the prior edition. Add a lead "
+                "sentence bridging to the previous edition's theme."
+            )
+        else:
+            lines.append(f"- {dim}: this dimension fell below the voice bar and must be fixed.")
+        if evidence:
+            lines.append(f'    offending text: "{evidence}"')
+        if before or after:
+            lines.append(f'    rewrite pattern: "{before}" -> "{after}"')
+    if mechanical:
+        lines.append("")
+        lines.append("Also address these mechanical notes if trivial (do NOT fabricate):")
+        for flag in mechanical:
+            lines.append(f"    - {_describe_mechanical(flag)}")
+    return "\n".join(lines)
+
+
+def _revise_draft(draft: dict, feedback: str, fact_base: dict, llm_client, cfg: dict) -> dict:
+    """Targeted both-body revise (LOOP-01, D-07, D-08). Builds the source-facts guardrail from
+    `_fact_base_source_texts` (handles BOTH fact-base shapes — one revise fn serves single_pass
+    AND block_v1), sends the structured `feedback` + both current bodies + the source facts to a
+    single Sonnet call, and returns a NEW draft with BOTH bodies replaced as a unit. This is NOT
+    a full writer re-run; `title`/`title_impact`/`pipeline_version` pass through unchanged.
+    Fail-loud: an unparseable or incomplete revise output raises (parse_llm_json + a both-bodies
+    presence check) — never a silent half-rewrite."""
+    source_texts = _fact_base_source_texts(fact_base)
+    source_block = (
+        "\n".join(f"- {t}" for t in source_texts[:_REVISE_SOURCE_CAP])
+        if source_texts else "(no source facts available)"
+    )
+    user = REVISE_PROMPT.format(
+        feedback=feedback or "(no specific feedback)",
+        source_facts=source_block,
+        content_markdown=draft.get("content_markdown") or "",
+        content_markdown_impact=draft.get("content_markdown_impact") or "",
+    )
+    text = _llm_call(
+        llm_client, cfg["revise_model"], REVISE_SYSTEM, user,
+        temperature=cfg["revise_temperature"], max_tokens=cfg["revise_max_tokens"],
+    )
+    bodies = parse_llm_json(text, context="layer2_revise")  # FAILS LOUD, never silent-empty
+    tech = bodies.get("content_markdown")
+    impact = bodies.get("content_markdown_impact")
+    if (not isinstance(tech, str) or not tech.strip()
+            or not isinstance(impact, str) or not impact.strip()):
+        raise ValueError(
+            "layer2 revise returned an incomplete draft — both content_markdown and "
+            "content_markdown_impact must be non-empty strings (D-08 both-bodies unit)"
+        )
+    logger.info("run_layer2: targeted revise rewrote both bodies")
+    return {**draft, "content_markdown": tech, "content_markdown_impact": impact}
+
+
 def _attempt_row(
     attempt: int, *, eval_status: str, error: str | None, judge_scores: dict | None,
     feedback: str | None, reverify: dict | None, failing: list[str] | None = None,
+    summed_score: int = 0, draft: dict | None = None,
 ) -> dict:
     """Per-attempt telemetry object (RESEARCH §Pattern 9) — maps 1:1 onto `write_eval_row`
     params (Phase 30 persists it; this module never writes). `reverify_flags` is the Layer-1
-    gate result for the attempt (attempt-0 = the passed-in `det_flags`). `failing` is
-    internal-only (drives Plan 02's D-11 best-attempt selection; not persisted)."""
+    gate result for the attempt (attempt-0 = the passed-in `det_flags`). `failing`,
+    `summed_score`, and `draft` are internal-only (drive the D-11 best-attempt selection; NOT
+    persisted / NOT `write_eval_row` params)."""
     return {
         "attempt": attempt,
         "eval_status": eval_status,
@@ -350,7 +487,9 @@ def _attempt_row(
         "reverify_flags": reverify,
         "sats": 0,               # best-effort; the proxy's wallet_transactions settle is authoritative
         "model_calls": [],       # Plan 03 finalizes the per-call token/sat mapping
-        "failing": failing or [],  # internal-only (not a write_eval_row param)
+        "failing": failing or [],   # internal-only (D-11 primary key: fewest failing dims)
+        "summed_score": summed_score,  # internal-only (D-11 tie-break: highest summed score)
+        "draft": draft,             # internal-only (D-11 returns the BEST attempt's draft, not the latest)
     }
 
 
