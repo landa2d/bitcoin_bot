@@ -197,7 +197,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 1**
 
-  - [ ] 29-01-PLAN.md — Module scaffold + `edition_eval` config block (continuity_fail_below=4) + fail-loud entry guard + filler pre-pass + 5-dimension exemplar-anchored Sonnet judge + schema-reject→retry→error + config-tunable threshold engine (JUDGE-01, JUDGE-02, JUDGE-03, JUDGE-04, JUDGE-05) [Wave 1, autonomous]
+  - [x] 29-01-PLAN.md — Module scaffold + `edition_eval` config block (continuity_fail_below=4) + fail-loud entry guard + filler pre-pass + 5-dimension exemplar-anchored Sonnet judge + schema-reject→retry→error + config-tunable threshold engine (JUDGE-01, JUDGE-02, JUDGE-03, JUDGE-04, JUDGE-05) [Wave 1, autonomous]
 
 **Wave 2** *(blocked on 29-01 — same module/test files)*
 
@@ -274,7 +274,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 26. Continuity & Exemplar Context | v2.3 | 3/3 | Complete    | 2026-06-24 |
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
-| 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 0/3 | Planned | - |
+| 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 1/3 | In Progress|  |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
 

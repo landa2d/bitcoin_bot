@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: executing
-stopped_at: Phase 29 context gathered
-last_updated: "2026-07-01T10:27:16.291Z"
-last_activity: 2026-07-01 -- Phase 29 planning complete
+stopped_at: Completed 29-01-PLAN.md
+last_updated: "2026-07-01T11:01:27.872Z"
+last_activity: 2026-07-01
 progress:
   total_phases: 6
   completed_phases: 3
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
   percent: 50
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 28 — layer-1-deterministic-gate
+**Current focus:** Phase 29 — layer-2-judge-feedback-rewrite-loop
 
 ## Current Position
 
-Phase: 29
-Plan: Not started
+Phase: 29 (layer-2-judge-feedback-rewrite-loop) — EXECUTING
+Plan: 2 of 3
 Status: Ready to execute
-Last activity: 2026-07-01 -- Phase 29 planning complete
+Last activity: 2026-07-01
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -89,6 +89,7 @@ Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM
 - [Phase 28]: Plan 03: shipped GATE-06 (single-hash `# ` H1 detection + version-appropriate title-echo + reading-mode-label leak via the tunable READING_MODE_LABELS blacklist; bare "impact"/"Technical" deliberately NOT blacklisted to avoid prose false positives) and GATE-07 (D-06 normalized-exact recycled-closer + per-token duplicated-stat vs the FULL prior edition, reusing the imported `_STATISTIC` regex — no new number regex; `prior_edition=None`/empty is a clean skip, never raises) in deterministic_gate.py. Mechanical flags land under `mechanical`, never `fabrication` (editorial miss, never a hard hold). READING_MODE_LABELS comment notes Phase 30 report-only tunability (open question A1).
 - [Phase 28]: Plan 03: golden-draft integration suite proves GATE-01..08 + D-01 end-to-end against the historical worst offenders (ed-36 MCP-auth study, ed-34 GroupMemBench, fake arXiv, 404 github repo, dead URL, transient-5xx->unverified, recycled closer, duplicated stat, leaked AUDIENCE: label) on the REAL module with an injected fake httpx client (zero live egress); BOTH GATE-08 fact-base paths (single-pass input_data + block_v1 blocks) exercised. Aggregated flags {fabrication,unverified,mechanical,meta} — unverified NON-EMPTY + DISTINCT from fabrication (D-01 "an error is not evidence"), top-level keys EXACTLY the four (fits migration 045 deterministic_flags JSONB; JSON round-trip asserted), NO verdict (emit-only D-05). test_28 56/56 green; test_26/27 regression green.
 - [Phase 28]: GATE-06/07 marked complete (detection cores fully realized + proven by tests on the real module). GATE-01..05/08 detection is proven by the golden suite but their runs-on-every-edition / live-egress / hold-action closure is Phase 30 wiring (report-only/build-only this phase, D-05) — phase-end verification reconciles the remaining GATE requirements (consistent with the 27/28-01/02 fail-loud-accuracy posture).
+- [Phase 29]: Plan 01: shipped docker/newsletter/judge_loop.py (PURE run_layer2 module — fail-loud entry guard JUDGE-01, _merged_config over DEFAULT_CONFIG, DEFAULT_FILLER_BLACKLIST verbatim, _count_filler_hits, both-bodies min() threshold engine _compute_failing_dims D-04/D-05/D-08) + the 5-dim exemplar-anchored Sonnet judge (both bodies ONE call D-08, parse_llm_json + schema-reject->one-retry->status='error' JUDGE-05, attempt-0 verdicts passed/escalated) + config edition_eval block (continuity_fail_below=4). tests/test_29_judge_loop.py 12 cases on the REAL module w/ OpenAI-shape _FakeLLM, zero egress; test_26/27/28 104 regression green. JUDGE-01..05 cores BUILT+PROVEN; requirement closure deferred to phase end (Plans 02/03 + verify) per the 27/28 fail-loud-accuracy posture. N=2 revise loop + held_voice/held_fabrication are Plan 02 (documented NotImplementedError seam).
 
 ### Pending Todos
 
@@ -146,9 +147,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-07-01T08:47:09.159Z
-Stopped at: Phase 29 context gathered
-Resume file: .planning/phases/29-layer-2-judge-feedback-rewrite-loop/29-CONTEXT.md
+Last session: 2026-07-01T11:01:27.863Z
+Stopped at: Completed 29-01-PLAN.md
+Resume file: None
 Next: Phase 28 (layer-1-deterministic-gate) is code-complete — all 3 plans executed; deterministic_gate.py has the full GATE-01..08 surface (fabrication core + network liveness + mechanical-editorial) proven by tests/test_28_deterministic_gate.py (56 cases on the REAL module, mocked network, zero live egress). Run `/gsd-verify-work` to reconcile the deferred GATE-01..05/08 requirement closures against the now-complete + proven gate (GATE-06/07 already marked complete). STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call (closes EVAL-01 live / GOV-01 / GOV-02 + the EVAL-02/03 phase-end pass).
 
 ## Operator Next Steps
@@ -173,3 +174,4 @@ Next: Phase 28 (layer-1-deterministic-gate) is code-complete — all 3 plans exe
 | Phase 28 P01 | 12min | 2 tasks | 2 files |
 | Phase 28 P02 | 7min | 2 tasks | 2 files |
 | Phase 28 P03 | ~15min | 3 tasks | 2 files (GATE-06/07 + golden integration suite; phase-closing) |
+| Phase 29 P29-01 | 14min | 2 tasks | 3 files |
