@@ -231,7 +231,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 2** *(blocked on 30-02 — same poller file)*
 
-  - [ ] 30-03-PLAN.md — Wire the eval into both save points + verdict→action (enforce-gated hold + escalation) + do_not_publish reconciliation (WIRE-01/02/03/04/06) [autonomous, depends 30-02]
+  - [x] 30-03-PLAN.md — Wire the eval into both save points + verdict→action (enforce-gated hold + escalation) + do_not_publish reconciliation (WIRE-01/02/03/04/06) [autonomous, depends 30-02]
 
 **Wave 3** *(operator/orchestrator-owned, worktree-UNSAFE)*
 
@@ -289,7 +289,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete    | 2026-07-01 |
-| 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 2/4 | In Progress|  |
+| 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 3/4 | In Progress|  |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
 
 ## Backlog

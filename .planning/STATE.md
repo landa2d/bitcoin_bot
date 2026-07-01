@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: executing
-stopped_at: Completed 30-02-PLAN.md
-last_updated: "2026-07-01T17:10:00.000Z"
+stopped_at: Completed 30-03-PLAN.md
+last_updated: "2026-07-01T16:59:02.000Z"
 last_activity: 2026-07-01
 progress:
   total_phases: 6
   completed_phases: 4
   total_plans: 16
-  completed_plans: 14
-  percent: 88
+  completed_plans: 15
+  percent: 67
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Pu
 ## Current Position
 
 Phase: 30 (sequencer-wiring-hold-action-activation-gate) — EXECUTING
-Plan: 3 of 4
-Status: Ready to execute (30-02 complete)
+Plan: 4 of 4
+Status: Ready to execute
 Last activity: 2026-07-01
 
 ## Roadmap (v2.3 — Phases 26–31)
@@ -97,6 +97,7 @@ Standing v1.0 decisions still in force (PROJECT.md Key Decisions table): all LLM
 - [Phase 30]: Plan 01: authored migration 046 (first-class do_not_publish + do_not_publish_reason columns on newsletters, ADD COLUMN IF NOT EXISTS house style, SQL-first operator-apply banner, schema-only no backfill per D-13) — AUTHORED NOT APPLIED: apply is the 30-04 operator MCP runbook, so WIRE-02 stays Pending (fail-loud accuracy).
 - [Phase 30]: Plan 01: guarded BOTH processor publish gates (publish_newsletter + scheduled_auto_publish_newsletter) on the do_not_publish column via in-Python .get('do_not_publish', False) — apply-order-robust belt-and-suspenders behind the status='held' exclusion (D-01/WIRE-04); auto-publish select widened to '*'; logs edition+fixed label only, never the raw reason (T-30-LOG); processor eval-ref count held at 0 (WIRE-05). WIRE-04/05 closure deferred to phase-end verify.
 - [Phase 30]: Plan 02: shipped the `run_edition_eval` orchestrator + 4 helpers in newsletter_poller.py (the "dumb sequencer" body 30-03 wires in) + tests/test_30_orchestration.py (9 cases on the REAL module w/ injected fakes + in-memory Supabase stub, zero egress/DB). Sequences run_deterministic_gate → fabrication short-circuit (ZERO run_layer2, D-09) → run_layer2 → verdict; SAME injected httpx.Client to BOTH modules (D-08); GOVERNED edition_eval client via `_build_eval_llm_client`→`_get_eval_api_key` (GOV-01, NEVER the newsletter Claude client, key never logged); fail-open-but-loud — llm_client=None outage + any eval exception → eval_status='error' row + ONE `_alert_operator` + `{verdict:'escalated',ran:False}`, NEVER re-raises (D-06/D-07); persists EVERY layer/attempt via `_persistable_attempt` 1:1 respecting verdict-iff-ok (LOOP-03/D-14); held_voice reason carries per-dim NAME+SCORE+bounded judge_feedback excerpt, details carries per-dim judge_scores (WIRE-03/D-10). NO status/do_not_publish UPDATE here (action is 30-03). `_alert_operator` is the interim loud Telegram path (Phase 31 hardens via send_telegram); `_read_edition_eval_config` reads enabled/enforce (D-15). test_30 9/9 + test_27/28/29 124 regression green. WIRE-01/05/06 cores built+proven; closure DEFERRED to phase-end verify (the two-save-point wiring is 30-03; enabled/enforce not yet read at a save point) per the fail-loud-accuracy posture.
+- [Phase 30]: Plan 03: wired `run_edition_eval` into BOTH generation save points in newsletter_poller.py. PRIMARY (save_newsletter, after the Phase-D block): enabled-gated invocation with ONE `httpx.Client(timeout=15.0)` threaded to both eval modules (D-08) + governed edition_eval client + GITHUB_TOKEN; verdict→action on the primary row_id — held_fabrication/held_voice flip `status='held'`+`do_not_publish`+reason ONLY under enforce=true (report-only surfaces an `[EVAL would-have-held]` alert with NO flip, D-15), passed flips nothing (Monday human gate unchanged, WIRE-04), escalated is a no-op (orchestrator already alerted, D-12); whole block fail-open (logs ERROR+continues, D-06), flip skipped when row_id is None; reason surfaced verbatim = labels/counts/dim-scores/bounded-excerpt only (T-30-LOG). BLOCK_V1 A/B (process_task): D-02 reconciliation moved do_not_publish OUT of data_snapshot to the top-level migration-046 column (one canonical home) + captured bp_row_id + ran run_edition_eval TELEMETRY-ONLY (return discarded, no flip/no alert on the always-held shadow row, D-14). Ships DORMANT (enabled=false live) — first live invocation needs LLM_PROXY_EVAL_KEY mint (27-03) + MCP-apply 045/046 (30-04). Deviation: re-derived the primary fact base from the Phase-D branch (robust to an early Phase-D exception) instead of reusing the leaked `verification_input` binding — functionally identical. WIRE-01/02/03/04/06 wired+acted-upon; closure DEFERRED to phase-end verify per the 27/28/29/30-01/30-02 fail-loud-accuracy posture. test_30 9/9 + test_27/28/29 124 regression green (133 total).
 
 ### Pending Todos
 
@@ -154,10 +155,10 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-07-01T17:10:00.000Z
-Stopped at: Completed 30-02-PLAN.md
-Resume file: .planning/phases/30-sequencer-wiring-hold-action-activation-gate/30-03-PLAN.md
-Next: **Phase 30 Plan 02 COMPLETE** — `run_edition_eval` (the governed, fail-open-but-loud eval orchestrator) + its 4 helpers live in newsletter_poller.py, proven by tests/test_30_orchestration.py (9/9, zero egress/DB; test_27/28/29 124 regression green). It is BUILT but NOT YET wired into the two save points — that is **30-03** (the Wave-2 two-save-point wiring + verdict→action, blocked on 30-02, same poller file). The GOVERNED client (`_build_eval_llm_client`→`_get_eval_api_key`/LLM_PROXY_EVAL_KEY) still needs the operator to mint the key (Phase 27-03) for the FIRST live invocation; `enabled=false` keeps it dormant/rollback-safe. WIRE-01/05/06 closure deferred to phase-end verify. **Phase 29 remains COMPLETE + VERIFIED** (all 3 plans done, goal-verified 5/5, code review 0-critical with both WARNINGs fixed; 31 test_29 + 104 regression green). judge_loop.py is the finished PURE Layer-2 module. judge_loop.py is the finished PURE Layer-2 module: the 5-dim exemplar-anchored judge + bounded N=2 loop (29-01/02) PLUS the per-rewrite `run_deterministic_gate` re-check via the module-owned `_CachingHTTPClient` (D-01 cross-attempt dedup), the `held_fabrication` abort keeping the clean attempt-0 draft (D-02), `unverified`/`mechanical` telemetry-only (D-03), and the finalized per-attempt telemetry (`_persistable_attempt` maps 1:1 onto the `edition_eval` row-write params respecting verdict-iff-ok; mechanical-only stays `passed`, D-10/D-12) (29-03). NOTE: the re-check is gated on an injected `http_client` — Phase 30 must inject a real `httpx.Client` to activate it live (verify_draft flags all-caps placeholder bodies as fabrications, so the pure/unit path passes none). Proven by tests/test_29_judge_loop.py (28 cases, zero egress; test_26/27/28 104 regression green; full `tests/` failures are all pre-existing env/integration, none import judge_loop — see deferred-items.md). Next: `/gsd-verify-work` reconciles the deferred JUDGE-01..05 / LOOP-01..05 closures, THEN Phase 30 (WIRE) wires the gate + `run_layer2` at the two save points + persists every attempt via `write_eval_row`. STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call — the prerequisite for the FIRST live Phase-30 invocation.
+Last session: 2026-07-01T16:57:36.863Z
+Stopped at: Completed 30-03-PLAN.md
+Resume file: .planning/phases/30-sequencer-wiring-hold-action-activation-gate/30-04-PLAN.md
+Next: **Phase 30 Plan 03 COMPLETE** — `run_edition_eval` is now WIRED into BOTH generation save points in `docker/newsletter/newsletter_poller.py` and its verdict is ACTED UPON. PRIMARY (`save_newsletter`, after the Phase-D block): enabled-gated invocation with ONE `httpx.Client(timeout=15.0)` threaded to both eval modules (D-08) + the governed edition_eval client + GITHUB_TOKEN; `held_fabrication`/`held_voice` → flip `status='held'`+`do_not_publish`+reason ONLY under `enforce=true` (report-only surfaces an `[EVAL would-have-held]` alert with NO flip, D-15), `passed` flips nothing (Monday human gate unchanged, WIRE-04), `escalated` is a no-op (orchestrator already alerted, D-12); whole block fail-open (D-06), flip skipped when row_id is None; reason = labels/counts/dim-scores/bounded-excerpt only (T-30-LOG). BLOCK_V1 A/B (`process_task`): D-02 reconciliation moved `do_not_publish` OUT of `data_snapshot` to the top-level migration-046 column (one canonical home) + captured `bp_row_id` + ran `run_edition_eval` TELEMETRY-ONLY (return discarded, no flip/no alert on the always-held shadow row, D-14). Commits `6648d3f` (Task 1) + `42b3067` (Task 2); test_30 9/9 + test_27/28/29 124 regression green (133 total). Ships DORMANT (`enabled=false` live) — rollback-safe. Next: **30-04** (the operator-owned ACTIVATION RUNBOOK — MCP-apply migrations 045+046, mint `LLM_PROXY_EVAL_KEY` via 27-03, scoped `newsletter` rebuild, then arm `enabled=true` report-only for ~2 editions before flipping `enforce=true`), THEN `/gsd-verify-work` reconciles the deferred WIRE-01..06 closures. WIRE-01/02/03/04/06 wired+acted-upon; closure deferred to phase-end verify. **Phase 29 remains COMPLETE + VERIFIED** (all 3 plans done, goal-verified 5/5, code review 0-critical with both WARNINGs fixed; 31 test_29 + 104 regression green). judge_loop.py is the finished PURE Layer-2 module. judge_loop.py is the finished PURE Layer-2 module: the 5-dim exemplar-anchored judge + bounded N=2 loop (29-01/02) PLUS the per-rewrite `run_deterministic_gate` re-check via the module-owned `_CachingHTTPClient` (D-01 cross-attempt dedup), the `held_fabrication` abort keeping the clean attempt-0 draft (D-02), `unverified`/`mechanical` telemetry-only (D-03), and the finalized per-attempt telemetry (`_persistable_attempt` maps 1:1 onto the `edition_eval` row-write params respecting verdict-iff-ok; mechanical-only stays `passed`, D-10/D-12) (29-03). NOTE: the re-check is gated on an injected `http_client` — Phase 30 must inject a real `httpx.Client` to activate it live (verify_draft flags all-caps placeholder bodies as fabrications, so the pure/unit path passes none). Proven by tests/test_29_judge_loop.py (28 cases, zero egress; test_26/27/28 104 regression green; full `tests/` failures are all pre-existing env/integration, none import judge_loop — see deferred-items.md). Next: `/gsd-verify-work` reconciles the deferred JUDGE-01..05 / LOOP-01..05 closures, THEN Phase 30 (WIRE) wires the gate + `run_layer2` at the two save points + persists every attempt via `write_eval_row`. STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call — the prerequisite for the FIRST live Phase-30 invocation.
 
 ## Operator Next Steps
 
@@ -186,3 +187,4 @@ Next: **Phase 30 Plan 02 COMPLETE** — `run_edition_eval` (the governed, fail-o
 | Phase 29 P29-03 | 17min | 2 tasks | 2 files |
 | Phase 30 P01 | ~8min | 2 tasks | 2 files |
 | Phase 30 P02 | ~16min | 2 tasks (Task 2 TDD: test→feat) | 2 files (run_edition_eval orchestrator + co-located unit suite) |
+| Phase 30 P03 | ~8min | 2 tasks | 1 files |
