@@ -3074,8 +3074,12 @@ def process_task(task: dict):
                             bp_result.get('content_markdown_impact', ''),
                             field="content_markdown_impact", edition=edition),
                         "status": "held",
+                        # D-02: do_not_publish now has exactly ONE canonical home — the
+                        # top-level migration-046 column (moved OUT of data_snapshot below).
+                        # The A/B row is always-held; only the flag's HOME moves, not its
+                        # hold state.
+                        "do_not_publish": True,
                         "data_snapshot": {
-                            "do_not_publish": True,
                             "ab_comparison": True,
                             "pipeline_version": "block_v1",
                             "angle": block_angle,
@@ -3085,8 +3089,36 @@ def process_task(task: dict):
                         },
                         "verification_warnings": ab_verification,
                     }
-                    supabase.table("newsletters").insert(bp_row).execute()
+                    insert_res = supabase.table("newsletters").insert(bp_row).execute()
+                    bp_row_id = insert_res.data[0]['id'] if insert_res.data else None
                     logger.info(f"[A/B] Block pipeline comparison saved for edition #{edition}")
+
+                    # ── Phase 30 (D-14): TELEMETRY-ONLY block_v1 eval ──
+                    # Fully evaluate the always-held A/B shadow row for A/B trend
+                    # completeness, but NEVER act on the verdict — NO status flip and NO
+                    # would-have-held alert (only the PRIMARY draft's verdict drives publish
+                    # state, D-13). Guarded by enabled + a real row id; fail-open via the
+                    # enclosing A/B try/except-continue. The return value is intentionally
+                    # discarded (telemetry rows only).
+                    _eval_cfg = _read_edition_eval_config()
+                    if _eval_cfg.get('enabled', False) and bp_row_id is not None:
+                        bp_draft = {
+                            'title': bp_row['title'],
+                            'title_impact': bp_row['title_impact'],
+                            'content_markdown': bp_row['content_markdown'],
+                            'content_markdown_impact': bp_row['content_markdown_impact'],
+                            'pipeline_version': 'block_v1',
+                        }
+                        with httpx.Client(timeout=15.0) as hc:
+                            run_edition_eval(
+                                supabase, bp_draft, ab_verification_input,
+                                input_data.get('narrative_context') or {},
+                                _fetch_prior_published_edition(),
+                                pipeline_version='block_v1', newsletter_id=bp_row_id,
+                                edition=edition, config=_eval_cfg,
+                                llm_client=_build_eval_llm_client(), http_client=hc,
+                                github_token=os.getenv('GITHUB_TOKEN'),
+                            )
                 else:
                     logger.warning(f"[A/B] Block pipeline failed: {bp_result.get('error')}")
         except Exception as e:
