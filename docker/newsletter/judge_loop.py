@@ -493,6 +493,30 @@ def _attempt_row(
     }
 
 
+def _summed_score(judge_scores: dict) -> int:
+    """Sum every NUMERIC per-dimension score across both bodies (the D-11 tie-break signal). A
+    non-numeric continuity "n/a" (D-05) contributes nothing — it is not a scored dimension."""
+    total = 0
+    for body in ("technical", "impact"):
+        for dim in _DIMENSIONS:
+            score = judge_scores[body][dim]["score"]
+            if _is_number(score):
+                total += score
+    return total
+
+
+def _select_best_attempt(ok_attempts: list[dict]) -> dict:
+    """D-11 best-attempt selection (Pattern 8). Among fully-judged, non-error attempts, return
+    the one with the FEWEST failing dimensions; ties break by the HIGHEST summed per-dimension
+    score across both bodies, then by the LATEST attempt. attempt-0 IS a candidate — a rewrite is
+    not guaranteed to beat it. `ok_attempts` is non-empty whenever the loop reaches held_voice
+    (attempt-0 is always judged)."""
+    return sorted(
+        ok_attempts,
+        key=lambda a: (len(a["failing"]), -a["summed_score"], -a["attempt"]),
+    )[0]
+
+
 def run_layer2(
     draft: dict,
     fact_base: dict,
@@ -562,39 +586,75 @@ def run_layer2(
 
     cfg = _merged_config(config)
 
-    # Log only the label/version (never raw draft prose at INFO — log-injection discipline).
-    logger.info("run_layer2: judging pipeline_version=%s (attempt 0)",
-                draft.get("pipeline_version"))
-
-    # ── Attempt 0: judge the passed-in fabrication-clean draft ──────────────────────────────────
-    judged = _judge_draft(draft, prior_context, llm_client, cfg)
-    continuity_applicable = judged.get("continuity_applicable", True)
-
-    if judged["status"] == "error":
-        # JUDGE-05: an un-scoreable judge is NOT evidence — escalate (does NOT hold), never a
-        # fabricated 0. The last fully-evaluated clean draft (attempt 0) is returned (A2).
-        attempt = _attempt_row(0, eval_status="error", error=judged["error"],
-                               judge_scores=None, feedback=None, reverify=det_flags)
-        return {"final_draft": draft, "verdict": "escalated",
-                "selected_attempt": 0, "attempts": [attempt]}
-
-    scores = judged["scores"]
-    filler = {version: _count_filler_hits(draft.get(field) or "", cfg["filler_blacklist"])
-              for version, field in _BODIES}
-    failing = _compute_failing_dims(scores, filler, cfg,
-                                    continuity_applicable=continuity_applicable)
-    attempt = _attempt_row(0, eval_status="ok", error=None, judge_scores=scores,
-                           feedback=None, reverify=det_flags, failing=failing)
-
-    if not failing:
-        # All dimensions pass within N=0 (mechanical-only Layer-1 flags stay `passed`, D-12).
-        return {"final_draft": draft, "verdict": "passed",
-                "selected_attempt": 0, "attempts": [attempt]}
-
-    # ── Attempt 0 has failing dimensions → the N=2 targeted-revise loop is Plan 02's. This plan
-    # locks the judge + scoring on a stable base; emitting a `held_voice`/`passed` here without
-    # the revise loop would be a wrong verdict. Plan 02 replaces this with the loop body.
-    raise NotImplementedError(
-        "N=2 targeted-revise rewrite loop — implemented in Plan 02 "
-        f"(attempt 0 failing dims: {failing})"
+    # Continuity applicability is a property of the corpus (D-05) — constant across attempts.
+    # (Same predicate `_judge_draft` computes internally; hoisted so the loop reuses it.)
+    continuity_applicable = not (
+        prior_context.get("empty") or not prior_context.get("previous_editions")
     )
+
+    # Log only the label/version + bounds (never raw draft prose or feedback at INFO —
+    # log-injection discipline, T-29-LOG).
+    logger.info("run_layer2: judging pipeline_version=%s (max_attempts=%d)",
+                draft.get("pipeline_version"), cfg["max_attempts"])
+
+    # ── The bounded N=2 feedback-rewrite loop (LOOP-02, Pattern 5) ──────────────────────────────
+    # range(0, max_attempts+1) → attempts 0,1,2: the judge scores up to 3 drafts and there are AT
+    # MOST 2 targeted revises (revise only when attempt_no > 0). No best-effort publish (LOOP-02).
+    attempts: list[dict] = []
+    current = draft
+    feedback: str | None = None
+
+    for attempt_no in range(0, cfg["max_attempts"] + 1):
+        if attempt_no > 0:
+            # LOOP-01/D-07/D-08: targeted revise of BOTH bodies, fixing exactly the failing dims.
+            current = _revise_draft(current, feedback, fact_base, llm_client, cfg)
+            # ── Plan 03 insertion point (D-01/D-02/D-03): re-run the Layer-1 deterministic gate
+            # on `current` HERE (reusing the carried http_client dedup cache). A NEW `fabrication`
+            # flag aborts to verdict='held_fabrication' keeping the clean attempt-0 draft (D-02);
+            # `unverified`/`mechanical` ride to telemetry only, never hold (D-03). NOT this plan.
+
+        logger.info("run_layer2: judging attempt %d", attempt_no)
+        judged = _judge_draft(current, prior_context, llm_client, cfg)
+
+        if judged["status"] == "error":
+            # JUDGE-05: an un-scoreable judge is NOT evidence — escalate (does NOT hold), never a
+            # fabricated 0. Return the fabrication-clean attempt-0 draft (A2): it is the only
+            # draft guaranteed clean here (a rewrite's Layer-1 re-check lands in Plan 03).
+            attempts.append(_attempt_row(
+                attempt_no, eval_status="error", error=judged["error"], judge_scores=None,
+                feedback=feedback, reverify=(det_flags if attempt_no == 0 else None), draft=current,
+            ))
+            return {"final_draft": draft, "verdict": "escalated",
+                    "selected_attempt": attempt_no, "attempts": attempts}
+
+        scores = judged["scores"]
+        filler = {version: _count_filler_hits(current.get(field) or "", cfg["filler_blacklist"])
+                  for version, field in _BODIES}
+        failing = _compute_failing_dims(scores, filler, cfg,
+                                        continuity_applicable=continuity_applicable)
+        attempts.append(_attempt_row(
+            attempt_no, eval_status="ok", error=None, judge_scores=scores, feedback=None,
+            reverify=(det_flags if attempt_no == 0 else None), failing=failing,
+            summed_score=_summed_score(scores), draft=current,
+        ))
+
+        if not failing:
+            # A rewrite fixed every failing dimension (or attempt-0 was already clean). Mechanical
+            # -only Layer-1 flags never move the verdict off `passed` (D-12).
+            return {"final_draft": current, "verdict": "passed",
+                    "selected_attempt": attempt_no, "attempts": attempts}
+
+        # A dimension still fails → build targeted feedback for the next revise. The mechanical
+        # Layer-1 flags ride ONLY because a judge dim independently failed (LOOP-04/D-12); the
+        # fabrication list is NEVER passed (fabrication never enters the loop).
+        feedback = _build_feedback(scores, failing, (det_flags.get("mechanical") or None))
+
+    # ── N=2 exhausted, a dimension still fails → held_voice, NO best-effort publish (LOOP-02).
+    # Return the BEST attempt by the D-11 tie-break (fewest fails → highest summed score → latest),
+    # NOT necessarily the latest — consuming the per-attempt scoring the telemetry produced.
+    ok_attempts = [a for a in attempts if a["eval_status"] == "ok"]
+    best = _select_best_attempt(ok_attempts)
+    logger.info("run_layer2: held_voice — best attempt=%d still fails dims=%s",
+                best["attempt"], best["failing"])
+    return {"final_draft": best["draft"], "verdict": "held_voice",
+            "selected_attempt": best["attempt"], "attempts": attempts}
