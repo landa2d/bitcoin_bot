@@ -2096,6 +2096,90 @@ def save_newsletter(result: dict, input_data: dict, blocks_data: dict | None = N
     except Exception as e:
         logger.error(f"[VERIFICATION] Failed for edition #{edition}: {e}")
 
+    # ── Phase 30 (WIRE-01/02/03/04/06): pre-publish eval + enforce-gated hold ──
+    # Runs the governed two-layer eval on the PRIMARY draft this save_newsletter just
+    # inserted (single_pass OR block_v1, D-13) and acts on the returned verdict. Ships
+    # DORMANT: the whole block runs ONLY when edition_eval.enabled=true (rollback-safe,
+    # D-03/D-15). The status flip fires ONLY under enforce=true; report-only surfaces a
+    # "would-have-held" alert with NO flip (D-15). A `passed` verdict flips NOTHING — the
+    # Monday human gate is unchanged (WIRE-04); `escalated` was already alerted by the
+    # orchestrator (D-12). Fail-open (D-06): any eval/action error logs ERROR and continues
+    # — the row is already inserted, generation must never break on the eval.
+    try:
+        cfg = _read_edition_eval_config()
+        if cfg.get('enabled', False):
+            # Reuse the fact base the Phase-D branch selected (D-13: whatever the primary
+            # draft was built from). Re-derive the identical branch here so an early Phase-D
+            # exception cannot leak a stale/undefined `verification_input` binding.
+            if blocks_data and blocks_data.get('blocks'):
+                fact_base = {
+                    'blocks': blocks_data['blocks'],
+                    'tracked_entity_signals': blocks_data.get('tracked_entity_signals', []),
+                    'trending_tools': blocks_data.get('tool_stats', []),
+                    'predictions': blocks_data.get('predictions', []),
+                }
+                pipeline_version = 'block_v1'
+            else:
+                fact_base = input_data
+                pipeline_version = 'single_pass'
+
+            draft = {
+                'title': title,
+                'title_impact': title_impact,
+                'content_markdown': content_markdown,
+                'content_markdown_impact': content_markdown_impact,
+                'pipeline_version': pipeline_version,
+            }
+            prior_context = input_data.get('narrative_context') or {}
+            prior_edition = _fetch_prior_published_edition()
+            llm_client = _build_eval_llm_client()
+
+            # ONE real httpx.Client per save point; the SAME instance reaches both eval
+            # modules inside run_edition_eval (D-08 live network re-check active).
+            with httpx.Client(timeout=15.0) as hc:
+                verdict_obj = run_edition_eval(
+                    supabase, draft, fact_base, prior_context, prior_edition,
+                    pipeline_version=pipeline_version, newsletter_id=row_id,
+                    edition=edition, config=cfg, llm_client=llm_client,
+                    http_client=hc, github_token=os.getenv('GITHUB_TOKEN'),
+                )
+
+            verdict = verdict_obj.get('verdict')
+            # `reason` is built inside run_edition_eval from category labels/counts +, for
+            # held_voice, failing-dimension names + per-dim scores + a bounded judge_feedback
+            # excerpt — NEVER raw draft prose (T-30-LOG). Safe to surface verbatim.
+            reason = verdict_obj.get('reason', verdict)
+            if verdict in ('held_fabrication', 'held_voice'):
+                if cfg.get('enforce', False):
+                    # Armed (enforce=true): loud escalation AND the status flip on the PRIMARY
+                    # row (T-30-HOLD — only here, only this row_id).
+                    _alert_operator(f"[EVAL HELD] edition #{edition} {reason}")
+                    if row_id is not None:
+                        supabase.table('newsletters').update({
+                            'status': 'held',
+                            'do_not_publish': True,
+                            'do_not_publish_reason': reason,
+                        }).eq('id', row_id).execute()
+                        logger.warning(f"[EVAL] edition #{edition} HELD (enforce=true): {verdict}")
+                    else:
+                        logger.error(
+                            f"[EVAL] edition #{edition} {verdict} but row_id is None — cannot "
+                            "flip status (upstream insert failed)"
+                        )
+                else:
+                    # Report-only (enforce=false, D-15): surface the would-have-held signal,
+                    # NO status flip.
+                    _alert_operator(f"[EVAL would-have-held] edition #{edition} {reason}")
+                    logger.warning(
+                        f"[EVAL] edition #{edition} would-have-held (report-only): {verdict}"
+                    )
+            # verdict == 'passed'    → no flip (unchanged Monday human gate, WIRE-04)
+            # verdict == 'escalated' → run_edition_eval already alerted the operator (D-12)
+    except Exception as e:
+        logger.error(
+            f"[EVAL] primary eval/action failed for edition #{edition} (non-blocking): {e}"
+        )
+
     # Save local markdown (builder version)
     md_file = NEWSLETTERS_DIR / f"brief_{edition}_{date_str}.md"
     try:
