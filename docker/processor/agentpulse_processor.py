@@ -5874,6 +5874,18 @@ def publish_newsletter() -> dict:
 
         newsletter = draft.data[0]
 
+        # Structural hold gate (D-01 / WIRE-04): refuse a row the eval flagged
+        # do_not_publish, behind the status='held' exclusion. Belt-and-suspenders so a
+        # mis-statused-but-held row still cannot ship. .get default False keeps this
+        # robust to migration-046 apply ordering (absent column -> publishes as before).
+        # Log ONLY edition + a fixed label — never the raw reason prose (T-30-LOG).
+        if newsletter.get('do_not_publish'):
+            logger.warning(
+                "[PUBLISH] Refusing to publish newsletter #%s — do_not_publish flag set (held)",
+                newsletter.get('edition_number', '?')
+            )
+            return {'error': 'held: do_not_publish set'}
+
         # Verify references before publishing
         verification = verify_briefing_references(newsletter)
         if not verification['ok']:
@@ -10633,8 +10645,10 @@ def scheduled_auto_publish_newsletter():
         return
     try:
         # Only auto-publish draft/pending — NOT preview (preview = operator reviewing on web)
+        # select('*') is ordering-agnostic: it avoids naming do_not_publish (which may not
+        # yet exist pre-046-apply) while still surfacing it once the column is present.
         draft = supabase.table('newsletters')\
-            .select('id, edition_number, created_at')\
+            .select('*')\
             .in_('status', ['draft', 'pending'])\
             .order('created_at', desc=True)\
             .limit(1)\
@@ -10645,6 +10659,17 @@ def scheduled_auto_publish_newsletter():
             return
 
         newsletter = draft.data[0]
+
+        # Structural hold gate (D-01 / WIRE-04): same do_not_publish guard as the manual
+        # publish path, so a held row cannot auto-ship even if mis-statused. Log ONLY
+        # edition + a fixed label — never the raw reason prose (T-30-LOG).
+        if newsletter.get('do_not_publish'):
+            logger.warning(
+                "[PIPELINE] Auto-publish refused for newsletter #%s — do_not_publish flag set (held)",
+                newsletter.get('edition_number', '?')
+            )
+            return
+
         created = datetime.fromisoformat(newsletter['created_at'].replace('Z', '+00:00'))
         age_hours = (datetime.now(timezone.utc) - created).total_seconds() / 3600
 
