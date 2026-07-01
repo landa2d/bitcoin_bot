@@ -754,6 +754,18 @@ def run_layer2(
                 # D-03: `unverified` / `mechanical` on the re-check ride to the attempt's
                 # `reverify_flags` telemetry ONLY — a transient error (5xx / timeout / rate-limit) is
                 # NOT evidence: it NEVER aborts and NEVER holds ("an error is not evidence").
+            else:
+                # WR-02 fail-loud: a revise ACTUALLY occurred but NO per-rewrite Layer-1 fabrication
+                # re-check will run (no http_client injected). The returned rewrite is untrusted LLM
+                # output and is UNVERIFIED for fabrication — make the gap LOUD rather than a silent
+                # safety no-op on a missing input (fail-loud governance). The zero-egress test suite
+                # deliberately revises without http_client; the live Phase-30 caller ALWAYS injects a
+                # real httpx.Client, so this warning never fires in production.
+                logger.warning(
+                    "run_layer2: revising attempt %d WITHOUT a per-rewrite fabrication re-check "
+                    "(no http_client injected) — the returned rewrite is UNVERIFIED for fabrication",
+                    attempt_no,
+                )
 
         logger.info("run_layer2: judging attempt %d", attempt_no)
         judged = _judge_draft(current, prior_context, llm_client, cfg)

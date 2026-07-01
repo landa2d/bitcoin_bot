@@ -20,6 +20,7 @@ NO network, NO live proxy: every judge call runs against the in-memory OpenAI-sh
 (FIFO canned JSON); the reused httpx fake is carried for Plan 03's re-check. Zero live egress.
 """
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -884,6 +885,29 @@ def test_mechanical_rides_feedback():
     user_msg = revises[0]["messages"][-1]["content"]
     assert "recycled_closer" in user_msg                    # the mechanical note rode into the revise (D-12)
     assert "recycled_closer" in out["attempts"][0]["feedback"]   # and into attempt-0's feedback telemetry
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# WR-02 — revising WITHOUT an injected http_client skips the per-rewrite fabrication re-check,
+# so the gap must be LOUD (a logger.warning), never a silent safety no-op on a missing input.
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_wr02_warns_when_revising_without_http_client(caplog):
+    """WR-02: a revise (attempt_no > 0) with NO injected http_client cannot run the per-rewrite
+    Layer-1 fabrication re-check. The returned rewrite is UNVERIFIED for fabrication — the module
+    must emit a loud logger.warning (fail-loud) rather than silently skip the safety check."""
+    draft = _make_draft()
+    j_fail = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})
+    r = _revise_json()
+    j_pass = _judge_json(default=5)
+    llm = _FakeLLM(j_fail, r, j_pass)
+    with caplog.at_level(logging.WARNING, logger="newsletter"):
+        out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(),
+                            _clean_det_flags(), {}, llm)   # NO http_client
+    assert out["verdict"] == "passed"
+    assert out["selected_attempt"] == 1
+    assert "UNVERIFIED for fabrication" in caplog.text     # the fail-loud warning fired on the revise
 
 
 # ══════════════════════════════════════════════════════════════════════════════
