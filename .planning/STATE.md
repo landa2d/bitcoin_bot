@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: verifying
-stopped_at: Completed Phase 28 Plan 03 (phase 28 complete — ready for verification)
-last_updated: "2026-06-30T12:28:58.476Z"
+stopped_at: Phase 29 context gathered
+last_updated: "2026-07-01T08:47:09.164Z"
 last_activity: 2026-06-30
 progress:
   total_phases: 6
@@ -146,9 +146,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-06-30T11:48:19.847Z
-Stopped at: Completed Phase 28 Plan 03 (phase 28 complete — ready for verification)
-Resume file: None
+Last session: 2026-07-01T08:47:09.159Z
+Stopped at: Phase 29 context gathered
+Resume file: .planning/phases/29-layer-2-judge-feedback-rewrite-loop/29-CONTEXT.md
 Next: Phase 28 (layer-1-deterministic-gate) is code-complete — all 3 plans executed; deterministic_gate.py has the full GATE-01..08 surface (fabrication core + network liveness + mechanical-editorial) proven by tests/test_28_deterministic_gate.py (56 cases on the REAL module, mocked network, zero live egress). Run `/gsd-verify-work` to reconcile the deferred GATE-01..05/08 requirement closures against the now-complete + proven gate (GATE-06/07 already marked complete). STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call (closes EVAL-01 live / GOV-01 / GOV-02 + the EVAL-02/03 phase-end pass).
 
 ## Operator Next Steps
