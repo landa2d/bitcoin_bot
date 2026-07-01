@@ -686,5 +686,223 @@ def test_dedup_cache_calls_do_not_grow():
     assert len(gh_calls) == 1                                # fetched once, cache-served on attempt-2 (D-01)
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# LOOP-03 / LOOP-05 / D-10 — finalized telemetry maps 1:1 onto write_eval_row (Plan 03 Task 2)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+class _StubResult:
+    def __init__(self, data):
+        self.data = data
+
+
+class _StubTable:
+    def insert(self, payload):
+        self._payload = payload
+        return self
+
+    def execute(self):
+        return _StubResult([{"id": "eval-row-1"}])
+
+
+class _StubSupabase:
+    """A minimal in-memory Supabase double for the write_eval_row contract check (no DB, no I/O)."""
+
+    def table(self, name):
+        return _StubTable()
+
+
+def test_telemetry_all_attempts():
+    """LOOP-03 / D-11: a 3-attempt held_voice run surfaces attempt-2-not-beating-1 via
+    `selected_attempt`. Every attempt carries judge_scores + reverify_flags; attempts 0/1 carry the
+    feedback that produced the NEXT attempt. The fake httpx re-check runs on both (clean) rewrites."""
+    draft = _make_draft()
+    j0 = _judge_json(technical={"specificity": 2, "clickbait": 2},
+                     impact={"specificity": 2, "clickbait": 2})       # 2 failing dims
+    r1 = _revise_json(content_markdown="attempt one rewrote the lead cleanly this week",
+                      content_markdown_impact="attempt one rewrote the impact lead cleanly this week")
+    j1 = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})   # 1 failing dim
+    r2 = _revise_json(content_markdown="attempt two rewrote the lead again cleanly",
+                      content_markdown_impact="attempt two rewrote the impact lead again cleanly")
+    j2 = _judge_json(technical={"specificity": 2, "clickbait": 2},
+                     impact={"specificity": 2, "clickbait": 2})       # 2 failing dims
+    llm = _FakeLLM(j0, r1, j1, r2, j2)
+    fake = _FakeHTTPClient()   # rewrites carry no refs → the re-check runs but makes no network call
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {},
+                        llm, http_client=fake)
+
+    assert out["verdict"] == "held_voice"
+    assert out["selected_attempt"] == 1                              # attempt-2-not-beating-1 (D-11)
+    assert len(out["attempts"]) == 3
+    for a in out["attempts"]:
+        assert a["judge_scores"] is not None
+        assert a["reverify_flags"] is not None
+    assert out["attempts"][0]["feedback"]                            # produced attempt 1
+    assert out["attempts"][1]["feedback"]                            # produced attempt 2
+    # the re-check ran on both rewrites and found no fabrication (clean prose, no refs → no fetch).
+    assert not out["attempts"][1]["reverify_flags"]["fabrication"]
+    assert not out["attempts"][2]["reverify_flags"]["fabrication"]
+    assert fake.calls == []
+
+
+def test_return_contract_maps_to_write_eval_row():
+    """LOOP-05 / D-10: each attempt's persistable projection has EXACTLY the 8 write_eval_row keys
+    (internal failing/summed_score/draft stripped) and satisfies verdict-iff-ok — an `ok` attempt
+    carries the single top-level verdict, an `error` attempt carries verdict=NULL + a non-empty
+    error. Proven by actually calling the REAL write_eval_row (edition_eval.py:121-134) per attempt."""
+    import edition_eval  # the REAL Phase-30 write surface (on NL_DIR path)
+
+    persistable_keys = {"attempt", "eval_status", "error", "judge_scores", "feedback",
+                        "reverify_flags", "sats", "model_calls"}
+
+    def _map_and_write(out):
+        for a in out["attempts"]:
+            projected = jl._persistable_attempt(a)
+            assert set(projected) == persistable_keys
+            for internal in ("failing", "summed_score", "draft"):
+                assert internal not in projected       # internal-only keys are stripped (D-10)
+            # verdict-iff-ok: an ok attempt carries the single top-level verdict; an error attempt
+            # carries verdict=NULL + a non-empty error (the attempt column disambiguates).
+            verdict = out["verdict"] if a["eval_status"] == "ok" else None
+            row_id = edition_eval.write_eval_row(
+                _StubSupabase(),
+                newsletter_id="nl-1", edition_number=42, pipeline_version="block_v1",
+                attempt=projected["attempt"], layer="judge",
+                eval_status=projected["eval_status"], verdict=verdict, error=projected["error"],
+                deterministic_flags=projected["reverify_flags"], judge_scores=projected["judge_scores"],
+                judge_feedback=projected["feedback"], sats_spent=projected["sats"],
+                model_calls=projected["model_calls"],
+            )
+            assert row_id == "eval-row-1"
+
+    draft = _make_draft()
+    # (a) a held_voice run (3 ok attempts) → every attempt maps with verdict='held_voice'.
+    j = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})
+    r = _revise_json(content_markdown="rewrote cleanly this week without any new claims",
+                     content_markdown_impact="rewrote the impact cleanly this week without new claims")
+    hv = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {},
+                       _FakeLLM(j, r, j, r, j), http_client=_FakeHTTPClient())
+    assert hv["verdict"] == "held_voice"
+    _map_and_write(hv)
+
+    # (b) an escalated run (error attempt) → eval_status='error' + non-empty error + verdict=NULL.
+    esc = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), _clean_det_flags(), {},
+                        _FakeLLM(_judge_json_missing_evidence(), _judge_json_missing_evidence()))
+    assert esc["verdict"] == "escalated"
+    assert esc["attempts"][0]["eval_status"] == "error"
+    assert esc["attempts"][0]["error"]
+    _map_and_write(esc)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# LOOP-04 / D-12 — mechanical-only stays passed; mechanical rides feedback only on a dim fail
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_mechanical_only_passed():
+    """D-12: mechanical-only Layer-1 flags (no fabrication, all judge dims pass) → verdict='passed',
+    ZERO revise calls, and the mechanical flags NEVER enter the `failing` set (they ride in
+    reverify_flags telemetry only)."""
+    draft = _make_draft()
+    det = {"fabrication": [], "unverified": [],
+           "mechanical": [{"kind": "recycled_closer", "version": "technical"}], "meta": {}}
+    llm = _FakeLLM(_judge_json(default=5))   # all dims pass
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), det, {}, llm)
+
+    assert out["verdict"] == "passed"
+    assert out["selected_attempt"] == 0
+    assert len(_revise_calls(llm)) == 0                     # mechanical-only forces NO rewrite (D-12)
+    assert out["attempts"][0]["failing"] == []              # mechanical NEVER enters failing
+    assert out["attempts"][0]["reverify_flags"]["mechanical"]   # recorded in telemetry (attempt-0 = det)
+    assert len(llm.calls) == 1                              # judge only
+
+
+def test_mechanical_rides_feedback():
+    """LOOP-04: when a judge dimension INDEPENDENTLY fails, the mechanical Layer-1 flag rides into
+    the revise feedback (and is recorded on attempt-0's feedback telemetry)."""
+    draft = _make_draft()
+    det = {"fabrication": [], "unverified": [],
+           "mechanical": [{"kind": "recycled_closer", "detail": "closer echoes prior edition"}], "meta": {}}
+    j_fail = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})
+    r = _revise_json()
+    j_pass = _judge_json(default=5)
+    llm = _FakeLLM(j_fail, r, j_pass)
+    out = jl.run_layer2(draft, _block_fact_base(), _applicable_prior(), det, {}, llm)   # no http_client
+
+    assert out["verdict"] == "passed"
+    assert out["selected_attempt"] == 1
+    revises = _revise_calls(llm)
+    assert len(revises) == 1
+    user_msg = revises[0]["messages"][-1]["content"]
+    assert "recycled_closer" in user_msg                    # the mechanical note rode into the revise (D-12)
+    assert "recycled_closer" in out["attempts"][0]["feedback"]   # and into attempt-0's feedback telemetry
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Golden integration — a realistic tech+impact pair through the full loop (both fact-base shapes)
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+def test_golden_single_pass_held_voice_best_attempt():
+    """Golden (single_pass fact base): a realistic technical+impact pair driven through the full
+    loop with the mocked judge + revise + the fake httpx re-check. attempt-1 fixes one of two dims
+    (best), attempt-2 regresses → held_voice returns attempt-1 (D-11); the verified github ref in
+    each rewrite is re-checked clean and fetched ONCE (cache-served across attempts, D-01)."""
+    draft = _make_draft(
+        pipeline_version="single_pass",
+        content_markdown="## Read This\n\nthis week the agent-tooling space kept shipping.",
+        content_markdown_impact="## Read This\n\nfor operators, the agent-tooling space kept shipping.")
+    fact_base = _single_pass_fact_base(
+        premium_source_posts=[{"title": "acme ships agentkit",
+                               "summary": "the acme team shipped agentkit this week",
+                               "source_display": "acme blog"}])
+    j0 = _judge_json(technical={"specificity": 2, "clickbait": 2},
+                     impact={"specificity": 2, "clickbait": 2})       # 2 fails
+    r1 = _revise_json(content_markdown="acme shipped agentkit, see github.com/acme/agentkit for the code",
+                      content_markdown_impact="acme shipped agentkit for operators, see github.com/acme/agentkit")
+    j1 = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})   # 1 fail
+    r2 = _revise_json(content_markdown="acme shipped agentkit again, see github.com/acme/agentkit",
+                      content_markdown_impact="acme shipped agentkit again for operators, see github.com/acme/agentkit")
+    j2 = _judge_json(technical={"specificity": 2, "clickbait": 2},
+                     impact={"specificity": 2, "clickbait": 2})       # 2 fails
+    llm = _FakeLLM(j0, r1, j1, r2, j2)
+    fake = _FakeHTTPClient({"https://api.github.com/repos/acme/agentkit": [(200, {"stargazers_count": 500})]})
+    out = jl.run_layer2(draft, fact_base, _applicable_prior(), _clean_det_flags(), {},
+                        llm, http_client=fake)
+
+    assert out["verdict"] == "held_voice"
+    assert out["selected_attempt"] == 1
+    assert "agentkit" in out["final_draft"]["content_markdown"]
+    for a in out["attempts"][1:]:                            # both rewrites re-checked clean (D-01)
+        assert not a["reverify_flags"]["fabrication"]
+    assert len([c for c in fake.calls if "acme/agentkit" in c]) == 1   # fetched once, cache-served
+
+
+def test_golden_block_v1_held_fabrication():
+    """Golden (block_v1 fact base): under specificity pressure the attempt-1 revise INVENTS a
+    github repo the fake client 404s → the per-rewrite re-check hard-aborts to held_fabrication,
+    keeping the fabrication-clean attempt-0 draft (D-01/D-02); the invented repo is telemetry only."""
+    draft = _make_draft(
+        pipeline_version="block_v1",
+        content_markdown="## Read This\n\nthe registry space matured without hype this week.",
+        content_markdown_impact="## Read This\n\nfor operators, the registry space matured this week.")
+    fact_base = _block_fact_base(
+        blocks=[{"description": "the registry space matured this week", "named_entities": []}])
+    j0 = _judge_json(technical={"specificity": 2}, impact={"specificity": 2})   # fail → revise
+    r_fab = _revise_json(content_markdown="the registry lives at github.com/ghost/vaporware now",
+                         content_markdown_impact="for operators, the registry lives at github.com/ghost/vaporware")
+    llm = _FakeLLM(j0, r_fab)
+    fake = _FakeHTTPClient({"https://api.github.com/repos/ghost/vaporware": [(404, {})]})
+    out = jl.run_layer2(draft, fact_base, _applicable_prior(), _clean_det_flags(), {},
+                        llm, http_client=fake)
+
+    assert out["verdict"] == "held_fabrication"
+    assert out["selected_attempt"] == 0
+    assert out["final_draft"]["content_markdown"] == draft["content_markdown"]   # the clean attempt-0 draft
+    assert "vaporware" not in out["final_draft"]["content_markdown"]
+    assert out["attempts"][-1]["reverify_flags"]["fabrication"]   # the invented repo (telemetry only)
+    assert out["attempts"][-1]["judge_scores"] is None            # the fabricated rewrite was never judged
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

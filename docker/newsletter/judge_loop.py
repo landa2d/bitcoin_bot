@@ -9,7 +9,7 @@ a verdict object with full per-attempt telemetry.
 
 PURITY CONTRACT (D-09 — mirrors deterministic_gate.py):
   - NO supabase client, NO `edition_evals` write (Phase 30 owns persistence via
-    `edition_eval.write_eval_row`).
+    the `edition_eval` row-write helper).
   - NO live proxy client construction. The caller INJECTS `llm_client`, which MUST already
     authenticate as the governed `edition_eval` identity (`edition_eval._get_eval_api_key()`
     → the LLM_PROXY_EVAL_KEY getter, GOV-01). This module NEVER reuses the newsletter
@@ -470,14 +470,18 @@ def _revise_draft(draft: dict, feedback: str, fact_base: dict, llm_client, cfg: 
 
 def _attempt_row(
     attempt: int, *, eval_status: str, error: str | None, judge_scores: dict | None,
-    feedback: str | None, reverify: dict | None, failing: list[str] | None = None,
-    summed_score: int = 0, draft: dict | None = None,
+    feedback: str | None, reverify: dict | None, model_calls: list[dict] | None = None,
+    failing: list[str] | None = None, summed_score: int = 0, draft: dict | None = None,
 ) -> dict:
-    """Per-attempt telemetry object (RESEARCH §Pattern 9) — maps 1:1 onto `write_eval_row`
-    params (Phase 30 persists it; this module never writes). `reverify_flags` is the Layer-1
-    gate result for the attempt (attempt-0 = the passed-in `det_flags`). `failing`,
-    `summed_score`, and `draft` are internal-only (drive the D-11 best-attempt selection; NOT
-    persisted / NOT `write_eval_row` params)."""
+    """Per-attempt telemetry object (RESEARCH §Pattern 9) — its persistable projection
+    (`_persistable_attempt`) maps 1:1 onto the `edition_eval` row-write params
+    (`layer='judge', attempt=k`) that Phase 30 persists; this module never writes — D-09/D-10.
+    `reverify_flags` is the
+    Layer-1 gate result for the attempt (attempt-0 = the passed-in `det_flags`; a rewrite = the
+    per-rewrite re-check, or None when no http_client is injected). `model_calls` is the best-effort
+    per-attempt `{model, purpose}` list (per-call tokens/sats are the proxy's authoritative settle,
+    A3). `failing`, `summed_score`, and `draft` are INTERNAL-only (drive the D-11 best-attempt
+    selection + return the best draft; NOT persisted / NOT eval-row-write params)."""
     return {
         "attempt": attempt,
         "eval_status": eval_status,
@@ -485,12 +489,32 @@ def _attempt_row(
         "judge_scores": judge_scores,
         "feedback": feedback,
         "reverify_flags": reverify,
-        "sats": 0,               # best-effort; the proxy's wallet_transactions settle is authoritative
-        "model_calls": [],       # Plan 03 finalizes the per-call token/sat mapping
+        "sats": 0,               # best-effort; the proxy's wallet_transactions settle is authoritative (A3)
+        "model_calls": model_calls or [],  # best-effort {model, purpose} per attempt (tokens/sats → Phase 30 reconcile)
         "failing": failing or [],   # internal-only (D-11 primary key: fewest failing dims)
         "summed_score": summed_score,  # internal-only (D-11 tie-break: highest summed score)
         "draft": draft,             # internal-only (D-11 returns the BEST attempt's draft, not the latest)
     }
+
+
+# The per-attempt telemetry Phase 30 persists via the `edition_eval` row-write helper
+# (layer='judge', attempt=k). `failing`/`summed_score`/`draft` are INTERNAL-only (drive the D-11
+# best-attempt selection + return the best draft) and are NOT eval-row-write params —
+# `_persistable_attempt` strips them (D-10).
+_INTERNAL_ATTEMPT_KEYS = ("failing", "summed_score", "draft")
+
+
+def _persistable_attempt(row: dict) -> dict:
+    """Project a run_layer2 attempt row onto EXACTLY the persistable telemetry Phase 30 feeds the
+    `edition_eval` row-write helper: {attempt, eval_status, error, judge_scores, feedback,
+    reverify_flags, sats, model_calls}. Strips the internal-only D-11 selection keys
+    (failing/summed_score/draft). The module itself NEVER writes — this is the 1:1 mapping contract
+    (LOOP-03/LOOP-05, D-10). The projected shape maps onto the eval-row-write params as:
+    attempt→attempt, eval_status→eval_status, error→error, reverify_flags→deterministic_flags,
+    judge_scores→judge_scores, feedback→judge_feedback, sats→sats_spent, model_calls→model_calls
+    (the verdict is the single top-level verdict; the `attempt` column disambiguates — respecting
+    verdict-iff-ok)."""
+    return {k: v for k, v in row.items() if k not in _INTERNAL_ATTEMPT_KEYS}
 
 
 def _summed_score(judge_scores: dict) -> int:
@@ -653,10 +677,12 @@ def run_layer2(
         # attempt-0's reverify_flags IS the passed-in Layer-1 gate result (det_flags); a rewrite's
         # is the per-rewrite re-check result (or None when no http_client is injected — no re-check).
         reverify: dict | None = det_flags if attempt_no == 0 else None
+        model_calls: list[dict] = []   # best-effort {model, purpose} for the calls this attempt made (A3)
 
         if attempt_no > 0:
             # LOOP-01/D-07/D-08: targeted revise of BOTH bodies, fixing exactly the failing dims.
             current = _revise_draft(current, feedback, fact_base, llm_client, cfg)
+            model_calls.append({"model": cfg["revise_model"], "purpose": "revise"})
 
             # ── D-01 per-rewrite Layer-1 re-check ──────────────────────────────────────────────
             # Re-run the SAME deterministic engine that gated entry on the untrusted rewrite BEFORE
@@ -677,7 +703,7 @@ def run_layer2(
                     # verdict=held_fabrication is the loudest signal ("the rewrite hallucinated").
                     attempts.append(_attempt_row(
                         attempt_no, eval_status="ok", error=None, judge_scores=None,
-                        feedback=feedback, reverify=reverify, draft=current,
+                        feedback=feedback, reverify=reverify, model_calls=model_calls, draft=current,
                     ))
                     logger.info(
                         "run_layer2: held_fabrication — rewrite attempt %d introduced %d "
@@ -692,6 +718,7 @@ def run_layer2(
 
         logger.info("run_layer2: judging attempt %d", attempt_no)
         judged = _judge_draft(current, prior_context, llm_client, cfg)
+        model_calls.append({"model": cfg["judge_model"], "purpose": "judge"})
 
         if judged["status"] == "error":
             # JUDGE-05: an un-scoreable judge is NOT evidence — escalate (does NOT hold), never a
@@ -699,7 +726,7 @@ def run_layer2(
             # guaranteed clean (each rewrite's re-check above proves the returned attempt-0 clean).
             attempts.append(_attempt_row(
                 attempt_no, eval_status="error", error=judged["error"], judge_scores=None,
-                feedback=feedback, reverify=reverify, draft=current,
+                feedback=feedback, reverify=reverify, model_calls=model_calls, draft=current,
             ))
             return {"final_draft": draft, "verdict": "escalated",
                     "selected_attempt": attempt_no, "attempts": attempts}
@@ -711,7 +738,7 @@ def run_layer2(
                                         continuity_applicable=continuity_applicable)
         attempts.append(_attempt_row(
             attempt_no, eval_status="ok", error=None, judge_scores=scores, feedback=None,
-            reverify=reverify, failing=failing,
+            reverify=reverify, model_calls=model_calls, failing=failing,
             summed_score=_summed_score(scores), draft=current,
         ))
 
@@ -725,6 +752,9 @@ def run_layer2(
         # Layer-1 flags ride ONLY because a judge dim independently failed (LOOP-04/D-12); the
         # fabrication list is NEVER passed (fabrication never enters the loop).
         feedback = _build_feedback(scores, failing, (det_flags.get("mechanical") or None))
+        # LOOP-03: record the feedback that produced the NEXT attempt on THIS attempt's telemetry
+        # (Pattern 9 — `feedback` maps to the eval row's `judge_feedback`).
+        attempts[-1]["feedback"] = feedback
 
     # ── N=2 exhausted, a dimension still fails → held_voice, NO best-effort publish (LOOP-02).
     # Return the BEST attempt by the D-11 tie-break (fewest fails → highest summed score → latest),
