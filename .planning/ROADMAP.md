@@ -222,7 +222,21 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
   4. The Processor contains no LLM calls and no retry/rewrite state — both layers live in the newsletter service, called by the sequencer; the Processor only triggers generation, owns the publish gate, and surfaces eval verdicts via a plain select.
   5. Automated holds are gated by a config `enforce` flag (default `false` / report-only) the operator explicitly flips to `true`; the whole step is rollback-safe (`enabled:false` disables invocation; tables/agent rows may remain).
 
-**Plans**: TBD
+**Plans**: 4 plans (Wave 1 parallel schema+orchestrator, Wave 2 the two-save-point wiring, Wave 3 operator-owned live-activation runbook)
+
+**Wave 1** *(parallel — no file overlap)*
+
+  - [ ] 30-01-PLAN.md — Migration 046 `do_not_publish` columns + Processor publish-gate column guard (WIRE-02/04/05) [autonomous]
+  - [ ] 30-02-PLAN.md — `run_edition_eval` orchestrator: governed edition_eval client + injected httpx.Client + fail-open-but-loud + config gating + co-located unit suite (WIRE-01/05/06) [autonomous]
+
+**Wave 2** *(blocked on 30-02 — same poller file)*
+
+  - [ ] 30-03-PLAN.md — Wire the eval into both save points + verdict→action (enforce-gated hold + escalation) + do_not_publish reconciliation (WIRE-01/02/03/04/06) [autonomous, depends 30-02]
+
+**Wave 3** *(operator/orchestrator-owned, worktree-UNSAFE)*
+
+  - [ ] 30-04-PLAN.md — Live-activation runbook: 27-03 key mint, MCP-apply 045+046, settled governed-call verify, scoped rebuild, flip enabled→report-only→enforce (WIRE-06) [autonomous:false]
+
 **Notes**: The invasive phase — wires the gate + module into the live generation path and the held mechanism. `do_not_publish`/`do_not_publish_reason` on a *main* edition is net-new (today `do_not_publish` lives only inside `data_snapshot`; `held` is set by hand). Activation discipline: report-only for the first ~2 editions to calibrate thresholds against real drafts, then the operator flips `enforce:true`. Honors "Processor stays a dumb sequencer" (WIRE-05) — no LLM/retry state leaks into the Processor. Reference `docs/audit/specs/01_eval_harness.md` for the wiring points.
 
 ### Phase 31: Surfacing & Escalation
@@ -275,7 +289,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete    | 2026-07-01 |
-| 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/TBD | Not started | - |
+| 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 0/4 | Not started | - |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
 
 ## Backlog
