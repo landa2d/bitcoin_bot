@@ -253,8 +253,8 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 **Plans**: 4 plans (waves 1-3)
 **Wave 1**
 
-- [ ] 31-01-PLAN.md — SURF-01: harden send_telegram to bool fail-loud + boot-time config ERROR + auto-publish critical-caller return check (wave 1)
-- [ ] 31-03-PLAN.md — SURF-03: owner-gated /newsletter_eval (+ trend) gato_brain handler + isGatoBrainCommand allowlist regex (wave 1)
+- [x] 31-01-PLAN.md — SURF-01: harden send_telegram to bool fail-loud + boot-time config ERROR + auto-publish critical-caller return check (wave 1)
+- [x] 31-03-PLAN.md — SURF-03: owner-gated /newsletter_eval (+ trend) gato_brain handler + isGatoBrainCommand allowlist regex (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -303,7 +303,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete    | 2026-07-01 |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 4/4 | Complete    | 2026-07-02 |
-| 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
+| 31. Surfacing & Escalation | v2.3 | 2/4 | In Progress|  |
 
 ## Backlog
 

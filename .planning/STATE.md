@@ -4,8 +4,8 @@ milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
 status: executing
 stopped_at: Phase 31 context gathered
-last_updated: "2026-07-02T21:51:12.309Z"
-last_activity: 2026-07-02 -- Phase 31 planning complete
+last_updated: "2026-07-02T21:55:11.157Z"
+last_activity: 2026-07-02 -- Phase 31 execution started
 progress:
   total_phases: 6
   completed_phases: 5
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 30 COMPLETE + eval LIVE in report-only mode (`enabled=true`/`enforce=false`, armed 2026-07-02 operator-directed). Calibration window: observe ~2 editions' `edition_evals` verdicts, then operator flips `enforce=true` (30-04 Task 6). Next: Phase 31 — Surfacing & Escalation.
+**Current focus:** Phase 31 — surfacing-escalation
 
 ## Current Position
 
-Phase: 31
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-07-02 -- Phase 31 planning complete
+Phase: 31 (surfacing-escalation) — EXECUTING
+Plan: 1 of 4
+Status: Executing Phase 31
+Last activity: 2026-07-02 -- Phase 31 execution started
 
 ## Roadmap (v2.3 — Phases 26–31)
 
