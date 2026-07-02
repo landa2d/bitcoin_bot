@@ -37,6 +37,7 @@ const middleware = `
 /brief — Latest newsletter (Telegram)
 /newsletter_full — Generate new edition
 /newsletter_preview — Preview on web (no send)
+/newsletter_eval — Eval scores & voice exemplars (owner)
 /newsletter_publish — Publish draft
 /newsletter_revise [text] — Send revision notes
 /freshness — Excluded from next edition
@@ -109,7 +110,10 @@ const middleware = `
     const isCodeCommand = text && /^\\/(code|diff|code-diff|code-approve|approve|code-reject|reject|code-merge|followup|repos)\\b/i.test(text.trim());
     const isCtoCommand = text && /^\\/cto\\b/i.test(text.trim());
     const isNewsletterPreview = text && /^\\/newsletter_preview\\b/i.test(text.trim());
-    const isGatoBrainCommand = isXCommand || isMapCommand || isCodeCommand || isCtoCommand || isNewsletterPreview;
+    // A DISTINCT regex is required: /^\\/newsletter_preview\\b/ does NOT match /newsletter_eval.
+    // Dead-command landmine (the Phase 9 /map-* lesson) unless OR'd into isGatoBrainCommand below.
+    const isNewsletterEval = text && /^\\/newsletter_eval\\b/i.test(text.trim());
+    const isGatoBrainCommand = isXCommand || isMapCommand || isCodeCommand || isCtoCommand || isNewsletterPreview || isNewsletterEval;
 
     if (text && (!text.startsWith("/") || isGatoBrainCommand)) {
       try {
