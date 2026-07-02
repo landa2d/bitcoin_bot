@@ -96,7 +96,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 - [x] **Phase 28: Layer 1 Deterministic Gate** — no-LLM fabrication (GitHub/URL/arXiv/named-study/entity-merge) + mechanical-editorial checks against the correct in-memory fact base, short-circuits to hold+escalate (GATE-01..08) (completed 2026-06-30)
 - [x] **Phase 29: Layer 2 Judge + Feedback-Rewrite Loop** — standalone module: Sonnet judge on exemplar-anchored dimensions + bounded N=2 rewrite loop, returns final draft + verdict (JUDGE-01..05, LOOP-01..05) (completed 2026-07-01)
 - [x] **Phase 30: Sequencer Wiring, Hold Action & Activation Gate** — invoke gate+module at the two save points, act on verdicts (held/do_not_publish), behind a report-only `enforce` flag; Processor stays dumb (WIRE-01..06) (completed 2026-07-02)
-- [ ] **Phase 31: Surfacing & Escalation** — hardened `send_telegram` alerts + Friday-notify eval summary + live `/newsletter_eval` Gato command (+ allowlist + gato rebuild) (SURF-01..03)
+- [x] **Phase 31: Surfacing & Escalation** — hardened `send_telegram` alerts + Friday-notify eval summary + live `/newsletter_eval` Gato command (+ allowlist + gato rebuild) (SURF-01..03) (completed 2026-07-02)
 
 ## Phase Details
 
@@ -262,7 +262,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 31-04-PLAN.md — Deploy + live verification: scoped rebuild processor/gato_brain/gato (NOT newsletter), live /newsletter_eval round-trip, manual notify invocation (wave 3, orchestrator-owned)
+- [x] 31-04-PLAN.md — Deploy + live verification: scoped rebuild processor/gato_brain/gato (NOT newsletter), live /newsletter_eval round-trip, manual notify invocation (wave 3, orchestrator-owned)
 
 **Notes**: Worktree-unsafe — the `/newsletter_eval` command needs the `inject-gato-brain.mjs` allowlist edit + a gato rebuild (and a gato_brain handler), both orchestrator/operator-owned on the main tree (the known OpenClaw command-forwarding allowlist landmine: a gato_brain handler is dead over Telegram until allowlisted + gato rebuilt). The Friday-notify summary (SURF-02) is a plain select in the Processor — no LLM, honoring WIRE-05. `send_telegram` hardening (SURF-01) closes the fail-soft gap (today it silently `return`s when env vars are unset).
 
@@ -303,7 +303,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete    | 2026-07-01 |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 4/4 | Complete    | 2026-07-02 |
-| 31. Surfacing & Escalation | v2.3 | 3/4 | In Progress|  |
+| 31. Surfacing & Escalation | v2.3 | 4/4 | Complete   | 2026-07-02 |
 
 ## Backlog
 
