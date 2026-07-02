@@ -10820,13 +10820,18 @@ def scheduled_notify_newsletter():
     but-loud (an eval-render error never suppresses the Friday notify — the static line still
     sends + an ERROR is logged). This is a hold/eval-critical caller (D-03): it checks
     send_telegram's bool return and CRITICAL-logs on delivery failure.
+
+    The "notification sent" INFO fires ONLY after send_telegram actually returns True (WR-05):
+    the pre-change unconditional entry log claimed success on the supabase-None skip, on delivery
+    failure, and on the exception path. The supabase-None early-exit now ERROR-logs (fail-loud
+    posture — a suppressed Friday notify must leave a trace, not a silent bare return).
     """
-    logger.info("[PIPELINE] Newsletter notification sent")
     static_notice = (
         "📰 New AgentPulse Brief is ready for review. "
         "Send /newsletter_publish to publish, or it will auto-publish at 13:00 UTC."
     )
     if not supabase:
+        logger.error("[EVAL-NOTIFY] supabase unavailable — Friday notify SKIPPED")
         return
 
     message = static_notice
@@ -10856,9 +10861,12 @@ def scheduled_notify_newsletter():
         )
         message = static_notice
 
-    # Hold/eval-critical caller (D-03): check send_telegram's bool return; CRITICAL-log on failure
-    # so a lost calibration notify leaves an unmissable trace (edition number only, T-30-LOG).
-    if not send_telegram(message):
+    # Hold/eval-critical caller (D-03): check send_telegram's bool return; the "sent" INFO fires
+    # ONLY on a True return (WR-05), and a False return CRITICAL-logs so a lost calibration notify
+    # leaves an unmissable trace (edition number only, T-30-LOG).
+    if send_telegram(message):
+        logger.info("[PIPELINE] Newsletter notification sent")
+    else:
         logger.critical(
             "[EVAL-ALERT] CRITICAL — Friday notify delivery FAILED for edition #%s",
             edition_number,

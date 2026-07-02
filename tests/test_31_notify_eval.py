@@ -416,7 +416,8 @@ def test_notify_no_report_only_tag_when_enforce_true(monkeypatch):
 
 
 def test_notify_critical_logs_on_delivery_failure(monkeypatch, caplog):
-    """D-03: a `False` send_telegram return CRITICAL-logs `[EVAL-ALERT] CRITICAL — Friday notify`."""
+    """D-03/WR-05: a `False` send_telegram return CRITICAL-logs `[EVAL-ALERT] CRITICAL — Friday
+    notify` AND does NOT log the "notification sent" INFO (the INFO must only fire on success)."""
     monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=[], newsletters=_DRAFT_ROW))
     _wire_config(monkeypatch, enforce=False)
     monkeypatch.setattr(proc, "send_telegram", lambda m: False)
@@ -425,10 +426,12 @@ def test_notify_critical_logs_on_delivery_failure(monkeypatch, caplog):
     proc.scheduled_notify_newsletter()
 
     assert _has_record(caplog, "[EVAL-ALERT] CRITICAL — Friday notify", level=logging.CRITICAL)
+    # WR-05: the success INFO must NOT claim "sent" alongside a delivery failure.
+    assert not _has_record(caplog, "Newsletter notification sent")
 
 
 def test_notify_no_critical_when_delivery_ok(monkeypatch, caplog):
-    """When the notify delivers (True), NO CRITICAL log fires."""
+    """When the notify delivers (True), NO CRITICAL log fires AND the "sent" INFO fires (WR-05)."""
     monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=[], newsletters=_DRAFT_ROW))
     _wire_config(monkeypatch, enforce=False)
     monkeypatch.setattr(proc, "send_telegram", lambda m: True)
@@ -437,6 +440,8 @@ def test_notify_no_critical_when_delivery_ok(monkeypatch, caplog):
     proc.scheduled_notify_newsletter()
 
     assert not _has_record(caplog, "[EVAL-ALERT] CRITICAL")
+    # WR-05: the "sent" INFO fires ONLY after a True send_telegram return.
+    assert _has_record(caplog, "Newsletter notification sent", level=logging.INFO)
 
 
 def test_notify_fail_open_on_eval_read_exception(monkeypatch, caplog):
@@ -457,15 +462,20 @@ def test_notify_fail_open_on_eval_read_exception(monkeypatch, caplog):
     assert _has_record(caplog, "[EVAL-NOTIFY]", level=logging.ERROR)
 
 
-def test_notify_no_supabase_guard_returns(monkeypatch):
-    """Guard: with no supabase client the notify returns without calling send_telegram."""
+def test_notify_no_supabase_guard_returns(monkeypatch, caplog):
+    """Guard: with no supabase client the notify returns without calling send_telegram, and it
+    ERROR-logs the skip instead of a silent bare return + never claims "sent" (WR-05)."""
     monkeypatch.setattr(proc, "supabase", None)
     called = []
     monkeypatch.setattr(proc, "send_telegram", lambda m: called.append(m) or True)
+    caplog.set_level(logging.DEBUG)
 
     proc.scheduled_notify_newsletter()
 
     assert called == []
+    # WR-05: the supabase-None skip is now fail-loud (ERROR) and never logs "notification sent".
+    assert _has_record(caplog, "[EVAL-NOTIFY] supabase unavailable", level=logging.ERROR)
+    assert not _has_record(caplog, "Newsletter notification sent")
 
 
 def test_notify_no_llm_call_added(monkeypatch):
