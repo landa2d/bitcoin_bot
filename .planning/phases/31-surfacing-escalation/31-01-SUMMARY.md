@@ -98,6 +98,14 @@ None - no external service configuration required.
 - `send_telegram` now returns a bool that SURF-02 (Friday-notify eval summary) and SURF-03 (`/newsletter_eval`) critical callers will check — the contract those plans depend on is in place.
 - Deploy of this change is DEFERRED to plan 31-04 (worktree-unsafe scoped `processor` rebuild, orchestrator-owned on the main tree). No `docker compose` build was run in this worktree.
 
+## Self-Check: PASSED
+
+- FOUND: `docker/processor/agentpulse_processor.py`
+- FOUND: `tests/test_31_send_telegram.py`
+- FOUND commit `216cfa2` (Task 1 RED), `ac1d6f8` (Task 1 GREEN), `f21a100` (Task 2)
+- Acceptance greps verified: `def send_telegram(message: str) -> bool` ×1; `[TELEGRAM-SEND]` ×4 (≥2); `[TELEGRAM-CONFIG]` ×1; 0 `raise` statements in `send_telegram` (AST); exactly 1 guarded `if not send_telegram(` caller.
+- Suite: 10/10 `test_31` pass; 24/24 regression (`test_27`, `test_30`) pass; `ast.parse` syntax check OK.
+
 ---
 *Phase: 31-surfacing-escalation*
 *Completed: 2026-07-02*
