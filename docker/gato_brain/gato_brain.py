@@ -2406,6 +2406,321 @@ def handle_map_command(message: str, access_tier: str = "free") -> str:
         return f"Command failed: {e}"
 
 
+# ─── /newsletter_eval — owner-gated eval deep view (SURF-03) ──────────────────
+#
+# An on-demand render of any edition's pre-publish eval: per-dimension judge
+# scores for ALL dims, bounded evidence + before/after voice exemplars for the
+# FAILING dims, and the mechanical Layer-1 flags even on a `passed` verdict
+# (P29 D-12). OWNER-GATED as a whole (D-12) — the view quotes UNPUBLISHED draft
+# prose (judge evidence + exemplars) that must never land in a non-owner chat.
+# All reads are LOCAL `.eq()`-only selects mirroring the semantics of
+# docker/newsletter/edition_eval.py::read_evals_by_newsletter / read_eval_trend
+# (services are self-contained — that module is NOT importable across containers).
+# The `/newsletter_preview` handler's `.in_()` is the anti-pattern deliberately
+# NOT copied here (EVAL-03 — supabase-py in-list is a silent-failure bug).
+
+# The five exemplar-anchored voice dimensions + their per-dimension fail-below
+# thresholds, mirrored VERBATIM from judge_loop.DEFAULT_CONFIG['thresholds']
+# (not importable across containers). A dim FAILS when min(technical, impact) is
+# below its threshold; `continuity == "n/a"` is excluded (no prior edition, D-05).
+_EVAL_DIMENSIONS = ("continuity", "hedging_filler", "clickbait", "repeated_subtopics", "specificity")
+_EVAL_FAIL_BELOW = {
+    "continuity": 4,
+    "hedging_filler": 3,
+    "clickbait": 3,
+    "repeated_subtopics": 3,
+    "specificity": 3,
+}
+_EVAL_EXCERPT_MAX = 300  # bound each quoted evidence/exemplar (D-10)
+_EVAL_PIPELINE_ORDER = ("single_pass", "block_v1")  # single_pass primary leads (D-05)
+_EVAL_TREND_MAX_LINES = 8  # ~8 recent editions (D-11)
+
+
+def _eval_read_by_edition(supabase, edition_number) -> list:
+    """All edition_evals rows for ONE edition — `.eq()` only (EVAL-03; mirrors
+    read_evals_by_newsletter). Ordered pipeline_version then attempt so the detail
+    formatter groups deterministically. NEVER `.in_()`."""
+    result = (
+        supabase.table("edition_evals")
+        .select("*")
+        .eq("edition_number", edition_number)
+        .order("pipeline_version")
+        .order("attempt")
+        .execute()
+    )
+    return result.data or []
+
+
+def _eval_read_latest_with_rows(supabase) -> list:
+    """No-args target (D-09): the rows of the most-recent edition that HAS any
+    edition_evals row (any status). Two ordered reads — the newest edition_number,
+    then that edition's rows via `_eval_read_by_edition`. Returns [] when NO eval
+    has ever run (the caller renders the explicit no-eval message). `.eq()` only."""
+    latest = (
+        supabase.table("edition_evals")
+        .select("edition_number")
+        .order("edition_number", desc=True)
+        .limit(1)
+        .execute()
+    )
+    data = latest.data or []
+    if not data:
+        return []
+    return _eval_read_by_edition(supabase, data[0]["edition_number"])
+
+
+def _eval_read_trend(supabase, pipeline_version, limit=8) -> list:
+    """Recent verdict trend for ONE pipeline_version, newest edition first —
+    `.eq()` only (mirrors read_eval_trend, D-11). Also selects deterministic_flags
+    so the trend line can show fab/unv/mech counts. NEVER `.in_()`."""
+    result = (
+        supabase.table("edition_evals")
+        .select(
+            "edition_number, pipeline_version, layer, attempt, eval_status, "
+            "verdict, deterministic_flags, judge_scores, created_at"
+        )
+        .eq("pipeline_version", pipeline_version)
+        .order("edition_number", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return result.data or []
+
+
+def _eval_is_number(value) -> bool:
+    """A real numeric score (int/float), excluding bool (an int subclass) and the
+    string "n/a" continuity marker."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _eval_excerpt(text) -> str:
+    """Single-line, bounded excerpt of quoted draft prose (D-10): collapse whitespace
+    and cap at _EVAL_EXCERPT_MAX chars. NEVER logged — only ever returned inside the
+    owner-gated response (T-30-LOG)."""
+    return " ".join(str(text or "").split())[:_EVAL_EXCERPT_MAX]
+
+
+def _eval_dim_scores(judge_scores: dict, dim: str):
+    """(technical_score, impact_score) for one dimension out of the both-bodies judge
+    schema; (None, None) when the shape is absent/partial (an error/empty row)."""
+    tech = (((judge_scores or {}).get("technical") or {}).get(dim) or {}).get("score")
+    impact = (((judge_scores or {}).get("impact") or {}).get(dim) or {}).get("score")
+    return tech, impact
+
+
+def _eval_worst_entry(judge_scores: dict, dim: str) -> dict:
+    """The LOWER-scoring body's per-dimension entry — the offending body whose
+    evidence/exemplar is rendered for a failing dim. Defensive to non-numeric scores
+    (mirrors judge_loop._worst_body_entry)."""
+    tech = ((judge_scores or {}).get("technical") or {}).get(dim) or {}
+    impact = ((judge_scores or {}).get("impact") or {}).get(dim) or {}
+    ts, is_ = tech.get("score"), impact.get("score")
+    if _eval_is_number(ts) and _eval_is_number(is_):
+        return tech if ts <= is_ else impact
+    return tech if _eval_is_number(ts) else impact
+
+
+def _eval_describe_mechanical(flag) -> str:
+    """One-line render of a Layer-1 mechanical flag dict ('kind (version): detail').
+    Defensive to unknown shapes; never raises (mirrors judge_loop._describe_mechanical,
+    not importable across containers)."""
+    if not isinstance(flag, dict):
+        return str(flag)
+    kind = flag.get("kind") or flag.get("type") or flag.get("check") or "mechanical"
+    version = flag.get("version")
+    detail = (flag.get("detail") or flag.get("message") or flag.get("reason")
+              or flag.get("value") or flag.get("label") or "")
+    head = f"{kind} ({version})" if version else str(kind)
+    return f"{head}: {detail}".strip() if detail else head
+
+
+def _format_eval_detail(eval_rows: list) -> str:
+    """D-10 detail render for ONE edition's eval rows (grouped per pipeline_version):
+    the verdict, a per-dimension score line for ALL five dims, and — for FAILING dims —
+    the judge's quoted evidence + before/after exemplar (each bounded ~300 chars). The
+    deterministic `mechanical` flags are ALWAYS listed, even on a `passed` verdict
+    (P29 D-12). Passing dims stay score-only. Pure — reads the 045 `edition_evals` row
+    shape verbatim, never fetches, never mutates."""
+    if not eval_rows:
+        return "No eval rows to render."
+    edition = eval_rows[0].get("edition_number", "?")
+
+    by_pv: dict = {}
+    for row in eval_rows:
+        by_pv.setdefault(row.get("pipeline_version"), []).append(row)
+    ordered_pvs = [pv for pv in _EVAL_PIPELINE_ORDER if pv in by_pv]
+    ordered_pvs += [pv for pv in by_pv if pv not in _EVAL_PIPELINE_ORDER]
+
+    lines = [f"📋 Edition #{edition} — eval detail"]
+    for pv in ordered_pvs:
+        rows = by_pv[pv]
+        det_rows = [r for r in rows if r.get("layer") == "deterministic"]
+        judge_rows = [r for r in rows if r.get("layer") == "judge"]
+
+        # The final scored judge attempt (highest attempt with non-empty judge_scores).
+        scored = sorted(
+            (r for r in judge_rows if (r.get("judge_scores") or {})),
+            key=lambda r: r.get("attempt", 0),
+        )
+        final_judge = scored[-1] if scored else None
+
+        # Verdict: prefer a judge-row verdict (the overall run_layer2 verdict); else the
+        # deterministic verdict (a held_fabrication short-circuit never reaches the judge).
+        verdict = None
+        for r in judge_rows + det_rows:
+            if r.get("verdict"):
+                verdict = r["verdict"]
+                break
+        attempts_used = max((r.get("attempt", 0) for r in judge_rows), default=-1) + 1
+        if attempts_used < 1:
+            attempts_used = 1
+
+        lines.append("")
+        lines.append(f"▸ {pv} — verdict: {verdict or 'n/a'} (attempts: {attempts_used})")
+
+        if final_judge:
+            js = final_judge.get("judge_scores") or {}
+            for dim in _EVAL_DIMENSIONS:
+                tech, impact = _eval_dim_scores(js, dim)
+                lines.append(f"  {dim}: technical={tech} impact={impact}")
+                if dim == "continuity" and (tech == "n/a" or impact == "n/a"):
+                    continue  # D-05: continuity excluded on an empty corpus
+                if not (_eval_is_number(tech) and _eval_is_number(impact)):
+                    continue
+                if min(tech, impact) < _EVAL_FAIL_BELOW[dim]:
+                    entry = _eval_worst_entry(js, dim)
+                    evidence = _eval_excerpt(entry.get("evidence"))
+                    before = _eval_excerpt(entry.get("exemplar_before"))
+                    after = _eval_excerpt(entry.get("exemplar_after"))
+                    if evidence:
+                        lines.append(f'    ⚠ evidence: "{evidence}"')
+                    if before or after:
+                        lines.append(f'    ✎ before: "{before}"')
+                        lines.append(f'    ✎ after:  "{after}"')
+        else:
+            lines.append("  (no judge scores recorded — Layer-1 hold or eval error)")
+
+        # Mechanical Layer-1 flags — ALWAYS listed, even on a passed verdict (P29 D-12).
+        mech: list = []
+        fab: list = []
+        unv: list = []
+        for r in det_rows:
+            df = r.get("deterministic_flags") or {}
+            mech.extend(df.get("mechanical") or [])
+            fab.extend(df.get("fabrication") or [])
+            unv.extend(df.get("unverified") or [])
+        if mech:
+            lines.append(f"  mechanical flags ({len(mech)}):")
+            for flag in mech:
+                lines.append(f"    - {_eval_describe_mechanical(flag)}")
+        else:
+            lines.append("  mechanical flags: none")
+        if fab or unv:
+            lines.append(f"  fabrication: {len(fab)}  unverified: {len(unv)}")
+
+    return "\n".join(lines)
+
+
+def _format_eval_trend(rows: list) -> str:
+    """D-11 trend render: ONE line per (edition, pipeline_version) group across the
+    supplied rows — `#<edition> <pipeline_version> <verdict> attempts=<n>
+    fab=<n>/unv=<n>/mech=<n>` — newest edition first, capped at ~8 lines (mirrors
+    read_eval_trend's shape). Pure — never fetches, never mutates."""
+    if not rows:
+        return "No eval trend yet — no edition has been evaluated."
+
+    groups: dict = {}
+    for r in rows:
+        groups.setdefault((r.get("edition_number"), r.get("pipeline_version")), []).append(r)
+
+    def _edition_sort_key(key):
+        ed = key[0]
+        return ed if isinstance(ed, (int, float)) else -1
+
+    ordered = sorted(groups.keys(), key=_edition_sort_key, reverse=True)
+    lines = ["📈 Eval trend (recent editions)"]
+    for key in ordered[:_EVAL_TREND_MAX_LINES]:
+        ed, pv = key
+        grp = groups[key]
+        verdict = None
+        for r in grp:
+            if r.get("layer") == "judge" and r.get("verdict"):
+                verdict = r["verdict"]
+                break
+        if verdict is None:
+            for r in grp:
+                if r.get("verdict"):
+                    verdict = r["verdict"]
+                    break
+        attempts_used = max(
+            (r.get("attempt", 0) for r in grp if r.get("layer") == "judge"), default=-1
+        ) + 1
+        if attempts_used < 1:
+            attempts_used = 1
+        fab = unv = mech = 0
+        for r in grp:
+            df = r.get("deterministic_flags") or {}
+            fab += len(df.get("fabrication") or [])
+            unv += len(df.get("unverified") or [])
+            mech += len(df.get("mechanical") or [])
+        lines.append(
+            f"  #{ed} {pv} {verdict or 'n/a'} "
+            f"attempts={attempts_used} fab={fab}/unv={unv}/mech={mech}"
+        )
+    return "\n".join(lines)
+
+
+def handle_newsletter_eval(message: str, access_tier: str = "free", supabase_client=None) -> str:
+    """/newsletter_eval [<edition#> | trend] — owner-gated eval deep view (SURF-03).
+
+    OWNER-GATED as a WHOLE (D-12): the view quotes UNPUBLISHED draft prose (judge
+    evidence + before/after exemplars), so a non-owner caller gets an owner-only
+    refusal BEFORE any eval read. No-args targets the latest edition that HAS eval
+    rows (D-09); a bare `<edition#>` targets that edition; `trend` renders recent
+    verdicts (D-11). All reads are LOCAL `.eq()`-only selects. One top-level
+    try/except returns a human-readable failure string (fail-loud; mirrors
+    handle_map_command). Logs LABELS/counts only — never the evidence/exemplar prose
+    or a key (T-30-LOG)."""
+    if access_tier != "owner":
+        # T-31-07: refuse BEFORE any eval read — pre-publication prose must not leak.
+        return (
+            "🔒 /newsletter_eval is owner-only — it quotes unpublished draft prose "
+            "(judge evidence + voice exemplars) that must not leave the owner chat."
+        )
+    sb = supabase_client if supabase_client is not None else supabase
+    try:
+        parts = message.strip().split()
+        args = parts[1:]  # parts[0] == "/newsletter_eval"
+        arg = args[0].lower() if args else ""
+
+        if arg == "trend":
+            rows: list = []
+            for pv in _EVAL_PIPELINE_ORDER:
+                rows.extend(_eval_read_trend(sb, pv, limit=8))
+            logger.info("[NEWSLETTER-EVAL] trend view rows=%d", len(rows))
+            return _format_eval_trend(rows)
+
+        if arg and arg.lstrip("#").isdigit():
+            # T-31-09: integer-parse the arg; a non-numeric arg falls through to the
+            # latest view rather than raising.
+            edition = int(arg.lstrip("#"))
+            rows = _eval_read_by_edition(sb, edition)
+            logger.info("[NEWSLETTER-EVAL] edition=%d rows=%d", edition, len(rows))
+            if not rows:
+                return f"No eval found for edition #{edition}."
+            return _format_eval_detail(rows)
+
+        # No-args (D-09): the latest edition that has any eval rows.
+        rows = _eval_read_latest_with_rows(sb)
+        logger.info("[NEWSLETTER-EVAL] latest-with-rows rows=%d", len(rows))
+        if not rows:
+            return "No eval has run for any edition yet."
+        return _format_eval_detail(rows)
+    except Exception as e:
+        logger.error("[NEWSLETTER-EVAL] handler failed: %s", type(e).__name__, exc_info=True)
+        return f"⚠ eval view failed: {e}"
+
+
 # ─── Agent Wallet Summary ─────────────────────────────────────────
 
 def _resolve_api_key(authorization: str | None) -> dict | None:
@@ -2728,6 +3043,19 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
             preview_resp = f"Preview failed: {e}"
         return ChatResponse(
             response=preview_resp,
+            session_id="",
+            intent="NEWSLETTER_COMMAND",
+            metadata={},
+        )
+
+    # 2c-3. Newsletter eval deep view — owner-gated (quotes UNPUBLISHED draft prose:
+    # judge evidence + voice exemplars), dispatched BEFORE the intent router.
+    # `access_tier` threaded exactly like the /map- branch; `.eq()`-only reads inside.
+    # D-09 (no-args latest-with-rows) / D-10 (per-dim detail) / D-11 (trend) / D-12 (owner-gate).
+    if _msg_lower.startswith("/newsletter_eval"):
+        eval_response = handle_newsletter_eval(req.message, access_tier)
+        return ChatResponse(
+            response=eval_response,
             session_id="",
             intent="NEWSLETTER_COMMAND",
             metadata={},
