@@ -10666,13 +10666,203 @@ def scheduled_prepare_newsletter():
     except Exception as e:
         logger.error(f"[PIPELINE] Newsletter prep failed: {e}")
 
+# ============================================================================
+# SURF-02 — Friday-notify eval summary (edition_evals read + pure formatter)
+# ============================================================================
+# The Processor stays a dumb sequencer: these two helpers do a plain .eq()-only
+# select + string formatting — NO LLM, NO retry state (WIRE-05 invariant). They
+# mirror the edition_eval.py read semantics locally (services are self-contained;
+# docker/newsletter/edition_eval.py is NOT importable across containers).
+
+# The five exemplar-anchored voice dimensions, in the judge_loop.py order.
+_NOTIFY_JUDGE_DIMENSIONS = (
+    "continuity", "hedging_filler", "clickbait", "repeated_subtopics", "specificity",
+)
+
+# single_pass leads (the publishable primary whose verdict gates Monday), block_v1
+# telemetry follows (the weekly single-pass vs block_v1 A/B signal) — D-05.
+_NOTIFY_PIPELINE_ORDER = (
+    ("single_pass", "Primary (single_pass)"),
+    ("block_v1", "Telemetry (block_v1)"),
+)
+
+
+def _read_edition_evals(supabase, edition_number) -> list:
+    """Return ALL edition_evals rows for one edition — `.eq()`-only (EVAL-03).
+
+    Mirrors edition_eval.read_evals_by_newsletter semantics but keyed on the edition,
+    so ONE read returns every row across BOTH pipeline_versions and both layers/attempts
+    (edition_evals carries `edition_number` + `pipeline_version` columns). MUST be
+    `.eq()`-only: the supabase-py in-list filter is the silent-failure anti-pattern for eval
+    reads (the `/newsletter_preview` and `scheduled_auto_publish_newsletter` status lookups
+    use it, but eval reads never copy them). Returns `result.data or []` — never None-propagates.
+    """
+    result = (
+        supabase.table("edition_evals")
+        .select("*")
+        .eq("edition_number", edition_number)
+        .order("pipeline_version")
+        .order("attempt")
+        .execute()
+    )
+    return result.data or []
+
+
+def _notify_worst_dim_score(judge_scores: dict, dim: str):
+    """Return min(technical.score, impact.score) for one dimension (D-06 / D-08 worst-case).
+
+    The both-bodies judge schema is {"technical": {dim: {"score": int|"n/a", ...}}, "impact": {...}}.
+    Reads ONLY the numeric `score` — never `evidence`/`exemplar_*` prose (T-31-04 leak boundary).
+    Returns "n/a" when a body's score is the string "n/a" (continuity with no prior edition — D-05),
+    or "?" when the score is missing/non-numeric on both bodies.
+    """
+    def _one(body: str):
+        try:
+            cell = judge_scores.get(body, {}) or {}
+            return (cell.get(dim, {}) or {}).get("score")
+        except AttributeError:
+            return None
+
+    tech, impact = _one("technical"), _one("impact")
+    nums = [v for v in (tech, impact) if isinstance(v, (int, float)) and not isinstance(v, bool)]
+    if nums:
+        return min(nums)
+    if tech == "n/a" or impact == "n/a":
+        return "n/a"
+    return "?"
+
+
+def _format_notify_eval_section(eval_rows, enforce) -> str:
+    """PURE formatter (no supabase, no LLM) rendering a compact per-draft eval section.
+
+    Groups `eval_rows` by pipeline_version, renders single_pass first then block_v1 (D-05).
+    For each pipeline_version builds a ~5-6 line block:
+      - the deterministic-layer row supplies the flag counts len(fabrication)/len(unverified)/
+        len(mechanical); the mechanical count is ALWAYS printed, even on a `passed` verdict (D-06,
+        honoring the P29 D-12 dependency);
+      - the highest-`attempt` judge-layer row supplies the final verdict + per-dimension scores
+        (each dim = min(technical.score, impact.score)) and `attempts used` = max judge attempt + 1;
+      - a pipeline_version with NO rows renders the literal `⚠ no eval recorded for this draft`
+        line — the block is NEVER omitted (D-07, NULL != intent);
+      - a held_fabrication/held_voice verdict with enforce=False prepends `⚠ WOULD HAVE HELD
+        (report-only)` at the TOP of that block (D-08); with enforce=True the held verdict renders
+        plainly.
+    Renders labels/counts/scores ONLY — never raw draft prose, judge evidence, or exemplars
+    (T-31-04: the bounded-excerpt detail belongs to the owner-gated /newsletter_eval, plan 31-03).
+    """
+    by_pv: dict = {}
+    for row in (eval_rows or []):
+        by_pv.setdefault(row.get("pipeline_version"), []).append(row)
+
+    header = "🧪 Pre-publish eval" + ("" if enforce else " (report-only)")
+    lines = ["", header]
+
+    for pv_key, pv_label in _NOTIFY_PIPELINE_ORDER:
+        rows = by_pv.get(pv_key, [])
+        lines.append("")
+        lines.append(f"— {pv_label} —")
+
+        if not rows:
+            lines.append("⚠ no eval recorded for this draft")  # D-07 — never omit the block
+            continue
+
+        det_rows = [r for r in rows if r.get("layer") == "deterministic"]
+        judge_rows = [r for r in rows if r.get("layer") == "judge"]
+
+        # Effective verdict: prefer the final judge verdict; fall back to the deterministic
+        # verdict when the judge never ran (a Layer-1 held_fabrication holds before the judge).
+        effective_verdict = None
+        final_judge = None
+        if judge_rows:
+            final_judge = max(judge_rows, key=lambda r: r.get("attempt", 0) or 0)
+            effective_verdict = final_judge.get("verdict")
+        elif det_rows:
+            final_det = max(det_rows, key=lambda r: r.get("attempt", 0) or 0)
+            effective_verdict = final_det.get("verdict")
+
+        # D-08: report-only holds are prominent — tag at the TOP of the block while enforce=False.
+        if effective_verdict in ("held_fabrication", "held_voice") and not enforce:
+            lines.append("⚠ WOULD HAVE HELD (report-only)")
+
+        lines.append(f"verdict: {effective_verdict if effective_verdict is not None else 'unknown'}")
+
+        # D-06: deterministic flag counts — mechanical ALWAYS shown, even on a passed verdict.
+        det_for_flags = (
+            max(det_rows, key=lambda r: r.get("attempt", 0) or 0) if det_rows else None
+        )
+        flags = (det_for_flags.get("deterministic_flags") if det_for_flags else None) or {}
+        fab = len(flags.get("fabrication", []) or [])
+        unv = len(flags.get("unverified", []) or [])
+        mech = len(flags.get("mechanical", []) or [])
+        lines.append(f"flags: fabrication={fab} unverified={unv} mechanical={mech}")
+
+        # D-06: final-attempt per-dimension judge scores + attempts used.
+        if final_judge is not None:
+            scores = final_judge.get("judge_scores") or {}
+            dim_parts = [
+                f"{dim}={_notify_worst_dim_score(scores, dim)}"
+                for dim in _NOTIFY_JUDGE_DIMENSIONS
+            ]
+            lines.append("scores: " + " ".join(dim_parts))
+            lines.append(f"attempts used: {(final_judge.get('attempt', 0) or 0) + 1}")
+        else:
+            lines.append("scores: (judge did not run)")
+
+    return "\n".join(lines)
+
+
 def scheduled_notify_newsletter():
-    """Notify owner that a new newsletter may be ready for review."""
+    """Notify owner that a new newsletter may be ready for review, with a compact per-draft
+    eval summary (SURF-02 / D-05..D-08).
+
+    The Processor stays a dumb sequencer: the eval section is a plain `.eq()`-only select +
+    string formatting — NO LLM, NO retry state (WIRE-05). The eval-section build is fail-open-
+    but-loud (an eval-render error never suppresses the Friday notify — the static line still
+    sends + an ERROR is logged). This is a hold/eval-critical caller (D-03): it checks
+    send_telegram's bool return and CRITICAL-logs on delivery failure.
+    """
     logger.info("[PIPELINE] Newsletter notification sent")
-    send_telegram(
+    static_notice = (
         "📰 New AgentPulse Brief is ready for review. "
         "Send /newsletter_publish to publish, or it will auto-publish at 13:00 UTC."
     )
+    if not supabase:
+        return
+
+    message = static_notice
+    edition_number = None
+    try:
+        # Locate the current draft's edition_number via the pre-existing newsletters lookup.
+        # The `.in_('status')` here is pre-existing/acceptable (mirrors scheduled_auto_publish_
+        # newsletter's latest-draft pattern) — ONLY the new edition_evals read is `.eq()`-only.
+        draft = supabase.table('newsletters')\
+            .select('*')\
+            .in_('status', ['draft', 'pending'])\
+            .order('created_at', desc=True)\
+            .limit(1)\
+            .execute()
+        if draft.data:
+            edition_number = draft.data[0].get('edition_number')
+            # Plain config read (D-08): default False if absent — NULL != intent.
+            enforce = bool(get_full_config().get('edition_eval', {}).get('enforce', False))
+            eval_rows = _read_edition_evals(supabase, edition_number)
+            message = static_notice + "\n" + _format_notify_eval_section(eval_rows, enforce)
+    except Exception as e:
+        # Fail-open-but-loud: an eval-render error must NEVER suppress the Friday notify. Log a
+        # fixed grep-able label (edition number only, T-30-LOG) and send the static notice.
+        logger.error(
+            "[EVAL-NOTIFY] eval section build FAILED for edition #%s — sending static notify only: %s",
+            edition_number, e,
+        )
+        message = static_notice
+
+    # Hold/eval-critical caller (D-03): check send_telegram's bool return; CRITICAL-log on failure
+    # so a lost calibration notify leaves an unmissable trace (edition number only, T-30-LOG).
+    if not send_telegram(message):
+        logger.critical(
+            "[EVAL-ALERT] CRITICAL — Friday notify delivery FAILED for edition #%s",
+            edition_number,
+        )
 
 
 def scheduled_auto_publish_newsletter():
