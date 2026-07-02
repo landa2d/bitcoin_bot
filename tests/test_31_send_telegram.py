@@ -240,5 +240,45 @@ def test_boot_config_check_silent_when_configured(monkeypatch, caplog):
     assert not _has_record(caplog, "[TELEGRAM-CONFIG]")
 
 
+# ===========================================================================
+# Task 2 — auto-publish notification checks send_telegram's return (D-03)
+# ===========================================================================
+def _draft_row(edition=99):
+    """A draft row old enough to auto-publish (age >= 1h), not held."""
+    created = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()
+    return {
+        "id": "nl-1",
+        "edition_number": edition,
+        "status": "draft",
+        "created_at": created,
+        "do_not_publish": False,
+    }
+
+
+def test_auto_publish_critical_logs_on_delivery_failure(monkeypatch, caplog):
+    """When the auto-publish notification send_telegram returns False, the caller CRITICAL-logs
+    a `[EVAL-ALERT] CRITICAL` labeled failure (D-03) — a lost alert leaves an unmissable trace."""
+    monkeypatch.setattr(proc, "supabase", _FakeSupabase([_draft_row(edition=99)]))
+    monkeypatch.setattr(proc, "publish_newsletter", lambda: {"published": True})
+    monkeypatch.setattr(proc, "send_telegram", lambda *a, **k: False)
+    caplog.set_level(logging.DEBUG)
+
+    proc.scheduled_auto_publish_newsletter()
+
+    assert _has_record(caplog, "[EVAL-ALERT] CRITICAL", level=logging.CRITICAL)
+
+
+def test_auto_publish_no_critical_when_delivery_ok(monkeypatch, caplog):
+    """When the notification delivers (True), NO CRITICAL log fires — the publish path is unchanged."""
+    monkeypatch.setattr(proc, "supabase", _FakeSupabase([_draft_row(edition=100)]))
+    monkeypatch.setattr(proc, "publish_newsletter", lambda: {"published": True})
+    monkeypatch.setattr(proc, "send_telegram", lambda *a, **k: True)
+    caplog.set_level(logging.DEBUG)
+
+    proc.scheduled_auto_publish_newsletter()
+
+    assert not _has_record(caplog, "[EVAL-ALERT] CRITICAL")
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))

@@ -10717,10 +10717,17 @@ def scheduled_auto_publish_newsletter():
         result = publish_newsletter()
         if result.get('published'):
             logger.info("[PIPELINE] Auto-published newsletter #%s", newsletter.get('edition_number'))
-            send_telegram(
+            # Hold/eval-critical caller (D-03): the operator MUST know an auto-publish happened.
+            # Check send_telegram's bool return and CRITICAL-log if the notice did not land, so a
+            # lost alert leaves an unmissable trace. Log the edition number ONLY (never prose, T-30-LOG).
+            if not send_telegram(
                 f"📰 Newsletter #{newsletter.get('edition_number')} was auto-published "
                 f"(no manual publish within review window)."
-            )
+            ):
+                logger.critical(
+                    "[EVAL-ALERT] CRITICAL — auto-publish notification delivery FAILED for newsletter #%s",
+                    newsletter.get('edition_number', '?')
+                )
         else:
             logger.warning("[PIPELINE] Auto-publish failed: %s", result)
     except Exception as e:
