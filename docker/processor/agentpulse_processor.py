@@ -9635,13 +9635,14 @@ def send_telegram(message: str) -> bool:
     NEVER raises (the 25 existing call sites assume it never raises — bool is additive).
     On env-unset or delivery failure it ERROR-logs a fixed grep-able `[TELEGRAM-SEND]`
     label — never a silent bare return, never `warning` on a terminal failure. Logs a
-    bounded single-line message; never the bot token or raw draft prose (T-30-LOG).
+    bounded LABEL only (message length + a short head, WR-06) — never the bot token or
+    raw draft/briefing prose (T-30-LOG): callers pass newsletter bodies + briefing text.
     """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_OWNER_ID:
-        safe = " ".join(str(message).split())[:1000]
+        safe = " ".join(str(message).split())
         logger.error(
-            "[TELEGRAM-SEND] cannot send — TELEGRAM_BOT_TOKEN/TELEGRAM_OWNER_ID unset; message=%s",
-            safe,
+            "[TELEGRAM-SEND] cannot send — TELEGRAM_BOT_TOKEN/TELEGRAM_OWNER_ID unset; len=%d head=%r",
+            len(safe), safe[:80],
         )
         return False
 

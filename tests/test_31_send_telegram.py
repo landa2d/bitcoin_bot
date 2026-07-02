@@ -154,6 +154,27 @@ def test_env_unset_returns_false_and_error_logs(monkeypatch, caplog):
     assert _has_record(caplog, "TELEGRAM_BOT_TOKEN/TELEGRAM_OWNER_ID unset")
 
 
+def test_env_unset_log_is_bounded_label_not_prose(monkeypatch, caplog):
+    """WR-06: the env-unset ERROR logs a BOUNDED label (len + first ~80 chars) — never the full
+    draft/briefing prose. A long message body must NOT land in container logs beyond the head."""
+    monkeypatch.setattr(proc, "TELEGRAM_BOT_TOKEN", None)
+    monkeypatch.setattr(proc, "TELEGRAM_OWNER_ID", "owner-123")
+    caplog.set_level(logging.DEBUG)
+
+    secret_tail = "SECRET_DRAFT_PROSE_TAIL_MUST_NOT_LEAK"
+    long_msg = "held briefing header " + ("x" * 200) + " " + secret_tail
+
+    result = proc.send_telegram(long_msg)
+
+    assert result is False
+    joined = " ".join(r.getMessage() for r in caplog.records)
+    # Bounded label present, full prose tail (beyond the ~80-char head) absent.
+    assert "len=" in joined and "head=" in joined
+    assert secret_tail not in joined, "env-unset log leaked draft prose beyond the bounded head"
+    # The recorded length reflects the whole (whitespace-collapsed) message, not a truncation.
+    assert f"len={len(long_msg)}" in joined
+
+
 def test_happy_path_returns_true(monkeypatch, caplog):
     """Every httpx POST returns 200 → returns True."""
     monkeypatch.setattr(proc, "TELEGRAM_BOT_TOKEN", "bot-token")
