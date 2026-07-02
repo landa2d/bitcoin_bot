@@ -10812,12 +10812,57 @@ def _format_notify_eval_section(eval_rows, enforce) -> str:
 
 
 def scheduled_notify_newsletter():
-    """Notify owner that a new newsletter may be ready for review."""
+    """Notify owner that a new newsletter may be ready for review, with a compact per-draft
+    eval summary (SURF-02 / D-05..D-08).
+
+    The Processor stays a dumb sequencer: the eval section is a plain `.eq()`-only select +
+    string formatting — NO LLM, NO retry state (WIRE-05). The eval-section build is fail-open-
+    but-loud (an eval-render error never suppresses the Friday notify — the static line still
+    sends + an ERROR is logged). This is a hold/eval-critical caller (D-03): it checks
+    send_telegram's bool return and CRITICAL-logs on delivery failure.
+    """
     logger.info("[PIPELINE] Newsletter notification sent")
-    send_telegram(
+    static_notice = (
         "📰 New AgentPulse Brief is ready for review. "
         "Send /newsletter_publish to publish, or it will auto-publish at 13:00 UTC."
     )
+    if not supabase:
+        return
+
+    message = static_notice
+    edition_number = None
+    try:
+        # Locate the current draft's edition_number via the pre-existing newsletters lookup.
+        # The `.in_('status')` here is pre-existing/acceptable (mirrors scheduled_auto_publish_
+        # newsletter's latest-draft pattern) — ONLY the new edition_evals read is `.eq()`-only.
+        draft = supabase.table('newsletters')\
+            .select('*')\
+            .in_('status', ['draft', 'pending'])\
+            .order('created_at', desc=True)\
+            .limit(1)\
+            .execute()
+        if draft.data:
+            edition_number = draft.data[0].get('edition_number')
+            # Plain config read (D-08): default False if absent — NULL != intent.
+            enforce = bool(get_full_config().get('edition_eval', {}).get('enforce', False))
+            eval_rows = _read_edition_evals(supabase, edition_number)
+            message = static_notice + "\n" + _format_notify_eval_section(eval_rows, enforce)
+    except Exception as e:
+        # Fail-open-but-loud: an eval-render error must NEVER suppress the Friday notify. Log a
+        # fixed grep-able label (edition number only, T-30-LOG) and send the static notice.
+        logger.error(
+            "[EVAL-NOTIFY] eval section build FAILED for edition #%s — sending static notify only: %s",
+            edition_number, e,
+        )
+        message = static_notice
+
+    # Hold/eval-critical caller (D-03): check send_telegram's bool return; CRITICAL-log on failure
+    # so a lost calibration notify leaves an unmissable trace (edition number only, T-30-LOG).
+    if not send_telegram(message):
+        logger.critical(
+            "[EVAL-ALERT] CRITICAL — Friday notify delivery FAILED for edition #%s",
+            edition_number,
+        )
 
 
 def scheduled_auto_publish_newsletter():

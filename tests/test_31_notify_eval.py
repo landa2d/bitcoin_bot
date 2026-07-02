@@ -365,5 +365,122 @@ def test_formatter_leaks_no_evidence_or_exemplar_prose():
         assert sentinel not in out, f"leaked {sentinel!r} into the compact notify"
 
 
+# ===========================================================================
+# Task 2 — scheduled_notify_newsletter seam (D-03 critical caller + fail-open)
+# ===========================================================================
+_DRAFT_ROW = [{"id": "nl-1", "edition_number": 103, "status": "draft"}]
+
+
+def _wire_config(monkeypatch, enforce):
+    monkeypatch.setattr(proc, "get_full_config", lambda: {"edition_eval": {"enforce": enforce}})
+
+
+def test_notify_appends_eval_section_to_static_text(monkeypatch):
+    """The Friday notify = the static line + the eval section (both pipeline_versions), with D-06
+    mechanical-on-passed, D-07 no-eval for a missing block, and D-08 report-only tag."""
+    eval_rows = [
+        _det_row("single_pass", "held_voice", mechanical=1),
+        _judge_row("single_pass", "held_voice", scores=_clean_scores(clickbait=1)),
+    ]  # block_v1 has NO rows → D-07 line
+    monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=eval_rows, newsletters=_DRAFT_ROW))
+    _wire_config(monkeypatch, enforce=False)
+    sent = []
+    monkeypatch.setattr(proc, "send_telegram", lambda m: sent.append(m) or True)
+
+    proc.scheduled_notify_newsletter()
+
+    assert len(sent) == 1
+    msg = sent[0]
+    assert "New AgentPulse Brief is ready for review" in msg   # static line preserved
+    assert "🧪 Pre-publish eval" in msg                          # eval section appended
+    assert "mechanical=1" in msg                                # D-06
+    assert "⚠ WOULD HAVE HELD (report-only)" in msg             # D-08 (enforce=False)
+    assert "⚠ no eval recorded for this draft" in msg           # D-07 (block_v1 missing)
+
+
+def test_notify_no_report_only_tag_when_enforce_true(monkeypatch):
+    """With enforce=True the held verdict renders plainly in the notify (no report-only tag)."""
+    eval_rows = [
+        _det_row("single_pass", "held_voice"),
+        _judge_row("single_pass", "held_voice", scores=_clean_scores(clickbait=1)),
+    ]
+    monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=eval_rows, newsletters=_DRAFT_ROW))
+    _wire_config(monkeypatch, enforce=True)
+    sent = []
+    monkeypatch.setattr(proc, "send_telegram", lambda m: sent.append(m) or True)
+
+    proc.scheduled_notify_newsletter()
+
+    assert "⚠ WOULD HAVE HELD (report-only)" not in sent[0]
+    assert "verdict: held_voice" in sent[0]
+
+
+def test_notify_critical_logs_on_delivery_failure(monkeypatch, caplog):
+    """D-03: a `False` send_telegram return CRITICAL-logs `[EVAL-ALERT] CRITICAL — Friday notify`."""
+    monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=[], newsletters=_DRAFT_ROW))
+    _wire_config(monkeypatch, enforce=False)
+    monkeypatch.setattr(proc, "send_telegram", lambda m: False)
+    caplog.set_level(logging.DEBUG)
+
+    proc.scheduled_notify_newsletter()
+
+    assert _has_record(caplog, "[EVAL-ALERT] CRITICAL — Friday notify", level=logging.CRITICAL)
+
+
+def test_notify_no_critical_when_delivery_ok(monkeypatch, caplog):
+    """When the notify delivers (True), NO CRITICAL log fires."""
+    monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=[], newsletters=_DRAFT_ROW))
+    _wire_config(monkeypatch, enforce=False)
+    monkeypatch.setattr(proc, "send_telegram", lambda m: True)
+    caplog.set_level(logging.DEBUG)
+
+    proc.scheduled_notify_newsletter()
+
+    assert not _has_record(caplog, "[EVAL-ALERT] CRITICAL")
+
+
+def test_notify_fail_open_on_eval_read_exception(monkeypatch, caplog):
+    """Fail-open-but-loud: an eval-read exception still sends the STATIC notify + ERROR-logs."""
+    monkeypatch.setattr(
+        proc, "supabase", StubSupabase(eval_raises=True, newsletters=_DRAFT_ROW)
+    )
+    _wire_config(monkeypatch, enforce=False)
+    sent = []
+    monkeypatch.setattr(proc, "send_telegram", lambda m: sent.append(m) or True)
+    caplog.set_level(logging.DEBUG)
+
+    proc.scheduled_notify_newsletter()
+
+    assert len(sent) == 1
+    assert "New AgentPulse Brief is ready for review" in sent[0]   # static notify still sent
+    assert "🧪 Pre-publish eval" not in sent[0]                     # eval section suppressed on error
+    assert _has_record(caplog, "[EVAL-NOTIFY]", level=logging.ERROR)
+
+
+def test_notify_no_supabase_guard_returns(monkeypatch):
+    """Guard: with no supabase client the notify returns without calling send_telegram."""
+    monkeypatch.setattr(proc, "supabase", None)
+    called = []
+    monkeypatch.setattr(proc, "send_telegram", lambda m: called.append(m) or True)
+
+    proc.scheduled_notify_newsletter()
+
+    assert called == []
+
+
+def test_notify_no_llm_call_added(monkeypatch):
+    """WIRE-05: the notify path adds NO LLM call — routed_llm_call must never be invoked."""
+    monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=[], newsletters=_DRAFT_ROW))
+    _wire_config(monkeypatch, enforce=False)
+    monkeypatch.setattr(proc, "send_telegram", lambda m: True)
+
+    def _boom(*a, **k):
+        raise AssertionError("scheduled_notify_newsletter must not call routed_llm_call (WIRE-05)")
+
+    monkeypatch.setattr(proc, "routed_llm_call", _boom)
+
+    proc.scheduled_notify_newsletter()  # must not raise
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-q"]))
