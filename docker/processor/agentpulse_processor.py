@@ -430,6 +430,10 @@ def init_clients():
     else:
         logger.warning("Supabase not configured")
 
+    # Boot-time Telegram-config check (SURF-01 / D-04): surface an alerting gap at
+    # container boot, not first-alert-time. Never raises — the service still runs.
+    _check_telegram_config()
+
     if not OPENAI_BASE_URL or not DEEPSEEK_BASE_URL:
         raise RuntimeError("OPENAI_BASE_URL / DEEPSEEK_BASE_URL not set — proxy wiring missing, refusing to start ungoverned")
     if not OPENAI_API_KEY:
@@ -9608,10 +9612,38 @@ def process_db_tasks(agent_name: str = 'analyst'):
 # Telegram Notifications
 # ============================================================================
 
-def send_telegram(message: str):
-    """Send notification to Telegram, splitting if over 4096 chars."""
+def _check_telegram_config() -> bool:
+    """Boot-time Telegram-config check (SURF-01 / D-04).
+
+    ERROR-logs a fixed grep-able label if either TELEGRAM_BOT_TOKEN/TELEGRAM_OWNER_ID
+    is unset, so an alerting gap is visible at container boot — not first-alert-time.
+    NEVER raises: an alerting gap must never take down ingestion/generation. Returns
+    True iff both env vars are configured. Logs a LABEL only — never the bot token.
+    """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_OWNER_ID:
-        return
+        logger.error(
+            "[TELEGRAM-CONFIG] TELEGRAM_BOT_TOKEN/TELEGRAM_OWNER_ID unset — operator alerts DISABLED"
+        )
+        return False
+    return True
+
+
+def send_telegram(message: str) -> bool:
+    """Send notification to Telegram, splitting if over 4096 chars.
+
+    Fail-loud contract (SURF-01 / D-02): returns True on success, False on ANY failure;
+    NEVER raises (the 25 existing call sites assume it never raises — bool is additive).
+    On env-unset or delivery failure it ERROR-logs a fixed grep-able `[TELEGRAM-SEND]`
+    label — never a silent bare return, never `warning` on a terminal failure. Logs a
+    bounded single-line message; never the bot token or raw draft prose (T-30-LOG).
+    """
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_OWNER_ID:
+        safe = " ".join(str(message).split())[:1000]
+        logger.error(
+            "[TELEGRAM-SEND] cannot send — TELEGRAM_BOT_TOKEN/TELEGRAM_OWNER_ID unset; message=%s",
+            safe,
+        )
+        return False
 
     MAX_LEN = 4000  # leave margin under Telegram's 4096 limit
 
@@ -9643,6 +9675,7 @@ def send_telegram(message: str):
                     }
                 )
                 if resp.status_code != 200:
+                    # Markdown-parse retry as plain text — stays a warning because it retries.
                     logger.warning(f"Telegram Markdown failed ({resp.status_code}), retrying as plain text")
                     resp = client.post(
                         f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
@@ -9652,9 +9685,13 @@ def send_telegram(message: str):
                         }
                     )
                     if resp.status_code != 200:
-                        logger.error(f"Telegram send failed ({resp.status_code}): {resp.text[:200]}")
+                        # Terminal delivery failure — ERROR (never warning) and fail loud (D-02).
+                        logger.error(f"[TELEGRAM-SEND] Telegram send failed ({resp.status_code}): {resp.text[:200]}")
+                        return False
+        return True
     except Exception as e:
-        logger.error(f"Telegram send failed: {e}")
+        logger.error(f"[TELEGRAM-SEND] Telegram send failed: {e}", exc_info=True)
+        return False
 
 # ============================================================================
 # Email Newsletter Delivery (Resend)
