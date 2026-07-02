@@ -185,6 +185,36 @@ def _judge_row(pv, verdict, *, attempt=0, scores=None, edition=103):
     }
 
 
+def _det_error_row(pv, *, attempt=0, error="deterministic gate outage", edition=103):
+    """A deterministic-layer error row (eval outage): NULL verdict + `{}` flags (WR-03)."""
+    return {
+        "edition_number": edition,
+        "pipeline_version": pv,
+        "layer": "deterministic",
+        "attempt": attempt,
+        "eval_status": "error",
+        "verdict": None,
+        "error": error,
+        "deterministic_flags": {},
+        "judge_scores": {},
+    }
+
+
+def _judge_error_row(pv, *, attempt=0, error="judge call timed out", edition=103):
+    """A judge-layer error row: NULL verdict + empty scores (WR-03)."""
+    return {
+        "edition_number": edition,
+        "pipeline_version": pv,
+        "layer": "judge",
+        "attempt": attempt,
+        "eval_status": "error",
+        "verdict": None,
+        "error": error,
+        "deterministic_flags": {},
+        "judge_scores": {},
+    }
+
+
 def _cell(score):
     return {
         "score": score,
@@ -349,6 +379,45 @@ def test_dimension_scores_use_worst_of_both_bodies():
 
     assert "clickbait=1" in out
     assert "continuity=n/a" in out
+
+
+def test_notify_prefers_ok_judge_over_higher_attempt_error(monkeypatch):
+    """WR-03: an OK judge attempt supplies the verdict/scores even when a later attempt ERRORED —
+    the error row must not shadow the good data. The error reason is still surfaced."""
+    rows = [
+        _det_row("single_pass", "passed"),
+        _judge_row("single_pass", "passed", attempt=0, scores=_clean_scores(clickbait=4)),
+        _judge_error_row("single_pass", attempt=1, error="retry judge call 500"),
+    ]
+    out = proc._format_notify_eval_section(rows, enforce=False)
+
+    assert "verdict: passed" in out           # OK verdict wins, not the error row's NULL
+    assert "clickbait=4" in out               # real scores render, not `?`
+    assert "verdict: unknown" not in out
+    assert "⚠ eval ERROR: retry judge call 500" in out
+
+
+def test_notify_deterministic_error_not_clean_zeros():
+    """WR-03: a deterministic ERROR row must NOT render as `fabrication=0 unverified=0
+    mechanical=0` — it shows the error line + an explicit unavailable-counts line instead."""
+    rows = [_det_error_row("single_pass", error="verify_draft crashed")]
+    out = proc._format_notify_eval_section(rows, enforce=False)
+
+    assert "⚠ eval ERROR: verify_draft crashed" in out
+    assert "fabrication=0 unverified=0 mechanical=0" not in out
+    assert "deterministic gate errored" in out
+
+
+def test_notify_error_reason_bounded_to_200_chars():
+    """WR-03: the surfaced error reason is bounded — never more than 200 chars of the reason."""
+    long_reason = "E" * 500
+    rows = [_det_error_row("single_pass", error=long_reason)]
+    out = proc._format_notify_eval_section(rows, enforce=False)
+
+    err_line = next(ln for ln in out.splitlines() if ln.startswith("⚠ eval ERROR:"))
+    reason = err_line[len("⚠ eval ERROR: "):]
+    assert len(reason) == 200
+    assert long_reason not in out  # the full 500-char reason never renders
 
 
 def test_formatter_leaks_no_evidence_or_exemplar_prose():

@@ -2557,26 +2557,43 @@ def _format_eval_detail(eval_rows: list) -> str:
         det_rows = [r for r in rows if r.get("layer") == "deterministic"]
         judge_rows = [r for r in rows if r.get("layer") == "judge"]
 
-        # The final scored judge attempt (highest attempt with non-empty judge_scores).
-        scored = sorted(
-            (r for r in judge_rows if (r.get("judge_scores") or {})),
-            key=lambda r: r.get("attempt", 0),
-        )
+        # WR-03: an `eval_status='error'` row carries NULL verdict + `{}` flags. Prefer OK rows
+        # for scores/flags and surface the recorded error reason — an errored eval must never
+        # render as clean scores / clean `mechanical flags: none`.
+        error_rows = [r for r in rows if r.get("eval_status") == "error"]
+        ok_det_rows = [r for r in det_rows if r.get("eval_status") == "ok"]
+
+        # The final scored judge attempt (highest attempt with non-empty judge_scores), preferring
+        # eval_status == "ok" so an error attempt never shadows a good earlier attempt's scores.
+        ok_scored = [r for r in judge_rows if r.get("eval_status") == "ok" and (r.get("judge_scores") or {})]
+        any_scored = [r for r in judge_rows if (r.get("judge_scores") or {})]
+        scored = sorted(ok_scored or any_scored, key=lambda r: r.get("attempt", 0))
         final_judge = scored[-1] if scored else None
 
-        # Verdict: prefer a judge-row verdict (the overall run_layer2 verdict); else the
-        # deterministic verdict (a held_fabrication short-circuit never reaches the judge).
+        # Verdict: prefer an OK judge-row verdict (the overall run_layer2 verdict), then any judge
+        # verdict, then the deterministic verdict (a held_fabrication short-circuit never reaches
+        # the judge). An error row's NULL verdict is skipped in favor of a real one (WR-03).
         verdict = None
         for r in judge_rows + det_rows:
-            if r.get("verdict"):
+            if r.get("eval_status") == "ok" and r.get("verdict"):
                 verdict = r["verdict"]
                 break
+        if verdict is None:
+            for r in judge_rows + det_rows:
+                if r.get("verdict"):
+                    verdict = r["verdict"]
+                    break
         attempts_used = max((r.get("attempt", 0) for r in judge_rows), default=-1) + 1
         if attempts_used < 1:
             attempts_used = 1
 
         lines.append("")
         lines.append(f"▸ {pv} — verdict: {verdict or 'n/a'} (attempts: {attempts_used})")
+
+        # WR-03: surface any eval error explicitly (bounded to 200 chars, T-30-LOG posture).
+        if error_rows:
+            err_text = str(error_rows[-1].get("error") or "unknown")[:200]
+            lines.append(f"  ⚠ eval ERROR: {err_text}")
 
         if final_judge:
             js = final_judge.get("judge_scores") or {}
@@ -2601,18 +2618,23 @@ def _format_eval_detail(eval_rows: list) -> str:
             lines.append("  (no judge scores recorded — Layer-1 hold or eval error)")
 
         # Mechanical Layer-1 flags — ALWAYS listed, even on a passed verdict (P29 D-12).
+        # WR-03: aggregate only OK deterministic rows; an error-only deterministic layer must NOT
+        # render as "mechanical flags: none" (that reads as a clean gate run when it never ran).
         mech: list = []
         fab: list = []
         unv: list = []
-        for r in det_rows:
+        for r in ok_det_rows:
             df = r.get("deterministic_flags") or {}
             mech.extend(df.get("mechanical") or [])
             fab.extend(df.get("fabrication") or [])
             unv.extend(df.get("unverified") or [])
+        det_errored = bool(det_rows) and not ok_det_rows
         if mech:
             lines.append(f"  mechanical flags ({len(mech)}):")
             for flag in mech:
                 lines.append(f"    - {_eval_describe_mechanical(flag)}")
+        elif det_errored:
+            lines.append("  mechanical flags: (deterministic gate errored — unavailable)")
         else:
             lines.append("  mechanical flags: none")
         if fab or unv:

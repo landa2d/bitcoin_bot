@@ -217,6 +217,36 @@ def _judge_row(edition, pv, verdict, attempt, judge_scores):
     }
 
 
+def _det_error_row(edition, pv, error="deterministic gate outage"):
+    """A deterministic-layer error row (eval outage): NULL verdict + `{}` flags (WR-03)."""
+    return {
+        "edition_number": edition,
+        "pipeline_version": pv,
+        "layer": "deterministic",
+        "attempt": 0,
+        "eval_status": "error",
+        "verdict": None,
+        "error": error,
+        "deterministic_flags": {},
+        "judge_scores": {},
+    }
+
+
+def _judge_error_row(edition, pv, attempt, error="judge call timed out"):
+    """A judge-layer error row: NULL verdict + empty scores (WR-03)."""
+    return {
+        "edition_number": edition,
+        "pipeline_version": pv,
+        "layer": "judge",
+        "attempt": attempt,
+        "eval_status": "error",
+        "verdict": None,
+        "error": error,
+        "deterministic_flags": {},
+        "judge_scores": {},
+    }
+
+
 _LONG = "This sentence is deliberately padded. " * 20  # ~760 chars, > 300
 
 
@@ -333,6 +363,47 @@ def test_passed_detail_lists_mechanical_flags_and_no_failing_evidence():
     # Score-only: no failing-dim evidence/exemplar block for an all-5 edition.
     assert "evidence:" not in out
     assert "before:" not in out
+
+
+# ===========================================================================
+# WR-03 — eval_status='error' rows: surface the reason; never render clean
+# ===========================================================================
+def test_detail_deterministic_error_renders_error_line_not_clean_flags():
+    """WR-03: a deterministic ERROR row must NOT render as `mechanical flags: none`; it shows the
+    bounded error reason + an explicit unavailable line instead."""
+    rows = [_det_error_row(300, "single_pass", error="verify_draft crashed")]
+    out = gb._format_eval_detail(rows)
+
+    assert "⚠ eval ERROR: verify_draft crashed" in out
+    assert "mechanical flags: none" not in out
+    assert "deterministic gate errored" in out
+
+
+def test_detail_prefers_ok_judge_scores_over_higher_attempt_error():
+    """WR-03: an OK judge attempt supplies scores/verdict even when a later attempt ERRORED."""
+    ok = _judge_row(301, "single_pass", "held_voice", 0, _judge_scores())
+    err = _judge_error_row(301, "single_pass", 1, error="retry judge 500")
+    rows = [_det_row(301, "single_pass", "passed"), ok, err]
+    out = gb._format_eval_detail(rows)
+
+    assert "verdict: held_voice" in out             # OK judge verdict wins, not the error NULL
+    assert "n/a" not in out.split("verdict:")[1].split("\n")[0]  # verdict line is not 'n/a'
+    assert "⚠ eval ERROR: retry judge 500" in out
+    # Real per-dim scores render (from the OK attempt), not a "no judge scores recorded" fallback.
+    assert "continuity: technical=" in out
+    assert "(no judge scores recorded" not in out
+
+
+def test_detail_error_reason_bounded_to_200_chars():
+    """WR-03: the surfaced error reason renders at most 200 chars of the reason."""
+    long_reason = "E" * 500
+    rows = [_det_error_row(302, "single_pass", error=long_reason)]
+    out = gb._format_eval_detail(rows)
+
+    err_line = next(ln for ln in out.splitlines() if "⚠ eval ERROR:" in ln)
+    reason = err_line.split("⚠ eval ERROR: ", 1)[1]
+    assert len(reason) == 200
+    assert long_reason not in out
 
 
 # ===========================================================================

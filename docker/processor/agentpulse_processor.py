@@ -10770,16 +10770,31 @@ def _format_notify_eval_section(eval_rows, enforce) -> str:
         det_rows = [r for r in rows if r.get("layer") == "deterministic"]
         judge_rows = [r for r in rows if r.get("layer") == "judge"]
 
-        # Effective verdict: prefer the final judge verdict; fall back to the deterministic
-        # verdict when the judge never ran (a Layer-1 held_fabrication holds before the judge).
+        # WR-03: an `eval_status='error'` row carries NULL verdict + `{}` flags. Prefer OK rows
+        # for verdict/scores/flags, and surface the recorded error reason — an errored eval must
+        # never render as an "unknown" verdict with clean `fabrication=0 unverified=0 mechanical=0`.
+        error_rows = [r for r in rows if r.get("eval_status") == "error"]
+        ok_judge_rows = [r for r in judge_rows if r.get("eval_status") == "ok"]
+        ok_det_rows = [r for r in det_rows if r.get("eval_status") == "ok"]
+
+        # Effective verdict: prefer the highest-attempt OK judge verdict; fall back to the OK
+        # deterministic verdict when the judge never ran (a Layer-1 held_fabrication holds before
+        # the judge). Fall back to a non-ok row ONLY when no ok row exists (WR-03 — an error row
+        # must not shadow a good earlier attempt's verdict/scores).
         effective_verdict = None
         final_judge = None
         if judge_rows:
-            final_judge = max(judge_rows, key=lambda r: r.get("attempt", 0) or 0)
+            final_judge = max(ok_judge_rows or judge_rows, key=lambda r: r.get("attempt", 0) or 0)
             effective_verdict = final_judge.get("verdict")
         elif det_rows:
-            final_det = max(det_rows, key=lambda r: r.get("attempt", 0) or 0)
+            final_det = max(ok_det_rows or det_rows, key=lambda r: r.get("attempt", 0) or 0)
             effective_verdict = final_det.get("verdict")
+
+        # WR-03: surface any eval error explicitly (bounded to 200 chars, T-30-LOG posture) so the
+        # operator sees WHY an eval errored instead of a silent clean render.
+        if error_rows:
+            err_text = str(error_rows[-1].get("error") or "unknown")[:200]
+            lines.append(f"⚠ eval ERROR: {err_text}")
 
         # D-08: report-only holds are prominent — tag at the TOP of the block while enforce=False.
         if effective_verdict in ("held_fabrication", "held_voice") and not enforce:
@@ -10788,14 +10803,19 @@ def _format_notify_eval_section(eval_rows, enforce) -> str:
         lines.append(f"verdict: {effective_verdict if effective_verdict is not None else 'unknown'}")
 
         # D-06: deterministic flag counts — mechanical ALWAYS shown, even on a passed verdict.
-        det_for_flags = (
-            max(det_rows, key=lambda r: r.get("attempt", 0) or 0) if det_rows else None
-        )
-        flags = (det_for_flags.get("deterministic_flags") if det_for_flags else None) or {}
-        fab = len(flags.get("fabrication", []) or [])
-        unv = len(flags.get("unverified", []) or [])
-        mech = len(flags.get("mechanical", []) or [])
-        lines.append(f"flags: fabrication={fab} unverified={unv} mechanical={mech}")
+        # WR-03: use the OK deterministic row; an error-only deterministic layer must NOT render
+        # as clean zeros (that reads as "gate ran clean" when the gate never ran).
+        if ok_det_rows:
+            det_for_flags = max(ok_det_rows, key=lambda r: r.get("attempt", 0) or 0)
+            flags = det_for_flags.get("deterministic_flags") or {}
+            fab = len(flags.get("fabrication", []) or [])
+            unv = len(flags.get("unverified", []) or [])
+            mech = len(flags.get("mechanical", []) or [])
+            lines.append(f"flags: fabrication={fab} unverified={unv} mechanical={mech}")
+        elif det_rows:
+            lines.append("flags: (deterministic gate errored — counts unavailable)")
+        else:
+            lines.append("flags: fabrication=0 unverified=0 mechanical=0")
 
         # D-06: final-attempt per-dimension judge scores + attempts used.
         if final_judge is not None:
