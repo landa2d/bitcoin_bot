@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: completed
-stopped_at: Phase 30 COMPLETE (verified passed) — eval ARMED report-only 2026-07-02 (enabled=true/enforce=false, operator-directed); calibration window ~2 editions, then operator flips enforce=true. Next Phase 31 (SURF).
-last_updated: "2026-07-02T19:18:18.332Z"
+status: planning
+stopped_at: Phase 31 context gathered
+last_updated: "2026-07-02T21:21:43.328Z"
 last_activity: 2026-07-02
 progress:
   total_phases: 6
@@ -155,9 +155,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 
 ## Session Continuity
 
-Last session: 2026-07-02 (/gsd-execute-phase 30 — 30-04 Tasks 1–4 EXECUTED + verified; STOPPED at Task 5 decision gate)
-Stopped at: Phase 30 COMPLETE (verification passed) — eval ARMED report-only 2026-07-02
-Resume file: .planning/phases/30-sequencer-wiring-hold-action-activation-gate/30-04-PLAN.md
+Last session: 2026-07-02T21:21:43.322Z
+Stopped at: Phase 31 context gathered
+Resume file: .planning/phases/31-surfacing-escalation/31-CONTEXT.md
 Next: **PHASE 30 COMPLETE + EVAL LIVE (REPORT-ONLY).** All 4 plans done; verification `passed` (13/13 code must-haves + activation addendum); code review 0-critical (WR-01/WR-03/IN-01 fixed @84f639d; WR-02 deploy-ordering honored — 046 applied before the rebuild; IN-02 test deferred). Activation evidence (30-04-SUMMARY.md): key bcrypt-matches 045 hash + live registry; migrations 045 (2026-06-25) + 046 (2026-07-02) applied via MCP with CHECK/UNIQUE/columns confirmed live; settled governed `claude-sonnet-4-6` proxy call (wallet 25000→24998, reject-on-cap 5000/weekly); newsletter+processor rebuilt on the main tree carrying 84f639d; `edition_eval.enabled=true`/`enforce=false` flipped and verified INSIDE the running container (live ro config mount — no restart needed; rollback = enabled=false). **CALIBRATION WINDOW (open):** next generation (Fri 2026-07-03) should write 1–2 `edition_evals` rows per draft (primary + block_v1 telemetry) with NO eval-driven status flip; would-have-held alerts are report-only. After ~2 editions, review verdicts vs `edition_eval.*` thresholds → operator flips `enforce=true` (30-04 Task 6 — the ONLY remaining 30-04 item, deliberate). Follow-up (optional): IN-02 test on the enforce-gated flip; REQUIREMENTS traceability nit (deferred REV/AB/TUNE/OBS-01 IDs absent from the table — milestone-close curation). Next phase: **31 — Surfacing & Escalation** (SURF-01..03: harden send_telegram fail-loud, Friday-notify eval summary via plain select, live `/newsletter_eval` Gato command + `isGatoBrainCommand` allowlist + gato rebuild — worktree-UNSAFE steps orchestrator-owned). `/gsd-discuss-phase 31` or `/gsd-plan-phase 31`.
 
 ## Operator Next Steps
