@@ -1,8 +1,8 @@
 ---
 phase: 30-sequencer-wiring-hold-action-activation-gate
 verified: 2026-07-01T17:30:00Z
-status: human_needed
-score: 13/13 must-haves verified (code); 30-04 live-activation items are operator-pending by design
+status: passed
+score: 13/13 must-haves verified (code); 30-04 activation EXECUTED 2026-07-02 (Tasks 1-5 verified live; Task 6 enforce-arming post-calibration by design)
 overrides_applied: 0
 human_verification:
   - test: "Mint the governed edition_eval proxy key and write LLM_PROXY_EVAL_KEY to config/.env (Phase 27-03 still pending). Substitute the real bcrypt hash into supabase/migrations/045_edition_evals.sql SECTION 2 (replace the <bcrypt-hash> placeholder)."
@@ -198,6 +198,21 @@ No blockers. No Phase-30-introduced debt markers.
 No code gaps. All 13 code must-haves from Plans 30-01, 30-02, 30-03 are VERIFIED. The phase ships its CODE goal in full — the eval wiring is in place, gated dormant behind `enabled=false`, and rollback-safe.
 
 The 6 human verification items above are the 30-04 live-activation runbook steps that the operator deliberately deferred. They are not code gaps; they are the intentional "arm it when ready" sequence per D-03/D-04 (Phase 30 delivers wiring shipped dormant — live invocation requires the operator to mint the key, apply schema, and flip the flag).
+
+
+## Activation Addendum (2026-07-02, operator-directed)
+
+The six human_verification items above were EXECUTED and verified live (see `30-04-SUMMARY.md`
+for full evidence): (1) key verified — bcrypt match between config/.env key, 045 §2 hash, and the
+live agent_registry hash; (2) migrations 045+046 applied via MCP (list_migrations shows both;
+CHECK/UNIQUE/columns confirmed live); (3) settled governed claude-sonnet-4-6 call on 2026-07-02
+(wallet 25000→24998, wallet_transactions llm_call row); (4) newsletter+processor rebuilt on the
+main tree AFTER 046 (running images carry the 84f639d review fixes); (5) armed REPORT-ONLY —
+`enabled=true`/`enforce=false`, flip verified inside the running container. Item (6) — flipping
+`enforce=true` — is the deliberate post-calibration operator action after ~2 report-only editions
+and is NOT a phase gap (WIRE-06's deliverable is the operator-flippable report-only gate, which is
+live). Status upgraded human_needed → passed.
+
 
 ---
 

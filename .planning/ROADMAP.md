@@ -95,7 +95,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 - [x] **Phase 27: Eval Persistence & Governed Agent** — migration 045 `edition_evals` (per-attempt, fail-loud) + a governed, hard-capped `edition_eval` proxy agent (EVAL-01..03, GOV-01..02) (completed 2026-06-25)
 - [x] **Phase 28: Layer 1 Deterministic Gate** — no-LLM fabrication (GitHub/URL/arXiv/named-study/entity-merge) + mechanical-editorial checks against the correct in-memory fact base, short-circuits to hold+escalate (GATE-01..08) (completed 2026-06-30)
 - [x] **Phase 29: Layer 2 Judge + Feedback-Rewrite Loop** — standalone module: Sonnet judge on exemplar-anchored dimensions + bounded N=2 rewrite loop, returns final draft + verdict (JUDGE-01..05, LOOP-01..05) (completed 2026-07-01)
-- [ ] **Phase 30: Sequencer Wiring, Hold Action & Activation Gate** — invoke gate+module at the two save points, act on verdicts (held/do_not_publish), behind a report-only `enforce` flag; Processor stays dumb (WIRE-01..06)
+- [x] **Phase 30: Sequencer Wiring, Hold Action & Activation Gate** — invoke gate+module at the two save points, act on verdicts (held/do_not_publish), behind a report-only `enforce` flag; Processor stays dumb (WIRE-01..06) (completed 2026-07-02)
 - [ ] **Phase 31: Surfacing & Escalation** — hardened `send_telegram` alerts + Friday-notify eval summary + live `/newsletter_eval` Gato command (+ allowlist + gato rebuild) (SURF-01..03)
 
 ## Phase Details
@@ -235,7 +235,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 3** *(operator/orchestrator-owned, worktree-UNSAFE)*
 
-  - [ ] 30-04-PLAN.md — Live-activation runbook: 27-03 key mint, MCP-apply 045+046, settled governed-call verify, scoped rebuild, flip enabled→report-only→enforce (WIRE-06) [autonomous:false]
+  - [x] 30-04-PLAN.md — Live-activation runbook: 27-03 key mint, MCP-apply 045+046, settled governed-call verify, scoped rebuild, flip enabled→report-only→enforce (WIRE-06) [autonomous:false]
 
 **Notes**: The invasive phase — wires the gate + module into the live generation path and the held mechanism. `do_not_publish`/`do_not_publish_reason` on a *main* edition is net-new (today `do_not_publish` lives only inside `data_snapshot`; `held` is set by hand). Activation discipline: report-only for the first ~2 editions to calibrate thresholds against real drafts, then the operator flips `enforce:true`. Honors "Processor stays a dumb sequencer" (WIRE-05) — no LLM/retry state leaks into the Processor. Reference `docs/audit/specs/01_eval_harness.md` for the wiring points.
 
@@ -289,7 +289,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 27. Eval Persistence & Governed Agent | v2.3 | 3/3 | Complete    | 2026-06-25 |
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete    | 2026-07-01 |
-| 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 3/4 | In Progress|  |
+| 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 4/4 | Complete    | 2026-07-02 |
 | 31. Surfacing & Escalation | v2.3 | 0/TBD | Not started | - |
 
 ## Backlog

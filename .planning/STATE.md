@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: executing
-stopped_at: Phase 30 code-complete (30-01/02/03 done+verified+review-fixed); 30-04 activation deferred by operator
-last_updated: "2026-07-01T18:05:00.000Z"
-last_activity: 2026-07-01 -- Phase 30 code plans executed, verified (13/13), code-reviewed (0 critical); 30-04 deferred
+status: completed
+stopped_at: Phase 30 COMPLETE (verified passed) — eval ARMED report-only 2026-07-02 (enabled=true/enforce=false, operator-directed); calibration window ~2 editions, then operator flips enforce=true. Next Phase 31 (SURF).
+last_updated: "2026-07-02T19:18:18.332Z"
+last_activity: 2026-07-02
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 16
-  completed_plans: 15
-  percent: 67
+  completed_plans: 16
+  percent: 83
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Publish Evaluation Step)
 
 **Core value:** Synthesis with editorial integrity — autonomous ingestion accelerates output, but every consequential publication is gated by human approval. Silence and homogenization are the failure modes to design against.
-**Current focus:** Phase 30 — CODE-COMPLETE (30-01/02/03 shipped dormant + verified 13/13 + review-fixed); 30-04 live-activation runbook deferred by operator (eval ships `enabled=false`, rollback-safe)
+**Current focus:** Phase 30 COMPLETE + eval LIVE in report-only mode (`enabled=true`/`enforce=false`, armed 2026-07-02 operator-directed). Calibration window: observe ~2 editions' `edition_evals` verdicts, then operator flips `enforce=true` (30-04 Task 6). Next: Phase 31 — Surfacing & Escalation.
 
 ## Current Position
 
-Phase: 30 (sequencer-wiring-hold-action-activation-gate) — CODE-COMPLETE, ACTIVATION DEFERRED
-Plan: 3 of 4 code plans complete (30-01/02/03); 30-04 = pending operator-owned activation runbook
-Status: Awaiting operator activation (30-04) — NOT marked phase-complete (activation pending); phase NOT auto-advanced to 31
-Last activity: 2026-07-01
+Phase: 31
+Plan: Not started
+Status: Ready to plan (Phase 30 complete, verification passed)
+Last activity: 2026-07-02
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -156,9 +156,9 @@ Carried forward from v1.0; out of v2.0/v2.1/v2.2 scope and not in the v2.3 eval 
 ## Session Continuity
 
 Last session: 2026-07-02 (/gsd-execute-phase 30 — 30-04 Tasks 1–4 EXECUTED + verified; STOPPED at Task 5 decision gate)
-Stopped at: 30-04 Tasks 1–4 DONE (key verified / 045 pre-applied + 046 MCP-applied / settled call proven / newsletter+processor rebuilt healthy). Task 5 (flip enabled=true report-only) awaits EXPLICIT operator consent — permission gate blocked the config flip during operator AFK. Live config still enabled=false/enforce=false (fully dormant, zero prod behavior change from the eval).
+Stopped at: Phase 30 COMPLETE (verification passed) — eval ARMED report-only 2026-07-02
 Resume file: .planning/phases/30-sequencer-wiring-hold-action-activation-gate/30-04-PLAN.md
-Next: **PHASE 30 CODE IS DONE, DORMANT, VERIFIED, REVIEW-FIXED.** The three code plans (30-01 migration 046 + processor publish-gate guards; 30-02 `run_edition_eval` orchestrator + governed identity + fail-open-but-loud; 30-03 both-save-point wiring + enforce-gated hold + D-02 canonical home) are committed. Verifier: 13/13 code must-haves (`30-VERIFICATION.md`, status `human_needed` — the 6 outstanding items ARE 30-04). Code review 0-critical/3-warn/2-info (`30-REVIEW.md`): WR-01 (fail-loud: run_edition_eval no longer re-raises on ImportError), WR-03 (shadow eval no longer double-pages — `suppress_alerts` kwarg), IN-01 (dim=None→'n/a') FIXED in commit `84f639d`; WR-02 (A/B insert depends on unapplied 046) DOCUMENTED as deploy-ordering (zero live exposure; 30-04 Task 4 note strengthened; do NOT rebuild newsletter before 046 lands); IN-02 (no test on the enforce-gated flip) DEFERRED as a follow-up test. 144 eval tests green. Live config still `enabled=false`/`enforce=false` — nothing touches prod. **REMAINING = Plan 30-04, operator-owned, worktree-UNSAFE (main tree only).** ⚠ CORRECTION 2026-07-01: Phase 27-03 key-mint (30-04 Task 1) APPEARS ALREADY DONE — `config/.env` holds a real `ap_edition_eval_…` key (48 chars) and `045_edition_evals.sql` §2 carries a real bcrypt hash (`$2b$12$f5Gdnt…`, no `<bcrypt-hash>` placeholder). NOT verified live: whether the key authenticates a settled proxy call and whether 045/046 are applied to the live DB (did not query prod per operator's "nothing touches prod"). So remaining is: (1) 30-04 Task 1 — likely just VERIFY the key (do not re-mint unless the settled-call check fails); (2) MCP-apply migrations 045 + 046 (project ref zxzaaqfowtqvmsbitqpu, NOT `supabase db push`, NOT from a worktree) — confirm current live apply state first; (3) verify a SETTLED governed `edition_eval` proxy call (HTTP 200 + wallet decrement); (4) scoped-rebuild `newsletter` + `processor` on the main tree AFTER 046 is applied (WR-02: 046 MUST precede the newsletter rebuild); (5) flip `edition_eval.enabled=true` keep `enforce=false` (report-only ~2 editions); (6) LATER flip `enforce=true` to arm auto-hold. Run these via `/gsd-execute-phase 30` (30-04 is the only incomplete plan) or manually per `30-04-PLAN.md`. After activation, `/gsd-verify-work 30` reconciles the deferred WIRE-01..06 closures + rerun verify to `passed`, THEN Phase 31 (SURF). — PRIOR CONTEXT: **Phase 29 COMPLETE + VERIFIED** — `run_edition_eval` is now WIRED into BOTH generation save points in `docker/newsletter/newsletter_poller.py` and its verdict is ACTED UPON. PRIMARY (`save_newsletter`, after the Phase-D block): enabled-gated invocation with ONE `httpx.Client(timeout=15.0)` threaded to both eval modules (D-08) + the governed edition_eval client + GITHUB_TOKEN; `held_fabrication`/`held_voice` → flip `status='held'`+`do_not_publish`+reason ONLY under `enforce=true` (report-only surfaces an `[EVAL would-have-held]` alert with NO flip, D-15), `passed` flips nothing (Monday human gate unchanged, WIRE-04), `escalated` is a no-op (orchestrator already alerted, D-12); whole block fail-open (D-06), flip skipped when row_id is None; reason = labels/counts/dim-scores/bounded-excerpt only (T-30-LOG). BLOCK_V1 A/B (`process_task`): D-02 reconciliation moved `do_not_publish` OUT of `data_snapshot` to the top-level migration-046 column (one canonical home) + captured `bp_row_id` + ran `run_edition_eval` TELEMETRY-ONLY (return discarded, no flip/no alert on the always-held shadow row, D-14). Commits `6648d3f` (Task 1) + `42b3067` (Task 2); test_30 9/9 + test_27/28/29 124 regression green (133 total). Ships DORMANT (`enabled=false` live) — rollback-safe. Next: **30-04** (the operator-owned ACTIVATION RUNBOOK — MCP-apply migrations 045+046, mint `LLM_PROXY_EVAL_KEY` via 27-03, scoped `newsletter` rebuild, then arm `enabled=true` report-only for ~2 editions before flipping `enforce=true`), THEN `/gsd-verify-work` reconciles the deferred WIRE-01..06 closures. WIRE-01/02/03/04/06 wired+acted-upon; closure deferred to phase-end verify. **Phase 29 remains COMPLETE + VERIFIED** (all 3 plans done, goal-verified 5/5, code review 0-critical with both WARNINGs fixed; 31 test_29 + 104 regression green). judge_loop.py is the finished PURE Layer-2 module. judge_loop.py is the finished PURE Layer-2 module: the 5-dim exemplar-anchored judge + bounded N=2 loop (29-01/02) PLUS the per-rewrite `run_deterministic_gate` re-check via the module-owned `_CachingHTTPClient` (D-01 cross-attempt dedup), the `held_fabrication` abort keeping the clean attempt-0 draft (D-02), `unverified`/`mechanical` telemetry-only (D-03), and the finalized per-attempt telemetry (`_persistable_attempt` maps 1:1 onto the `edition_eval` row-write params respecting verdict-iff-ok; mechanical-only stays `passed`, D-10/D-12) (29-03). NOTE: the re-check is gated on an injected `http_client` — Phase 30 must inject a real `httpx.Client` to activate it live (verify_draft flags all-caps placeholder bodies as fabrications, so the pure/unit path passes none). Proven by tests/test_29_judge_loop.py (28 cases, zero egress; test_26/27/28 104 regression green; full `tests/` failures are all pre-existing env/integration, none import judge_loop — see deferred-items.md). Next: `/gsd-verify-work` reconciles the deferred JUDGE-01..05 / LOOP-01..05 closures, THEN Phase 30 (WIRE) wires the gate + `run_layer2` at the two save points + persists every attempt via `write_eval_row`. STILL PENDING (separate, orchestrator/operator-owned, worktree-UNSAFE): Phase 27 Plan 03 — mint the `edition_eval` key + bcrypt hash, substitute into 045 SECTION 2, write `LLM_PROXY_EVAL_KEY` to config/.env, MCP-apply migration 045, verify a settled proxy call — the prerequisite for the FIRST live Phase-30 invocation.
+Next: **PHASE 30 COMPLETE + EVAL LIVE (REPORT-ONLY).** All 4 plans done; verification `passed` (13/13 code must-haves + activation addendum); code review 0-critical (WR-01/WR-03/IN-01 fixed @84f639d; WR-02 deploy-ordering honored — 046 applied before the rebuild; IN-02 test deferred). Activation evidence (30-04-SUMMARY.md): key bcrypt-matches 045 hash + live registry; migrations 045 (2026-06-25) + 046 (2026-07-02) applied via MCP with CHECK/UNIQUE/columns confirmed live; settled governed `claude-sonnet-4-6` proxy call (wallet 25000→24998, reject-on-cap 5000/weekly); newsletter+processor rebuilt on the main tree carrying 84f639d; `edition_eval.enabled=true`/`enforce=false` flipped and verified INSIDE the running container (live ro config mount — no restart needed; rollback = enabled=false). **CALIBRATION WINDOW (open):** next generation (Fri 2026-07-03) should write 1–2 `edition_evals` rows per draft (primary + block_v1 telemetry) with NO eval-driven status flip; would-have-held alerts are report-only. After ~2 editions, review verdicts vs `edition_eval.*` thresholds → operator flips `enforce=true` (30-04 Task 6 — the ONLY remaining 30-04 item, deliberate). Follow-up (optional): IN-02 test on the enforce-gated flip; REQUIREMENTS traceability nit (deferred REV/AB/TUNE/OBS-01 IDs absent from the table — milestone-close curation). Next phase: **31 — Surfacing & Escalation** (SURF-01..03: harden send_telegram fail-loud, Friday-notify eval summary via plain select, live `/newsletter_eval` Gato command + `isGatoBrainCommand` allowlist + gato rebuild — worktree-UNSAFE steps orchestrator-owned). `/gsd-discuss-phase 31` or `/gsd-plan-phase 31`.
 
 ## Operator Next Steps
 

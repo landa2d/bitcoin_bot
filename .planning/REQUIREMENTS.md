@@ -58,12 +58,12 @@
 
 ### WIRE — Sequencer Wiring, Hold Action & Activation Gate
 
-- [ ] **WIRE-01**: The eval is invoked from the `newsletter_poller` sequencer at the two generation save points (single-pass save return + block_v1 insert); an eval failure does not fail the generation task (wrapped: write the error row + continue).
-- [ ] **WIRE-02**: Any fabrication flag → the newsletter row is set `status='held'` with `do_not_publish=true` and a detailed `do_not_publish_reason`; operator notified via Gato; the rewrite loop is **not** entered.
-- [ ] **WIRE-03**: Layer-2 fail after N attempts → real `held` + Gato escalation with the final per-dimension scores + feedback (never a silent best-effort publish).
-- [ ] **WIRE-04**: A `pass` verdict does **not** auto-publish — the edition proceeds to the unchanged human review gate (Monday review unchanged).
-- [ ] **WIRE-05**: The Processor contains no LLM calls and no retry/rewrite state — it triggers generation, owns the publish gate, and surfaces eval verdicts via a plain select; the deterministic gate + eval module (both layers) live in the newsletter service where the fact base exists, called by the `newsletter_poller` sequencer.
-- [ ] **WIRE-06**: Automated holds are gated by a config `enforce` flag (default `false` / report-only) so thresholds are calibrated against real drafts before any auto-hold fires; the operator explicitly flips `enforce:true`. The whole step is rollback-safe (`enabled:false` disables invocation; tables/agent rows may remain).
+- [x] **WIRE-01**: The eval is invoked from the `newsletter_poller` sequencer at the two generation save points (single-pass save return + block_v1 insert); an eval failure does not fail the generation task (wrapped: write the error row + continue).
+- [x] **WIRE-02**: Any fabrication flag → the newsletter row is set `status='held'` with `do_not_publish=true` and a detailed `do_not_publish_reason`; operator notified via Gato; the rewrite loop is **not** entered.
+- [x] **WIRE-03**: Layer-2 fail after N attempts → real `held` + Gato escalation with the final per-dimension scores + feedback (never a silent best-effort publish).
+- [x] **WIRE-04**: A `pass` verdict does **not** auto-publish — the edition proceeds to the unchanged human review gate (Monday review unchanged).
+- [x] **WIRE-05**: The Processor contains no LLM calls and no retry/rewrite state — it triggers generation, owns the publish gate, and surfaces eval verdicts via a plain select; the deterministic gate + eval module (both layers) live in the newsletter service where the fact base exists, called by the `newsletter_poller` sequencer.
+- [x] **WIRE-06**: Automated holds are gated by a config `enforce` flag (default `false` / report-only) so thresholds are calibrated against real drafts before any auto-hold fires; the operator explicitly flips `enforce:true`. The whole step is rollback-safe (`enabled:false` disables invocation; tables/agent rows may remain).
 
 ### SURF — Surfacing & Escalation (Gato)
 
@@ -192,12 +192,12 @@ Every v1 requirement maps to exactly one phase. No orphans, no duplicates.
 | LOOP-03 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
 | LOOP-04 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
 | LOOP-05 | Phase 29 — Layer 2 Judge + Feedback-Rewrite Loop | Complete |
-| WIRE-01 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Pending |
-| WIRE-02 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Pending |
-| WIRE-03 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Pending |
-| WIRE-04 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Pending |
-| WIRE-05 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Pending |
-| WIRE-06 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Pending |
+| WIRE-01 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Complete |
+| WIRE-02 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Complete |
+| WIRE-03 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Complete |
+| WIRE-04 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Complete |
+| WIRE-05 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Complete |
+| WIRE-06 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Complete |
 | SURF-01 | Phase 31 — Surfacing & Escalation | Pending |
 | SURF-02 | Phase 31 — Surfacing & Escalation | Pending |
 | SURF-03 | Phase 31 — Surfacing & Escalation | Pending |
