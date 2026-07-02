@@ -251,10 +251,19 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
   3. `/newsletter_eval` renders the current edition's eval (per-dimension scores + before/after voice exemplars) and `/newsletter_eval trend` renders recent editions' verdicts; the command is added to `isGatoBrainCommand` in `inject-gato-brain.mjs` (+ gato rebuild) so it isn't a dead command.
 
 **Plans**: 4 plans (waves 1-3)
+**Wave 1**
+
 - [ ] 31-01-PLAN.md — SURF-01: harden send_telegram to bool fail-loud + boot-time config ERROR + auto-publish critical-caller return check (wave 1)
-- [ ] 31-02-PLAN.md — SURF-02: Friday-notify per-draft eval summary via local .eq()-only edition_evals select (wave 2)
 - [ ] 31-03-PLAN.md — SURF-03: owner-gated /newsletter_eval (+ trend) gato_brain handler + isGatoBrainCommand allowlist regex (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 31-02-PLAN.md — SURF-02: Friday-notify per-draft eval summary via local .eq()-only edition_evals select (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 31-04-PLAN.md — Deploy + live verification: scoped rebuild processor/gato_brain/gato (NOT newsletter), live /newsletter_eval round-trip, manual notify invocation (wave 3, orchestrator-owned)
+
 **Notes**: Worktree-unsafe — the `/newsletter_eval` command needs the `inject-gato-brain.mjs` allowlist edit + a gato rebuild (and a gato_brain handler), both orchestrator/operator-owned on the main tree (the known OpenClaw command-forwarding allowlist landmine: a gato_brain handler is dead over Telegram until allowlisted + gato rebuilt). The Friday-notify summary (SURF-02) is a plain select in the Processor — no LLM, honoring WIRE-05. `send_telegram` hardening (SURF-01) closes the fail-soft gap (today it silently `return`s when env vars are unset).
 
 ## Progress
