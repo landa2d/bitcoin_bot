@@ -133,7 +133,7 @@
     "model_voice": "deepseek-chat"
   },
   "edition_eval": {
-    "enabled": false,
+    "enabled": true,
     "enforce": false,
     "max_attempts": 2,
     "judge_model": "claude-sonnet-4-6",
