@@ -258,7 +258,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 31-02-PLAN.md — SURF-02: Friday-notify per-draft eval summary via local .eq()-only edition_evals select (wave 2)
+- [x] 31-02-PLAN.md — SURF-02: Friday-notify per-draft eval summary via local .eq()-only edition_evals select (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -303,7 +303,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete    | 2026-07-01 |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 4/4 | Complete    | 2026-07-02 |
-| 31. Surfacing & Escalation | v2.3 | 2/4 | In Progress|  |
+| 31. Surfacing & Escalation | v2.3 | 3/4 | In Progress|  |
 
 ## Backlog
 
