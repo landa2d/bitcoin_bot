@@ -303,7 +303,7 @@ Full phase details, goals, success criteria, and per-plan breakdown archived in 
 | 28. Layer 1 Deterministic Gate | v2.3 | 3/3 | Complete    | 2026-06-30 |
 | 29. Layer 2 Judge + Feedback-Rewrite Loop | v2.3 | 3/3 | Complete    | 2026-07-01 |
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 4/4 | Complete    | 2026-07-02 |
-| 31. Surfacing & Escalation | v2.3 | 4/4 | Complete   | 2026-07-02 |
+| 31. Surfacing & Escalation | v2.3 | 4/4 | Complete    | 2026-07-03 |
 
 ## Backlog
 

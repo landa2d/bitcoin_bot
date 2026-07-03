@@ -67,9 +67,9 @@
 
 ### SURF — Surfacing & Escalation (Gato)
 
-- [ ] **SURF-01**: Hold/escalation notifications reuse `send_telegram` and are hardened so a held edition never silently fails to alert (assert/log when `TELEGRAM_BOT_TOKEN`/`TELEGRAM_OWNER_ID` are unset; loud on send failure, not a silent no-op).
-- [ ] **SURF-02**: The Friday newsletter notify includes a compact per-draft eval summary (verdict + headline metrics) read from `edition_evals` via a plain select (no LLM in the Processor).
-- [ ] **SURF-03**: A `/newsletter_eval` Gato command renders the current edition's eval (per-dimension scores + before/after voice exemplars) and `/newsletter_eval trend` renders recent editions' verdicts; the command is added to `isGatoBrainCommand` in `inject-gato-brain.mjs` (+ gato rebuild) so it isn't a dead command.
+- [x] **SURF-01**: Hold/escalation notifications reuse `send_telegram` and are hardened so a held edition never silently fails to alert (assert/log when `TELEGRAM_BOT_TOKEN`/`TELEGRAM_OWNER_ID` are unset; loud on send failure, not a silent no-op).
+- [x] **SURF-02**: The Friday newsletter notify includes a compact per-draft eval summary (verdict + headline metrics) read from `edition_evals` via a plain select (no LLM in the Processor).
+- [x] **SURF-03**: A `/newsletter_eval` Gato command renders the current edition's eval (per-dimension scores + before/after voice exemplars) and `/newsletter_eval trend` renders recent editions' verdicts; the command is added to `isGatoBrainCommand` in `inject-gato-brain.mjs` (+ gato rebuild) so it isn't a dead command.
 
 ---
 
@@ -198,9 +198,9 @@ Every v1 requirement maps to exactly one phase. No orphans, no duplicates.
 | WIRE-04 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Complete |
 | WIRE-05 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Complete |
 | WIRE-06 | Phase 30 — Sequencer Wiring, Hold Action & Activation Gate | Complete |
-| SURF-01 | Phase 31 — Surfacing & Escalation | Pending |
-| SURF-02 | Phase 31 — Surfacing & Escalation | Pending |
-| SURF-03 | Phase 31 — Surfacing & Escalation | Pending |
+| SURF-01 | Phase 31 — Surfacing & Escalation | Complete |
+| SURF-02 | Phase 31 — Surfacing & Escalation | Complete |
+| SURF-03 | Phase 31 — Surfacing & Escalation | Complete |
 
 **Coverage:**
 
