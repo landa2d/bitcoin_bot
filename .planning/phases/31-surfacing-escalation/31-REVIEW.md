@@ -15,7 +15,7 @@ findings:
   warning: 7
   info: 5
   total: 12
-fixed: 3
+fixed: 5
 status: issues_found
 ---
 
@@ -146,22 +146,28 @@ else:
 
 ## Fix Pass (post-review)
 
-**Fixed at:** 2026-07-02
-**Scope:** WR-03, WR-05, WR-06 (three warnings). WR-01, WR-02, WR-04, WR-07 and all Info
-findings are deliberately deferred as advisory this pass.
+**Fixed at:** 2026-07-02 (first pass), 2026-07-03 (second pass: WR-02, WR-04)
+**Scope:** WR-03, WR-05, WR-06 fixed in the first pass; WR-02 and WR-04 fixed in a second
+pass (this update). WR-01 and WR-07 remain deferred as backlog todos; all Info findings
+remain advisory.
 
 | Finding | Status | Commit | Summary of fix |
 |---------|--------|--------|----------------|
 | WR-05 | fixed | `7528a4d` | `scheduled_notify_newsletter`: removed the unconditional entry-time `[PIPELINE] Newsletter notification sent` INFO — it now fires ONLY after `send_telegram(message)` returns True; the `if not supabase` early-exit now ERROR-logs `[EVAL-NOTIFY] supabase unavailable — Friday notify SKIPPED` instead of a silent bare return. Existing CRITICAL on delivery failure kept. |
 | WR-06 | fixed | `2a00a6f` | `send_telegram` env-unset branch: stopped logging up to 1000 chars of message body; now logs a bounded label `[TELEGRAM-SEND] cannot send — TELEGRAM_BOT_TOKEN/TELEGRAM_OWNER_ID unset; len=%d head=%r` (message length + first 80 chars). `[TELEGRAM-SEND]` grep label and `return False` contract preserved. |
 | WR-03 | fixed | `d712578` | Both eval formatters (`_format_notify_eval_section` in processor + `_format_eval_detail` in gato_brain): prefer the highest-attempt `eval_status == "ok"` row for verdict/scores (fall back only when no ok row exists); render an explicit `⚠ eval ERROR: {reason[:200]}` line (bounded to 200 chars) when any row has `eval_status == "error"`; a deterministic error row no longer renders as `fabrication=0 unverified=0 mechanical=0` / `mechanical flags: none` — it shows an explicit "gate errored — unavailable" line. |
+| WR-02 | fixed | `9e41cef` | `_eval_read_trend` (gato_brain): the `limit` was a ROW limit — 8 rows covered only ~2-4 editions and could cut a boundary edition's judge rows, rendering the deterministic `passed` for an edition the judge held. Replaced with a two-stage `.eq()`-only read (EVAL-03, no `.in_()`): fetch the most-recent 8 DISTINCT `edition_number`s, then ALL rows per edition (one small `.eq()` query each, `.order("attempt", desc=True)`), so no group is ever partial. `_format_eval_trend` now caps by distinct EDITIONS so up to 8 recent editions render even with both pipeline_versions present. Tests: the `0 < len <= 8` masking assertion replaced by an exact `== 8` (10 editions → 8 lines, most-recent 8) + a boundary held_voice-never-`passed` test. |
+| WR-04 | fixed | `1588945` | `send_telegram(message, *, plain=False)` (processor): a keyword-only `plain=True` skips the `parse_mode='Markdown'` first attempt and POSTs plain text — the eval section's underscore-heavy tokens (`single_pass`, `held_voice`, `hedging_filler`, `repeated_subtopics`) no longer mangle by underscore parity. `scheduled_notify_newsletter` passes `plain=True` only when the message carries the eval section; the static-only fallback keeps the default Markdown path, so no other caller changes. Chose the plain-text route over underscore-escaping — it is robust to all Markdown metacharacters (`*`, `` ` ``, `[…](…)`), not just `_`. bool return + 4000-char splitter preserved. |
 
 **Verification:** each Python file syntax-checked via `python3 -c "import ast; ast.parse(...)"`
-before its commit. Full phase suite + Phase-27/30 regressions green after all three fixes:
-`tests/test_31_send_telegram.py tests/test_31_notify_eval.py tests/test_31_newsletter_eval_handler.py
-tests/test_27_edition_eval.py tests/test_30_orchestration.py` → 72 passed. 7 new tests added
-locking the fixed behavior (ok-row preference, error-line rendering + 200-char bound in both
-formatters, deterministic-error-not-clean-zeros, bounded env-unset log, INFO-on-success only).
+before its commit. Full phase suite + Phase-27/30 regressions green after all five fixes:
+`tests/test_31_send_telegram.py tests/test_31_notify_eval.py tests/test_31_newsletter_eval_handler.py`
+→ 54 passed; `tests/test_27_edition_eval.py tests/test_30_orchestration.py` → 24 passed. New tests
+added across both passes lock the fixed behavior — first pass: ok-row preference, error-line
+rendering + 200-char bound in both formatters, deterministic-error-not-clean-zeros, bounded
+env-unset log, INFO-on-success only; second pass (WR-02/WR-04): exact 8-edition trend coverage,
+boundary held_voice-never-`passed`, plain-text eval-bearing send (no `parse_mode`, one POST/chunk,
+bool contract), static-only keeps Markdown.
 
 **Note:** WR-03's ok-row preference is a logic change to verdict/score selection — the tests
 lock the new behavior, but the operator should confirm the calibration render reads as intended
