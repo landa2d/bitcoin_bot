@@ -218,5 +218,16 @@ Every v1 requirement maps to exactly one phase. No orphans, no duplicates.
 | 30 — Sequencer Wiring, Hold Action & Activation Gate | WIRE-01..06 | 6 |
 | 31 — Surfacing & Escalation | SURF-01..03 | 3 |
 
+**Deferred requirements (not v1 scope — intentionally unmapped):**
+
+The IDs below appear in "Future Requirements" above. They are tracked-not-scheduled v2 candidates and are deliberately absent from the v1 traceability table; their absence is not a coverage gap.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| REV-01 | Unscheduled (v2 candidate — operator-edit revision trail, spec 01 G-07) | Deferred |
+| AB-01 | Unscheduled (v2 candidate — single-pass vs block_v1 A/B trend) | Deferred |
+| TUNE-01 | Unscheduled (v2 candidate — threshold auto-tuning from `edition_evals` history) | Deferred |
+| OBS-01 | Unscheduled (v2 candidate — eval-trend regression alerting, audit R8) | Deferred |
+
 *Requirements defined: 2026-06-22*
-*Last updated: 2026-06-22 — traceability populated by roadmap creation (Phases 26–31, 37/37 mapped).*
+*Last updated: 2026-07-03 — v1 traceability reconciled at milestone-execution close: 37/37 Complete (Phases 26–31 all verified); deferred v2 candidates (REV-01, AB-01, TUNE-01, OBS-01) made explicit in traceability as intentionally unmapped.*
