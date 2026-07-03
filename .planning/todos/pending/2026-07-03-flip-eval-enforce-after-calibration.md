@@ -11,9 +11,12 @@ files:
 
 ## Action
 
-The v2.3 pre-publish eval has been LIVE in report-only mode since 2026-07-02
-(`edition_eval.enabled=true`, `enforce=false`). The remaining activation step — deliberately
-operator-owned (Phase 30 plan 30-04 Task 6) — is:
+The v2.3 pre-publish eval is LIVE in report-only mode (`edition_eval.enabled=true`,
+`enforce=false`). NOTE: although armed 2026-07-02, the pipeline was actually broken until
+2026-07-03 (newsletter image was missing the eval modules — see `.planning/v2.3-MILESTONE-AUDIT.md`);
+the working calibration window starts 2026-07-03, and edition #104 carries no eval (its in-memory
+fact base was unrecoverable). The remaining activation step — deliberately operator-owned
+(Phase 30 plan 30-04 Task 6) — is:
 
 1. Observe ~2 editions' verdicts in `edition_evals` (now legible without SQL via the Friday
    notify eval section and the `/newsletter_eval` + `/newsletter_eval trend` Telegram commands,
@@ -27,6 +30,8 @@ operator-owned (Phase 30 plan 30-04 Task 6) — is:
 
 Milestone v2.3 closes with this pending — the calibration window needs real Friday editions,
 which arrive after the archive. This todo keeps the flip from getting lost. The newsletter
-container has deliberately NOT been rebuilt since the window opened (Phase 31 D-14); scoped
-rebuilds of other services are fine, but avoid rebuilding `newsletter` until enforce is flipped
-unless a change requires it.
+container was rebuilt 2026-07-03 (audit-blocker packaging fix, superseding Phase 31 D-14);
+from here, avoid further `newsletter` rebuilds until enforce is flipped unless a change
+requires it. Also note: the processor caches config for its process lifetime, so after
+flipping `enforce=true`, restart the processor if you want the Friday-notify's report-only
+tag to update immediately (the hold action itself reads live, newsletter-side).
