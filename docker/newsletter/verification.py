@@ -45,7 +45,7 @@ _STOP_WORDS = {
     'infrastructure', 'security', 'payments', 'commerce', 'tools',
     'regulation', 'research', 'identity', 'coordination', 'data',
     'communication', 'talent', 'geopolitics', 'other',
-    'enterprise', 'enterprises', 'developer', 'developers',
+    'enterprise', 'enterprises', 'developer', 'developers', 'devops',
     'companies', 'investors', 'users', 'teams', 'agents',
     'systems', 'platforms', 'frameworks', 'protocols', 'networks',
     'services', 'products', 'models', 'applications',
@@ -134,8 +134,60 @@ _DATE = re.compile(
     r'|May\s+\d{1,2},\s+\d{4}'
 )
 
-# Quoted text: anything in double quotes or smart quotes
-_QUOTED = re.compile(r'["""]([^"""]{10,})["""]')
+# Quoted text: anything in double quotes.
+# NOTE: pair quote delimiters POSITIONALLY (any length between them), then filter by length
+# AFTER matching. The previous `{10,}` content minimum caused a straight-quote parity bug: a
+# sub-10-char quote (e.g. `"harness."`) failed to consume its opening delimiter, so finditer
+# re-paired the CLOSING quote of one phrase with the OPENING quote of the next and captured the
+# unquoted narrative BETWEEN two real quotes as a bogus multi-sentence "quote". Positional pairing
+# keeps the odd/even alignment correct regardless of any individual quote's length.
+_QUOTED = re.compile(r'"([^"]*)"')
+_QUOTE_MIN_LEN = 10
+
+
+def _is_boundary_initial(text: str, start: int) -> bool:
+    """True if the token beginning at index ``start`` sits at a sentence / clause / line
+    boundary — i.e. its capital letter is grammatical (sentence-opening) rather than nominal
+    (a named entity). Walk backwards over inline spaces/tabs and quote marks; the token is
+    boundary-initial when the first meaningful character before it is the start of the text,
+    the start of a line (``\\n``), or a sentence/clause terminator (``. ! ? : ;``).
+
+    This implements the intent the single-word proper-noun regex only *claimed* ("not at
+    sentence start"): a word like "According"/"Broken"/"Nobody"/"Timeline" is capitalized
+    solely because it opens a sentence and is NOT evidence of a named entity. Genuine entities
+    (Amazon, Azure, Gemini, ...) appear mid-sentence — preceded by a lowercase letter, comma,
+    dash, or connector — and are therefore NOT boundary-initial.
+    """
+    i = start - 1
+    while i >= 0 and text[i] in ' \t"“”‘’\'':
+        i -= 1
+    if i < 0:
+        return True                      # start of text
+    return text[i] in '\n.!?:;'          # line start or sentence/clause terminator
+
+
+def _quote_has_verifiable_token(quote: str) -> bool:
+    """True if a quoted span carries a groundable factual claim: a number/date digit, or a
+    capitalized proper noun / 3+-letter acronym that is not a stop word. A quote made entirely
+    of common words (a rhetorical question, a hypothetical, or a term in scare-quotes such as
+    "hedge ratio" or "what happens if this model goes offline?") asserts nothing that can be
+    verified against the fact base, so it must NOT be classified as a fabrication. The leading
+    word is ignored for the capitalization test because a quote may start with a capital purely
+    grammatically; a genuine attributed quote naming a source still trips this via a proper noun
+    or number elsewhere in the span (e.g. "From Failed Trajectories to Reliable LLM Agents").
+    """
+    if re.search(r'\d', quote):
+        return True
+    words = quote.split()
+    for idx, word in enumerate(words):
+        token = word.strip('.,!?;:"\'()[]')
+        if len(token) < 3:               # skip short words and 2-letter acronyms like "AI"
+            continue
+        if idx == 0 and not token.isupper():
+            continue                     # grammatical leading capital (unless an acronym)
+        if token[0].isupper() and token.lower() not in _STOP_WORDS:
+            return True
+    return False
 
 
 def _extract_claims_from_prose(prose: str) -> dict[str, list[str]]:
@@ -191,20 +243,41 @@ def _extract_claims_from_prose(prose: str) -> dict[str, list[str]]:
     # Collapse multiple spaces
     clean = re.sub(r'\s+', ' ', clean)
 
+    # ── Boundary-preserving buffer for proper-noun extraction ──
+    # `clean` above collapses ALL whitespace (including newlines), which erases the sentence /
+    # line boundaries that distinguish a grammatical capital ("Broken systems...") from a named
+    # entity ("Amazon ..."). Build a parallel buffer that strips the same markdown but preserves
+    # newlines by collapsing ONLY horizontal whitespace, so `_is_boundary_initial` can see line
+    # starts and sentence terminators. Used exclusively for the two proper-noun loops.
+    clean_nl = _SECTION_HEADER.sub('', prose)
+    clean_nl = _BOLD_HEADER.sub('', clean_nl)
+    clean_nl = re.sub(r'[*_`\[\]()]', ' ', clean_nl)
+    clean_nl = re.sub(r'[ \t]+', ' ', clean_nl)
+
     # ── Extension 1: Multi-word capitalized phrases in prose ──
     # Catches "Memory Orchestrator", "Resource Recovery Tools", etc.
     _MULTI_CAP = re.compile(r'\b([A-Z][a-z]+(?:[\s-][A-Z][a-z]+){1,4})\b')
-    for match in _MULTI_CAP.finditer(clean):
+    for match in _MULTI_CAP.finditer(clean_nl):
         candidate = match.group(1).strip()
         words = candidate.split()
+        # Skip a phrase that OPENS a sentence/line when its first word is a stop word — the lead
+        # capital is grammatical (e.g. "What Zuckerberg", "This Amazon"); the trailing real
+        # entity is still recovered by the single-word loop below.
+        if words[0].lower() in _STOP_WORDS and _is_boundary_initial(clean_nl, match.start()):
+            continue
         # At least one word must not be in stop list
         non_stop = [w for w in words if w.lower() not in _STOP_WORDS]
         if non_stop and len(candidate) <= 60:
             entities.add(candidate)
 
     # ── Single capitalized words (not at sentence start) ──
-    for match in _PROPER_NOUN_SINGLE.finditer(clean):
+    for match in _PROPER_NOUN_SINGLE.finditer(clean_nl):
         candidate = match.group(1).strip()
+        # A single capitalized word that opens a sentence / clause / line is grammatical, not a
+        # named entity — the stop-list can never enumerate every English word, so gate on
+        # position instead (the documented intent of this regex).
+        if _is_boundary_initial(clean_nl, match.start()):
+            continue
         if (len(candidate) >= 3
                 and candidate.lower() not in _STOP_WORDS
                 and not candidate.isupper()):
@@ -281,8 +354,16 @@ def _extract_claims_from_prose(prose: str) -> dict[str, list[str]]:
         dates.add(f"May {match.group(1)}")
 
     # ── Quotes ──
+    # Positional pairing (see _QUOTED note): keep only spans that are long enough to be a real
+    # attributed quote AND carry a verifiable token. Rhetorical questions / terms in scare-quotes
+    # (all common words) are not groundable claims and must not be flagged as fabrications.
     for match in _QUOTED.finditer(prose):
-        quotes.add(match.group(1).strip())
+        candidate = match.group(1).strip()
+        if len(candidate) < _QUOTE_MIN_LEN:
+            continue
+        if not _quote_has_verifiable_token(candidate):
+            continue
+        quotes.add(candidate)
 
     # ── Filter out arXiv IDs from statistics ──
     # Pattern: YYMM.NNNNN (e.g., "2605.12673 introduces BenchJack")
