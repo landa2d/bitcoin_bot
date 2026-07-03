@@ -2,10 +2,10 @@
 gsd_state_version: 1.0
 milestone: v2.3
 milestone_name: Pre-Publish Evaluation Step
-status: executing
+status: Awaiting next milestone
 stopped_at: Phase 31 context gathered
-last_updated: "2026-07-03T07:17:45.164Z"
-last_activity: 2026-07-03
+last_updated: "2026-07-03T10:47:51.915Z"
+last_activity: 2026-07-03 — Milestone v2.3 completed and archived
 progress:
   total_phases: 6
   completed_phases: 6
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Pu
 
 ## Current Position
 
-Phase: 31
-Plan: Not started
-Status: Executing Phase 31
-Last activity: 2026-07-03
+Phase: Milestone v2.3 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-03 — Milestone v2.3 completed and archived
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -133,6 +133,11 @@ Items acknowledged and carried forward:
 | v2.3 future — A/B | Quantitative single-pass vs block_v1 A/B comparison as a trend (AB-01) | Deferred — eval runs on both paths; comparison is a later surface | 2026-06-22 |
 | v2.3 future — Tuning | Per-dimension/per-pipeline threshold auto-tuning from `edition_evals` history (TUNE-01) | Deferred — ship fixed config thresholds first | 2026-06-22 |
 | v2.3 future — Observability | Eval-trend regression alerting (OBS-01, audit R8) | Deferred — surface verdicts first, alert on trends later | 2026-06-22 |
+| close-audit false positive | `.planning/debug/knowledge-base.md` flagged as open debug session (it is the resolved-sessions KB) | No action — scanner noise | 2026-07-03 |
+| close-audit bookkeeping | Quick tasks 260609-fpc / 260609-ivq / 260612-kh9 flagged [unknown] | All three have SUMMARYs — complete, status frontmatter absent | 2026-07-03 |
+| v2.3 review follow-ups | WR-01 (eval reads mix reprocessed-edition generations) + WR-07 (gato_brain hardcoded thresholds) | Deferred — todo 2026-07-03-phase31-review-followups-wr01-wr07.md | 2026-07-03 |
+| v2.3 calibration action | Flip `edition_eval.enforce=true` after ~2 report-only editions (clock starts 2026-07-03) | Pending operator — todo 2026-07-03-flip-eval-enforce-after-calibration.md | 2026-07-03 |
+| v2.3 config-cache note | Processor `get_full_config()` caches per process — restart processor after enforce flip for the notify tag | Documented in the enforce-flip todo | 2026-07-03 |
 | v2.2 future — Excerpts | Stored `summary` field on `newsletters` (EXCERPT-F1) | Deferred — strip-at-render shipped v2.2 | 2026-06-10 |
 | v2.2 future — Signals | Full Signals archive page (SIGNAL-F1) | Deferred — capped feed shipped v2.2 | 2026-06-10 |
 | v-next — Dark mode | Dark-mode variant of the light palette (THEME-F1) | Deferred — light mode shipped v2.0 | 2026-06-04 |
@@ -162,8 +167,7 @@ Next: **PHASE 30 COMPLETE + EVAL LIVE (REPORT-ONLY).** All 4 plans done; verific
 
 ## Operator Next Steps
 
-- **Phase 30 activation (30-04, when ready — worktree-UNSAFE, main tree only):** mint `LLM_PROXY_EVAL_KEY` + bcrypt-substitute into `045 §2` (the pending 27-03), MCP-apply migrations 045 + 046, verify a settled governed proxy call, scoped-rebuild `newsletter`+`processor` (AFTER 046), then flip `edition_eval.enabled=true`/`enforce=false` for a ~2-edition report-only window before arming `enforce=true`. Runbook: `.planning/phases/30-sequencer-wiring-hold-action-activation-gate/30-04-PLAN.md`. Do NOT rebuild newsletter before 046 lands (code-review WR-02).
-- After activation: `/gsd-verify-work 30` to reconcile the deferred WIRE-01..06 closures and rerun phase verification to `passed`, then proceed to Phase 31 (Surfacing & Escalation).
+- Start the next milestone with /gsd-new-milestone
 
 ## Performance Metrics
 

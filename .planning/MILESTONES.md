@@ -1,5 +1,27 @@
 # Milestones
 
+## v2.3 Pre-Publish Evaluation Step (Shipped: 2026-07-03)
+
+**Phases completed:** 6 phases (26–31), 20 plans, 44 tasks — 2026-06-22 → 2026-07-03 (11 days, 156 commits, +8.3k LOC)
+
+**Delivered:** An automated two-layer pre-publish evaluation between newsletter generation and publish — a deterministic fabrication/mechanical gate plus a Sonnet judge with a bounded N=2 feedback-rewrite loop — persisted per-attempt to `edition_evals`, governed through a hard-capped proxy identity, surfaced to the operator via the Friday notify and a live `/newsletter_eval` Telegram command, and armed report-only for calibration. Human publish gate unchanged.
+
+**Key accomplishments:**
+
+1. **Continuity + exemplar context (26):** `load_edition_context()` feeds prior-edition angles and operator voice exemplars to both writer paths and the judge; resurrected the dead Phase E voice check with a fail-loud three-state contract.
+2. **Eval persistence + governance (27):** migration 045 `edition_evals` (per-attempt telemetry, `verdict-iff-ok` CHECK) + fail-loud `write_eval_row()` + the governed `edition_eval` proxy agent (hard-capped 5000 sats/weekly, reject-on-cap).
+3. **Layer 1 deterministic gate (28):** no-LLM `run_deterministic_gate` — live GitHub/URL/arXiv/named-study/entity-merge fabrication checks (three-outcome classifier, SSRF-guarded) + mechanical editorial checks, proven against historical worst-offender editions.
+4. **Layer 2 judge + rewrite loop (29):** pure `run_layer2` — 5-dimension exemplar-anchored Sonnet judge, config-tunable thresholds, bounded N=2 targeted revise with re-gating of every rewrite (a fabricated rewrite hard-aborts to the clean attempt-0 draft).
+5. **Sequencer wiring + activation (30):** `run_edition_eval` invoked at both generation save points; enforce-gated `held`+`do_not_publish` hold action; shipped dormant then armed report-only (`enabled=true`/`enforce=false`).
+6. **Surfacing & escalation (31):** hardened bool-returning `send_telegram` (+ boot config check, critical-caller alerts), Friday-notify per-draft eval summary, and the owner-gated `/newsletter_eval` (+ `trend`) command wired through the gato allowlist — all live-verified over real Telegram.
+
+**Milestone audit:** initially `gaps_found` — the integration check caught that the newsletter image had shipped WITHOUT the three eval modules (Dockerfile COPY gap; every eval since arming crashed silently). Fixed, redeployed, and proven same-day via a real sequencer-path settled cycle (3 `edition_evals` rows + governed wallet 24998→24975), then re-scored **passed 37/37**. Calibration clock starts 2026-07-03.
+
+**Known deferred items at close:** 13 (see STATE.md Deferred Items) — 1 audit false-positive, 3 complete-but-unmarked quick tasks, 9 pending todos (7 pre-v2.3 carries + WR-01/WR-07 review follow-ups + the enforce-flip calibration action).
+
+Full details: [`milestones/v2.3-ROADMAP.md`](milestones/v2.3-ROADMAP.md) · [`milestones/v2.3-REQUIREMENTS.md`](milestones/v2.3-REQUIREMENTS.md) · [`milestones/v2.3-MILESTONE-AUDIT.md`](milestones/v2.3-MILESTONE-AUDIT.md)
+
+
 ## v2.2 Landing Redesign + Signals Feed (Shipped: 2026-06-19)
 
 **Phases completed:** 7 phases (19–25), 17 plans, 24 tasks
