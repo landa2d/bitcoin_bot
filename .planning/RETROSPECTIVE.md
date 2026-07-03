@@ -126,6 +126,68 @@
 
 ---
 
+## Milestone: v2.3 — Pre-Publish Evaluation Step
+
+**Shipped:** 2026-07-03
+**Phases:** 6 (26–31) | **Plans:** 20 | **Tasks:** 44 | **Timeline:** 11 days (2026-06-22 → 2026-07-03), 156 commits
+
+### What Was Built
+
+A two-layer automated pre-publish evaluation between newsletter generation and publish: continuity/exemplar
+context loader (26), `edition_evals` persistence + governed hard-capped `edition_eval` proxy agent (27), the
+no-LLM deterministic fabrication/mechanical gate (28), the 5-dimension Sonnet judge + bounded N=2
+feedback-rewrite loop (29), sequencer wiring with the enforce-gated hold action (30), and the operator
+surfacing layer — hardened `send_telegram`, Friday-notify eval summary, live `/newsletter_eval` command (31).
+Armed report-only; human publish gate unchanged.
+
+### What Worked
+
+- **Build-pure-then-wire ordering** (26→29 standalone modules, 30 wiring, 31 surfacing): every phase was
+  independently shippable and rollback-safe; the wiring phase was small because the modules' contracts
+  (emit-only flags, verdict taxonomy, write-row params) were locked earlier.
+- **Fix-review-blockers-before-verify** (validated again): WR-03/05/06 in Phase 31 and CR-01/02 in Phase 28
+  were fixed pre-verification with locking tests, keeping VERIFICATION.md honest.
+- **The milestone-level integration audit earned its keep**: six green phase verifications and a green test
+  suite coexisted with a 100%-reproducible production outage that only a cross-phase runtime check caught.
+- Structural invariants (verdict-iff-ok CHECK, `.in_()`-free readers proven by stub tests) made whole bug
+  classes unrepresentable rather than merely tested-against.
+
+### What Was Inefficient
+
+- **The Dockerfile packaging gap** (the headline miss): three phases added modules to `docker/newsletter/`
+  and none added COPY lines; the suite imports from the source tree so nothing failed; deploy verification
+  grepped strings instead of importing inside the container; the governed-cycle "proofs" bypassed the real
+  caller path via manual httpx. The eval was dead in prod from arming until the milestone audit.
+- Phase 31's D-14 ("never rebuild newsletter during calibration") froze a broken image — freeze decisions
+  need an image-goodness check *before* they take effect.
+- 31-04's live verify accepted "No eval has run yet" as the correct empty-state answer without asking *why*
+  the table was empty when an edition had been generated post-arming (it hadn't yet at that moment, but the
+  check had no way to distinguish outage from not-yet-run).
+
+### Patterns Established
+
+- **Container-import verification**: a new module isn't shipped until `docker exec <svc> python -c "import X"`
+  passes in the running container. Added to deploy checklists via memory.
+- **Sequencer-path proof**: governance/settlement claims must be proven through the real caller entrypoint
+  (`run_edition_eval`), not a manual bypass against the proxy.
+- **Fail-open-but-LOUD at every layer**: outer catch blocks around eval invocations now page the operator
+  (`[EVAL OUTAGE]` labels), not just log.
+
+### Key Lessons
+
+1. Packaging is part of shipping — schema+code+**image** atomically, or it didn't ship.
+2. Per-phase verification composes to less than milestone verification: runtime wiring needs its own audit.
+3. An empty-table "correct answer" can mask an outage; empty-state checks should assert the *reason* for
+   emptiness when a producer should have run.
+
+### Cost Observations
+
+- Model mix: opus executors/reviewers/fixers, sonnet verifier/integration-checker (per model_profile=quality).
+- Sessions: phase 31 executed in one orchestrated session (3 worktree executors, 1 reviewer, 1 fixer ×2,
+  1 security auditor, 1 verifier, 1 integration checker); close ran same-day.
+- Notable: the integration checker (~186k tokens) found the outage that six verifiers (~1M+ tokens combined)
+  structurally could not — budget for cross-phase runtime checks at every milestone close.
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
