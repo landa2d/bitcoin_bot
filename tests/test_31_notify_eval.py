@@ -454,7 +454,7 @@ def test_notify_appends_eval_section_to_static_text(monkeypatch):
     monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=eval_rows, newsletters=_DRAFT_ROW))
     _wire_config(monkeypatch, enforce=False)
     sent = []
-    monkeypatch.setattr(proc, "send_telegram", lambda m: sent.append(m) or True)
+    monkeypatch.setattr(proc, "send_telegram", lambda m, **k: sent.append(m) or True)
 
     proc.scheduled_notify_newsletter()
 
@@ -476,7 +476,7 @@ def test_notify_no_report_only_tag_when_enforce_true(monkeypatch):
     monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=eval_rows, newsletters=_DRAFT_ROW))
     _wire_config(monkeypatch, enforce=True)
     sent = []
-    monkeypatch.setattr(proc, "send_telegram", lambda m: sent.append(m) or True)
+    monkeypatch.setattr(proc, "send_telegram", lambda m, **k: sent.append(m) or True)
 
     proc.scheduled_notify_newsletter()
 
@@ -489,7 +489,7 @@ def test_notify_critical_logs_on_delivery_failure(monkeypatch, caplog):
     notify` AND does NOT log the "notification sent" INFO (the INFO must only fire on success)."""
     monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=[], newsletters=_DRAFT_ROW))
     _wire_config(monkeypatch, enforce=False)
-    monkeypatch.setattr(proc, "send_telegram", lambda m: False)
+    monkeypatch.setattr(proc, "send_telegram", lambda m, **k: False)
     caplog.set_level(logging.DEBUG)
 
     proc.scheduled_notify_newsletter()
@@ -503,7 +503,7 @@ def test_notify_no_critical_when_delivery_ok(monkeypatch, caplog):
     """When the notify delivers (True), NO CRITICAL log fires AND the "sent" INFO fires (WR-05)."""
     monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=[], newsletters=_DRAFT_ROW))
     _wire_config(monkeypatch, enforce=False)
-    monkeypatch.setattr(proc, "send_telegram", lambda m: True)
+    monkeypatch.setattr(proc, "send_telegram", lambda m, **k: True)
     caplog.set_level(logging.DEBUG)
 
     proc.scheduled_notify_newsletter()
@@ -520,7 +520,7 @@ def test_notify_fail_open_on_eval_read_exception(monkeypatch, caplog):
     )
     _wire_config(monkeypatch, enforce=False)
     sent = []
-    monkeypatch.setattr(proc, "send_telegram", lambda m: sent.append(m) or True)
+    monkeypatch.setattr(proc, "send_telegram", lambda m, **k: sent.append(m) or True)
     caplog.set_level(logging.DEBUG)
 
     proc.scheduled_notify_newsletter()
@@ -536,7 +536,7 @@ def test_notify_no_supabase_guard_returns(monkeypatch, caplog):
     ERROR-logs the skip instead of a silent bare return + never claims "sent" (WR-05)."""
     monkeypatch.setattr(proc, "supabase", None)
     called = []
-    monkeypatch.setattr(proc, "send_telegram", lambda m: called.append(m) or True)
+    monkeypatch.setattr(proc, "send_telegram", lambda m, **k: called.append(m) or True)
     caplog.set_level(logging.DEBUG)
 
     proc.scheduled_notify_newsletter()
@@ -551,7 +551,7 @@ def test_notify_no_llm_call_added(monkeypatch):
     """WIRE-05: the notify path adds NO LLM call — routed_llm_call must never be invoked."""
     monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=[], newsletters=_DRAFT_ROW))
     _wire_config(monkeypatch, enforce=False)
-    monkeypatch.setattr(proc, "send_telegram", lambda m: True)
+    monkeypatch.setattr(proc, "send_telegram", lambda m, **k: True)
 
     def _boom(*a, **k):
         raise AssertionError("scheduled_notify_newsletter must not call routed_llm_call (WIRE-05)")
@@ -559,6 +559,58 @@ def test_notify_no_llm_call_added(monkeypatch):
     monkeypatch.setattr(proc, "routed_llm_call", _boom)
 
     proc.scheduled_notify_newsletter()  # must not raise
+
+
+# ===========================================================================
+# WR-04 — eval-bearing notify is sent PLAIN TEXT (no parse_mode='Markdown')
+# ===========================================================================
+def test_notify_eval_bearing_message_sent_plain(monkeypatch):
+    """WR-04: the Friday notify carrying the eval section is sent with plain=True so the
+    underscore-heavy tokens (single_pass, held_voice, hedging_filler, repeated_subtopics)
+    render verbatim instead of being mangled by parse_mode='Markdown' underscore-parity."""
+    eval_rows = [
+        _det_row("single_pass", "held_voice", mechanical=1),
+        _judge_row("single_pass", "held_voice", scores=_clean_scores(clickbait=1)),
+    ]
+    monkeypatch.setattr(proc, "supabase", StubSupabase(eval_rows=eval_rows, newsletters=_DRAFT_ROW))
+    _wire_config(monkeypatch, enforce=False)
+    captured = {}
+
+    def _capture(m, *, plain=False):
+        captured["message"] = m
+        captured["plain"] = plain
+        return True
+
+    monkeypatch.setattr(proc, "send_telegram", _capture)
+
+    proc.scheduled_notify_newsletter()
+
+    assert captured["plain"] is True, "eval-bearing notify must be sent plain (WR-04)"
+    assert "🧪 Pre-publish eval" in captured["message"]
+    # The underscore-heavy labels are present unescaped (plain send needs no escaping).
+    assert "single_pass" in captured["message"]
+    assert "held_voice" in captured["message"]
+
+
+def test_notify_static_only_uses_default_markdown_path(monkeypatch):
+    """WR-04: when the eval section is NOT present (eval-read error → static notify only) the
+    default plain=False path is used — the plain-text route is scoped to eval-bearing sends so
+    no other send_telegram behavior changes."""
+    monkeypatch.setattr(proc, "supabase", StubSupabase(eval_raises=True, newsletters=_DRAFT_ROW))
+    _wire_config(monkeypatch, enforce=False)
+    captured = {}
+
+    def _capture(m, *, plain=False):
+        captured["message"] = m
+        captured["plain"] = plain
+        return True
+
+    monkeypatch.setattr(proc, "send_telegram", _capture)
+
+    proc.scheduled_notify_newsletter()
+
+    assert captured["plain"] is False, "static-only notify keeps the default Markdown path"
+    assert "🧪 Pre-publish eval" not in captured["message"]
 
 
 if __name__ == "__main__":

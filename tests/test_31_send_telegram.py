@@ -235,6 +235,57 @@ def test_send_telegram_signature_is_bool():
 
 
 # ===========================================================================
+# WR-04 — plain=True skips the Markdown first attempt (eval-bearing sends)
+# ===========================================================================
+def test_plain_true_omits_parse_mode_single_post_returns_true(monkeypatch):
+    """WR-04: send_telegram(msg, plain=True) POSTs plain text — NO parse_mode key, exactly one
+    POST per chunk (no Markdown-then-plain double POST) — and still returns True on 200."""
+    monkeypatch.setattr(proc, "TELEGRAM_BOT_TOKEN", "bot-token")
+    monkeypatch.setattr(proc, "TELEGRAM_OWNER_ID", "owner-123")
+    client = _FakeClient(status_code=200)
+    monkeypatch.setattr(proc, "httpx", types.SimpleNamespace(Client=lambda *a, **k: client))
+
+    result = proc.send_telegram("held_voice single_pass hedging_filler", plain=True)
+
+    assert result is True
+    assert len(client.record) == 1                       # one POST, no Markdown retry
+    _url, data = client.record[0]
+    assert "parse_mode" not in data
+    assert data["text"] == "held_voice single_pass hedging_filler"
+
+
+def test_plain_false_default_still_uses_markdown(monkeypatch):
+    """WR-04 backward-compat: the default (plain=False) still sends parse_mode='Markdown' first —
+    every pre-existing caller is unchanged."""
+    monkeypatch.setattr(proc, "TELEGRAM_BOT_TOKEN", "bot-token")
+    monkeypatch.setattr(proc, "TELEGRAM_OWNER_ID", "owner-123")
+    client = _FakeClient(status_code=200)
+    monkeypatch.setattr(proc, "httpx", types.SimpleNamespace(Client=lambda *a, **k: client))
+
+    result = proc.send_telegram("ordinary alert")
+
+    assert result is True
+    _url, data = client.record[0]
+    assert data.get("parse_mode") == "Markdown"
+
+
+def test_plain_true_delivery_failure_returns_false_and_error_logs(monkeypatch, caplog):
+    """WR-04: a non-200 in plain mode is terminal (no Markdown retry to make) → returns False AND
+    ERROR-logs `[TELEGRAM-SEND]`; still exactly one POST per chunk."""
+    monkeypatch.setattr(proc, "TELEGRAM_BOT_TOKEN", "bot-token")
+    monkeypatch.setattr(proc, "TELEGRAM_OWNER_ID", "owner-123")
+    client = _FakeClient(status_code=500)
+    monkeypatch.setattr(proc, "httpx", types.SimpleNamespace(Client=lambda *a, **k: client))
+    caplog.set_level(logging.DEBUG)
+
+    result = proc.send_telegram("plain will fail", plain=True)
+
+    assert result is False
+    assert len(client.record) == 1                       # no plain-retry double POST
+    assert _has_record(caplog, "[TELEGRAM-SEND]", level=logging.ERROR)
+
+
+# ===========================================================================
 # Task 1 — boot-time Telegram-config ERROR (D-04)
 # ===========================================================================
 def test_boot_config_check_error_logs_when_unset(monkeypatch, caplog):

@@ -9628,7 +9628,7 @@ def _check_telegram_config() -> bool:
     return True
 
 
-def send_telegram(message: str) -> bool:
+def send_telegram(message: str, *, plain: bool = False) -> bool:
     """Send notification to Telegram, splitting if over 4096 chars.
 
     Fail-loud contract (SURF-01 / D-02): returns True on success, False on ANY failure;
@@ -9637,6 +9637,12 @@ def send_telegram(message: str) -> bool:
     label — never a silent bare return, never `warning` on a terminal failure. Logs a
     bounded LABEL only (message length + a short head, WR-06) — never the bot token or
     raw draft/briefing prose (T-30-LOG): callers pass newsletter bodies + briefing text.
+
+    `plain=True` (keyword-only, default False — backward-compatible for all callers) skips
+    the `parse_mode='Markdown'` first attempt and POSTs as plain text (WR-04): the eval
+    section is dense with underscore-bearing tokens (single_pass, held_voice,
+    hedging_filler, repeated_subtopics) that Markdown's `_` italic toggle mangles by
+    underscore parity. The bool contract and the 4000-char newline splitter are unchanged.
     """
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_OWNER_ID:
         safe = " ".join(str(message).split())
@@ -9664,11 +9670,21 @@ def send_telegram(message: str) -> bool:
         if current:
             chunks.append(current)
 
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     try:
         with httpx.Client() as client:
             for chunk in chunks:
+                if plain:
+                    # WR-04: no Markdown first attempt — POST plain text so underscore-heavy
+                    # eval labels render verbatim. A non-200 here is terminal (no retry to make).
+                    resp = client.post(url, data={'chat_id': TELEGRAM_OWNER_ID, 'text': chunk})
+                    if resp.status_code != 200:
+                        # Terminal delivery failure — ERROR (never warning) and fail loud (D-02).
+                        logger.error(f"[TELEGRAM-SEND] Telegram send failed ({resp.status_code}): {resp.text[:200]}")
+                        return False
+                    continue
                 resp = client.post(
-                    f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                    url,
                     data={
                         'chat_id': TELEGRAM_OWNER_ID,
                         'text': chunk,
@@ -9679,7 +9695,7 @@ def send_telegram(message: str) -> bool:
                     # Markdown-parse retry as plain text — stays a warning because it retries.
                     logger.warning(f"Telegram Markdown failed ({resp.status_code}), retrying as plain text")
                     resp = client.post(
-                        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                        url,
                         data={
                             'chat_id': TELEGRAM_OWNER_ID,
                             'text': chunk,
@@ -10857,6 +10873,7 @@ def scheduled_notify_newsletter():
 
     message = static_notice
     edition_number = None
+    has_eval_section = False
     try:
         # Locate the current draft's edition_number via the pre-existing newsletters lookup.
         # The `.in_('status')` here is pre-existing/acceptable (mirrors scheduled_auto_publish_
@@ -10873,6 +10890,7 @@ def scheduled_notify_newsletter():
             enforce = bool(get_full_config().get('edition_eval', {}).get('enforce', False))
             eval_rows = _read_edition_evals(supabase, edition_number)
             message = static_notice + "\n" + _format_notify_eval_section(eval_rows, enforce)
+            has_eval_section = True  # WR-04: this message carries underscore-heavy eval labels
     except Exception as e:
         # Fail-open-but-loud: an eval-render error must NEVER suppress the Friday notify. Log a
         # fixed grep-able label (edition number only, T-30-LOG) and send the static notice.
@@ -10881,11 +10899,15 @@ def scheduled_notify_newsletter():
             edition_number, e,
         )
         message = static_notice
+        has_eval_section = False
 
     # Hold/eval-critical caller (D-03): check send_telegram's bool return; the "sent" INFO fires
     # ONLY on a True return (WR-05), and a False return CRITICAL-logs so a lost calibration notify
     # leaves an unmissable trace (edition number only, T-30-LOG).
-    if send_telegram(message):
+    # WR-04: send the eval-bearing notify as PLAIN TEXT (its single_pass/held_voice/hedging_filler
+    # labels break parse_mode='Markdown' by underscore parity); the static-only fallback keeps the
+    # default Markdown path so no other behavior changes.
+    if send_telegram(message, plain=has_eval_section):
         logger.info("[PIPELINE] Newsletter notification sent")
     else:
         logger.critical(
