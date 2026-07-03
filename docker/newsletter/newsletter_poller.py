@@ -2189,6 +2189,12 @@ def save_newsletter(result: dict, input_data: dict, blocks_data: dict | None = N
         logger.error(
             f"[EVAL] primary eval/action failed for edition #{edition} (non-blocking): {e}"
         )
+        # Fail-open-but-LOUD (D-06/D-07): an eval-pipeline outage outside run_edition_eval's own
+        # alerting (e.g. an import/packaging failure) must reach the operator, never just the logs.
+        _alert_operator(
+            f"[EVAL OUTAGE] edition #{edition}: primary eval pipeline failed "
+            f"({type(e).__name__}) — no eval recorded; check newsletter logs"
+        )
 
     # Save local markdown (builder version)
     md_file = NEWSLETTERS_DIR / f"brief_{edition}_{date_str}.md"
@@ -3136,6 +3142,12 @@ def process_task(task: dict):
                     logger.warning(f"[A/B] Block pipeline failed: {bp_result.get('error')}")
         except Exception as e:
             logger.error(f"[A/B] Block pipeline comparison failed (non-blocking): {e}")
+            # Fail-open-but-LOUD (D-06/D-07): the block_v1 telemetry eval feeds calibration —
+            # losing it to a silent exception must reach the operator.
+            _alert_operator(
+                f"[EVAL OUTAGE] edition #{edition}: A/B block_v1 pipeline/eval failed "
+                f"({type(e).__name__}) — telemetry eval lost; check newsletter logs"
+            )
 
         # Handle negotiation requests (e.g. enrichment from Analyst)
         handle_negotiation_request(result, task_id)
