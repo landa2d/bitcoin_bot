@@ -2469,22 +2469,51 @@ def _eval_read_latest_with_rows(supabase) -> list:
     return _eval_read_by_edition(supabase, data[0]["edition_number"])
 
 
-def _eval_read_trend(supabase, pipeline_version, limit=8) -> list:
-    """Recent verdict trend for ONE pipeline_version, newest edition first —
-    `.eq()` only (mirrors read_eval_trend, D-11). Also selects deterministic_flags
-    so the trend line can show fab/unv/mech counts. NEVER `.in_()`."""
-    result = (
+def _eval_read_trend(supabase, pipeline_version, limit=_EVAL_TREND_MAX_LINES) -> list:
+    """Recent verdict trend for ONE pipeline_version, newest edition first — `.eq()`-only
+    (EVAL-03: NEVER `.in_()`). Also selects deterministic_flags so the trend line can show
+    fab/unv/mech counts.
+
+    WR-02: `limit` bounds the number of EDITIONS, not rows. Each (edition, pipeline_version)
+    group is 2-4 rows (1 deterministic + 1-3 judge attempts), so a raw row `.limit(8)`
+    under-covers (~2-4 editions, not the promised ~8) AND can cut a group at an arbitrary
+    row — if a boundary edition's judge rows are truncated, only its deterministic `passed`
+    survives and the trend renders `passed` for an edition the judge actually held. Two-stage
+    eq-only read: (1) the most-recent `limit` DISTINCT edition_numbers for this
+    pipeline_version, then (2) ALL rows for each of those editions (one small `.eq()` query
+    per edition) so no group is ever partial. `.order("attempt", desc=True)` gives a
+    deterministic within-group order."""
+    ed_result = (
         supabase.table("edition_evals")
-        .select(
-            "edition_number, pipeline_version, layer, attempt, eval_status, "
-            "verdict, deterministic_flags, judge_scores, created_at"
-        )
+        .select("edition_number")
         .eq("pipeline_version", pipeline_version)
         .order("edition_number", desc=True)
-        .limit(limit)
         .execute()
     )
-    return result.data or []
+    recent_editions: list = []
+    for r in (ed_result.data or []):
+        en = r.get("edition_number")
+        if en is None or en in recent_editions:
+            continue
+        recent_editions.append(en)
+        if len(recent_editions) >= limit:
+            break
+
+    rows: list = []
+    for en in recent_editions:
+        result = (
+            supabase.table("edition_evals")
+            .select(
+                "edition_number, pipeline_version, layer, attempt, eval_status, "
+                "verdict, deterministic_flags, judge_scores, created_at"
+            )
+            .eq("pipeline_version", pipeline_version)
+            .eq("edition_number", en)
+            .order("attempt", desc=True)
+            .execute()
+        )
+        rows.extend(result.data or [])
+    return rows
 
 
 def _eval_is_number(value) -> bool:
@@ -2646,8 +2675,9 @@ def _format_eval_detail(eval_rows: list) -> str:
 def _format_eval_trend(rows: list) -> str:
     """D-11 trend render: ONE line per (edition, pipeline_version) group across the
     supplied rows — `#<edition> <pipeline_version> <verdict> attempts=<n>
-    fab=<n>/unv=<n>/mech=<n>` — newest edition first, capped at ~8 lines (mirrors
-    read_eval_trend's shape). Pure — never fetches, never mutates."""
+    fab=<n>/unv=<n>/mech=<n>` — newest edition first, capped at ~8 recent EDITIONS
+    (WR-02: not raw lines — both pipeline_versions of a covered edition still render).
+    Pure — never fetches, never mutates."""
     if not rows:
         return "No eval trend yet — no edition has been evaluated."
 
@@ -2661,8 +2691,16 @@ def _format_eval_trend(rows: list) -> str:
 
     ordered = sorted(groups.keys(), key=_edition_sort_key, reverse=True)
     lines = ["📈 Eval trend (recent editions)"]
-    for key in ordered[:_EVAL_TREND_MAX_LINES]:
+    # WR-02: cap by distinct EDITIONS (not raw group lines) so up to _EVAL_TREND_MAX_LINES
+    # recent editions render even when both pipeline_versions are present — a plain line cap
+    # would show only ~4 editions once block_v1 rows land alongside single_pass.
+    seen_editions: list = []
+    for key in ordered:
         ed, pv = key
+        if ed not in seen_editions:
+            if len(seen_editions) >= _EVAL_TREND_MAX_LINES:
+                break
+            seen_editions.append(ed)
         grp = groups[key]
         verdict = None
         for r in grp:

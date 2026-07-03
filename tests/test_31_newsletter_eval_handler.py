@@ -410,20 +410,49 @@ def test_detail_error_reason_bounded_to_200_chars():
 # D-11 trend — <=8 lines, each with edition/pipeline/verdict/attempts/flag counts
 # ===========================================================================
 def test_trend_lines_shape_and_cap():
+    """WR-02: `limit` bounds EDITIONS, not rows. 10 editions × 2 rows (det + judge) must render
+    EXACTLY the 8 most-recent editions as 8 trend lines — NOT the ~4 a raw row-limit of 8 gave
+    (which is what the old `0 < len <= 8` masking assertion silently tolerated)."""
     rows = []
-    for ed in range(190, 200):  # 10 editions -> more than the 8-line cap
+    for ed in range(190, 200):  # 10 editions -> more than the 8-edition cap
         rows.extend(_passed_edition_rows(ed))
     stub = StubSupabase(rows=rows)
     out = gb.handle_newsletter_eval(
         "/newsletter_eval trend", access_tier="owner", supabase_client=stub
     )
     trend_lines = [ln for ln in out.splitlines() if ln.strip().startswith("#")]
-    assert 0 < len(trend_lines) <= 8, f"expected <=8 trend lines, got {len(trend_lines)}"
+    assert len(trend_lines) == 8, f"expected exactly 8 trend lines, got {len(trend_lines)}"
+    # The 8 rendered editions are the MOST RECENT (199..192), never the oldest (190/191).
+    rendered_eds = {int(ln.split()[0].lstrip("#")) for ln in trend_lines}
+    assert rendered_eds == set(range(192, 200)), rendered_eds
     for ln in trend_lines:
         assert "single_pass" in ln
         assert "passed" in ln
         assert "attempts=" in ln
         assert "fab=" in ln and "unv=" in ln and "mech=" in ln
+
+
+def test_trend_boundary_edition_never_truncated_to_wrong_verdict():
+    """WR-02: every rendered edition has ALL its rows fetched (no row-limit truncation), so the
+    OLDEST in-window edition — whose Layer-1 deterministic row PASSED but whose judge HELD
+    (held_voice) — renders `held_voice`, never the deterministic-only `passed`."""
+    boundary = 300
+    rows = [
+        _det_row(boundary, "single_pass", "passed"),
+        _judge_row(boundary, "single_pass", "held_voice", 0, _judge_scores()),
+    ]
+    for ed in range(301, 308):  # 7 newer passed editions → boundary 300 is the oldest of 8
+        rows.extend(_passed_edition_rows(ed))
+    stub = StubSupabase(rows=rows)
+    out = gb.handle_newsletter_eval(
+        "/newsletter_eval trend", access_tier="owner", supabase_client=stub
+    )
+    trend_lines = [ln for ln in out.splitlines() if ln.strip().startswith("#")]
+    assert len(trend_lines) == 8
+    boundary_line = next(ln for ln in trend_lines if ln.split()[0] == f"#{boundary}")
+    assert "held_voice" in boundary_line, boundary_line
+    assert "passed" not in boundary_line, boundary_line
+    assert "attempts=1" in boundary_line, boundary_line
 
 
 def test_trend_empty_message():
