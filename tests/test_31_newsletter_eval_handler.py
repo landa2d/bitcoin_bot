@@ -406,6 +406,52 @@ def test_detail_error_reason_bounded_to_200_chars():
     assert long_reason not in out
 
 
+def test_detail_fabrication_breakdown_itemized_per_kind():
+    """Fabrication flags render itemized per kind (values/ids/entities), not just a count."""
+    fab = [
+        {"kind": "tier1_entity", "value": "Gemini", "version": "technical"},
+        {"kind": "tier1_entity", "value": "Azure", "version": "impact"},
+        {"kind": "arxiv", "id": "2606.06324", "detail": "arXiv ID not present in fact base", "version": "technical"},
+        {"kind": "entity_merge", "entity": "Google Cloud", "version": "impact"},
+    ]
+    rows = [_det_row(310, "single_pass", "held_fabrication", fabrication=fab)]
+    out = gb._format_eval_detail(rows)
+
+    assert "fabrication flags (4):" in out
+    assert "- tier1_entity (2): Gemini, Azure" in out
+    assert "- arxiv (1): 2606.06324" in out
+    assert "- entity_merge (1): Google Cloud" in out
+    assert "unverified: 0" in out
+
+
+def test_detail_fabrication_breakdown_bounded_and_truncation_explicit():
+    """Per-kind itemization caps at _EVAL_FAB_MAX_PER_KIND with an explicit '+N more';
+    each value is whitespace-normalized and bounded to 60 chars (T-30-LOG posture)."""
+    long_val = "X" * 200 + "\n\n" + "Y" * 200
+    fab = [{"kind": "tier1_entity", "value": f"Entity{i}", "version": "technical"} for i in range(11)]
+    fab.append({"kind": "quoted_claim", "value": long_val, "version": "impact"})
+    rows = [_det_row(311, "single_pass", "held_fabrication", fabrication=fab)]
+    out = gb._format_eval_detail(rows)
+
+    tier_line = next(ln for ln in out.splitlines() if "tier1_entity (11):" in ln)
+    assert "… +3 more" in tier_line
+    assert tier_line.count("Entity") == gb._EVAL_FAB_MAX_PER_KIND
+    quoted_line = next(ln for ln in out.splitlines() if "quoted_claim (1):" in ln)
+    rendered_val = quoted_line.split("quoted_claim (1): ", 1)[1]
+    assert len(rendered_val) <= 60
+    assert "\n" not in rendered_val
+
+
+def test_detail_unverified_only_renders_zero_fabrication_count():
+    """No fabrication flags + some unverified: the compact count line still renders."""
+    unv = [{"kind": "url", "url": "https://example.com/x", "version": "technical"}]
+    rows = [_det_row(312, "single_pass", "passed", unverified=unv)]
+    out = gb._format_eval_detail(rows)
+
+    assert "fabrication: 0  unverified: 1" in out
+    assert "fabrication flags" not in out
+
+
 # ===========================================================================
 # D-11 trend — <=8 lines, each with edition/pipeline/verdict/attempts/flag counts
 # ===========================================================================

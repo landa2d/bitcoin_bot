@@ -2433,6 +2433,7 @@ _EVAL_FAIL_BELOW = {
 }
 _EVAL_EXCERPT_MAX = 300  # bound each quoted evidence/exemplar (D-10)
 _EVAL_PIPELINE_ORDER = ("single_pass", "block_v1")  # single_pass primary leads (D-05)
+_EVAL_FAB_MAX_PER_KIND = 8  # bounded fabrication itemization in the detail view (calibration legibility)
 _EVAL_TREND_MAX_LINES = 8  # ~8 recent editions (D-11)
 
 
@@ -2666,8 +2667,29 @@ def _format_eval_detail(eval_rows: list) -> str:
             lines.append("  mechanical flags: (deterministic gate errored — unavailable)")
         else:
             lines.append("  mechanical flags: none")
-        if fab or unv:
-            lines.append(f"  fabrication: {len(fab)}  unverified: {len(unv)}")
+        # Fabrication breakdown — itemized per kind so the weekly calibration check is
+        # self-contained in Telegram. Values are flag identifiers (entity names, arXiv IDs,
+        # URLs), never draft prose (T-30-LOG); each bounded to 60 chars, ≤_EVAL_FAB_MAX_PER_KIND
+        # per kind with an explicit "+N more" so truncation is never silent.
+        if fab:
+            lines.append(f"  fabrication flags ({len(fab)}):")
+            fab_by_kind: dict = {}
+            for flag in fab:
+                fab_by_kind.setdefault(str(flag.get("kind", "other")), []).append(flag)
+            for kind, items in fab_by_kind.items():
+                vals = []
+                for f in items[:_EVAL_FAB_MAX_PER_KIND]:
+                    v = next(
+                        (f[k] for k in ("value", "id", "entity", "url", "repo", "stat", "detail") if f.get(k)),
+                        "?",
+                    )
+                    vals.append(" ".join(str(v).split())[:60])
+                extra = len(items) - _EVAL_FAB_MAX_PER_KIND
+                suffix = f" … +{extra} more" if extra > 0 else ""
+                lines.append(f"    - {kind} ({len(items)}): {', '.join(vals)}{suffix}")
+            lines.append(f"  unverified: {len(unv)}")
+        elif unv:
+            lines.append(f"  fabrication: 0  unverified: {len(unv)}")
 
     return "\n".join(lines)
 
