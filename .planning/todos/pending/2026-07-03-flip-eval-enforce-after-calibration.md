@@ -22,9 +22,15 @@ fact base was unrecoverable). The remaining activation step — deliberately ope
    notify eval section and the `/newsletter_eval` + `/newsletter_eval trend` Telegram commands,
    Phase 31). Watch for `⚠ WOULD HAVE HELD (report-only)` tags: confirm they flag real problems,
    not false positives.
-2. When calibrated, set `edition_eval.enforce=true` in `config/agentpulse-config.json`.
+2. **BLOCKER — ship `/newsletter_unhold` first** (todo `2026-07-04-newsletter-unhold-command.md`):
+   there is currently NO operator path to release a held edition; flipping enforce without it
+   means a false-positive hold silences the newsletter with no escape hatch.
+3. When calibrated, set `edition_eval.enforce=true` in `config/agentpulse-config.json`.
    Config is read per-call via the live ro `../config` mount — NO rebuild needed.
-3. Rollback if needed: `enforce=false` (or `enabled=false` to disarm entirely).
+4. Rollback if needed: `enforce=false` (or `enabled=false` to disarm entirely).
+
+Companion prevention/auto-fix work sized by the calibration data:
+`2026-07-04-writer-grounding-constraint.md` (P2) and `2026-07-04-grounding-rewrite-iteration.md` (P3).
 
 ## Why a todo
 
