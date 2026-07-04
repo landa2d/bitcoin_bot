@@ -1,5 +1,8 @@
 {
   "version": "1.1.0",
+  "x_scraping": {
+    "enabled": false
+  },
   "models": {
     "extraction": "deepseek-chat",
     "clustering": "deepseek-chat",

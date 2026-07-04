@@ -8352,6 +8352,23 @@ def _check_x_budget() -> bool:
     return status.get('budget_ok', False)
 
 
+def _x_scraping_enabled() -> bool:
+    """Fresh-read the pause switch from the live ro config mount on EVERY call.
+
+    Config edits are live without a rebuild (bind mount). Deliberately does NOT
+    use get_full_config() — that caches for process lifetime. Fails OPEN: any
+    read error (missing file, bad JSON, wrong types) returns True so a broken
+    config can never silently disable scraping — pause is the explicit opt-in.
+    """
+    try:
+        with open('/home/openclaw/.openclaw/config/agentpulse-config.json') as f:
+            cfg = json.load(f)
+        return cfg.get('x_scraping', {}).get('enabled', True)
+    except Exception as e:
+        logger.warning(f"x_scraping config read failed (failing open, scraping enabled): {e}")
+        return True
+
+
 def _log_x_api_cost(operation_type: str, endpoint: str, cost: float, notes: str = ''):
     """Log a single X API call cost to x_api_budget."""
     if not supabase:
@@ -8371,6 +8388,10 @@ def _log_x_api_cost(operation_type: str, endpoint: str, cost: float, notes: str 
 
 def _x_api_search(query: str, max_results: int = 10) -> list:
     """Search X API v2 for recent tweets. Returns list of tweet dicts or empty list."""
+    if not _x_scraping_enabled():
+        logger.info("[X-SCRAPE] X API reads paused via config (x_scraping.enabled=false)")
+        return []
+
     if not X_BEARER_TOKEN:
         logger.warning("X_BEARER_TOKEN not set — skipping X search")
         return []
@@ -11382,12 +11403,16 @@ def run_health_checks() -> dict:
 
     # 9. X API budget
     try:
-        budget = get_x_budget_status()
-        remaining = budget.get('week_remaining', 999)
-        if remaining <= 0.50:
-            results['x_budget'] = {'status': 'fail', 'error': f'${remaining:.2f} remaining'}
+        if not _x_scraping_enabled():
+            # X reads paused via config — budget is moot, never alert while paused.
+            results['x_budget'] = {'status': 'ok', 'note': 'paused via config'}
         else:
-            results['x_budget'] = {'status': 'ok', 'remaining': remaining}
+            budget = get_x_budget_status()
+            remaining = budget.get('week_remaining', 999)
+            if remaining <= 0.50:
+                results['x_budget'] = {'status': 'fail', 'error': f'${remaining:.2f} remaining'}
+            else:
+                results['x_budget'] = {'status': 'ok', 'remaining': remaining}
     except Exception as e:
         results['x_budget'] = {'status': 'fail', 'error': str(e)}
 
