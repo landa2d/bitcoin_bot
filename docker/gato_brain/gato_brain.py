@@ -2803,6 +2803,144 @@ def handle_newsletter_eval(message: str, access_tier: str = "free", supabase_cli
         return f"⚠ eval view failed: {e}"
 
 
+# ─── /newsletter_unhold — owner-gated release of a held edition ───────────────
+#
+# The pre-enforce escape hatch: under `enforce=true` a false-positive fabrication
+# hold silences the newsletter with no operator path to release it (the exact
+# "silence" failure mode the project's core value names). Two-step by design —
+# bare `/newsletter_unhold <edition#>` PREVIEWS (hold reason + labels/counts-only
+# eval summary + confirm instruction, ZERO mutation); only the explicit `confirm`
+# token performs the ONE targeted update {do_not_publish: false, status: 'draft',
+# do_not_publish_reason: null} on the PRIMARY held row via `.eq("id", row_id)`
+# (row id, NEVER edition number) — both processor publish guards then accept the
+# row again with no processor change. The always-held block_v1 A/B shadow row
+# (data_snapshot.ab_comparison truthy / "[BLOCK PIPELINE A/B]" title) is held BY
+# DESIGN and structurally excluded from release. `.eq()`-only reads (EVAL-03 —
+# the /newsletter_preview `.in_()` is the anti-pattern deliberately NOT copied).
+# Logs `[UNHOLD]` with edition + row id only — never the reason text (T-30-LOG).
+
+_UNHOLD_SHADOW_TITLE_PREFIX = "[BLOCK PIPELINE A/B]"
+_UNHOLD_REASON_MAX = 400  # bound the surfaced do_not_publish_reason in the preview
+
+
+def _unhold_is_shadow(row) -> bool:
+    """True when a newsletters row is the always-held block_v1 A/B shadow —
+    NEVER releasable. Belt-and-suspenders: data_snapshot.ab_comparison truthy OR
+    the title prefix. `data_snapshot` may arrive as a dict, a JSON string, or
+    None — never raises; on a string, fall back to the title-prefix check only."""
+    snap = (row or {}).get("data_snapshot")
+    if isinstance(snap, dict) and snap.get("ab_comparison"):
+        return True
+    title = str((row or {}).get("title") or "")
+    return title.startswith(_UNHOLD_SHADOW_TITLE_PREFIX)
+
+
+def handle_newsletter_unhold(message: str, access_tier: str = "free", supabase_client=None) -> str:
+    """/newsletter_unhold <edition#> [confirm] — owner-gated release of a HELD edition.
+
+    Two-step confirm by design: releasing OVERRIDES an automated fabrication/voice
+    verdict, so the bare form only PREVIEWS (hold reason + eval flag summary +
+    the exact confirm command) and mutates nothing; `confirm` re-runs the same
+    lookup and performs the one targeted release update by row id. The block_v1
+    A/B shadow row is held BY DESIGN and is never selected for release
+    (`_unhold_is_shadow`). Owner-gated as a whole (T-UNH-01): a non-owner caller
+    is refused BEFORE any database read."""
+    if access_tier != "owner":
+        # T-UNH-01: refuse BEFORE any read/write — releasing a hold is owner-only.
+        return (
+            "🔒 /newsletter_unhold is owner-only — it releases a held edition "
+            "past the fabrication gate."
+        )
+    sb = supabase_client if supabase_client is not None else supabase
+    try:
+        parts = message.strip().split()
+        args = parts[1:]  # parts[0] == "/newsletter_unhold"
+        if not args or not args[0].lstrip("#").isdigit():
+            return "Usage: /newsletter_unhold <edition#> [confirm]"
+        edition = int(args[0].lstrip("#"))
+        confirm = len(args) > 1 and args[1].lower() == "confirm"
+
+        result = (
+            sb.table("newsletters")
+            .select(
+                "id, edition_number, status, title, do_not_publish, "
+                "do_not_publish_reason, data_snapshot, created_at"
+            )
+            .eq("edition_number", edition)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return f"Edition #{edition} not found — no newsletters row has that edition number."
+
+        def _is_held(r) -> bool:
+            return bool(r.get("do_not_publish")) or r.get("status") == "held"
+
+        primaries = [r for r in rows if not _unhold_is_shadow(r)]
+        held_primaries = [r for r in primaries if _is_held(r)]
+        held_shadows = [r for r in rows if _unhold_is_shadow(r) and _is_held(r)]
+
+        if not held_primaries:
+            if not primaries:
+                # Only shadow rows exist for this edition.
+                return (
+                    f"Edition #{edition}: the only row is the block_v1 A/B shadow, "
+                    f"which is held by design — not releasable. Nothing to unhold."
+                )
+            status_line = "; ".join(
+                f"row {r.get('id')} status={r.get('status')}" for r in primaries
+            )
+            msg = f"Edition #{edition} found but not held ({status_line}) — nothing to release."
+            if held_shadows:
+                msg += (
+                    " The only held row is the block_v1 A/B shadow — "
+                    "held by design, not releasable."
+                )
+            return msg
+
+        # Multiple held primaries (regenerated editions): target the NEWEST by created_at.
+        held_primaries.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
+        target = held_primaries[0]
+        row_id = target.get("id")
+        multi_note = (
+            f"\n({len(held_primaries)} held primary rows — targeting the newest, id {row_id})"
+            if len(held_primaries) > 1 else ""
+        )
+
+        if confirm:
+            sb.table("newsletters").update(
+                {"do_not_publish": False, "status": "draft", "do_not_publish_reason": None}
+            ).eq("id", row_id).execute()
+            # T-30-LOG: edition + row id only — never the reason text.
+            logger.info("[UNHOLD] released edition=%s row_id=%s", edition, row_id)
+            return (
+                f"✅ Edition #{edition} released (row {row_id}).{multi_note}\n"
+                f"do_not_publish cleared and status restored to 'draft' — "
+                f"Monday auto-publish and manual publish will now accept it."
+            )
+
+        # PREVIEW (zero mutation): hold reason + labels/counts-only eval summary.
+        reason = " ".join(str(target.get("do_not_publish_reason") or "").split())
+        reason = reason[:_UNHOLD_REASON_MAX] or "(no hold reason recorded)"
+        eval_rows = _eval_read_by_edition(sb, edition)
+        if eval_rows:
+            eval_summary = _format_eval_trend(eval_rows)
+        else:
+            eval_summary = "No eval rows recorded for this edition."
+        logger.info("[UNHOLD] preview edition=%s row_id=%s", edition, row_id)
+        return (
+            f"⏸ Edition #{edition} is HELD (row {row_id}, status: {target.get('status')})."
+            f"{multi_note}\n\n"
+            f"Hold reason: {reason}\n\n"
+            f"Eval summary:\n{eval_summary}\n\n"
+            f"This is a PREVIEW — nothing was changed.\n"
+            f"To release past the gate, send: /newsletter_unhold {edition} confirm"
+        )
+    except Exception as e:
+        logger.error("[UNHOLD] handler failed: %s", type(e).__name__, exc_info=True)
+        return f"⚠ unhold failed: {e}"
+
+
 # ─── Agent Wallet Summary ─────────────────────────────────────────
 
 def _resolve_api_key(authorization: str | None) -> dict | None:
@@ -3138,6 +3276,21 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
         eval_response = handle_newsletter_eval(req.message, access_tier)
         return ChatResponse(
             response=eval_response,
+            session_id="",
+            intent="NEWSLETTER_COMMAND",
+            metadata={},
+        )
+
+    # 2c-4. Newsletter unhold — owner-gated release of a HELD edition, dispatched
+    # BEFORE the intent router. Two-step: bare form is a PREVIEW only; the explicit
+    # `confirm` token performs the one targeted release update by row id. Never
+    # touches the block_v1 A/B shadow row (held by design). `access_tier` threaded
+    # exactly like 2c-3; `.eq()`-only reads/update inside (never `.in_()`).
+    # No prefix collision: "/newsletter_unhold" does not start with "/newsletter_eval".
+    if _msg_lower.startswith("/newsletter_unhold"):
+        unhold_response = handle_newsletter_unhold(req.message, access_tier)
+        return ChatResponse(
+            response=unhold_response,
             session_id="",
             intent="NEWSLETTER_COMMAND",
             metadata={},
