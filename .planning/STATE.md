@@ -5,7 +5,7 @@ milestone_name: Pre-Publish Evaluation Step
 status: Awaiting next milestone
 stopped_at: Phase 31 context gathered
 last_updated: "2026-07-03T10:47:51.915Z"
-last_activity: 2026-07-03 — Milestone v2.3 completed and archived
+last_activity: 2026-07-05 — Quick task 260705-ufj shipped /newsletter_unhold (pre-enforce blocker resolved)
 progress:
   total_phases: 6
   completed_phases: 6
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-22 — Current Milestone: v2.3 Pre-Pu
 Phase: Milestone v2.3 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-07-03 — Milestone v2.3 completed and archived
+Last activity: 2026-07-05 — Completed quick task 260705-ufj: /newsletter_unhold operator command (pre-enforce blocker resolved)
 
 ## Roadmap (v2.3 — Phases 26–31)
 
@@ -123,6 +123,7 @@ Carry-over advisories (non-blocking, pre-existing): service_role leak in tracked
 | 260619-i3k | Tab gutter + detail-route width (2 live-site defects): `.content-area` block-only padding restores the gutter; detail routes widened to `.content-area wide`. Deployed via scoped `agentpulse-web` rebuild | 2026-06-19 | abeaa43,8e0dd6d | [260619-i3k-fix-tab-gutter-and-detail-width](./quick/260619-i3k-fix-tab-gutter-and-detail-width/) |
 | 260619-ko8 | Swap EOL Claude model `claude-sonnet-4-20250514` → `claude-sonnet-4-6` (31 refs / 10 files incl. governance `allowed_models`+`downgrade_map`); scoped rebuild of newsletter/research/processor/gato_brain/llm-proxy; re-queued + verified edition #102 draft via two settled `claude-sonnet-4-6` calls | 2026-06-19 | 267a6a5 | [260619-ko8-swap-eol-claude-model-claude-sonnet-4-20](./quick/260619-ko8-swap-eol-claude-model-claude-sonnet-4-20/) |
 | 260704-tc8 | Pause all X API read spend via fail-open `x_scraping.enabled=false` config switch gating `_x_api_search` (all 5 read sites); x_budget health check reports ok + 'paused via config' while paused (hourly fail pings silenced); scoped processor rebuild + in-container verification; re-enable is a config-only flip (per-call fresh read, no restart) | 2026-07-04 | f76b71e | [260704-tc8-pause-all-x-api-read-spend-via-config-sw](./quick/260704-tc8-pause-all-x-api-read-spend-via-config-sw/) |
+| 260705-ufj | Ship `/newsletter_unhold <edition#> [confirm]` owner command (P1 pre-enforce blocker): two-step preview→confirm release of a held edition by row id, block_v1 A/B shadow rows structurally un-releasable; 12 new tests + 18 test_31 regression; scoped gato_brain+gato rebuild verified in-container; enforce-flip step 2 unblocked | 2026-07-05 | e1bf55b | [260705-ufj-ship-newsletter-unhold-operator-command-](./quick/260705-ufj-ship-newsletter-unhold-operator-command-/) |
 
 ## Deferred Items
 
