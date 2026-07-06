@@ -133,6 +133,25 @@ Per-phase goals, dependencies, requirements, and success criteria for shipped mi
 | 30. Sequencer Wiring, Hold Action & Activation Gate | v2.3 | 4/4 | Complete    | 2026-07-02 |
 | 31. Surfacing & Escalation | v2.3 | 4/4 | Complete    | 2026-07-03 |
 
+## Block-Pipeline Cut-Over Timeline (bridge → flip)
+
+Cut-over criteria live in `supabase/migrations/047_promote_block_edition.sql` (header). The
+dependency chain that determines whether the **2026-08-01 flip target** holds:
+
+1. **Newsletter-container calibration freeze** — NOT open-ended. It lifts when the operator
+   flips `edition_eval.enforce=true` after ~2 clean report-only editions
+   (`.planning/todos/pending/2026-07-03-flip-eval-enforce-after-calibration.md` owns this).
+   Calibration Fridays: 2026-07-10 and 2026-07-17 → **earliest freeze lift ≈ 2026-07-17/20**,
+   operator-owned.
+2. **Fact-base persistence** (criterion 3) ships in the FIRST newsletter rebuild after the
+   freeze lifts, alongside any eval-symmetry work → in place for the 2026-07-24 cron.
+3. **Block-primary eval live-proof** (criterion 5) runs after 2 → week of 2026-07-24/27.
+4. **Flip `block_pipeline.enabled=true`** → target 2026-08-01, retiring `/newsletter_promote`.
+
+**Slack: effectively zero.** One failed calibration Friday (eval crash, asymmetric evals) slides
+the whole chain a week and makes 2026-08-01 aspirational — per the 047 header, that triggers the
+"reassess bridge→keeper" decision, deliberately, not by drift.
+
 ## Backlog
 
 Parked for a future milestone — **not scheduled, not for now**. Surfaces at next `/gsd-new-milestone` planning. Source-of-truth detail lives in `.planning/todos/pending/`.

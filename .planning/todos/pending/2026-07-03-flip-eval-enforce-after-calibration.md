@@ -33,6 +33,14 @@ fact base was unrecoverable). The remaining activation step — deliberately ope
 Companion prevention/auto-fix work sized by the calibration data:
 `2026-07-04-writer-grounding-constraint.md` (P2) and `2026-07-04-grounding-rewrite-iteration.md` (P3).
 
+**This flip is also the newsletter-container FREEZE-LIFT event** (added 2026-07-06): the
+calibration freeze is event-gated on this todo, not open-ended. Downstream chain (see
+ROADMAP.md "Block-Pipeline Cut-Over Timeline"): freeze lift → fact-base-persistence rebuild
+(047 cut-over criterion 3) → block-primary eval live-proof (criterion 5) →
+`block_pipeline.enabled=true` flip (target 2026-08-01, retires `/newsletter_promote`).
+Calibration Fridays 2026-07-10 + 2026-07-17 ⇒ earliest lift ≈ 2026-07-17/20; zero slack to
+the 08-01 target — a failed calibration week triggers the 047 bridge→keeper reassessment.
+
 ## Why a todo
 
 Milestone v2.3 closes with this pending — the calibration window needs real Friday editions,
