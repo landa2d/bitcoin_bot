@@ -2941,6 +2941,180 @@ def handle_newsletter_unhold(message: str, access_tier: str = "free", supabase_c
         return f"⚠ unhold failed: {e}"
 
 
+# ─── /newsletter_promote — owner-gated block A/B shadow → public edition ─────
+#
+# BRIDGE-SCOPE command (quick 260706-lim, operator-locked 2026-07-06): promotes
+# the weekly block-pipeline A/B shadow row to the public edition series and
+# supersedes the single-pass primary — replacing the manual SQL promotion
+# workflow that missed the migration-046 do_not_publish COLUMN and blocked
+# edition #34's auto-publish on 2026-07-06. Designed to be RETIRED at the
+# `block_pipeline.enabled=true` cut-over (target 2026-08-01). The DEFINITIVE
+# shadow-marker inventory (6 markers) + cut-over criteria + the content_telegram
+# limitation live in migration 047's header (the operator's durable record).
+# Two-step by design — the bare form PREVIEWS (zero mutation, zero rpc); only
+# the explicit `confirm` token calls the ATOMIC promote_block_edition RPC
+# (migration 047): all mutations in ONE plpgsql transaction, any validation
+# raise rolls the WHOLE thing back. `.eq()`-only reads (EVAL-03 — never
+# `.in_()`). Logs `[PROMOTE]` with ids/edition numbers ONLY — never draft
+# prose or reason text (T-30-LOG).
+
+def handle_newsletter_promote(message: str, access_tier: str = "free", supabase_client=None) -> str:
+    """/newsletter_promote <edition#> [confirm] — owner-gated promotion of the
+    block-pipeline A/B shadow row to the public edition series.
+
+    BRIDGE SCOPE: retired at the `block_pipeline.enabled=true` cut-over — see
+    migration 047's header for the definitive shadow-marker inventory and the
+    cut-over criteria. Bare form previews (nothing changes); `confirm` calls
+    the atomic promote_block_edition RPC. Owner-gated as a whole: a non-owner
+    caller is refused BEFORE any database read (mirrors T-UNH-01)."""
+    if access_tier != "owner":
+        # T-PROM-01: refuse BEFORE any read/write — promotion mutates two rows.
+        return (
+            "🔒 /newsletter_promote is owner-only — it promotes the block A/B "
+            "row to a public edition and supersedes the single-pass primary."
+        )
+    sb = supabase_client if supabase_client is not None else supabase
+    try:
+        parts = message.strip().split()
+        args = parts[1:]  # parts[0] == "/newsletter_promote"
+        if not args or not args[0].lstrip("#").isdigit():
+            return "Usage: /newsletter_promote <edition#> [confirm]"
+        edition = int(args[0].lstrip("#"))
+        confirm = len(args) > 1 and args[1].lower() == "confirm"
+
+        result = (
+            sb.table("newsletters")
+            .select(
+                "id, edition_number, status, title, do_not_publish, "
+                "data_snapshot, created_at"
+            )
+            .eq("edition_number", edition)
+            .execute()
+        )
+        rows = result.data or []
+        if not rows:
+            return f"Edition #{edition} not found — no newsletters row has that edition number."
+
+        shadows = [r for r in rows if _unhold_is_shadow(r)]
+        primaries = [r for r in rows if not _unhold_is_shadow(r)]
+
+        if not shadows:
+            # "Already promoted" detection: a primary whose data_snapshot carries
+            # superseded_by means the shadow WAS promoted (its edition_number moved
+            # to the public series) — say so, not an anonymous "no shadow".
+            for r in primaries:
+                snap = r.get("data_snapshot")
+                if isinstance(snap, dict) and snap.get("superseded_by"):
+                    return (
+                        f"Edition #{edition}: no shadow row remains — its block A/B "
+                        f"shadow was already promoted (this primary, row {r.get('id')}, "
+                        f"is superseded by {snap['superseded_by']}). Nothing to promote."
+                    )
+            return (
+                f"Edition #{edition}: no shadow row found — no block-pipeline A/B "
+                f"row exists for this edition. Nothing to promote."
+            )
+        if not primaries:
+            return (
+                f"Edition #{edition}: no primary sibling found — only the A/B shadow "
+                f"row exists, so there is no single-pass draft to supersede. "
+                f"Promotion needs both rows; nothing was changed."
+            )
+
+        # Multiple candidates (regenerated editions): target the newest by created_at
+        # (mirrors the unhold multi-row posture).
+        shadows.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
+        primaries.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
+        shadow_id = shadows[0].get("id")
+        primary_id = primaries[0].get("id")
+
+        # Suggested public number = max published edition_number + 1.
+        pub = (
+            sb.table("newsletters")
+            .select("edition_number")
+            .eq("status", "published")
+            .order("edition_number", desc=True)
+            .limit(1)
+            .execute()
+        )
+        pub_rows = pub.data or []
+        max_published = pub_rows[0].get("edition_number") if pub_rows else 0
+        suggested = int(max_published or 0) + 1
+
+        if confirm:
+            try:
+                rpc_result = sb.rpc(
+                    "promote_block_edition",
+                    {
+                        "p_shadow_id": shadow_id,
+                        "p_primary_id": primary_id,
+                        "p_new_edition_number": suggested,
+                        "p_reason": "promoted via /newsletter_promote by operator",
+                    },
+                ).execute()
+            except Exception as rpc_err:
+                # The RPC is ATOMIC (one plpgsql transaction) — any validation
+                # raise rolled the WHOLE thing back; that atomicity is the entire
+                # point of the RPC. Surface the error verbatim, fail loud.
+                logger.error(
+                    "[PROMOTE] rpc failed: %s", type(rpc_err).__name__, exc_info=True
+                )
+                return (
+                    f"⚠ promote failed: {rpc_err}\n"
+                    f"NOTHING was mutated — promote_block_edition is atomic; the "
+                    f"raise rolled the whole transaction back."
+                )
+            summary = rpc_result.data if isinstance(rpc_result.data, dict) else {}
+            new_number = summary.get("new_edition_number", suggested)
+            # T-30-LOG: ids/edition numbers only — never draft prose or reason text.
+            logger.info(
+                "[PROMOTE] promoted edition=%s shadow=%s primary=%s new_number=%s",
+                edition, shadow_id, primary_id, new_number,
+            )
+            return (
+                f"✅ Promoted: block A/B row {summary.get('shadow_id', shadow_id)} is now "
+                f"public edition #{new_number} (status: draft, do_not_publish cleared).\n"
+                f"Single-pass primary {summary.get('primary_id', primary_id)} is now "
+                f"status: {summary.get('primary_status', 'held')} (superseded).\n\n"
+                f"Next step: review, then send /newsletter_publish to distribute."
+            )
+
+        # PREVIEW (bare form — mutates NOTHING, calls NO rpc).
+        eval_result = (
+            sb.table("edition_evals")
+            .select("layer, attempt, eval_status, verdict")
+            .eq("newsletter_id", shadow_id)
+            .execute()
+        )
+        eval_rows = eval_result.data or []
+        if eval_rows:
+            # Labels/verdicts only (T-PROM-04) — mirrors the trend formatter style,
+            # never draft prose.
+            eval_summary = "\n".join(
+                f"  {r.get('layer', '?')} attempt={r.get('attempt', 0)} "
+                f"{r.get('verdict') or r.get('eval_status') or 'n/a'}"
+                for r in eval_rows
+            )
+        else:
+            eval_summary = "⚠ no eval recorded for this row"
+        logger.info(
+            "[PROMOTE] preview edition=%s shadow=%s primary=%s suggested=%s",
+            edition, shadow_id, primary_id, suggested,
+        )
+        return (
+            f"📋 Promote preview — edition #{edition} (block A/B → public series)\n\n"
+            f"Shadow row (will become public edition #{suggested}, status draft): {shadow_id}\n"
+            f"Primary row (will flip to held, superseded): {primary_id}\n"
+            f"Suggested public edition number: {suggested} (max published {max_published} + 1)\n\n"
+            f"Eval verdict(s) for the shadow row:\n{eval_summary}\n\n"
+            f"This is a PREVIEW — nothing was changed.\n"
+            f"To promote atomically, send: /newsletter_promote {edition} confirm"
+        )
+    except Exception as e:
+        logger.error("[PROMOTE] handler failed: %s", type(e).__name__, exc_info=True)
+        return f"⚠ promote failed: {e}"
+
+
 # ─── Agent Wallet Summary ─────────────────────────────────────────
 
 def _resolve_api_key(authorization: str | None) -> dict | None:
@@ -3291,6 +3465,24 @@ async def chat(req: ChatRequest, x_gato_secret: str = Header(None, alias="X-Gato
         unhold_response = handle_newsletter_unhold(req.message, access_tier)
         return ChatResponse(
             response=unhold_response,
+            session_id="",
+            intent="NEWSLETTER_COMMAND",
+            metadata={},
+        )
+
+    # 2c-5. Newsletter promote — owner-gated BRIDGE command promoting the block
+    # A/B shadow row to the public edition series via the atomic
+    # promote_block_edition RPC (migration 047), dispatched BEFORE the intent
+    # router. Two-step: bare form is a PREVIEW only; the explicit `confirm`
+    # token calls the RPC. `access_tier` threaded exactly like 2c-4.
+    # No prefix collision: "/newsletter_promote" does not start with
+    # "/newsletter_preview", "/newsletter_eval", or "/newsletter_unhold" (and
+    # vice versa), so branch order among them is safe — kept after 2c-4 for
+    # reading order.
+    if _msg_lower.startswith("/newsletter_promote"):
+        promote_response = handle_newsletter_promote(req.message, access_tier)
+        return ChatResponse(
+            response=promote_response,
             session_id="",
             intent="NEWSLETTER_COMMAND",
             metadata={},

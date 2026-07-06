@@ -39,6 +39,7 @@ const middleware = `
 /newsletter_preview — Preview on web (no send)
 /newsletter_eval — Eval scores & voice exemplars (owner)
 /newsletter_unhold [n] — Release a held edition (owner)
+/newsletter_promote [n] — Promote block A/B row to public edition (owner)
 /newsletter_publish — Publish draft
 /newsletter_revise [text] — Send revision notes
 /freshness — Excluded from next edition
@@ -117,7 +118,12 @@ const middleware = `
     // Another DISTINCT regex: /^\\/newsletter_eval\\b/ does NOT match /newsletter_unhold
     // (same Phase 9 dead-command landmine) — it must be OR'd into isGatoBrainCommand below.
     const isNewsletterUnhold = text && /^\\/newsletter_unhold\\b/i.test(text.trim());
-    const isGatoBrainCommand = isXCommand || isMapCommand || isCodeCommand || isCtoCommand || isNewsletterPreview || isNewsletterEval || isNewsletterUnhold;
+    // Another DISTINCT regex: /newsletter_promote shares only the /newsletter_p stem with
+    // /newsletter_preview and /newsletter_publish — the full \\b-anchored literals differ, so
+    // none of the three regexes matches another's command. Dead-command landmine (the
+    // Phase 9 /map-* lesson) unless OR'd into isGatoBrainCommand below.
+    const isNewsletterPromote = text && /^\\/newsletter_promote\\b/i.test(text.trim());
+    const isGatoBrainCommand = isXCommand || isMapCommand || isCodeCommand || isCtoCommand || isNewsletterPreview || isNewsletterEval || isNewsletterUnhold || isNewsletterPromote;
 
     if (text && (!text.startsWith("/") || isGatoBrainCommand)) {
       try {
